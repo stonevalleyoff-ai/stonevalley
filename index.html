@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>STONE VALLEY</title>
 <meta name="description" content="Stone Valley — une île vivante, en isométrie et en première personne.">
 <meta name="theme-color" content="#161a26">
@@ -19,26 +19,28 @@
   canvas{display:block;position:absolute;inset:0;}
   #c3{display:none;pointer-events:none;}
   .ui{position:fixed;z-index:2;pointer-events:none;}
-  #hud{top:60px;left:14px;font-size:13px;letter-spacing:.5px;line-height:1.7;
+  #hud{top:calc(60px + env(safe-area-inset-top));left:calc(14px + env(safe-area-inset-left));font-size:13px;letter-spacing:.5px;line-height:1.7;
     text-shadow:0 2px 6px rgba(0,0,0,.6);}
   #hud b{color:#ffd27d;font-weight:600;}
   #msg{top:32%;left:0;right:0;text-align:center;font-size:20px;letter-spacing:3px;
     text-transform:uppercase;color:#ffd27d;opacity:0;transition:opacity .35s;
     text-shadow:0 3px 10px rgba(0,0,0,.7);}
-  #rot{top:10px;right:12px;display:flex;gap:8px;}
+  /* L'encoche et la barre d'accueil des iPhone : on écarte les boutons des bords sûrs. */
+  #rot{top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));display:flex;gap:8px;}
   #rot button,#pad button{pointer-events:auto;background:rgba(22,26,38,.72);
     border:1px solid rgba(190,205,230,.28);color:#cfd6e4;border-radius:10px;
     font:inherit;font-size:15px;cursor:pointer;backdrop-filter:blur(3px);}
   #rot button{width:40px;height:40px;}
-  #pad{left:0;right:0;bottom:20px;display:flex;justify-content:space-between;padding:0 18px;align-items:flex-end;}
+  #pad{left:0;right:0;bottom:calc(20px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;
+    padding:0 calc(18px + env(safe-area-inset-right)) 0 calc(18px + env(safe-area-inset-left));align-items:flex-end;}
   #stick{pointer-events:auto;width:118px;height:118px;border-radius:50%;
     border:1px solid rgba(190,205,230,.22);background:rgba(22,26,38,.4);position:relative;}
   #knob{position:absolute;width:46px;height:46px;border-radius:50%;left:36px;top:36px;
     background:rgba(200,215,240,.5);border:1px solid rgba(255,255,255,.35);}
   #pad button.jump{width:78px;height:78px;border-radius:50%;font-size:13px;letter-spacing:1px;}
   #pad button:active,#rot button:active{background:rgba(255,210,125,.35);}
-  #tip{bottom:2px;left:0;right:0;text-align:center;font-size:11px;color:#6d778d;}
-  #actions{right:18px;bottom:112px;display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
+  #tip{bottom:calc(2px + env(safe-area-inset-bottom));left:0;right:0;text-align:center;font-size:11px;color:#6d778d;}
+  #actions{right:calc(18px + env(safe-area-inset-right));bottom:calc(112px + env(safe-area-inset-bottom));display:flex;flex-direction:column;gap:8px;align-items:flex-end;}
   #actions button{pointer-events:auto;background:rgba(22,26,38,.72);border:1px solid rgba(190,205,230,.28);
     color:#cfd6e4;border-radius:10px;font:inherit;font-size:12px;letter-spacing:1px;height:38px;padding:0 12px;
     cursor:pointer;backdrop-filter:blur(3px);}
@@ -936,7 +938,8 @@ P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.arc = null;
 // Les compagnes. Un lien d'éclat est une place : chaque bête liée en occupe un, qu'elle soit
 // dehors ou rentrée dans le sac. Autant de compagnes que de liens, six au plus.
 P.liens = 0; P.compagnes = [];
-P.camp = null;                  // le campement posé : { graine, x, y, z }
+P.camp = null;                  // le campement posé : { graine, x, y, z, niv }
+P.journal = { gardees: [], visites: [] };   // les graines tenues en mémoire, et les expéditions
 const LIENS_MAX = 6;
 
 const OBJETS = [
@@ -1500,7 +1503,9 @@ function poserCampement() {
   if (P.camp) { say('un campement est déjà posé · le reprendre d\'abord', 2.5); return false; }
   const q = placeCamp(P.x, P.y);
   if (!q) { say('il faut un sol plat et dégagé', 2.5); return false; }
+  q.niv = 1;
   P.camp = q; P.objets.foyer = 1;                      // la pierre de foyer vient avec
+  noterVisite();                                       // l'île du campement ouvre le journal
   burst(q.x, q.y, q.z + .6, 26, '#ffd27d');
   say('campement posé · île ' + nomIle(SEED), 3);
   majSac();
@@ -1559,6 +1564,124 @@ function seReposer() {
   say('repos au feu' + (n ? ' · ' + n + ' compagne' + (n > 1 ? 's' : '') + ' rassasiée' + (n > 1 ? 's' : '') : ''), 2.5);
   if (sacOuvert) majSac();
   return true;
+}
+
+// ============================================================
+//  LE JOURNAL DES GRAINES
+//  Le campement tient un journal : chaque île visitée y laisse sa fiche — sa graine, ce qu'on y
+//  trouve (biomes, bestiaire), et à qui elle est. Les expéditions s'y inscrivent seules ; garder
+//  une graine, c'est pouvoir y retourner, et la mémoire du journal est celle du campement.
+//  Un campement neuf ne retient qu'une graine ; amélioré à l'éclat, il en retient trois, puis six,
+//  et son portail sait viser au lieu de tirer au hasard.
+// ============================================================
+const CAMP_NIV = [
+  { niv: 1, n: 'Campement', memoire: 1, cout: null, d: 'une graine en mémoire · portail au hasard' },
+  { niv: 2, n: 'Campement gravé', memoire: 3, cout: { eclat: 24, pierre: 30 },
+    d: 'trois graines en mémoire · le portail vise une île gardée' },
+  { niv: 3, n: 'Campement d\'éclat', memoire: 6, cout: { eclat: 60, pierre: 40, os: 24 },
+    d: 'six graines en mémoire · portail dirigé' },
+];
+const nivCamp = () => (P.camp && P.camp.niv) || 1;
+const paletteCamp = () => CAMP_NIV[Math.min(CAMP_NIV.length, nivCamp()) - 1];
+const memoireJournal = () => paletteCamp().memoire;
+const portailDirige = () => nivCamp() >= 2;
+const VISITES_MAX = 24;
+// Ce que vaut une île : ses trois biomes dominants, son bestiaire, son eau, ses îles volantes.
+let compoCache = null;
+function composerIle() {
+  if (compoCache && compoCache.g === SEED) return compoCache;
+  const parts = new Array(BIOME.length).fill(0);
+  let terre = 0, eaux = 0, creux = 0;
+  for (let i = 0; i < WS * WS; i++) {
+    const b = Bio[i];
+    if (b === 8) { creux++; continue; }
+    if (Hgt[i] <= SEA) continue;
+    terre++; parts[b]++;
+    if (Eau[i]) eaux++;
+  }
+  // Gouffres et îles volantes se comptent en morceaux, pas en cases : un parcours par morceau.
+  const morceaux = (dedans) => {
+    const vu = new Uint8Array(WS * WS); let n = 0;
+    const file = new Int32Array(4096);
+    for (let i = 0; i < WS * WS; i++) {
+      if (vu[i] || !dedans(i)) continue;
+      n++; let a = 0, b = 0; file[b++] = i; vu[i] = 1;
+      while (a < b) {
+        const j = file[a++], x = j % WS, y = (j / WS) | 0;
+        for (const [dx, dy] of SIDES) {
+          const u = x + dx, v = y + dy;
+          if (u < 0 || v < 0 || u >= WS || v >= WS) continue;
+          const k = v * WS + u;
+          if (vu[k] || !dedans(k)) continue;
+          vu[k] = 1; if (b < file.length) file[b++] = k; else { a = 0; b = 0; }   // morceau immense : on s'arrête là
+        }
+      }
+    }
+    return n;
+  };
+  const vol = morceaux(i => PlT[i] > 0);                 // les îles volantes se comptent
+  const gouffre = Math.round(creux * 100 / Math.max(1, terre + creux));   // les gouffres, eux, se mesurent
+  const b = parts.map((n, i) => [i, n]).filter(([i, n]) => n > 0 && i !== 0)
+    .sort((x, y) => y[1] - x[1]).slice(0, 3)
+    .map(([i, n]) => [i, Math.round(n * 100 / Math.max(1, terre))]);
+  const c = SPEC.map(sp => beasts.reduce((n, o) => n + (o.sp === sp && !o.dead && !o.tame ? 1 : 0), 0));
+  compoCache = { g: SEED, b, c, eau: Math.round(eaux * 100 / Math.max(1, terre)), vol, gouffre };
+  return compoCache;
+}
+const ditBiomes = o => (o.b || []).map(([i, p]) => BIOME[i].n + ' ' + p + ' %').join(' · ') || '—';
+const ditBetes = o => SPEC.map((sp, i) => (o.c && o.c[i]) ? sp.n.toLowerCase() + ' ' + o.c[i] : null)
+  .filter(Boolean).join(' · ') || 'aucune bête vue';
+const ditProprio = g => P.camp && P.camp.graine === g ? 'votre campement' : 'libre';
+// Une fiche d'île, telle qu'elle s'inscrit au journal.
+const ficheIle = (g, o) => Object.assign({ g, t: Date.now() }, o ? { b: o.b, c: o.c, eau: o.eau, vol: o.vol, gouffre: o.gouffre } : {});
+function noterVisite() {
+  const j = P.journal, o = composerIle();
+  const f = ficheIle(SEED, o);
+  j.visites = [f, ...(j.visites || []).filter(v => v.g !== SEED)].slice(0, VISITES_MAX);
+  const k = (j.gardees || []).find(v => v.g === SEED);            // une île gardée se met à jour
+  if (k) Object.assign(k, f, { nom: k.nom });
+}
+const gardee = g => (P.journal.gardees || []).find(v => v.g === g);
+function garderGraine(g, nom) {
+  const j = P.journal;
+  if (gardee(g)) { say('déjà au journal', 1.6); return false; }
+  if (j.gardees.length >= memoireJournal()) {
+    say('journal plein · ' + j.gardees.length + ' graine' + (j.gardees.length > 1 ? 's' : '') + ' sur ' + memoireJournal(), 3);
+    return false;
+  }
+  const v = j.visites.find(x => x.g === g) || ficheIle(g, g === SEED ? composerIle() : null);
+  j.gardees.push(Object.assign({}, v, nom ? { nom } : {}, { garde: Date.now() }));
+  say('île ' + nomIle(g) + ' gardée au journal', 2.4);
+  majSac();
+  return true;
+}
+function oublierGraine(g) {
+  P.journal.gardees = (P.journal.gardees || []).filter(v => v.g !== g);
+  majSac();
+}
+function ameliorerCamp() {
+  if (!P.camp) { say('aucun campement', 2); return false; }
+  const suite = CAMP_NIV[nivCamp()];                              // le niveau suivant
+  if (!suite) { say('le campement est au plus haut', 2); return false; }
+  if (!campIci() || !auCamp()) { say('il faut être à votre campement', 2.5); return false; }
+  if (!essai) {
+    for (const [r, n] of Object.entries(suite.cout)) if (P.sac[r] < n) { say('matières manquantes', 1.8); return false; }
+    for (const [r, n] of Object.entries(suite.cout)) P.sac[r] -= n;
+  }
+  P.camp.niv = suite.niv;
+  burst(P.camp.x, P.camp.y, P.camp.z + 1, 26, '#8fe4e8');
+  say(suite.n + ' · mémoire ' + suite.memoire + ' graine' + (suite.memoire > 1 ? 's' : ''), 3);
+  majSac();
+  return true;
+}
+// Le portail dirigé : on part vers une île gardée, au lieu d'en tirer une.
+function partirVers(g) {
+  if (!P.camp) return false;
+  if (!portailDirige()) { say('le portail ne vise pas encore · améliorez le campement', 3); return false; }
+  if (!auCamp()) { say('le portail est à votre campement', 2.5); return false; }
+  if (g === SEED) { say('vous y êtes déjà', 2); return false; }
+  burst(P.x, P.y, P.z + .8, 24, '#8fe3ff');
+  return voyagerVers(g, null, 'cap sur l\'île ' + nomIle(g));
 }
 
 // ---------- les sorts ----------
@@ -1887,6 +2010,12 @@ const DESSINS = {
     d.disque(8, 10.5, 2.2, PIX.or); d.disque(8, 10, 1.2, PIX.orC);
     d.ligne(8, 3, 8, 7, PIX.or); d.ligne(7, 5, 7, 8, PIX.orC); d.ligne(9, 5, 9, 8, PIX.orC);
   },
+  ongletJournal: d => {                                              // un carnet et son signet
+    d.rect(3, 2, 12, 14, PIX.papier); d.rect(3, 2, 4, 14, PIX.cuir);
+    d.ligne(6, 5, 11, 5, PIX.gris); d.ligne(6, 7, 11, 7, PIX.gris); d.ligne(6, 9, 10, 9, PIX.gris);
+    d.rect(9, 2, 10, 7, PIX.rouge); d.net(9, 8, PIX.rougeC);
+    d.disque(7.5, 12, 1.4, PIX.eclat);
+  },
   ongletCamp: d => {                                                 // la tente seule
     for (let k = 0; k < 7; k++) d.ligne(8 - k, 13 - k, 8 + k, 13 - k, k > 4 ? PIX.fibreF : PIX.fibre);
     d.rect(7, 9, 9, 13, PIX.boisF); d.rect(1, 14, 15, 14, PIX.bois);
@@ -2004,6 +2133,7 @@ const ONGLETS = [
   { id: 'etabli', n: 'Établi', ic: 'ongletEtabli' },
   { id: 'compagnes', n: 'Compagnes', ic: 'ongletCompagnes' },
   { id: 'camp', n: 'Campement', ic: 'ongletCamp' },
+  { id: 'journal', n: 'Journal', ic: 'ongletJournal' },
   { id: 'sauve', n: 'Sauvegarde', ic: 'ongletSauve' },
   { id: 'reglages', n: 'Réglages', ic: 'ongletReglages' },
 ];
@@ -2202,6 +2332,46 @@ function ouEstCompagne(c) {
     : c.b.etat === 'récolter' && !c.b.tache ? 'explore l\'île' : DITS_ETAT[c.b.etat] || c.b.etat;
   return `Dehors · ${fait} · ${d < 2 ? 'à vos pieds' : 'à ' + d + ' pas'}`;
 }
+// ---------- onglet Journal ----------
+// Trois parties : l'île où l'on est, les graines gardées (la mémoire du campement), et les
+// dernières expéditions. Chaque fiche dit ce qu'on y trouve et à qui elle est.
+function ficheGraine(v, gardee_) {
+  const ici = v.g === SEED;
+  const dit = [ditBiomes(v), ditBetes(v)];
+  const part = [v.eau ? 'eau ' + v.eau + ' %' : '', v.vol ? v.vol + ' île' + (v.vol > 1 ? 's' : '') + ' volante' + (v.vol > 1 ? 's' : '') : '',
+    v.gouffre ? 'gouffres ' + v.gouffre + ' %' : ''].filter(Boolean).join(' · ');
+  const boutons = [];
+  if (gardee_) {
+    if (!ici) boutons.push(`<button data-jr="aller" data-g="${v.g}"${portailDirige() && auCamp() ? '' : ' disabled'}>Partir</button>`);
+    boutons.push(`<button data-jr="oublier" data-g="${v.g}">Oublier</button>`);
+  } else if (!gardee(v.g)) boutons.push(`<button data-jr="garder" data-g="${v.g}">Garder</button>`);
+  return `<div class="obj${ici ? ' porte' : ''}"><div style="flex:1;min-width:0">`
+    + `<div class="n">${ESC(v.nom || 'Île ' + nomIle(v.g))}${ici ? ' · vous y êtes' : ''}</div>`
+    + `<div class="d">${ESC(dit[0])}<br>${ESC(dit[1])}${part ? '<br>' + ESC(part) : ''}<br>`
+    + `<span style="color:var(--or)">${ESC(ditProprio(v.g))}</span></div></div>`
+    + `<div style="display:flex;flex-direction:column;gap:6px">${boutons.join('')}</div></div>`;
+}
+function pageJournal() {
+  if (!P.camp)
+    return `<div class="sac-corps lignes"><div class="vide-texte">`
+      + `<p style="margin:10px 0 0">Le journal est celui du campement : posez-en un pour l'ouvrir.</p>`
+      + `<p style="margin:0">Il garde les graines des îles visitées, ce qu'on y trouve, et permet d'y retourner.</p>`
+      + `<button class="btn principal" data-onglet="camp">Voir le campement</button></div></div>`;
+  const j = P.journal, m = memoireJournal();
+  const ici = j.visites.find(v => v.g === SEED) || ficheIle(SEED, composerIle());
+  const gardees = (j.gardees || []).map(v => ficheGraine(v, true)).join('')
+    || `<p class="note" style="margin:2px 2px 8px">Aucune graine gardée. Gardez celle d'une île pour y revenir par le portail.</p>`;
+  const passees = (j.visites || []).filter(v => v.g !== SEED && !gardee(v.g)).slice(0, 8);
+  return `<div class="sac-corps lignes">`
+    + `<h3>Ici <span class="compte">graine ${ESC(String(SEED))}</span></h3>${ficheGraine(ici, false)}`
+    + `<h3>Mémoire du journal <span class="compte">${(j.gardees || []).length} sur ${m}</span></h3>${gardees}`
+    + (nivCamp() < CAMP_NIV.length
+      ? `<p class="note" style="margin:2px 2px 10px">Un campement amélioré (onglet Campement) retient ${CAMP_NIV[nivCamp()].memoire} graines${portailDirige() ? '' : ' et apprend au portail à viser'}.</p>` : '')
+    + `<h3>Expéditions <span class="compte">${(j.visites || []).length} île${(j.visites || []).length > 1 ? 's' : ''} connue${(j.visites || []).length > 1 ? 's' : ''}</span></h3>`
+    + (passees.length ? passees.map(v => ficheGraine(v, false)).join('')
+      : `<p class="note" style="margin:2px 2px 0">Aucune autre île visitée. Le portail du campement en ouvre une au hasard.</p>`)
+    + `</div>`;
+}
 // ---------- onglet Campement ----------
 // Trois blocs : le campement lui-même, le portail, le feu. Rien de plus tant que le coffre et le
 // travail des compagnes ne sont pas là — la page le dit, plutôt que de laisser croire à un oubli.
@@ -2227,9 +2397,12 @@ function pageCampement() {
   return `<div class="sac-corps lignes">`
     + `<div class="fiche">${caseObjet('campement', { taille: 'grande', inerte: true })}`
     + `<div class="fiche-texte"><h4>Île ${ESC(nomIle(P.camp.graine))}</h4>`
-    + `<p>Votre campement · ${ESC(etat)}</p>`
+    + `<p>${ESC(paletteCamp().n)} · ${ESC(etat)}</p>`
     + `<span class="genre">${ici ? 'case ' + (P.camp.x | 0) + ', ' + (P.camp.y | 0) : 'île actuelle : ' + ESC(nomIle(SEED))}</span></div></div>`
     + `<h3>Portail</h3>`
+    + (portailDirige() ? `<div class="obj"><div><div class="n">Viser une île gardée</div>`
+        + `<div class="d">le journal tient ${(P.journal.gardees || []).length} graine${(P.journal.gardees || []).length > 1 ? 's' : ''} · le départ se choisit au journal</div></div>`
+        + `<button data-onglet="journal">Journal</button></div>` : '')
     + `<div class="obj"><div><div class="n">Partir vers une île au hasard</div>`
     + `<div class="d">${proche ? 'l\'arche s\'ouvre sur une île inconnue · la pierre de foyer vous ramènera ici'
         : ici ? 'approchez-vous du campement pour l\'ouvrir' : 'le portail est resté sur votre île'}</div></div>`
@@ -2242,6 +2415,17 @@ function pageCampement() {
     + `<div class="obj"><div><div class="n">Se reposer au feu</div>`
     + `<div class="d">${proche ? 'santé et mana refaits, compagnes alentour rassasiées' : 'il faut être au campement'}</div></div>`
     + `<button data-camp="repos"${proche ? '' : ' disabled'}>Se reposer</button></div>`
+    + `<h3>Améliorer</h3>`
+    + (() => {
+        const suite = CAMP_NIV[nivCamp()];
+        if (!suite) return `<div class="obj"><div><div class="n">${ESC(paletteCamp().n)}</div>`
+          + `<div class="d">au plus haut · ${ESC(paletteCamp().d)}</div></div></div>`;
+        const cout = Object.entries(suite.cout).map(([r, n]) => `${n} ${RES[r]}`).join(' · ');
+        const payable_ = essai || Object.entries(suite.cout).every(([r, n]) => P.sac[r] >= n);
+        return `<div class="obj"><div><div class="n">${ESC(suite.n)}</div>`
+          + `<div class="d">${ESC(suite.d)}<br>${ESC(cout)}${payable_ ? '' : ' · matières manquantes'}</div></div>`
+          + `<button data-camp="ameliorer"${payable_ && proche ? '' : ' disabled'}>Améliorer</button></div>`;
+      })()
     + `<h3>Déplacer</h3>`
     + `<div class="obj${conf ? ' porte' : ''}"><div><div class="n">Reprendre le campement</div>`
     + `<div class="d">${conf ? 'encore un clic : l\'île ne sera plus la vôtre' : ici ? 'il retourne au sac, à poser ailleurs' : 'il faut être sur son île'}</div></div>`
@@ -2358,6 +2542,10 @@ function pageReglages() {
     + `<div class="obj"><div><div class="n">Tout fabriquer</div>`
     + `<div class="d">Passe en mode essai, débloque tous les objets, ajoute 64 flèches et ${LIENS_MAX} liens.</div></div>`
     + `<button data-tout="1">Fabriquer</button></div>`
+    + `<h3>Diagnostic</h3>`
+    + `<div class="obj"><div><div class="n">${G3.ok && !G3.perdu ? 'Carte graphique active' : 'Tracé en canvas'}${(globalThis.__PANNE || {}).repli ? ' (repli automatique)' : ''}</div>`
+    + `<div class="d">${(globalThis.__PANNE || {}).n ? __PANNE.n + ' incident(s) · ' + __PANNE.dernier.replace(/[<>]/g, '') : 'Aucun incident.'}`
+    + ` · ${innerWidth}×${innerHeight} · ${Math.round(devicePixelRatio * 100) / 100}× · ${(navigator.userAgent || '').slice(0, 70)}</div></div></div>`
     + `<h3>Commandes</h3><dl class="touches">${touches.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
     + `</div>`;
 }
@@ -2374,7 +2562,8 @@ function majSac() {
   const focus = document.activeElement && document.activeElement.closest && document.activeElement.closest('#sac [data-onglet], #sac [data-recette], #sac [data-choix], #sac [data-filtre], #sac [data-comp], #sac [data-role]');
   const focusCle = focus ? ['onglet', 'recette', 'choix', 'filtre', 'comp', 'role'].map(k => focus.dataset[k] !== undefined ? `[data-${k}="${focus.dataset[k]}"]` : '').join('') : '';
   feuilleIcones();
-  const page = { sac: pageSac, etabli: pageEtabli, compagnes: pageCompagnes, camp: pageCampement, sauve: pageSauve, reglages: pageReglages }[ongletSac]();
+  const page = { sac: pageSac, etabli: pageEtabli, compagnes: pageCompagnes, camp: pageCampement,
+    journal: pageJournal, sauve: pageSauve, reglages: pageReglages }[ongletSac]();
   let nDefil = 0;
   const titre = ONGLETS.find(o => o.id === ongletSac).n;
   const rail = ONGLETS.map((o, i) =>
@@ -2440,7 +2629,15 @@ function clicSac(b) {
       if (maintenantSac() < confirmeCamp) { confirmeCamp = 0; reprendreCampement(); }
       else { confirmeCamp = maintenantSac() + 5; setTimeout(() => { if (sacOuvert && ongletSac === 'camp') majSac(); }, 5100); }
     }
+    else if (d.camp === 'ameliorer') ameliorerCamp();
     else if (d.camp === 'ouvrir') choisirOnglet('camp');
+    majSac();
+  }
+  else if (d.jr) {
+    const g = +d.g;
+    if (d.jr === 'garder') garderGraine(g);
+    else if (d.jr === 'oublier') oublierGraine(g);
+    else if (d.jr === 'aller') partirVers(g);
     majSac();
   }
   else if (d.comp) { choixComp = d.comp === 'libre' ? 'libre' : +d.comp; confirmeLibere.id = null; majSac(); montrerFiche(); }
@@ -6277,7 +6474,8 @@ function photo() {
     fleches: P.fleches, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     vies: lives,
     camp: P.camp ? { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100,
-                     y: Math.round(P.camp.y * 100) / 100, z: P.camp.z } : null,
+                     y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: P.camp.niv || 1 } : null,
+    journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     pos: [P.x, P.y, P.z].map(v => Math.round(v * 100) / 100),
     sol: P.sol ? P.sol.map(v => Math.round(v * 100) / 100) : null,
     heure: Math.round(horloge * 10000) / 10000,
@@ -6297,7 +6495,8 @@ function photo() {
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
 const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.fleches, P.baies, lives, Math.round(P.pv * 10),
-  P.camp ? [P.camp.graine, P.camp.x, P.camp.y] : 0,
+  P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
+  (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
   P.liens, P.compagnes.map(c => [c.id, c.nom, c.role, c.dehors ? 1 : 0, c.ko ? 1 : 0, Math.round((c.b ? c.b.pv : c.pv) * 10)])]);
 
 // Une sauvegarde vient de l'extérieur : on la lit comme telle, en bornant chaque valeur.
@@ -6330,8 +6529,23 @@ function appliquer(d, vivantes) {
   const c = d.camp;
   P.camp = (c && Number.isInteger(c.graine) && Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z)
     && c.x > 1 && c.y > 1 && c.x < WS - 1 && c.y < WS - 1)
-    ? { graine: c.graine, x: c.x, y: c.y, z: nb(c.z, -8, 64, 0) } : null;
+    ? { graine: c.graine, x: c.x, y: c.y, z: nb(c.z, -8, 64, 0), niv: nb(c.niv, 1, CAMP_NIV.length, 1) | 0 } : null;
   if (!P.camp) delete P.objets.foyer; else P.objets.foyer = 1;
+  // le journal : des graines entières, des chiffres bornés, et pas plus que ce qu'on peut tenir
+  const fiche = v => (v && Number.isInteger(v.g)) ? {
+    g: v.g, t: Number.isFinite(v.t) ? v.t : 0,
+    b: Array.isArray(v.b) ? v.b.filter(x => Array.isArray(x) && Number.isInteger(x[0]) && x[0] < BIOME.length).slice(0, 3)
+         .map(x => [x[0], nb(x[1], 0, 100, 0) | 0]) : [],
+    c: Array.isArray(v.c) ? v.c.slice(0, SPEC.length).map(n => nb(n, 0, 999, 0) | 0) : [],
+    eau: nb(v.eau, 0, 100, 0) | 0, vol: nb(v.vol, 0, 999, 0) | 0, gouffre: nb(v.gouffre, 0, 999, 0) | 0,
+    nom: typeof v.nom === 'string' ? v.nom.slice(0, 24) : undefined,
+  } : null;
+  const jr = d.journal || {};
+  const vus = new Set();
+  const propre = (l, max) => (Array.isArray(l) ? l : []).map(fiche).filter(v => v && !vus.has(v.g) && vus.add(v.g)).slice(0, max);
+  P.journal = { gardees: propre(jr.gardees, 12), visites: [] };
+  vus.clear();
+  P.journal.visites = propre(jr.visites, VISITES_MAX);
   const valide = p => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite)
     && p[0] >= 1 && p[1] >= 1 && p[0] < WS - 1 && p[1] < WS - 1 && bAt(p[0] | 0, p[1] | 0) !== 8;
   if (d.graine === SEED && valide(d.pos)) {
@@ -6470,6 +6684,7 @@ function adopter(r) {
     return;
   }
   appliquer(d);
+  if (P.camp) noterVisite();
   Sauve.signature = signature(); Sauve.pos = [P.x, P.y];
   ecrireLocal();
   say('personnage retrouvé', 2.5);
@@ -6504,6 +6719,7 @@ function demarrerSauvegarde() {
     Sauve.rev = l.rev | 0; Sauve.sale = !!l.sale; Sauve.quand = l.quand || 0;
     if (l.donnees && l.donnees.graine === SEED) appliquer(l.donnees);
   } else Sauve.sale = true;                              // première partie de ce compte ici
+  if (P.camp) noterVisite();                             // l'arrivée s'inscrit au journal
   Sauve.signature = signature(); Sauve.pos = [P.x, P.y]; Sauve.pret = true;
   ecrireLocal();
   synchroniser();                                        // a-t-on joué ailleurs depuis ?
@@ -6783,19 +6999,46 @@ loadWorld();
 ouvrirPorte();
 let last = performance.now();
 let accSec = 0, accImg = 0;
+// Une image qui casse ne doit pas tuer la boucle : sinon l'écran reste noir et seuls les
+// boutons HTML répondent (c'est ce qu'on a vu sur iPhone). On rattrape, on note, et si le
+// tracé par la carte graphique est en cause on retombe sur le canvas.
+const Panne = { n: 0, dernier: '', repli: false };
+globalThis.__PANNE = Panne;
+function rattraper(e, ou) {
+  Panne.n++;
+  Panne.dernier = ou + ' · ' + ((e && e.message) || e) + ((e && e.stack) ? ' · ' + String(e.stack).split('\n')[1] : '');
+  if (Panne.n === 1) console.error('Stone Valley', Panne.dernier, e);
+  // deux images cassées de suite pendant le dessin : on coupe la carte graphique
+  if (ou === 'dessin' && !Panne.repli) {
+    Panne.repli = true; G3.perdu = true; isoGL = false;
+    try { cv3.style.display = 'none'; cv3.__vu = false; } catch (_) {}
+    try { say('AFFICHAGE SIMPLIFIÉ', 4); } catch (_) {}
+  }
+}
 function frame(now) {
   const dt = Math.min(.05, Math.max(0, (now - last) / 1000)); last = now;
-  update(dt);
-  const t0 = performance.now(); draw(); const t1 = performance.now();
+  try { update(dt); } catch (e) { rattraper(e, 'monde'); }
+  const t0 = performance.now();
+  try { draw(); } catch (e) { rattraper(e, 'dessin'); }
+  const t1 = performance.now();
   msDessin += (t1 - t0 - msDessin) * .06;               // moyenne glissante, sinon ça saute
   accSec += dt; accImg++;
   if (accSec >= .5) { imgSec = accImg / accSec; accSec = 0; accImg = 0; }
-  if (mode === 'iso' && G3.ok && !G3.perdu) G3.prechauffer();
-  if (sacOuvert && ongletSac === 'compagnes') majJaugesCompagnes();   // les besoins bougent sac ouvert
-  majSauvegarde();
+  try {
+    if (mode === 'iso' && G3.ok && !G3.perdu) G3.prechauffer();
+    if (sacOuvert && ongletSac === 'compagnes') majJaugesCompagnes();   // les besoins bougent sac ouvert
+    majSauvegarde();
+  } catch (e) { rattraper(e, 'suite'); }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+// Ce qui casse hors de la boucle (un bouton, un chargement) se note aussi, pour le rapport.
+addEventListener('error', e => { if (!Panne.dernier) Panne.dernier = 'page · ' + (e.message || '') ; Panne.n++; });
+addEventListener('unhandledrejection', e => { Panne.n++; if (!Panne.dernier) Panne.dernier = 'promesse · ' + ((e.reason && e.reason.message) || e.reason); });
+// iOS : le double-tape et le pincement zooment la page et déplacent les boutons. On les refuse.
+for (const g of ['gesturestart', 'gesturechange', 'gestureend'])
+  addEventListener(g, e => e.preventDefault(), { passive: false });
+document.addEventListener('dblclick', e => e.preventDefault(), { passive: false });
 
 // L'application installable : le service worker garde la page et ses images pour jouer hors ligne.
 if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
@@ -6813,7 +7056,8 @@ globalThis.__ISO = { P, proj, depth, hAt, blockH, floorUnder, blockedAt, camPris
   G3, boiteVue, cameraFPS, get isoGL(){return isoGL}, set isoGL(v){isoGL=v},
   proj, TW, ZH, get TH(){return TH}, get TZ(){return TZ}, get camX(){return camX}, get camY(){return camY}, get camZ(){return camZ}, masqueHaut, masqueBiome, masqueFlanc, formeFlore, get FC(){return FC}, signalDecor, Flo, get textures(){return textures}, set textures(v){textures=v},
   Sauve, SUPA, SEED, graineSauvee, photo, appliquer, signature, synchroniser, envoyer, adopter,
-  campIci, placeCamp, emitCamp, VIEW_ISO, appliquer, poserCampement, reprendreCampement, ouvrirPortail, rentrerAuCampement,
+  campIci, placeCamp, emitCamp, VIEW_ISO, appliquer, composerIle, noterVisite, garderGraine, oublierGraine,
+  ameliorerCamp, partirVers, memoireJournal, portailDirige, nivCamp, CAMP_NIV, pageJournal, poserCampement, reprendreCampement, ouvrirPortail, rentrerAuCampement,
   seReposer, voyagerVers, nomIle, campOs, pageCampement, auCamp,
   Compte, Porte, porteMode, porteValider, connexion, inscription, oubli, nouveauMdp, entrer, quitterCompte, effacerPersonnage, majSauvegarde, blocSauvegarde, actionSauvegarde, demarrerSauvegarde, entrerEssai, sortirEssai, nouvelleIle, get lives(){return lives}, set lives(v){lives=v},
   get horloge(){return horloge}, majSac, ouvrirSac, get sacOuvert(){return sacOuvert},
