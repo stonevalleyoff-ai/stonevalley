@@ -41,6 +41,26 @@ Rien d'autre à faire côté base : la table `vp_comptes` et les trois fonctions
 4. **Mot de passe oublié** envoie un lien qui ramène sur le jeu et demande un nouveau mot de passe.
 5. Dans le sac, onglet **Sauvegarde** : l'état de la sauvegarde, le compte, la déconnexion, l'effacement du personnage et le changement d'île.
 
-## 4. Mettre à jour le jeu plus tard
+## 4. Le multijoueur
+
+Les joueurs se voient et se frappent par la **diffusion Realtime** de Supabase : deux canaux publics
+(`sv:monde` pour savoir qui est où, `sv:ile:<graine>` pour l'île en cours). Rien n'est écrit en base,
+donc aucune table ni règle à ajouter — il suffit que **Realtime soit activé** sur le projet (c'est le
+cas par défaut ; à vérifier dans *Project Settings › Realtime* s'il ne se passe rien).
+
+L'état de la connexion s'affiche dans l'onglet **Journal**, en tête du bloc « En ligne » :
+`en ligne` quand tout va bien, `coupé` sinon (le jeu réessaie tout seul, de plus en plus lentement).
+
+**Le quota.** Realtime compte un message à l'envoi *plus un par destinataire*. Le jeu envoie cinq
+positions par seconde et par joueur : à deux sur la même île, cela fait une vingtaine de messages
+par seconde, soit environ 75 000 à l'heure. Le quota gratuit de 2 millions par mois tient donc
+autour de **25 heures de jeu à deux**. À quatre sur la même île, comptez quatre fois moins.
+La consommation se lit dans le tableau de bord Supabase, *Organisation › Usage › Realtime Messages*.
+
+Pour se retrouver à deux : chacun se connecte, le bloc « En ligne » du journal montre l'autre et
+l'île où il se trouve, et le bouton **Rejoindre** (depuis son propre campement) ouvre le portail
+vers cette île.
+
+## 5. Mettre à jour le jeu plus tard
 
 Remplacer `index.html` dans le dépôt : la page passe par le réseau d'abord, les testeurs ont donc la nouvelle version au chargement suivant. En cas de doute, changer le numéro dans `sw.js` (`const CACHE = 'stone-valley-1'`) pour vider le cache de tout le monde.
