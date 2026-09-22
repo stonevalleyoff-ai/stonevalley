@@ -372,6 +372,16 @@ function graineSauvee() {
     return Number.isInteger(g) ? g : null;
   } catch (e) { return null; }
 }
+// La profondeur de l'expédition se lit en même temps que la graine, avant que le monde ne se
+// peuple : c'est elle qui dit combien de chasseurs l'île doit porter.
+function expSauvee() {
+  try {
+    const s = JSON.parse(localStorage.getItem(STOCKAGE) || 'null');
+    const e = s && s.donnees && s.donnees.exp;
+    if (!e || !Number.isFinite(e.s)) return null;
+    return { sauts: Math.max(0, Math.min(99, e.s | 0)), coeurs: Math.max(0, Math.min(3, e.c | 0)) };
+  } catch (e) { return null; }
+}
 const SEED = graineSauvee() ?? ((Math.random() * 1e9) | 0);
 const nA = mkNoise(SEED), nB = mkNoise(SEED ^ 0x9e37), nC = mkNoise(SEED ^ 0x51ed);
 const MAXH = 24;                                     // relief bien plus marqué qu'avant
@@ -940,6 +950,13 @@ P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.arc = null;
 P.liens = 0; P.compagnes = [];
 P.camp = null;                  // le campement posé : { graine, x, y, z, niv }
 P.journal = { gardees: [], visites: [] };   // les graines tenues en mémoire, et les expéditions
+P.pseudo = null;                // le nom vu par les autres joueurs ; sans lui, l'adresse fait foi
+// Le coffre du campement : ce qui y est déposé ne risque plus rien. Le sac, lui, voyage.
+P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, baies: 0 };
+// L'expédition en cours : les sauts faits depuis le campement, et les cœurs perdus en route.
+// Elle se lit avant le peuplement de l'île, sinon la première fournée de bêtes ignorerait
+// qu'on est à cinq sauts de chez soi.
+P.exp = expSauvee() || { sauts: 0, coeurs: 0 };
 const LIENS_MAX = 6;
 
 const OBJETS = [
@@ -1304,9 +1321,15 @@ function agir() {
     const d = Math.hypot(b.x - P.x, b.y - P.y);
     if (Math.abs(b.z - P.z) < 2 && d < dp) { dp = d; pr = b; }
   }
+  // Un joueur d'en face, ou l'une de ses compagnes, est une cible comme le reste : on prend
+  // la plus proche des deux mondes.
+  if (a) {
+    const cl = cibleLoin(P.x, P.y, P.z, Math.min(dp, a.port));
+    if (cl) { if (P.frappe > 0) return; P.frappe = .35; frapperLoin(cl, degJoueur(a.deg)); return; }
+  }
   if (a && pr && dp <= a.port) {
     if (P.frappe > 0) return;
-    P.frappe = .35; pr.pv -= a.deg; pr.hit = .25; pr.alarm = 1; blesseParJoueur(pr);
+    P.frappe = .35; pr.pv -= degJoueur(a.deg); pr.hit = .25; pr.alarm = 1; blesseParJoueur(pr);
     lacherParoi(pr);                                   // frappée sur sa paroi, elle tombe
     pr.vx += (pr.x - P.x) * 3; pr.vy += (pr.y - P.y) * 3;
     burst(pr.x, pr.y, pr.z + .4, 9, '#ffb0a0');
@@ -1409,10 +1432,19 @@ function planter(f) {
 // Retourne vrai si la flèche s'arrête là. Les dégâts suivent la vitesse à l'impact :
 // une flèche mollement décochée pique et ne fait presque rien.
 function impactFleche(f, nx, ny, nz) {
+  for (const b of betesLoin) if (b.pv > 0 && toucheBete(b, nx, ny, nz)) {
+    frapperLoin({ j: b.loin, b }, f.deg * Math.min(1, Math.hypot(f.vx, f.vy, f.vz) / ARC_VMAX));
+    return true;
+  }
+  for (const j of Autres.values()) if (j.pv > 0
+      && (j.x - nx) ** 2 + (j.y - ny) ** 2 < .36 && nz > j.z - .2 && nz < j.z + 1.5) {
+    frapperLoin({ j, b: null }, f.deg * Math.min(1, Math.hypot(f.vx, f.vy, f.vz) / ARC_VMAX));
+    return true;
+  }
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {        // une flèche épargne les compagnes
     if (toucheBete(b, nx, ny, nz)) {
       const v = Math.hypot(f.vx, f.vy, f.vz), deg = f.deg * Math.min(1, v / ARC_VMAX);
-      b.pv -= deg; b.hit = .25; b.alarm = 1; blesseParJoueur(b);
+      b.pv -= degJoueur(deg); b.hit = .25; b.alarm = 1; blesseParJoueur(b);
       lacherParoi(b);                                   // fichée dans une bête qui grimpe : elle tombe
       b.vx += f.vx * .18; b.vy += f.vy * .18;
       burst(nx, ny, nz, 10, '#ffb0a0');
@@ -1521,8 +1553,12 @@ function reprendreCampement() {
 // Changer d'île : on écrit la copie locale avec la nouvelle graine, puis la page repart.
 function voyagerVers(g, pos, mot) {
   if (essai) sortirEssai();
+  debrancher('changement d\'île');                   // on prévient avant de disparaître
   const d = photo();
   d.graine = g; d.pos = pos || null; d.sol = null;
+  // S'éloigner creuse l'expédition ; rentrer chez soi la garde telle quelle, pour que le
+  // campement fasse les comptes au premier pas près du feu.
+  if (!(P.camp && g === P.camp.graine)) d.exp = { s: profondeur() + 1, c: coeursPerdus() };
   d.compagnes = d.compagnes.map(c => { const r = Object.assign({}, c); delete r.pos; return r; });
   Sauve.sale = true; Sauve.local = ''; Sauve.pret = false;
   if (ecrireLocal(d) && graineSauvee() === g) { say(mot, 2.5); setTimeout(() => location.reload(), 500); return true; }
@@ -1564,6 +1600,332 @@ function seReposer() {
   say('repos au feu' + (n ? ' · ' + n + ' compagne' + (n > 1 ? 's' : '') + ' rassasiée' + (n > 1 ? 's' : '') : ''), 2.5);
   if (sacOuvert) majSac();
   return true;
+}
+
+// ============================================================
+//  L'EXPÉDITION ET LE COFFRE
+//  Franchir le portail, c'est partir en expédition. Chaque saut éloigne du campement : les bêtes
+//  frappent plus fort, encaissent mieux, et l'île penche vers les chasseurs — c'est là que se
+//  trouvent les espèces qu'on ne croise pas chez soi, et c'est le prix à payer pour les voir.
+//  Ce qu'on rapporte n'entre au coffre qu'amputé d'un tiers par cœur perdu ; les trois perdus,
+//  le sac revient vide. Et passé le cinquième saut, une mort laisse sur place les compagnes qui
+//  étaient dehors : au-delà de la barrière, on ne ramène plus ce à quoi on tient.
+//  Le coffre, lui, ne voyage jamais : ce qu'on y dépose ne risque plus rien.
+// ============================================================
+const BARRIERE = 5;                                  // le saut d'où l'on ne ramène plus ses compagnes
+const SAUTS_MAX = 8;                                 // au-delà, le danger cesse de monter
+const GARDE = [1, .65, .30, 0];                      // ce qui entre au coffre, selon les cœurs perdus
+const COFFRE_R = ['fibre', 'bois', 'pierre', 'os', 'eclat', 'baies'];
+const profondeur = () => (P.exp && P.exp.sauts) || 0;
+const coeursPerdus = () => Math.min(3, (P.exp && P.exp.coeurs) || 0);
+const danger = () => 1 + Math.min(profondeur(), SAUTS_MAX) * .18;
+const auDelaBarriere = () => profondeur() >= BARRIERE;
+const partGardee = () => GARDE[coeursPerdus()];
+// Les dégâts, des deux bords : loin de chez soi la bête cogne plus fort et encaisse d'autant.
+const degSubi = deg => deg * danger();
+const degJoueur = deg => deg / danger();
+// Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
+function capEsp(sp) {
+  const p = Math.min(profondeur(), SAUTS_MAX);
+  if (!p) return sp.cap;
+  return Math.max(1, Math.round(sp.cap * (sp.diet === 'c' ? 1 + p * .22 : 1 - p * .07)));
+}
+// Le sac et le coffre parlent des mêmes matières — mais les baies vivent à part dans le sac.
+const auSac = r => r === 'baies' ? P.baies : (P.sac[r] || 0);
+const metSac = (r, v) => { const n = Math.max(0, v | 0); if (r === 'baies') P.baies = n; else P.sac[r] = n; };
+const coffreTotal = () => COFFRE_R.reduce((s, r) => s + (P.coffre[r] || 0), 0);
+const sacTotal = () => COFFRE_R.reduce((s, r) => s + auSac(r), 0);
+
+function deposerCoffre(r) {
+  if (!P.camp) { say('aucun campement', 2); return false; }
+  if (!auCamp()) { say('le coffre est au campement', 2.2); return false; }
+  let n = 0;
+  for (const k of (r ? [r] : COFFRE_R)) {
+    const q = auSac(k); if (q <= 0) continue;
+    P.coffre[k] = (P.coffre[k] || 0) + q; metSac(k, 0); n += q;
+  }
+  if (!n) { say('rien à déposer', 1.6); return false; }
+  say(n + ' au coffre', 2); majSac();
+  return true;
+}
+function reprendreCoffre(r) {
+  if (!P.camp) { say('aucun campement', 2); return false; }
+  if (!auCamp()) { say('le coffre est au campement', 2.2); return false; }
+  let n = 0;
+  for (const k of (r ? [r] : COFFRE_R)) {
+    const q = P.coffre[k] || 0; if (q <= 0) continue;
+    metSac(k, auSac(k) + q); P.coffre[k] = 0; n += q;
+  }
+  if (!n) { say('le coffre est vide', 1.6); return false; }
+  say(n + ' repris au coffre', 2); majSac();
+  return true;
+}
+// Rentrer au campement ferme l'expédition : le butin passe au coffre, ce qu'il en reste.
+let bilanExp = null;                                 // le dernier retour, que le menu du camp raconte
+function clotureExpedition() {
+  const e = P.exp || { sauts: 0, coeurs: 0 };
+  if (!e.sauts) { P.exp = { sauts: 0, coeurs: 0 }; return null; }
+  const part = partGardee();
+  const b = { sauts: e.sauts, coeurs: coeursPerdus(), part, garde: {}, perdu: {}, quand: Date.now() };
+  for (const r of COFFRE_R) {
+    const q = auSac(r); if (!q) continue;
+    const g = Math.floor(q * part);
+    if (g) { P.coffre[r] = (P.coffre[r] || 0) + g; b.garde[r] = g; }
+    if (q - g) b.perdu[r] = q - g;
+    metSac(r, 0);
+  }
+  P.exp = { sauts: 0, coeurs: 0 };
+  bilanExp = b;
+  const som = o => Object.values(o).reduce((s, v) => s + v, 0);
+  const g = som(b.garde), p = som(b.perdu);
+  say(p ? 'de retour · ' + g + ' au coffre · ' + p + ' perdu' + (p > 1 ? 's' : '') : 'de retour · ' + g + ' au coffre', 3.5);
+  burst(P.x, P.y, P.z + .6, 18, p ? '#ff9a7a' : '#ffd27d');
+  majSac();
+  return b;
+}
+// Au-delà de la barrière, une mort laisse les compagnes sorties là où elles sont tombées.
+function abandonnerCompagnes() {
+  const perdues = P.compagnes.filter(c => c.dehors);
+  for (const c of perdues) {
+    const i = P.compagnes.indexOf(c); if (i >= 0) P.compagnes.splice(i, 1);
+    if (c.b) retirerBete(c.b);
+    c.b = null; c.dehors = false;
+  }
+  if (perdues.length)
+    say(perdues.map(c => c.nom).join(', ') + (perdues.length > 1 ? ' restent' : ' reste') + ' là-bas', 4.5);
+  return perdues;
+}
+
+
+// ============================================================
+//  LE MONDE PARTAGÉ
+//  Deux joueurs sur la même graine voient le même relief : le terrain n'a rien à échanger.
+//  Ne circulent que les personnages, leurs compagnes sorties, et les coups portés — neuf fois
+//  par seconde, par la diffusion Realtime de Supabase. Rien n'est écrit en base.
+//  Un canal par île (« sv:ile:<graine> ») et un canal commun (« sv:monde ») qui dit qui est
+//  où : sans lui, avec un milliard de graines, deux joueurs ne se croiseraient jamais.
+//  Chacun fait autorité sur lui-même : un coup reçu est appliqué par celui qui le prend.
+//  C'est la règle qui convient à une alpha entre gens qui se connaissent, et elle évite un
+//  serveur de jeu. Sans réseau, sans compte, ou canal fermé : le jeu continue seul.
+// ============================================================
+const RS = { ws: null, ouvert: false, refs: 1, canaux: new Set(), essais: 0, prochain: 0,
+  etat: 'hors ligne', envoi: 0, monde: 0, battement: 0, ile: '' };
+const Autres = new Map();                            // uid → le joueur distant, interpolé
+const betesLoin = [];                                // ses compagnes, dessinées comme des bêtes
+const EnLigne = new Map();                           // uid → { nom, graine, vu } : le monde entier
+const LOIN_VIE = 4;                                  // sans nouvelle pendant ce temps, on s'efface
+const MONDE_VIE = 14;                                // idem, sur le canal commun
+const PAS_RESEAU = 1 / 9;                            // neuf positions par seconde
+const ABRI = 7;                                      // pas de coups si près d'un campement
+const REPIT = 5;                                     // à l'arrivée sur une île, on ne prend rien
+let arriveeLe = 0;                                   // l'instant où cette île a commencé
+// Chaque joueur a sa teinte, tirée de son compte : deux silhouettes ne se confondent pas.
+function teinteDe(uid) {
+  let h = 2166136261;
+  for (let i = 0; i < (uid || '').length; i++) { h ^= uid.charCodeAt(i); h = Math.imul(h, 16777619); }
+  const a = ((h >>> 0) % 360) * Math.PI / 180;
+  return [.72 + Math.cos(a) * .42, .72 + Math.cos(a - 2.094) * .42, .72 + Math.cos(a + 2.094) * .42];
+}
+const teindre = (c, k) => [Math.min(255, c[0] * k[0]), Math.min(255, c[1] * k[1]), Math.min(255, c[2] * k[2])];
+const pseudo = () => P.pseudo || (Compte.email || 'joueur').split('@')[0].slice(0, 18);
+const canalIle = () => 'sv:ile:' + SEED;
+const r2 = v => Math.round(v * 100) / 100;
+
+function reseauUrl() {
+  return SUPA.url.replace(/^http/, 'ws') + '/realtime/v1/websocket?apikey='
+    + encodeURIComponent(SUPA.ancienne || SUPA.cle) + '&vsn=1.0.0';
+}
+function brancher() {
+  if (globalThis.__RESEAU_URL === false) return;      // les bancs jouent sans réseau
+  if (RS.ws || !Compte.dedans || !Compte.jeton || maintenant() < RS.prochain) return;
+  let w;
+  try { w = new WebSocket(globalThis.__RESEAU_URL || reseauUrl()); } catch (e) { RS.etat = 'impossible'; RS.prochain = maintenant() + 30; return; }
+  RS.ws = w; RS.etat = 'connexion';
+  w.onopen = () => {
+    RS.ouvert = true; RS.essais = 0; RS.etat = 'en ligne'; RS.canaux.clear(); RS.ile = canalIle();
+    ouvrirCanal('sv:monde'); ouvrirCanal(canalIle());
+  };
+  w.onmessage = e => { try { recevoir(JSON.parse(e.data)); } catch (_) {} };
+  w.onerror = () => {};
+  w.onclose = () => {
+    RS.ws = null; RS.ouvert = false; RS.canaux.clear(); RS.etat = 'coupé';
+    RS.essais = Math.min(6, RS.essais + 1);
+    RS.prochain = maintenant() + Math.min(30, Math.pow(2, RS.essais));
+  };
+}
+function debrancher(mot) {
+  if (RS.ouvert) { diffuser(canalIle(), 'parti', { u: Compte.uid }); }
+  try { RS.ws && RS.ws.close(); } catch (_) {}
+  RS.ws = null; RS.ouvert = false; RS.canaux.clear(); RS.etat = mot || 'hors ligne';
+  for (const u of [...Autres.keys()]) effacerDistant(u);
+  EnLigne.clear();
+}
+function pousserRS(topic, event, payload) {
+  if (!RS.ws || RS.ws.readyState !== 1) return false;
+  try { RS.ws.send(JSON.stringify({ topic, event, payload, ref: String(++RS.refs), join_ref: '1' })); return true; }
+  catch (e) { return false; }
+}
+function ouvrirCanal(topic) {
+  if (RS.canaux.has(topic)) return;
+  RS.canaux.add(topic);
+  pousserRS('realtime:' + topic, 'phx_join', { config: { broadcast: { ack: false, self: false },
+    presence: { enabled: false }, private: false }, access_token: Compte.jeton });
+}
+function quitterCanal(topic) {
+  if (!RS.canaux.delete(topic)) return;
+  pousserRS('realtime:' + topic, 'phx_leave', {});
+}
+const diffuser = (topic, evt, data) =>
+  pousserRS('realtime:' + topic, 'broadcast', { type: 'broadcast', event: evt, payload: data });
+
+function recevoir(m) {
+  if (!m || !m.payload) return;
+  if (m.event !== 'broadcast') return;                 // phx_reply, phx_error : rien à en faire ici
+  const evt = m.payload.event, d = m.payload.payload;
+  const topic = String(m.topic || '').replace(/^realtime:/, '');
+  if (!d || !d.u || d.u === Compte.uid) return;
+  if (evt === 'ici') {
+    EnLigne.set(d.u, { nom: String(d.n || '?').slice(0, 18), graine: d.g | 0, vu: maintenant() });
+    return;
+  }
+  if (topic !== canalIle()) return;
+  if (evt === 'pos') majDistant(d);
+  else if (evt === 'coup') encaisser(d);
+  else if (evt === 'parti') effacerDistant(d.u);
+}
+// Un joueur distant : on garde sa position visée (c*) et on glisse vers elle, sinon il
+// sauterait neuf fois par seconde.
+function majDistant(d) {
+  if (!Number.isFinite(d.x) || !Number.isFinite(d.y) || !Number.isFinite(d.z)) return;
+  let j = Autres.get(d.u);
+  if (!j) {
+    j = { u: d.u, nom: '?', x: d.x, y: d.y, z: d.z, cx: d.x, cy: d.y, cz: d.z, vx: 0, vy: 0, vz: 0,
+      ground: true, bob: 0, land: 0, faceS: 0, faceC: 0, pv: 1, hurt: 0, vu: 0,
+      teinte: teinteDe(d.u), comps: [] };
+    Autres.set(d.u, j);
+    say(String(d.n || 'quelqu\'un').slice(0, 18) + ' est sur cette île', 3);
+  }
+  j.nom = String(d.n || j.nom).slice(0, 18);
+  j.cx = d.x; j.cy = d.y; j.cz = d.z; j.faceC = +d.a || 0;
+  j.pv = Math.max(0, Math.min(1, Number.isFinite(d.v) ? d.v : 1));
+  j.ground = !d.air; j.vu = maintenant();
+  // ses compagnes sorties : des bêtes fantômes, dessinées et frappables, mais sans vie propre
+  const l = Array.isArray(d.c) ? d.c.slice(0, LIENS_MAX) : [];
+  while (j.comps.length > l.length) retirerLoin(j.comps.pop());
+  for (let i = 0; i < l.length; i++) {
+    const e = l[i], sp = specById[e && e.e];
+    if (!sp || !Number.isFinite(e.x)) { continue; }
+    let b = j.comps[i];
+    if (!b || b.sp !== sp) {
+      if (b) retirerLoin(b);
+      b = naitre(sp, e.x, e.y, sp.mat * 2);
+      b.tame = true; b.loin = j; b.z = e.z; b.cx = e.x; b.cy = e.y; b.cz = e.z;
+      j.comps[i] = b; betesLoin.push(b);
+    }
+    b.cx = e.x; b.cy = e.y; b.cz = e.z;
+    b.pv = Math.max(0, Math.min(1, Number.isFinite(e.v) ? e.v : 1));
+  }
+}
+function retirerLoin(b) {
+  const i = betesLoin.indexOf(b); if (i >= 0) betesLoin.splice(i, 1);
+}
+function effacerDistant(u) {
+  const j = Autres.get(u); if (!j) return;
+  for (const b of j.comps) if (b) retirerLoin(b);
+  Autres.delete(u);
+}
+// L'abri : on ne frappe pas, et on ne se fait pas frapper, tout près d'un campement — ni
+// dans les premières secondes qui suivent une arrivée. Sans cela, on camperait les portails.
+const prsCamp = (x, y) => P.camp && campIci() && (x - P.camp.x) ** 2 + (y - P.camp.y) ** 2 < ABRI * ABRI;
+const sousAbri = () => prsCamp(P.x, P.y) || maintenant() - arriveeLe < REPIT;
+// La cible la plus proche d'en face : un joueur, ou l'une de ses compagnes.
+function cibleLoin(x, y, z, port) {
+  let best = null, db = port == null ? 1e9 : port;
+  for (const j of Autres.values()) {
+    if (j.pv <= 0) continue;
+    const d = Math.hypot(j.x - x, j.y - y);
+    if (Math.abs(j.z - z) < 2 && d < db) { db = d; best = { j, b: null, d }; }
+  }
+  for (const b of betesLoin) {
+    if (b.pv <= 0) continue;
+    const d = Math.hypot(b.x - x, b.y - y);
+    if (Math.abs(b.z - z) < 2 && d < db) { db = d; best = { j: b.loin, b, d }; }
+  }
+  return best;
+}
+// Frapper d'en face : on annonce le coup, et c'est l'autre qui décide de ce qu'il encaisse.
+function frapperLoin(c, deg) {
+  if (!c || !c.j) return false;
+  if (sousAbri()) { say('pas de coups près d\'un campement', 2); return false; }
+  const cible = c.b ? c.j.comps.indexOf(c.b) : -1;
+  diffuser(canalIle(), 'coup', { u: Compte.uid, n: pseudo(), a: c.j.u, c: cible, d: r2(deg) });
+  const o = c.b || c.j;
+  o.hit = .25; if (!c.b) c.j.hurt = .5;
+  o.pv = Math.max(0, o.pv - deg);                     // ce qu'on croit avoir fait, en attendant
+  burst(o.x, o.y, o.z + .4, 9, '#ffb0a0');
+  say((c.b ? c.b.sp.n + ' de ' + c.j.nom : c.j.nom) + ' · ' + Math.round(o.pv * 100) + '%', 1.2);
+  return true;
+}
+// Un coup reçu : c'est nous qui l'appliquons, sur nous ou sur l'une de nos compagnes.
+function encaisser(d) {
+  if (d.a !== Compte.uid) return;
+  const deg = Math.max(0, Math.min(1, +d.d || 0));
+  if (!deg || sousAbri()) return;
+  const qui = String(d.n || 'quelqu\'un').slice(0, 18);
+  const i = d.c | 0;
+  if (d.c >= 0) {
+    const sorties = P.compagnes.filter(c => c.dehors && c.b);
+    const c = sorties[i]; if (!c || !c.b) return;
+    c.b.pv = Math.max(0, c.b.pv - deg); c.b.hit = .25; c.b.alarm = 1;
+    burst(c.b.x, c.b.y, c.b.z + .4, 9, '#ffb0a0');
+    if (c.b.pv <= 0) { assommer(c.b, 'coup'); say(c.nom + ' est tombée sous les coups de ' + qui, 3); }
+    return;
+  }
+  if (P.hurt > 0) return;                              // encore sonné : ce coup-là ne compte pas
+  P.hurt = 1.0; P.dernierCoup = t;
+  P.pv = Math.max(0, P.pv - deg * (1 - ((porte('armure') || {}).red || 0)));
+  const a = Math.random() * 6.283;
+  P.vx = Math.cos(a) * 5; P.vy = Math.sin(a) * 5; P.vz = 3.6; P.recul = .3;
+  burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
+  say('coup de ' + qui, 1.6);
+  if (P.pv <= 0) terrasse();
+}
+// Le battement du réseau : on se branche, on parle, on écoute vieillir les autres.
+function majReseau(dt) {
+  if (!Compte.dedans) return;
+  brancher();
+  const now = maintenant();
+  if (RS.ouvert) {
+    if (RS.ile !== canalIle()) { quitterCanal(RS.ile); RS.ile = canalIle(); ouvrirCanal(RS.ile); }
+    if (now - RS.battement > 20) { RS.battement = now; pousserRS('phoenix', 'heartbeat', {}); }
+    if (now - RS.envoi > PAS_RESEAU) {
+      RS.envoi = now;
+      diffuser(canalIle(), 'pos', { u: Compte.uid, n: pseudo(), x: r2(P.x), y: r2(P.y), z: r2(P.z),
+        a: r2(P.faceS), v: r2(P.pv), air: P.ground ? 0 : 1,
+        c: P.compagnes.filter(c => c.dehors && c.b).slice(0, LIENS_MAX)
+          .map(c => ({ e: c.esp, x: r2(c.b.x), y: r2(c.b.y), z: r2(c.b.z), v: r2(c.b.pv) })) });
+    }
+    if (now - RS.monde > 4) { RS.monde = now; diffuser('sv:monde', 'ici', { u: Compte.uid, n: pseudo(), g: SEED }); }
+  }
+  // les autres glissent vers leur dernière position connue, et s'effacent s'ils se taisent
+  const k = Math.min(1, dt * 12);
+  for (const [u, j] of [...Autres]) {
+    if (now - j.vu > LOIN_VIE) { effacerDistant(u); continue; }
+    const ax = j.x, ay = j.y;
+    j.x += (j.cx - j.x) * k; j.y += (j.cy - j.y) * k; j.z += (j.cz - j.z) * k;
+    j.vx = (j.x - ax) / Math.max(dt, .001); j.vy = (j.y - ay) / Math.max(dt, .001);
+    j.bob += Math.hypot(j.vx, j.vy) * dt * 2.2;
+    let da = ((j.faceC - j.faceS + Math.PI) % 6.2832 + 6.2832) % 6.2832 - Math.PI;
+    j.faceS += da * Math.min(1, dt * 10);
+    if (j.hurt > 0) j.hurt -= dt;
+    if (j.hit > 0) j.hit -= dt;
+    for (const b of j.comps) if (b) {
+      b.x += (b.cx - b.x) * k; b.y += (b.cy - b.y) * k; b.z += (b.cz - b.z) * k;
+      if (b.hit > 0) b.hit -= dt;
+      updateFoeLegs(b, dt);
+    }
+  }
+  for (const [u, e] of [...EnLigne]) if (now - e.vu > MONDE_VIE) EnLigne.delete(u);
 }
 
 // ============================================================
@@ -2351,6 +2713,34 @@ function ficheGraine(v, gardee_) {
     + `<span style="color:var(--or)">${ESC(ditProprio(v.g))}</span></div></div>`
     + `<div style="display:flex;flex-direction:column;gap:6px">${boutons.join('')}</div></div>`;
 }
+// Rejoindre quelqu'un : son île n'est qu'une graine de plus, et le portail sait y aller.
+function rejoindreJoueur(u) {
+  const e = EnLigne.get(u);
+  if (!e) { say('ce joueur n\'est plus en ligne', 2); return false; }
+  if (!P.camp) { say('aucun campement', 2); return false; }
+  if (!auCamp()) { say('le portail est à votre campement', 2.5); return false; }
+  if (e.graine === SEED) { say('vous y êtes déjà', 2); return false; }
+  return voyagerVers(e.graine, null, 'cap sur l\'île de ' + e.nom);
+}
+// Qui est en ligne, et où. Sans cette liste, avec un milliard de graines, personne ne se croise.
+function blocEnLigne() {
+  const proche = auCamp();
+  const gens = [...EnLigne.entries()].sort((a, b) => a[1].nom.localeCompare(b[1].nom));
+  const ici = Autres.size;
+  let l = `<h3>En ligne <span class="compte">${RS.etat}</span></h3>`;
+  if (!gens.length)
+    return l + `<p class="note" style="margin:2px 2px 8px">Personne d'autre pour l'instant.`
+      + ` Les joueurs connectés apparaissent ici, avec l'île où ils se trouvent.</p>`;
+  for (const [u, e] of gens) {
+    const meme = e.graine === SEED;
+    l += `<div class="obj"><div><div class="n">${ESC(e.nom)}${meme ? ' · ici' : ''}</div>`
+      + `<div class="d">île ${ESC(nomIle(e.graine))}${meme ? '' : ' · graine ' + e.graine}</div></div>`
+      + `<button data-rejoindre="${ESC(u)}"${!meme && proche ? '' : ' disabled'}>${meme ? 'Sur place' : 'Rejoindre'}</button></div>`;
+  }
+  if (ici) l += `<p class="note" style="margin:2px 2px 8px">${ici} joueur${ici > 1 ? 's' : ''} sur cette île.`
+    + ` Les coups ne portent pas près d'un campement, ni dans les ${REPIT} premières secondes après une arrivée.</p>`;
+  return l;
+}
 function pageJournal() {
   if (!P.camp)
     return `<div class="sac-corps lignes"><div class="vide-texte">`
@@ -2363,6 +2753,7 @@ function pageJournal() {
     || `<p class="note" style="margin:2px 2px 8px">Aucune graine gardée. Gardez celle d'une île pour y revenir par le portail.</p>`;
   const passees = (j.visites || []).filter(v => v.g !== SEED && !gardee(v.g)).slice(0, 8);
   return `<div class="sac-corps lignes">`
+    + blocEnLigne()
     + `<h3>Ici <span class="compte">graine ${ESC(String(SEED))}</span></h3>${ficheGraine(ici, false)}`
     + `<h3>Mémoire du journal <span class="compte">${(j.gardees || []).length} sur ${m}</span></h3>${gardees}`
     + (nivCamp() < CAMP_NIV.length
@@ -2373,8 +2764,7 @@ function pageJournal() {
     + `</div>`;
 }
 // ---------- onglet Campement ----------
-// Trois blocs : le campement lui-même, le portail, le feu. Rien de plus tant que le coffre et le
-// travail des compagnes ne sont pas là — la page le dit, plutôt que de laisser croire à un oubli.
+// Le campement lui-même, son coffre, l'expédition en cours, le portail, la pierre et le feu.
 let confirmeCamp = 0;
 function pageCampement() {
   const vide = t2 => `<div class="sac-corps lignes"><div class="vide-texte">${t2}</div></div>`;
@@ -2399,6 +2789,32 @@ function pageCampement() {
     + `<div class="fiche-texte"><h4>Île ${ESC(nomIle(P.camp.graine))}</h4>`
     + `<p>${ESC(paletteCamp().n)} · ${ESC(etat)}</p>`
     + `<span class="genre">${ici ? 'case ' + (P.camp.x | 0) + ', ' + (P.camp.y | 0) : 'île actuelle : ' + ESC(nomIle(SEED))}</span></div></div>`
+    + `<h3>Coffre</h3>`
+    + `<div class="obj"><div><div class="n">Réserve du campement${coffreTotal() ? ' · ' + coffreTotal() : ''}</div>`
+    + `<div class="d">${coffreTotal()
+        ? ESC(COFFRE_R.filter(r => P.coffre[r]).map(r => (RES[r] || 'baies') + ' ' + P.coffre[r]).join(' · '))
+        : 'vide · ce qu\'on y dépose ne repart plus en expédition'}`
+      + `${proche ? '' : ' · il faut être au campement'}</div></div>`
+    + `<button data-coffre="deposer"${proche && sacTotal() ? '' : ' disabled'}>Déposer</button>`
+    + `<button data-coffre="reprendre"${proche && coffreTotal() ? '' : ' disabled'}>Reprendre</button></div>`
+    + `<h3>Expédition</h3>`
+    + `<div class="obj"><div><div class="n">${profondeur()
+        ? 'À ' + profondeur() + ' saut' + (profondeur() > 1 ? 's' : '') + ' du campement'
+        : 'Au campement'}</div><div class="d">${profondeur()
+        ? 'les bêtes frappent et encaissent ×' + danger().toFixed(2) + ' · '
+          + Math.round(partGardee() * 100) + ' % du sac rentrera au coffre'
+          + (coeursPerdus() ? ' (' + coeursPerdus() + ' cœur' + (coeursPerdus() > 1 ? 's' : '') + ' perdu' + (coeursPerdus() > 1 ? 's' : '') + ')' : '')
+          + (auDelaBarriere() ? '<br>barrière franchie : une mort laisserait sur place les compagnes sorties'
+             : '<br>barrière au ' + BARRIERE + 'ᵉ saut : au-delà, une mort coûte les compagnes sorties')
+        : 'chaque saut de portail éloigne : les bêtes cognent plus fort, l\'île penche vers les chasseurs,'
+          + ' et chaque cœur perdu ampute d\'un tiers ce qu\'on rapportera au coffre'}</div></div></div>`
+    + (bilanExp ? (() => {
+        const som = o => Object.values(o).reduce((s, v) => s + v, 0);
+        const g = som(bilanExp.garde), p = som(bilanExp.perdu);
+        return `<div class="obj"><div><div class="n">Dernier retour</div><div class="d">`
+          + `${bilanExp.sauts} saut${bilanExp.sauts > 1 ? 's' : ''} · ${bilanExp.coeurs} cœur${bilanExp.coeurs > 1 ? 's' : ''} perdu${bilanExp.coeurs > 1 ? 's' : ''}`
+          + ` · ${g} au coffre${p ? ' · ' + p + ' laissé' + (p > 1 ? 's' : '') + ' en route' : ''}</div></div></div>`;
+      })() : '')
     + `<h3>Portail</h3>`
     + (portailDirige() ? `<div class="obj"><div><div class="n">Viser une île gardée</div>`
         + `<div class="d">le journal tient ${(P.journal.gardees || []).length} graine${(P.journal.gardees || []).length > 1 ? 's' : ''} · le départ se choisit au journal</div></div>`
@@ -2430,7 +2846,7 @@ function pageCampement() {
     + `<div class="obj${conf ? ' porte' : ''}"><div><div class="n">Reprendre le campement</div>`
     + `<div class="d">${conf ? 'encore un clic : l\'île ne sera plus la vôtre' : ici ? 'il retourne au sac, à poser ailleurs' : 'il faut être sur son île'}</div></div>`
     + `<button data-camp="reprendre"${ici ? '' : ' disabled'}>${conf ? 'Confirmer' : 'Reprendre'}</button></div>`
-    + `<p class="note" style="margin:14px 2px 0">À venir : un coffre où les compagnes déposent leur récolte, leur travail en votre absence, et le journal des îles visitées.</p>`
+    + `<p class="note" style="margin:14px 2px 0">À venir : le travail des compagnes en votre absence, et le pillage entre campements.</p>`
     + `</div>`;
 }
 function pageCompagnes() {
@@ -2631,6 +3047,12 @@ function clicSac(b) {
     }
     else if (d.camp === 'ameliorer') ameliorerCamp();
     else if (d.camp === 'ouvrir') choisirOnglet('camp');
+    majSac();
+  }
+  else if (d.rejoindre) { rejoindreJoueur(d.rejoindre); majSac(); }
+  else if (d.coffre) {
+    if (d.coffre === 'deposer') deposerCoffre();
+    else if (d.coffre === 'reprendre') reprendreCoffre();
     majSac();
   }
   else if (d.jr) {
@@ -2847,7 +3269,7 @@ function loadWorld() {
   crystals = []; crates = []; foes = []; parts.length = 0; got = 0; won = false;
   dalles.length = 0; FLECHES.length = 0;             // ni les dalles conjurées ni les flèches en vol
   beasts = []; berries = [];
-  for (const sp of SPEC) { const n = Math.round(sp.cap * .75); for (let i = 0; i < n; i++) { const b = poser(sp); if (b) beasts.push(b); } }
+  for (const sp of SPEC) { const n = Math.round(capEsp(sp) * .75); for (let i = 0; i < n; i++) { const b = poser(sp); if (b) beasts.push(b); } }
   // buissons à baies, dans les herbages
   for (let k = 0; k < 260; k++) {
     const x = (8 + Math.random() * (WS - 16)) | 0, y = (8 + Math.random() * (WS - 16)) | 0;
@@ -2921,11 +3343,17 @@ function burst(x, y, z, n, col) {
 }
 function respawn() {
   lives--;
+  if (P.exp) P.exp.coeurs = Math.min(3, (P.exp.coeurs || 0) + 1);
   burst(P.x, P.y, P.z + .4, 16, '#ff9a7a');
   if (lives <= 0) {
     lives = 3;
+    if (P.exp) P.exp.coeurs = 3;                     // tout perdu : le sac ne rapportera rien
     // Avec un campement, on ne perd plus son île : elle vous reprend, où qu'on soit tombé.
-    if (P.camp && rentrerAuCampement(true)) return;
+    // Mais passé la barrière, les compagnes sorties ne font pas le voyage du retour.
+    if (P.camp) {
+      if (auDelaBarriere()) abandonnerCompagnes();
+      if (rentrerAuCampement(true)) return;
+    }
     loadWorld(); say('ÎLE RÉINITIALISÉE');
   }
   else { const r = P.sol || P.spawn; P.x = r[0]; P.y = r[1]; P.z = r[2]; P.vx = P.vy = P.vz = 0; }
@@ -3035,6 +3463,12 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
 document.getElementById('bs').addEventListener('pointerdown', e => { e.preventDefault(); sortQ = true; });
 document.getElementById('bsif').addEventListener('pointerdown', e => { e.preventDefault(); sifflerQ = true; });
 document.getElementById('bsac').onclick = () => ouvrirSac();
+document.getElementById('sac').addEventListener('change', e => {
+  if (!e.target || e.target.id !== 'pseudoIn') return;
+  const v = String(e.target.value || '').replace(/[<>]/g, '').slice(0, 18).trim();
+  P.pseudo = v || null; Sauve.sale = true;
+  say('nom : ' + pseudo(), 2);
+});
 document.getElementById('sac').addEventListener('click', e => {
   const b = e.target.closest('button');
   if (b && !b.disabled) clicSac(b);
@@ -3061,6 +3495,10 @@ function update(dt) {
   elev += (elevT - elev) * Math.min(1, dt * 7);
   setProjection();
   if (msgT > 0) { msgT -= dt; if (msgT <= 0) document.getElementById('msg').style.opacity = 0; }
+  // Le retour se constate sur place : arrivé près de son feu, l'expédition se ferme et le
+  // butin passe au coffre. Peu importe par où l'on est rentré — portail, pierre, ou à pied.
+  if (P.exp.sauts && P.camp && campIci() && auCamp()) clotureExpedition();
+  majReseau(dt);                                     // les autres joueurs, s'il y en a
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.age += dt;
@@ -3213,7 +3651,7 @@ function update(dt) {
   if (P.hurt <= 0) for (const b of beasts) if (b.sp.chasse && !b.tame && !b.dead && b.pv > 0 && P.vz < -1.5 && P.z > b.z + .35
       && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 1.3 && Math.abs(b.z - P.z) < 1.5) {
     const deg = Math.max(.3, Math.min(.7, .2 + .045 * -P.vz));
-    b.pv -= deg; b.hit = .25; b.alarm = 1; blesseParJoueur(b); lacherParoi(b);
+    b.pv -= degJoueur(deg); b.hit = .25; b.alarm = 1; blesseParJoueur(b); lacherParoi(b);
     if (b.as && b.as.prof !== COMBAT.defense) { b.as = null; b.pret = b.t + .8; }
     b.etourdi = .6; b.vx = b.vy = 0;
     burst(b.x, b.y, b.z + .4, 9, '#ffb0a0');
@@ -3543,12 +3981,15 @@ function paint(list) {
 }
 // Repère local : +x devant, +y à gauche, +z en haut. On assemble la pose, puis on
 // tourne le tout selon la direction de marche.
-function heroBones() {
-  const spd = Math.min(1, Math.hypot(P.vx, P.vy) / 4.2);
-  const air = !P.ground, up = P.vz > 0.4, down = P.vz < -0.4;
-  const ph = P.bob * 2.3;
+// Les os du personnage. J vaut le joueur par défaut, mais un joueur distant a les mêmes :
+// c'est ce qui permet de le dessiner sans écrire une seconde silhouette.
+function heroBones(J) {
+  J = J || P;
+  const spd = Math.min(1, Math.hypot(J.vx, J.vy) / 4.2);
+  const air = !J.ground, up = J.vz > 0.4, down = J.vz < -0.4;
+  const ph = J.bob * 2.3;
   const br = Math.sin(t * 2.2) * 0.008 * (1 - spd);        // respiration au repos
-  const land = Math.max(0, P.land || 0);
+  const land = Math.max(0, J.land || 0);
   const sq = 1 - land * 0.9, st = air ? 1.06 : 1;           // écrasement / étirement
   const bob = air ? 0 : -Math.abs(Math.sin(ph)) * 0.035 * spd;
   const lean = spd * 0.30 + (air ? 0.12 : 0);
@@ -3990,7 +4431,7 @@ function porterCoup(b, c, deg) {
   if (c === P) {
     if (P.hurt > 0) return false;                   // encore sonné : ce coup-là ne compte pas
     P.hurt = 1.0; P.dernierCoup = t;
-    P.pv = Math.max(0, P.pv - deg * (1 - ((porte('armure') || {}).red || 0)));
+    P.pv = Math.max(0, P.pv - degSubi(deg) * (1 - ((porte('armure') || {}).red || 0)));
     P.vx = dx / d * 7; P.vy = dy / d * 7; P.vz = 4.2; P.recul = .3;
     burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
     if (P.pv <= 0) terrasse();
@@ -4375,7 +4816,7 @@ function majBete(b, dt) {
   // plus, et ne compte plus dans sa population. Pendue à une paroi non plus.
   if (!b.tame && !b.mur && b.age > sp.mat && b.faim < .38 && b.nrj > .45 && beasts.length < 240) {
     const pop = populationSauvage(sp);
-    if (pop < sp.cap && Math.random() < dt * (sp.diet === 'c' ? .017 : .030)) {
+    if (pop < capEsp(sp) && Math.random() < dt * (sp.diet === 'c' ? .017 : .030)) {
       // Le petit ne naît jamais au-dessus d'un gouffre : il y tomberait, et le vide n'a pas de
       // paroi où se reprendre.
       let nx = b.x + (Math.random() - .5) * 2, ny = b.y + (Math.random() - .5) * 2;
@@ -5023,14 +5464,16 @@ function emitCamp(view, out) {
     emitLimb(A, Bb, o.w, o.h, o.c, view, out, cle, rangSol(c.z, false));
   }
 }
-function emitHero(view, out) {
-  const bones = heroBones();
-  const f = P.faceS, cf = Math.cos(f), sf = Math.sin(f);
-  const put = v => [P.x + v[0] * cf - v[1] * sf, P.y + v[0] * sf + v[1] * cf, P.z + v[2]];
-  const flash = P.hurt > 0 && (t * 14 | 0) % 2;
-  const cle = view.kEnt && view.kEnt(P.x, P.y), rang = rangSol(P.z, false);
+function emitHero(view, out, J) {
+  J = J || P;
+  const bones = heroBones(J);
+  const f = J.faceS, cf = Math.cos(f), sf = Math.sin(f);
+  const put = v => [J.x + v[0] * cf - v[1] * sf, J.y + v[0] * sf + v[1] * cf, J.z + v[2]];
+  const flash = J.hurt > 0 && (t * 14 | 0) % 2;
+  const cle = view.kEnt && view.kEnt(J.x, J.y), rang = rangSol(J.z, false);
   // une clé pour tout le corps, puis face par face : sans cela un bras passe à travers le buste
-  for (const b of bones) emitLimb(put(b.a), put(b.b), b.w, b.h, flash ? [255, 150, 130] : b.c, view, out, cle, rang);
+  for (const b of bones) emitLimb(put(b.a), put(b.b), b.w, b.h,
+    flash ? [255, 150, 130] : (J.teinte ? teindre(b.c, J.teinte) : b.c), view, out, cle, rang);
   // deux yeux : ils passent par la même liste, sinon ils traversent les collines
   for (const sd of [-1, 1]) {
     const e = put([0.098, sd * 0.048, 0.655]);
@@ -5227,6 +5670,22 @@ function draw() {
   }
   emitCamp(VIEW_ISO, items);
   omb(P.x, P.y, P.z, 1); emitHero(VIEW_ISO, items);
+  // les joueurs d'en face, leurs compagnes, et leur nom au-dessus de la tête
+  for (const b of betesLoin) if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < COLS_VIS * COLS_VIS) {
+    omb(b.x, b.y, b.z, b.sp.sz); emitFoe(b, VIEW_ISO, items);
+  }
+  for (const j of Autres.values()) if ((j.x - P.x) ** 2 + (j.y - P.y) ** 2 < COLS_VIS * COLS_VIS) {
+    omb(j.x, j.y, j.z, 1); emitHero(VIEW_ISO, items, j);
+    const pz = j.z + 1.35, p = proj(j.x, j.y, pz);
+    const col = `rgb(${j.teinte.map(v => Math.min(255, 150 * v) | 0).join(',')})`;
+    items.push({ d: VIEW_ISO.kEnt(j.x, j.y), d2: rangSol(j.z, false), d3: VIEW_ISO.dist(j.x, j.y, pz) - .5, fn: () => {
+      g.font = '600 11px system-ui, sans-serif'; g.textAlign = 'center';
+      const l = g.measureText(j.nom).width + 10;
+      g.fillStyle = 'rgba(16,20,30,.62)'; g.fillRect(p[0] - l / 2, p[1] - 12, l, 15);
+      g.fillStyle = 'rgba(255,120,110,.9)'; g.fillRect(p[0] - l / 2, p[1] + 3, l * Math.max(0, j.pv), 2);
+      g.fillStyle = col; g.fillText(j.nom, p[0], p[1]);
+      g.textAlign = 'left'; } });
+  }
   for (const br of berries) if (br.pris <= t && (br.x - P.x) ** 2 + (br.y - P.y) ** 2 < COLS_VIS * COLS_VIS) {
     const z = br.z + .38 + Math.sin(t * 2 + br.x) * .06, p = proj(br.x, br.y, z);
     items.push({ d: VIEW_ISO.kEnt(br.x, br.y), d2: rangSol(z, false), d3: VIEW_ISO.dist(br.x, br.y, z), fn: () => {
@@ -5278,6 +5737,10 @@ function drawHud() {
     + (P.fleches || (porte('arme') || {}).arc ? ` · FLÈCHES <b>${P.fleches}</b>` : '')
     + (P.arc !== null ? ` · <b>${'█'.repeat(Math.round(Math.min(1, P.arc / ARC_TEMPS) * 6)).padEnd(6, '·')}</b>` : '')
     + ` · <b>${hh}:${mm}</b> · ${METEO[Meteo.vers].n}${essai ? ' · <b>ESSAI</b>' : ''}`
+    + (Autres.size ? ` · <span style="color:#8fe3ff">${Autres.size} JOUEUR${Autres.size > 1 ? 'S' : ''}</span>` : '')
+    + (profondeur() ? `<br><span style="color:${auDelaBarriere() ? '#ff9a7a' : '#8fe3ff'}">SAUT <b>${profondeur()}</b>`
+        + ` · DANGER <b>×${danger().toFixed(2)}</b> · BUTIN <b>${Math.round(partGardee() * 100)}%</b>`
+        + (auDelaBarriere() ? ' · <b>BARRIÈRE FRANCHIE</b>' : '') + `</span>` : '')
     + `<br><span style="color:#8d9ab4">${['arme','outil','armure','grimoire','accessoire'].map(e => (porte(e) || { n: '—' }).n).join(' · ')}</span>`
     + `<br><span style="color:#8d9ab4">${pops}</span>`
     + `<br><span style="color:#6d778d">DESSIN <b>${msDessin.toFixed(1)} ms</b> · <b>${Math.round(imgSec)} img/s</b> · ${facesDern} ${(mode === 'fps' || isoGL) && G3.ok && !G3.perdu ? 'triangles · WebGL' : 'faces'}</span>`
@@ -5860,13 +6323,15 @@ void main() { o = uC; }`;
   let mer = null;
 
   // Le héros : les mêmes os qu'en canvas, et deux yeux posés en panneaux.
-  function heros(T) {
-    const bones = heroBones();
-    const f = P.faceS, cf = Math.cos(f), sf = Math.sin(f);
-    const put = v => [P.x + v[0] * cf - v[1] * sf, P.y + v[0] * sf + v[1] * cf, P.z + v[2]];
-    const flash = P.hurt > 0 && (t * 14 | 0) % 2;
-    const hp = L_FIXE + 256 * horizAt(P.x, P.y);
-    for (const b of bones) boite(T, put(b.a), put(b.b), b.w, b.h, flash ? [255, 150, 130] : b.c, 0, 0, hp, 0, 0, 0);
+  function heros(T, J) {
+    J = J || P;
+    const bones = heroBones(J);
+    const f = J.faceS, cf = Math.cos(f), sf = Math.sin(f);
+    const put = v => [J.x + v[0] * cf - v[1] * sf, J.y + v[0] * sf + v[1] * cf, J.z + v[2]];
+    const flash = J.hurt > 0 && (t * 14 | 0) % 2;
+    const hp = L_FIXE + 256 * horizAt(J.x, J.y);
+    for (const b of bones) boite(T, put(b.a), put(b.b), b.w, b.h,
+      flash ? [255, 150, 130] : (J.teinte ? teindre(b.c, J.teinte) : b.c), 0, 0, hp, 0, 0, 0);
     for (const sd of [-1, 1]) {
       const e = put([.098, sd * .048, .655]);
       panneau(e[0], e[1], e[2], .075, .075, 42 / 255, 36 / 255, 54 / 255, 1, 0);
@@ -6268,6 +6733,18 @@ void main() { o = uC; }`;
       }
       for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, 0, 0, hb, 0, 0, 0, U);
     }
+    for (const b of betesLoin) {
+      const kz = b.sp.sz, { U, put } = posBete(b);
+      if (!iso && !boiteVue(b.x - 2, b.x + 2, b.y - 2, b.y + 2, b.z - .4, b.z + 2.2, .05)) continue;
+      if (iso) ombre(b.x, b.y, b.z, kz, U[2] * U[2]);
+      const hb = L_FIXE + 256 * horizAt(b.x, b.y), fl = b.hit > 0 && (t * 16 | 0) % 2;
+      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, 0, 0, hb, 0, 0, 0, U);
+    }
+    for (const j of Autres.values()) {
+      if (!iso && !boiteVue(j.x - 1, j.x + 1, j.y - 1, j.y + 1, j.z - .4, j.z + 2, .05)) continue;
+      if (iso) ombre(j.x, j.y, j.z, 1);
+      heros(TD, j);
+    }
     if (campIci() && (P.camp.x - ex) ** 2 + (P.camp.y - ey) ** 2 < 90 * 90) {
       const c = P.camp, hc = L_FIXE + 256 * horizAt(c.x, c.y);
       for (const o of campOs())
@@ -6472,10 +6949,13 @@ function photo() {
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
     equip: Object.assign({}, P.equip),
     fleches: P.fleches, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
+    pseudo: P.pseudo || null,
     vies: lives,
     camp: P.camp ? { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100,
                      y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: P.camp.niv || 1 } : null,
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
+    coffre: Object.assign({}, P.coffre),
+    exp: { s: profondeur(), c: coeursPerdus() },
     pos: [P.x, P.y, P.z].map(v => Math.round(v * 100) / 100),
     sol: P.sol ? P.sol.map(v => Math.round(v * 100) / 100) : null,
     heure: Math.round(horloge * 10000) / 10000,
@@ -6495,6 +6975,7 @@ function photo() {
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
 const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.fleches, P.baies, lives, Math.round(P.pv * 10),
+  P.coffre, P.exp.sauts, P.exp.coeurs, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
   P.liens, P.compagnes.map(c => [c.id, c.nom, c.role, c.dehors ? 1 : 0, c.ko ? 1 : 0, Math.round((c.b ? c.b.pv : c.pv) * 10)])]);
@@ -6523,6 +7004,10 @@ function appliquer(d, vivantes) {
   P.pv = nb(d.pv, .05, 1, 1);
   P.mana = nb(d.mana, 0, 100, 100);
   lives = nb(d.vies, 1, 3, 3) | 0;
+  // le coffre et l'expédition : des nombres entiers, bornés, et rien d'autre à croire
+  for (const r of COFFRE_R) P.coffre[r] = nb(d.coffre && d.coffre[r], 0, 1e6, 0) | 0;
+  P.exp = { sauts: nb(d.exp && d.exp.s, 0, 99, 0) | 0, coeurs: nb(d.exp && d.exp.c, 0, 3, 0) | 0 };
+  P.pseudo = typeof d.pseudo === 'string' ? d.pseudo.replace(/[<>]/g, '').slice(0, 18).trim() || null : null;
   if (Number.isFinite(d.heure)) horloge = ((d.heure % 1) + 1) % 1;
   // La position n'a de sens que sur la même île, et au-dessus d'un sol qui porte.
   // le campement : une île, une case, et rien d'autre à croire
@@ -6837,7 +7322,12 @@ function blocSauvegarde() {
       + `<button data-sv="ici"${essai ? ' disabled' : ''}>Garder ici</button></div></div>`;
   }
   const conf2 = maintenant() < confirmeEffacer;
-  h += `<div class="obj"><div><div class="n">Compte</div>`
+  h += `<div class="obj"><div><div class="n">Nom vu par les autres</div>`
+    + `<div class="d">celui qui s'affiche au-dessus de votre personnage, et dans la liste des joueurs en ligne</div></div>`
+    + `<input id="pseudoIn" maxlength="18" value="${esc(pseudo())}" `
+    + `style="width:130px;background:rgba(12,16,26,.7);border:1px solid rgba(190,205,230,.28);`
+    + `color:#cfd6e4;border-radius:8px;font:inherit;font-size:13px;padding:7px 9px"></div>`
+    + `<div class="obj"><div><div class="n">Compte</div>`
     + `<div class="d">${esc(Compte.email || 'connecté')} · votre personnage suit ce compte sur tous vos appareils</div></div>`
     + `<button data-sv="quitter">Déconnexion</button></div>`
     + `<div class="obj${conf2 ? ' porte' : ''}"><div><div class="n">Effacer mon personnage</div>`
@@ -6996,6 +7486,8 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 loadWorld();
+arriveeLe = maintenant();                            // le répit des premières secondes
+addEventListener('pagehide', () => debrancher('parti'));
 ouvrirPorte();
 let last = performance.now();
 let accSec = 0, accImg = 0;
@@ -7059,6 +7551,12 @@ globalThis.__ISO = { P, proj, depth, hAt, blockH, floorUnder, blockedAt, camPris
   campIci, placeCamp, emitCamp, VIEW_ISO, appliquer, composerIle, noterVisite, garderGraine, oublierGraine,
   ameliorerCamp, partirVers, memoireJournal, portailDirige, nivCamp, CAMP_NIV, pageJournal, poserCampement, reprendreCampement, ouvrirPortail, rentrerAuCampement,
   seReposer, voyagerVers, nomIle, campOs, pageCampement, auCamp,
+  RS, Autres, betesLoin, EnLigne, brancher, debrancher, majReseau, recevoir, diffuser, majDistant, ouvrirCanal,
+  cibleLoin, frapperLoin, encaisser, rejoindreJoueur, pseudo, teinteDe, sousAbri, blocEnLigne,
+  get arriveeLe(){return arriveeLe}, set arriveeLe(v){arriveeLe=v}, ABRI, REPIT, LOIN_VIE, canalIle,
+  deposerCoffre, reprendreCoffre, clotureExpedition, abandonnerCompagnes, profondeur, danger, capEsp,
+  coeursPerdus, partGardee, auDelaBarriere, coffreTotal, sacTotal, BARRIERE, GARDE, COFFRE_R, SAUTS_MAX,
+  get bilanExp(){return bilanExp}, degSubi, degJoueur, respawn,
   Compte, Porte, porteMode, porteValider, connexion, inscription, oubli, nouveauMdp, entrer, quitterCompte, effacerPersonnage, majSauvegarde, blocSauvegarde, actionSauvegarde, demarrerSauvegarde, entrerEssai, sortirEssai, nouvelleIle, get lives(){return lives}, set lives(v){lives=v},
   get horloge(){return horloge}, majSac, ouvrirSac, get sacOuvert(){return sacOuvert},
   get ongletSac(){return ongletSac}, choisirOnglet, clicSac, icone, DESSINS, get choixSac(){return choixSac},
