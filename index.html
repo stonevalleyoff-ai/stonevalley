@@ -112,6 +112,23 @@
   #porte .msg{min-height:17px;margin:2px 0 6px;font-size:12.5px;line-height:1.45;color:#ef8a6f;}
   #porte .msg.bien{color:#9fd08a;}
   #porte .note{margin:14px 0 0;font-size:11px;color:#6f788f;}
+  #porte details{margin-top:10px;font-size:11.5px;color:#8b95aa;line-height:1.5;}
+  #porte summary{cursor:pointer;color:#9fb0cd;text-decoration:underline;}
+  /* Le guide de départ : une ligne dorée sous les jauges. */
+  #hudtxt .guide{color:#ffd27d;}
+  #hudtxt .guide b{color:#fff1c8;}
+  /* Le mot des testeurs : un panneau à part, que le sac ne redessine jamais. */
+  #retour{position:fixed;inset:0;z-index:40;display:none;align-items:center;justify-content:center;background:rgba(6,8,14,.6);padding:16px;}
+  #retour.ouvert{display:flex;}
+  #retour .carte{width:min(420px,100%);background:rgba(20,24,35,.96);border:1px solid rgba(190,205,230,.2);border-radius:14px;padding:18px;color:#cfd6e4;}
+  #retour h2{margin:0 0 6px;font-size:16px;font-weight:600;}
+  #retour p{margin:0 0 10px;font-size:12px;color:#8b95aa;line-height:1.45;}
+  #retour textarea{width:100%;box-sizing:border-box;min-height:120px;resize:vertical;background:rgba(12,16,26,.8);color:#e4e9f2;
+    border:1px solid rgba(190,205,230,.28);border-radius:9px;padding:9px;font:inherit;font-size:13.5px;}
+  #retour .gestes{display:flex;justify-content:flex-end;gap:8px;margin-top:10px;}
+  #retour button{font:inherit;font-size:13px;border-radius:9px;padding:8px 14px;cursor:pointer;border:1px solid rgba(190,205,230,.28);background:rgba(30,36,52,.9);color:#cfd6e4;}
+  #retour button.principal{background:#d9a441;border-color:#d9a441;color:#1a1408;font-weight:600;}
+  #retour .etat{font-size:12px;color:#8fd0a8;min-height:16px;margin-top:6px;}
   #sac{pointer-events:auto;inset:0;z-index:10;display:none;background:rgba(8,10,16,.72);
     --nuit:#10131c;--rail:#0c0f16;--trait:#1f2432;--roche:#2b303c;--roche-b:#07090e;
     --texte:#e3e8f3;--texte2:#8b95aa;--or:#ffd27d;--pousse:#9fd08a;--braise:#ef8a6f;--lien:#e8404e;
@@ -194,6 +211,9 @@
   .carac b{color:var(--texte);font-weight:650;font-variant-numeric:tabular-nums;}
   .gestes{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin-top:12px;}
   .gestes.cases{gap:6px;margin-top:8px;}
+  .note.reserve{margin:0 0 8px;color:#8fd0a8;}
+  .donnees p{margin:0 0 8px;font-size:12px;line-height:1.5;color:var(--texte2);}
+  .donnees b{color:var(--texte);font-weight:600;}
   .gestes.cases .btn{min-width:34px;padding:0 9px;}
   .gestes.cases .btn[aria-pressed="true"]{border-color:var(--or);color:var(--or);box-shadow:inset 0 0 0 1px var(--or);}
   .note{font-size:11.5px;color:var(--texte2);}
@@ -335,13 +355,23 @@
 <div id="porte">
   <div class="carte">
     <h1>STONE VALLEY</h1>
-    <p class="sous" id="psous">alpha ouverte</p>
+    <p class="sous" id="psous">bêta · les sauvegardes peuvent être remises à zéro</p>
     <label>Adresse e-mail<input id="pmail" type="email" autocomplete="email" autocapitalize="off" spellcheck="false"></label>
     <label id="pmdpl">Mot de passe<input id="pmdp" type="password" autocomplete="current-password"></label>
     <div class="msg" id="pmsg"></div>
     <button class="principal" id="pok">Se connecter</button>
     <div class="liens"><button id="pbasc">Créer un compte</button><button id="poubli">Mot de passe oublié</button></div>
     <p class="note">Votre personnage est lié à ce compte : il vous suit d'un appareil à l'autre.</p>
+    <details><summary>Données personnelles</summary><div id="pdonnees"></div></details>
+  </div>
+</div>
+<div id="retour" role="dialog" aria-modal="true" aria-labelledby="retour-titre">
+  <div class="carte">
+    <h2 id="retour-titre">Un problème, une idée ?</h2>
+    <p>Dites ce qui s'est passé, ou ce qui vous manque. L'appareil, l'île et l'état du jeu partent avec le message : inutile de les décrire.</p>
+    <textarea id="retour-texte" maxlength="1500" placeholder="Par exemple : mon coursier est resté bloqué contre un mur, près de mon campement."></textarea>
+    <div class="etat" id="retour-etat" aria-live="polite"></div>
+    <div class="gestes"><button id="retour-non">Fermer</button><button class="principal" id="retour-oui">Envoyer</button></div>
   </div>
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · B ÉTABLI · V VUE · Q/E PIVOTER · R/F INCLINER · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
@@ -429,9 +459,16 @@ function sessionGardee() {
 function nomCopie(uid) { return 'stone_valley' + (uid ? ':' + uid : ''); }
 // Le nom de la copie suit le compte : au premier passage il est encore sans nom, entrer() le fixe.
 let STOCKAGE = nomCopie((sessionGardee() || {}).uid);
+// La copie locale. Au changement d'île on l'écrit aussi dans le stockage de l'onglet : certains
+// navigateurs (onglet privé, fichier ouvert en local) perdent une écriture faite juste avant de
+// recharger la page — et l'on repartait d'un personnage neuf, sans campement.
+function lireCopie() {
+  try { const l = localStorage.getItem(STOCKAGE); if (l) return l; } catch (e) { /* stockage fermé */ }
+  try { return sessionStorage.getItem(STOCKAGE); } catch (e) { return null; }
+}
 function graineSauvee() {
   try {
-    const s = JSON.parse(localStorage.getItem(STOCKAGE) || 'null');
+    const s = JSON.parse(lireCopie() || 'null');
     const g = s && s.donnees && s.donnees.graine;
     return Number.isInteger(g) ? g : null;
   } catch (e) { return null; }
@@ -440,7 +477,7 @@ function graineSauvee() {
 // peuple : c'est elle qui dit combien de chasseurs l'île doit porter.
 function expSauvee() {
   try {
-    const s = JSON.parse(localStorage.getItem(STOCKAGE) || 'null');
+    const s = JSON.parse(lireCopie() || 'null');
     const e = s && s.donnees && s.donnees.exp;
     if (!e) return null;
     const n = Number.isFinite(e.n) ? e.n : e.s;        // « s » : l'ancien nom, du temps des sauts
@@ -1017,6 +1054,7 @@ P.sac = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0 };
 P.equip = { arme: null, outil: null, armure: null, grimoire: null, accessoire: null, lumiere: null };
 P.endu = 1; P.epuise = false; P.courseT = -9;   // l'endurance, de 0 à 1
 P.raccourcis = [null, null, null, null, null];     // les cinq cases du bord droit
+P.guide = { e: 0, masque: false, parti: false, vu: false };   // le guide de départ
 P.objets = {};                                   // ce qui a déjà été fabriqué
 P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.arc = null;
 // Les compagnes. Un lien d'éclat est une place : chaque bête liée en occupe un, qu'elle soit
@@ -1727,6 +1765,7 @@ function rentrerAuCampement(mort) {
 function seReposer() {
   if (!auCamp()) { say('il faut être au campement', 2); return false; }
   P.pv = 1; P.mana = 100; P.endu = 1; P.epuise = false;
+  const coeurs = 3 - lives; lives = 3;                // au feu, les cœurs perdus reviennent
   let n = 0;
   for (const c of P.compagnes) {
     const b = c.b;
@@ -1734,7 +1773,8 @@ function seReposer() {
     else { c.faim = Math.max(.2, c.faim - .3); c.nrj = 1; }
   }
   burst(P.camp.x, P.camp.y, P.camp.z + .5, 16, '#ffb46a');
-  say('repos au feu' + (n ? ' · ' + n + ' compagne' + (n > 1 ? 's' : '') + ' rassasiée' + (n > 1 ? 's' : '') : ''), 2.5);
+  say('repos au feu' + (coeurs ? ' · ' + coeurs + ' cœur' + (coeurs > 1 ? 's' : '') + ' retrouvé' + (coeurs > 1 ? 's' : '') : '')
+    + (n ? ' · ' + n + ' compagne' + (n > 1 ? 's' : '') + ' rassasiée' + (n > 1 ? 's' : '') : ''), 2.5);
   if (sacOuvert) majSac();
   return true;
 }
@@ -1789,6 +1829,16 @@ function capEsp(sp) {
 const auSac = r => r === 'baies' ? P.baies : (P.sac[r] || 0);
 const metSac = (r, v) => { const n = Math.max(0, v | 0); if (r === 'baies') P.baies = n; else P.sac[r] = n; };
 const coffreTotal = () => COFFRE_R.reduce((s, r) => s + (P.coffre[r] || 0), 0);
+// La réserve commune : près de son campement — dans l'abri, à sept cases du feu — le sac et le
+// coffre ne font qu'un. On fabrique, on améliore, on nourrit sans rien déplacer. On puise d'abord
+// au coffre : le sac, c'est ce qu'on emporte en expédition.
+const reserveCommune = () => !!prsCamp(P.x, P.y);
+const dispo = r => auSac(r) + (reserveCommune() ? (P.coffre[r] || 0) : 0);
+function puiser(r, n) {
+  if (reserveCommune()) { const c = Math.min(n, P.coffre[r] || 0); P.coffre[r] = (P.coffre[r] || 0) - c; n -= c; }
+  if (n > 0) metSac(r, auSac(r) - n);
+}
+const payer = cout => { for (const [r, n] of Object.entries(cout)) puiser(r, n); };
 const sacTotal = () => COFFRE_R.reduce((s, r) => s + auSac(r), 0);
 
 function deposerCoffre(r) {
@@ -2227,8 +2277,8 @@ function ameliorerCamp() {
   if (!suite) { say('le campement est au plus haut', 2); return false; }
   if (!campIci() || !auCamp()) { say('il faut être à votre campement', 2.5); return false; }
   if (!essai) {
-    for (const [r, n] of Object.entries(suite.cout)) if (P.sac[r] < n) { say('matières manquantes', 1.8); return false; }
-    for (const [r, n] of Object.entries(suite.cout)) P.sac[r] -= n;
+    for (const [r, n] of Object.entries(suite.cout)) if (dispo(r) < n) { say('matières manquantes', 1.8); return false; }
+    payer(suite.cout);
   }
   P.camp.niv = suite.niv;
   burst(P.camp.x, P.camp.y, P.camp.z + 1, 26, '#8fe4e8');
@@ -2313,7 +2363,7 @@ function majDalles(dt) {
 // passer en revue les quinze objets sans refaire la récolte à chaque fois. Les dégâts
 // reçus, eux, restent réels : sinon l'armure ne s'éprouve pas.
 let essai = false;
-const payable = o => essai || Object.entries(o.cout).every(([r, n]) => P.sac[r] >= n);
+const payable = o => essai || Object.entries(o.cout).every(([r, n]) => dispo(r) >= n);
 function toutFabriquer() {
   for (const o of OBJETS) if (!enSerie(o) && !o.offert && !P.objets[o.id]) { P.objets[o.id] = 1; if (o.emp !== 'camp') P.equip[o.emp] = o.id; }
   P.fleches += 64; P.liens = Math.max(P.liens, 6); P.mana = 100; P.pv = 1;
@@ -2326,7 +2376,7 @@ function fabriquer(id) {
   if (enSerie(o)) {                               // flèches et liens se refont autant qu'on veut
     if (!payable(o)) { say('matières manquantes', 1.4); return; }
     const prix = o.cout;                          // lu une fois : pour un lien, il change dès qu'on l'a fait
-    if (!essai) for (const [r, n] of Object.entries(prix)) P.sac[r] -= n;
+    if (!essai) payer(prix);
     if (o.emp === 'lien') {
       P.liens++; burst(P.x, P.y, P.z + .5, 12, '#e8404e');
       say('lien d\'éclat · ' + liensLibres() + ' libre' + (liensLibres() > 1 ? 's' : '') + ' sur ' + P.liens
@@ -2339,7 +2389,7 @@ function fabriquer(id) {
   }
   if (P.objets[id]) return;
   if (!payable(o)) { say('matières manquantes', 1.4); return; }
-  if (!essai) for (const [r, n] of Object.entries(o.cout)) P.sac[r] -= n;
+  if (!essai) payer(o.cout);
   P.objets[id] = 1;
   if (o.emp !== 'camp') P.equip[o.emp] = id;      // fabriqué, donc équipé — sauf ce qui se pose
   if (o.emp !== 'camp' && o.emp !== 'armure') rangerRaccourci(id);   // et rangé dans une case
@@ -2767,7 +2817,7 @@ function avancement(o) {
   let a = 0, b = 0;
   const manque = [];
   for (const [r, n] of Object.entries(o.cout)) {
-    const h = essai ? n : Math.min(n, P.sac[r]);
+    const h = essai ? n : Math.min(n, dispo(r));
     a += h; b += n;
     if (h < n) manque.push([r, n - h]);
   }
@@ -2826,7 +2876,7 @@ function pageSac() {
     + `<div class="col"><h3>Porté</h3><div class="equip">${equip}</div>`
     + `<h3>Cases du bord droit</h3><div class="rangee">${cases}</div>`
     + `<h3>Réserves</h3><div class="rangee">${reserves}</div></div>`
-    + `<div class="col"><h3>Matières</h3><div class="rangee">${matieres}</div>`
+    + `<div class="col"><h3>Matières</h3>${noteReserve()}<div class="rangee">${matieres}</div>`
     + `<h3>Objets</h3>${grille}${ficheSac()}</div></div>`;
 }
 function ficheSac() {
@@ -2884,16 +2934,19 @@ function pageEtabli() {
       + `</button></li>`;
   }).join('');
   return `<div class="sac-corps deux etabli">`
-    + `<div class="col"><div class="filtres" role="group" aria-label="Filtrer les recettes">${filtres}</div>`
+    + `<div class="col">${noteReserve()}<div class="filtres" role="group" aria-label="Filtrer les recettes">${filtres}</div>`
     + `<ul class="recettes">${lignes}</ul></div>`
     + `<div class="col">${detailRecette()}</div></div>`;
 }
+// Près du campement, on le dit : les recettes comptent aussi ce qui dort au coffre.
+const noteReserve = () => reserveCommune() && coffreTotal()
+  ? `<p class="note reserve">Près du campement : l'établi puise aussi dans le coffre (${coffreTotal()}), d'abord lui, puis le sac.</p>` : '';
 function detailRecette() {
   const o = choixEtabli && objet(choixEtabli);
   if (!o) return `<div class="fiche calme">Aucune recette ici.</div>`;
   const fait = !enSerie(o) && P.objets[o.id], plein = sacPlein(o), pret = !plein && payable(o);
   const ingr = Object.entries(o.cout).map(([r, n]) => {
-    const h = essai ? n : P.sac[r], ok = h >= n;
+    const h = essai ? n : dispo(r), ok = h >= n;
     return `<li class="${ok ? 'ok' : 'manque'}">${caseObjet(r, { taille: 'mini', inerte: true })}`
       + `<span class="ingr-nom">${RES[r]}<span class="barre"><i style="width:${Math.min(100, Math.round(h / n * 100))}%"></i></span></span>`
       + `<span class="qte">${essai ? '∞' : h} / ${n}</span></li>`;
@@ -3103,7 +3156,7 @@ function pageCampement() {
         if (!suite) return `<div class="obj"><div><div class="n">${ESC(paletteCamp().n)}</div>`
           + `<div class="d">au plus haut · ${ESC(paletteCamp().d)}</div></div></div>`;
         const cout = Object.entries(suite.cout).map(([r, n]) => `${n} ${RES[r]}`).join(' · ');
-        const payable_ = essai || Object.entries(suite.cout).every(([r, n]) => P.sac[r] >= n);
+        const payable_ = essai || Object.entries(suite.cout).every(([r, n]) => dispo(r) >= n);
         return `<div class="obj"><div><div class="n">${ESC(suite.n)}</div>`
           + `<div class="d">${ESC(suite.d)}<br>${ESC(cout)}${payable_ ? '' : ' · matières manquantes'}</div></div>`
           + `<button data-camp="ameliorer"${payable_ && proche ? '' : ' disabled'}>Améliorer</button></div>`;
@@ -3172,7 +3225,7 @@ function ficheCompagne(c) {
       ? `<button class="btn" data-rentrer="${id}">Rentrer dans le sac</button>`
       : c.aucamp ? `<button class="btn" disabled>Restée au campement</button>`
       : `<button class="btn principal" data-sortir="${id}"${c.ko || enJeu() >= EN_JEU_MAX ? ' disabled' : ''}>Sortir</button>`)
-    + (automate(sp) ? '' : `<button class="btn" data-nourrirc="${id}"${P.baies > 0 && faim >= .05 ? '' : ' disabled'}>Nourrir · 1 baie</button>`)
+    + (automate(sp) ? '' : `<button class="btn" data-nourrirc="${id}"${dispo('baies') > 0 && faim >= .05 ? '' : ' disabled'}>Nourrir · 1 baie</button>`)
     + `<button class="btn ${confirme ? 'alerte' : 'discret'}" data-liberer="${id}">${confirme ? 'Confirmer' : 'Libérer'}</button>`;
   return `<div class="fiche haute" id="sac-fiche">`
     + caseObjet('bete_' + c.esp, { taille: 'grande', inerte: true, lie: c.dehors && !c.ko, ko: c.ko })
@@ -3220,6 +3273,11 @@ function pageReglages() {
     ['1 à 7', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
     ['Clic droit', 'en 1re personne, prendre ou rendre la caméra'], ['Clic gauche', 'attaquer, caméra prise']];
   return `<div class="sac-corps lignes">`
+    + `<h3>Bêta</h3>`
+    + `<div class="obj"><div><div class="n">Un problème, une idée ?</div><div class="d">Un message part vers l'équipe, avec l'état du jeu pour reproduire.</div></div>`
+    + `<button data-retour="1">Écrire</button></div>`
+    + `<div class="obj"><div><div class="n">Guide de départ</div><div class="d">${P.guide.e >= GUIDE.length ? 'terminé' : 'étape ' + (P.guide.e + 1) + ' sur ' + GUIDE.length}</div></div>`
+    + `<button data-guide="1" aria-pressed="${!P.guide.masque}">${P.guide.masque ? 'Masqué' : 'Affiché'}</button></div>`
     + `<h3>Affichage</h3>`
     + `<div class="obj"><div><div class="n">Textures</div><div class="d">Le grain 16×16 du décor. À couper si l'image rame.</div></div>`
     + `<button data-tex="1" aria-pressed="${textures}">${textures ? 'Activées' : 'Coupées'}</button></div>`
@@ -3242,6 +3300,7 @@ function pageReglages() {
     + `<div class="d">${(globalThis.__PANNE || {}).n ? __PANNE.n + ' incident(s) · ' + __PANNE.dernier.replace(/[<>]/g, '') : 'Aucun incident.'}`
     + ` · ${innerWidth}×${innerHeight} · ${Math.round(devicePixelRatio * 100) / 100}× · ${(navigator.userAgent || '').slice(0, 70)}</div></div></div>`
     + `<h3>Commandes</h3><dl class="touches">${touches.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
+    + `<h3>Données personnelles</h3><div class="donnees">${TEXTE_DONNEES}</div>`
     + `</div>`;
 }
 
@@ -3365,6 +3424,8 @@ function clicSac(b) {
   else if (d.tex) { textures = !textures; majSac(); }
   else if (d.isogl) { isoGL = !isoGL; majSac(); }
   else if (d.mesures) { mesures = !mesures; majSac(); }
+  else if (d.retour) ouvrirRetour();
+  else if (d.guide) { P.guide.masque = !P.guide.masque; hudT = -9; majSac(); }
   else if (d.dens) { DENS_GLOB = DENS_GLOB < .6 ? .7 : DENS_GLOB > 1 ? .45 : 1.15; calcFlore(); majSac(); }
   else if (d.fin) ouvrirSac(false);
   else if (d.sv) actionSauvegarde(d.sv);
@@ -3461,7 +3522,24 @@ const coursier = sp => !!sp && sp.fam === 'coursier';
 for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;
 const JOUR = 240;
-const lumiere = () => .3 + .7 * Math.max(0, Math.cos((horloge - .5) * 6.2832) * .5 + .5);
+// Le soleil se lève à 6 h et se couche à 20 h : quatorze heures de jour, dix de nuit. Le noir
+// commence au coucher et s'épaissit en une heure et demie ; l'aube le défait d'ici 6 h.
+const LEVER = 6, COUCHER = 20, CREPUSCULE = 1.5;
+const lisse01 = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
+function lumiere() {
+  const H = horloge * 24;
+  if (H >= LEVER && H <= COUCHER) return .74 + .26 * Math.sin(Math.PI * (H - LEVER) / (COUCHER - LEVER));
+  if (H > COUCHER) return .74 - .44 * lisse01((H - COUCHER) / CREPUSCULE);
+  return .3 + .44 * lisse01((H - LEVER + CREPUSCULE) / CREPUSCULE);
+}
+// La hauteur du soleil, en radians : à l'horizon au lever et au coucher, au plus haut à 13 h ;
+// la lune prend l'opposé.
+function hauteurSoleil() {
+  const H = horloge * 24;
+  if (H >= LEVER && H <= COUCHER) return Math.sin(Math.PI * (H - LEVER) / (COUCHER - LEVER)) * 1.12;
+  const n = ((H - COUCHER) + 24) % 24;               // heures écoulées depuis le coucher
+  return -Math.sin(Math.PI * n / (24 - COUCHER + LEVER)) * 1.12;
+}
 
 // ============================================================
 //  MÉTÉO
@@ -3799,7 +3877,8 @@ ONGLETS.forEach((o, i) => { TOUCHES['Digit' + (i + 1)] = () => { if (sacOuvert) 
 const SAC_SEUL = { KeyI:1, KeyB:1, Escape:1 };
 ONGLETS.forEach((o, i) => { SAC_SEUL['Digit' + (i + 1)] = 1; });
 addEventListener('keydown', e => {
-  if (e.target && e.target.tagName === 'INPUT') {         // une saisie : les touches sont à elle
+  if (document.getElementById('retour').classList.contains('ouvert')) return;   // le panneau du mot : les touches sont à lui
+  if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {   // une saisie : les touches sont à elle
     if (e.key === 'Escape') e.target.blur();
     return;
   }
@@ -3816,7 +3895,7 @@ addEventListener('keydown', e => {
   K[e.code] = true;
   if (f) f();
 });
-addEventListener('keyup', e => { if (e.target && e.target.tagName === 'INPUT') return; K[e.code] = false; if (e.code === 'KeyX') lacheQ = true; });
+addEventListener('keyup', e => { if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return; K[e.code] = false; if (e.code === 'KeyX') lacheQ = true; });
 function setMode(m) {
   mode = m;
   if (m === 'fps') { yaw = ang + Math.PI * .75; pitch = -0.05; }   // on repart dans l'axe où l'on regardait
@@ -4077,10 +4156,10 @@ function update(dt) {
     if (!c) say(repue && repue.comp ? repue.comp.nom + ' n\'a pas faim' : 'aucune bête à portée', 1.4);
     else if (automate(c.sp)) rallumer(c);
     else if (coursier(c.sp) && !c.tame) say('un coursier ne se lie pas aux baies : sautez sur son dos', 2);
-    else if (P.baies <= 0) say('plus de baies', 1.4);
+    else if (dispo('baies') <= 0) say('plus de baies', 1.4);
     else if (!c.tame && c.sp.diet === 'c' && c.faim < .35) say(c.sp.n + " n'a pas faim", 1.6);
     else {
-      P.baies--; c.faim = Math.max(0, c.faim - .5); c.alarm = 0;
+      puiser('baies', 1); c.faim = Math.max(0, c.faim - .5); c.alarm = 0;
       burst(c.x, c.y, c.z + .5, 10, '#ffd68a');
       if (c.tame) say((c.comp ? c.comp.nom : c.sp.n) + ' mange · faim ' + Math.round(c.faim * 100) + ' %', 1.5);
       else {
@@ -6617,10 +6696,10 @@ function changerRole(c, role) {
   return changerOrdre(c, 'role', role);
 }
 function nourrirCompagne(c) {
-  if (P.baies <= 0) { say('plus de baies', 1.4); return; }
+  if (dispo('baies') <= 0) { say('plus de baies', 1.4); return; }
   const cible = c.b || c;
   if (cible.faim < .05) { say(c.nom + ' n\'a pas faim', 1.4); return; }
-  P.baies--; cible.faim = Math.max(0, cible.faim - .5);
+  puiser('baies', 1); cible.faim = Math.max(0, cible.faim - .5);
   if (c.b) burst(c.b.x, c.b.y, c.b.z + .5, 10, '#ffd68a');
   majSac();
 }
@@ -6890,7 +6969,7 @@ function cielDecor(azVue, pitchVue, F) {
   };
   // L'astre est à l'azimut qui éclaire le relief : le soleil se trouve donc bien là d'où
   // viennent les ombres. Sa hauteur suit l'heure, zénith à midi.
-  const elS = Math.sin((horloge - .25) * 6.2832) * 1.12;
+  const elS = hauteurSoleil();
   for (const [az, el, c, r] of [[SUN_AZ, elS, [255, 226, 150], .052],
                                 [SUN_AZ + Math.PI, -elS, [222, 230, 246], .040]]) {
     if (el < -.05) continue;
@@ -7118,7 +7197,7 @@ function drawHud() {
   // soixante fois par seconde. Dix fois suffisent à l'œil, et rien si rien n'a changé.
   if (t - hudT < .1 && t >= hudT) return;
   hudT = t;
-  majEndu(); majJauges(); majCases(); majAction(); majCible();
+  majEndu(); majJauges(); majCases(); majAction(); majCible(); majGuide();
   const hh = ((horloge * 24) | 0).toString().padStart(2, '0');
   const mm = (((horloge * 24) % 1 * 60) | 0).toString().padStart(2, '0');
   const pops = SPEC.filter(sp => !especesIle.size || especesIle.has(sp.id))   // seulement celles de l'île
@@ -7135,6 +7214,7 @@ function drawHud() {
         + `EXPLORATION <b>${profondeur()}</b> · DANGER <b>×${danger().toFixed(2)}</b>`
         + (ecart() ? ` · À <b>${ecart()}</b> DE CHEZ VOUS · BUTIN <b>${Math.round(partGardee() * 100)}%</b>` : '')
         + (auDelaBarriere() ? ' · <b>BARRIÈRE FRANCHIE</b>' : '') + `</span>` : '')
+    + ligneGuide()
     + `<br><span style="color:#8d9ab4">${pops}</span>`
     + (t - avisComp.t < 3.5 ? `<br><span style="color:#e8a0a8">${ESC(texteAvisComp())}</span>` : '')
     + (!mesures ? '' : `<br><span style="color:#6d778d">DESSIN <b>${msDessin.toFixed(1)} ms</b> · <b>${Math.round(imgSec)} img/s</b> · ${facesDern} ${(mode === 'fps' || isoGL) && G3.ok && !G3.perdu ? 'triangles · WebGL' : 'faces'}</span>`
@@ -7175,7 +7255,7 @@ function actionContexte() {
   if (pr) {
     const nom = pr.comp ? pr.comp.nom : pr.sp.n.toLowerCase();
     if (automate(pr.sp)) { if (!pr.tame && pr.etat === 'veille') return { v: 'RALLUMER', o: nom, f: nourrirQ }; }
-    else if (P.baies > 0 && (!pr.tame || pr.faim >= .15)) return { v: 'NOURRIR', o: nom, f: nourrirQ };
+    else if (dispo('baies') > 0 && (!pr.tame || pr.faim >= .15)) return { v: 'NOURRIR', o: nom, f: nourrirQ };
   }
   const nd = noeudProche();
   if (nd) {
@@ -7302,6 +7382,89 @@ function majJauges() {
     if (w !== e.w) { e.w = w; e.b.querySelector('i').style.width = w + '%'; }
     if (n !== e.n) { e.n = n; e.b.querySelector('em').textContent = n; }
   }
+}
+
+// ---------- le guide de départ ----------
+// Six étapes, de la première plante au premier retour d'expédition. Chacune se lit dans l'état
+// du jeu : un joueur qui a déjà un campement saute ce qu'il sait faire.
+const aFabrique = () => OBJETS.some(o => P.objets[o.id] && !o.offert && o.emp !== 'camp') || P.fleches > 0 || P.liens > 0;
+const GUIDE = [
+  { t: 'Récoltez : approchez une plante et appuyez sur <b>ACTION</b> (C)', ok: () => sacTotal() + coffreTotal() > 0 || aFabrique() || !!P.camp },
+  { t: 'Fabriquez un premier objet à l\'<b>établi</b> (B, ou SAC › Établi)', ok: () => aFabrique() || !!P.camp },
+  { t: 'Fabriquez le <b>Campement</b> : bois, pierre, fibre, six éclats (pioche)', ok: () => !!P.objets.campement || !!P.camp },
+  { t: 'Posez-le sur un sol plat : <b>SAC › Campement › Poser ici</b>', ok: () => !!P.camp },
+  { t: 'Franchissez l\'<b>arche</b> de l\'île (repère bleu de la boussole)', ok: () => !!P.guide.parti },
+  { t: 'Rentrez au campement (<b>pierre de foyer</b>) : le butin va au coffre', ok: () => !!P.guide.parti && profondeur() === 0 && !!prsCamp(P.x, P.y) },
+];
+function majGuide() {
+  const g = P.guide;
+  if (profondeur() > 0) g.parti = true;
+  const e0 = g.e;
+  while (g.e < GUIDE.length && GUIDE[g.e].ok()) g.e++;
+  if (!g.masque && t > 3) {
+    if (!g.vu && g.e === 0) { g.vu = true; say('bienvenue · le guide, sous les jauges, vous met en route', 4); }
+    else if (g.e === e0 + 1) say(g.e >= GUIDE.length ? 'guide terminé · l\'île est à vous' : 'étape ' + g.e + ' réussie', 2.2);
+  }
+  g.vu = true;
+}
+const ligneGuide = () => P.guide.masque || P.guide.e >= GUIDE.length ? ''
+  : `<br><span class="guide">GUIDE ${P.guide.e + 1}/${GUIDE.length} · ${GUIDE[P.guide.e].t}</span>`;
+
+// ---------- les données personnelles ----------
+const TEXTE_DONNEES = '<p><b>Ce que le jeu garde</b> : votre adresse e-mail et votre mot de passe (chiffré), pour le compte ; '
+  + 'votre personnage (sac, objets, compagnes, île) ; les messages que vous envoyez et les incidents techniques du jeu, '
+  + 'avec l\'appareil, le navigateur et l\'état de la partie.</p>'
+  + '<p><b>Ce que voient les autres joueurs</b> : votre pseudo, votre position et vos compagnes, seulement quand vous êtes '
+  + 'sur la même île. Rien de cela n\'est conservé.</p>'
+  + '<p><b>Pourquoi</b> : faire marcher le jeu et le corriger. Pas de publicité ; rien n\'est vendu ni partagé.</p>'
+  + '<p><b>Où</b> : chez Supabase, sur des serveurs à Paris (Union européenne).</p>'
+  + '<p><b>Tout effacer</b> : Sac › Sauvegarde › <b>Supprimer mon compte</b> efface le compte, l\'adresse, le personnage '
+  + 'et les messages, tout de suite. Une question : « Un problème, une idée ? », dans les Réglages.</p>';
+{ const el = document.getElementById('pdonnees'); if (el) el.innerHTML = TEXTE_DONNEES; }
+
+// ---------- le mot des testeurs, et les incidents ----------
+// Ce qui part avec chaque message : de quoi reproduire, rien de plus.
+function contexteJeu() {
+  try {
+    return { ua: navigator.userAgent.slice(0, 180), ecran: [innerWidth, innerHeight, Math.round(devicePixelRatio * 100) / 100],
+      webgl: !!(G3.ok && !G3.perdu), isoGL, mode, img_s: Math.round(imgSec), ms: Math.round(msDessin * 10) / 10,
+      graine: SEED, exploration: profondeur(), heure: Math.round(horloge * 240) / 10,
+      pos: [P.x, P.y, P.z].map(v => Math.round(v * 10) / 10), camp: !!P.camp, compagnes: P.compagnes.length,
+      sauve: Sauve.etat, essai, joueurs: Autres.size, incidents: Panne.n, dernier: String(Panne.dernier || '').slice(0, 400) };
+  } catch (e) { return { erreur: String(e).slice(0, 200) }; }
+}
+const retourEl = id => document.getElementById('retour' + (id ? '-' + id : ''));
+function ouvrirRetour() {
+  if (sacOuvert) ouvrirSac(false);
+  retourEl().classList.add('ouvert'); retourEl('etat').textContent = '';
+  retourEl('texte').focus();
+  for (const k in K) K[k] = false;                   // on lâche tout : on ne marche plus en écrivant
+}
+function fermerRetour() { retourEl().classList.remove('ouvert'); }
+async function envoyerRetour() {
+  const texte = retourEl('texte').value.trim(), etat = retourEl('etat'), b = retourEl('oui');
+  if (!texte) { etat.textContent = 'Quelques mots d\'abord.'; return false; }
+  if (!Compte.jeton) { etat.textContent = 'Il faut être connecté.'; return false; }
+  b.disabled = true; etat.textContent = 'envoi…';
+  try {
+    await rpc('vp_signaler', { p_genre: 'retour', p_texte: texte, p_contexte: contexteJeu() });
+    etat.textContent = 'Merci : c\'est parti.'; retourEl('texte').value = '';
+    setTimeout(fermerRetour, 1400);
+    return true;
+  } catch (e) { etat.textContent = 'Pas envoyé : ' + String(e.message || e).slice(0, 80); return false; }
+  finally { b.disabled = false; }
+}
+retourEl('oui').addEventListener('click', envoyerRetour);
+retourEl('non').addEventListener('click', fermerRetour);
+retourEl().addEventListener('click', e => { if (e.target === retourEl()) fermerRetour(); });
+retourEl().addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); fermerRetour(); } });
+// Un incident — une image qui casse, une erreur hors de la boucle — part tout seul, trois fois au
+// plus par partie et pas plus d'une fois par demi-minute.
+let incidentsEnvoyes = 0, incidentT = -99;
+function signalerIncident() {
+  if (!Compte.jeton || !Compte.dedans || incidentsEnvoyes >= 3 || maintenant() - incidentT < 30) return;
+  incidentsEnvoyes++; incidentT = maintenant();
+  rpc('vp_signaler', { p_genre: 'incident', p_texte: String(Panne.dernier || 'incident').slice(0, 1500), p_contexte: contexteJeu() }).catch(() => {});
 }
 
 // ---------- la fiche de la cible ----------
@@ -8299,7 +8462,7 @@ void main() { o = uC; }`;
       const c = Math.cos(d);
       return [Math.tan(d) * F2 / (Wd / 2), Math.tan(el + elev) * F2 / (Hd / 2), 1 / (c * c)];
     };
-    const elS = Math.sin((horloge - .25) * 6.2832) * 1.12;
+    const elS = hauteurSoleil();
     for (const [az, el, c, r] of [[SUN_AZ, elS, [255, 226, 150], .052], [SUN_AZ + Math.PI, -elS, [222, 230, 246], .040]]) {
       if (el < -.05) continue;
       const al = Math.min(1, .3 + el * 2) * (1 - met('nuages') * .75);
@@ -8352,7 +8515,7 @@ void main() { o = uC; }`;
     gl.uniform4fv(u.uNuit, noir); gl.uniform4fv(u['uFeux[0]'], FEUX_GL);
     gl.uniform2f(u.uIso, iso ? 1 : 0, coupe);
     // la pente du soleil : au ras de l'horizon, les ombres s'allongent ; la nuit, plus d'ombre portée
-    const elSol = Math.sin((horloge - .25) * 6.2832) * 1.12;
+    const elSol = hauteurSoleil();
     gl.uniform2f(u.uSoleil, elSol > .06 ? Math.tan(elSol) : 99, elSol > .06 ? .72 : 1);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.uniform1i(u.uA, 0);
 
@@ -8644,7 +8807,7 @@ function photo() {
     v: 1, graine: SEED,
     sac: Object.assign({}, P.sac),
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
-    equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(),
+    equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide),
     fleches: P.fleches, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -8674,7 +8837,7 @@ function photo() {
 }
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
-const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.raccourcis, P.fleches, P.baies, lives, Math.round(P.pv * 10),
+const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.raccourcis, P.guide, P.fleches, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
@@ -8705,6 +8868,10 @@ function appliquer(d, vivantes) {
   if (rc) for (let k = 0; k < CASES; k++) { const id = rc[k], o = typeof id === 'string' && objet(id);
     if (o && !enSerie(o) && P.objets[id] && !P.raccourcis.includes(id)) P.raccourcis[k] = id; }
   else remplirRaccourcis();
+  // le guide : une étape, et deux drapeaux ; une sauvegarde d'avant le guide le reprend au début,
+  // et il saute tout seul ce qui est déjà fait
+  const gd = d.guide && typeof d.guide === 'object' ? d.guide : {};
+  P.guide = { e: Math.max(0, Math.min(GUIDE.length, gd.e | 0)), masque: !!gd.masque, parti: !!gd.parti, vu: !!gd.vu || !!d.guide };
   P.fleches = nb(d.fleches, 0, 1e5, 0) | 0;
   P.baies = nb(d.baies, 0, 1e5, 3) | 0;
   P.pv = nb(d.pv, .05, 1, 1);
@@ -8817,7 +8984,7 @@ function installerCompagnes(liste, vivantes) {
 
 // ---------- la copie locale ----------
 function lireLocal() {
-  try { return JSON.parse(localStorage.getItem(STOCKAGE) || 'null'); } catch (e) { return null; }
+  try { return JSON.parse(lireCopie() || 'null'); } catch (e) { return null; }
 }
 function ecrireLocal(donnees) {
   // île en cours de changement, ou bac à sable du mode essai : on ne touche plus à rien
@@ -8825,6 +8992,8 @@ function ecrireLocal(donnees) {
   const s = JSON.stringify({ v: 2, uid: Compte.uid, rev: Sauve.rev,
     sale: Sauve.sale, quand: Sauve.quand, donnees: donnees || photo() });
   if (s === Sauve.local) return true;
+  // une copie de voyage : aussi dans l'onglet, le temps du rechargement
+  if (donnees) try { sessionStorage.setItem(STOCKAGE, s); } catch (e) { /* tant pis : la copie locale suffit */ }
   try { localStorage.setItem(STOCKAGE, s); Sauve.local = s; return true; } catch (e) { return false; }
 }
 
@@ -8917,8 +9086,19 @@ async function synchroniser() {
 // Effacer son personnage, sans quitter le compte : on repart d'une île neuve, sac vide.
 async function effacerPersonnage() {
   try { await rpc('vp_oublier_compte', {}); } catch (e) { say('pas de connexion', 2.5); return; }
-  try { localStorage.removeItem(STOCKAGE); } catch (e) { /* rien à effacer */ }
+  try { localStorage.removeItem(STOCKAGE); sessionStorage.removeItem(STOCKAGE); } catch (e) { /* rien à effacer */ }
   Sauve.pret = false;
+  location.reload();
+}
+
+// Supprimer son compte : la base efface le personnage, les messages et l'adresse ; ici, on oublie
+// la copie locale et la session, puis la porte se rouvre, vide.
+async function supprimerCompte() {
+  try { await rpc('vp_supprimer_compte', {}); } catch (e) { say('pas de connexion : rien n\'a été supprimé', 3); return; }
+  try { localStorage.removeItem(STOCKAGE); sessionStorage.removeItem(STOCKAGE); } catch (e) { /* rien à effacer */ }
+  Sauve.pret = false;
+  Compte.jeton = Compte.refresh = null; Compte.exp = 0; Compte.dedans = false; Compte.uid = null;
+  ecrireSession();
   location.reload();
 }
 
@@ -8932,6 +9112,7 @@ function demarrerSauvegarde() {
   if (P.camp) noterVisite();                             // l'arrivée s'inscrit au journal
   Sauve.signature = signature(); Sauve.pos = [P.x, P.y]; Sauve.pret = true;
   ecrireLocal();
+  try { sessionStorage.removeItem(STOCKAGE); } catch (e) { /* rien à ranger */ }   // la copie de voyage a servi
   synchroniser();                                        // a-t-on joué ailleurs depuis ?
 }
 function majSauvegarde() {
@@ -8997,6 +9178,7 @@ function sortirEssai() {
 // revient pas.
 let confirmeIle = 0;
 let confirmeEffacer = 0;                              // « Effacer mon personnage » demande deux clics
+let confirmeSuppr = 0;                                // « Supprimer mon compte » aussi
 function nouvelleIle() {
   if (maintenant() > confirmeIle) {
     confirmeIle = maintenant() + 4;
@@ -9059,6 +9241,11 @@ function blocSauvegarde() {
     + `<div class="obj${conf2 ? ' porte' : ''}"><div><div class="n">Effacer mon personnage</div>`
     + `<div class="d">${conf2 ? 'encore un clic : sac, objets et compagnes seront perdus' : 'repartir de zéro, sur une île neuve, sans quitter le compte'}</div></div>`
     + `<button data-sv="effacer">${conf2 ? 'Confirmer' : 'Effacer'}</button></div>`;
+  const conf3 = maintenant() < confirmeSuppr;
+  h += `<div class="obj${conf3 ? ' porte' : ''}"><div><div class="n">Supprimer mon compte</div>`
+    + `<div class="d">${conf3 ? 'encore un clic : le compte, l\'adresse e-mail, le personnage et vos messages seront effacés, sans retour'
+      : 'tout effacer chez nous : compte, adresse e-mail, personnage, messages'}</div></div>`
+    + `<button data-sv="supprimer">${conf3 ? 'Confirmer' : 'Supprimer'}</button></div>`;
   const conf = maintenant() < confirmeIle;
   h += `<div class="obj${conf ? ' porte' : ''}"><div><div class="n">Nouvelle île</div>`
     + `<div class="d">${conf ? 'encore un clic : l\'île actuelle ne reviendra pas' : 'le personnage garde son sac et part d\'une autre île'}</div></div>`
@@ -9074,6 +9261,10 @@ function actionSauvegarde(quoi) {
   else if (quoi === 'effacer') {
     if (maintenant() < confirmeEffacer) { confirmeEffacer = 0; effacerPersonnage(); }
     else confirmeEffacer = maintenant() + 6;
+  }
+  else if (quoi === 'supprimer') {
+    if (maintenant() < confirmeSuppr) { confirmeSuppr = 0; supprimerCompte(); }
+    else confirmeSuppr = maintenant() + 6;
   }
   if (sacOuvert) majSac();
 }
@@ -9103,7 +9294,7 @@ function porteMsg(txt, bien) {
 }
 function porteMode(m) {
   Porte.mode = m;
-  const sous = { connexion: 'alpha ouverte', inscription: 'créer un compte',
+  const sous = { connexion: 'bêta · les sauvegardes peuvent être remises à zéro', inscription: 'créer un compte',
     oubli: 'un lien de réinitialisation vous sera envoyé', nouveau: 'choisissez un nouveau mot de passe' }[m];
   $p('psous').textContent = sous;
   $p('pok').textContent = { connexion: 'Se connecter', inscription: 'Créer le compte',
@@ -9226,6 +9417,7 @@ function rattraper(e, ou) {
   Panne.n++;
   Panne.dernier = ou + ' · ' + ((e && e.message) || e) + ((e && e.stack) ? ' · ' + String(e.stack).split('\n')[1] : '');
   if (Panne.n === 1) console.error('Stone Valley', Panne.dernier, e);
+  signalerIncident();
   // deux images cassées de suite pendant le dessin : on coupe la carte graphique
   if (ou === 'dessin' && !Panne.repli) {
     Panne.repli = true; G3.perdu = true; isoGL = false;
@@ -9251,8 +9443,8 @@ function frame(now) {
 }
 requestAnimationFrame(frame);
 // Ce qui casse hors de la boucle (un bouton, un chargement) se note aussi, pour le rapport.
-addEventListener('error', e => { if (!Panne.dernier) Panne.dernier = 'page · ' + (e.message || '') ; Panne.n++; });
-addEventListener('unhandledrejection', e => { Panne.n++; if (!Panne.dernier) Panne.dernier = 'promesse · ' + ((e.reason && e.reason.message) || e.reason); });
+addEventListener('error', e => { Panne.dernier = 'page · ' + (e.message || '') + (e.filename ? ' · ' + e.filename.split('/').pop() + ':' + e.lineno : ''); Panne.n++; signalerIncident(); });
+addEventListener('unhandledrejection', e => { Panne.n++; Panne.dernier = 'promesse · ' + ((e.reason && e.reason.message) || e.reason); signalerIncident(); });
 // iOS : le double-tape et le pincement zooment la page et déplacent les boutons. On les refuse.
 for (const g of ['gesturestart', 'gesturechange', 'gestureend'])
   addEventListener(g, e => e.preventDefault(), { passive: false });
@@ -9265,7 +9457,7 @@ if ('serviceWorker' in navigator && location.protocol.startsWith('http'))
 globalThis.__V2 = { get beasts(){return beasts}, get berries(){return berries}, SPEC, BIOME, Hgt, Bio, WS, SEA,
   bAt, hAt, eau, PlB, PlT, plaT, plaB, majEcosysteme, agir, lancerSort, fabriquer, equiper, OBJETS, dalles, porte, BORD, FRANGE, VIDE_COL, GOUTTES, majGouttes, dessinerGouttes, TEX_HAUT, TEX_COTE, toutFabriquer, get essai(){return essai}, set essai(v){essai=v}, METEO, Meteo, met, majMeteo, forcerMeteo, clarte, cielDecor, FLORE, ESP, calcFlore, get DENS_GLOB(){return DENS_GLOB}, set DENS_GLOB(v){DENS_GLOB=v;calcFlore();}, typeFlore, colonnesVisibles, emitFlore, maturite, noeudProche, coupes, recolter,
   FLECHES, tirerFleche, majFleches, viser, ARC_VMAX, ARC_VMIN, ARC_G, ARC_TRAINEE, majBete, naitre, poser, loadWorld, colonnesVisibles, emitColonne,
-  get horloge(){return horloge}, set horloge(v){horloge=v}, lumiere, mourirBete, sol,
+  get horloge(){return horloge}, set horloge(v){horloge=v}, lumiere, hauteurSoleil, seReposer, mourirBete, sol,
   naitre, specById, majBete, COMBAT, porterCoup, blesseParJoueur, distribuerJetons, get t(){return t}, butin,
   CarteEau, distEau, versLEau, calcCarteEau, EAU_LOIN, auBordDeLEau, Eau, eauAt, hRendu, calcEaux };
 globalThis.__ISO = { P, proj, depth, hAt, blockH, floorUnder, blockedAt, camPrise, get yaw(){return yaw}, get crates(){return crates},
@@ -9304,6 +9496,10 @@ globalThis.__MUR = { cheminParoi, pointChemin, repere, engagerParoi, placerParoi
 globalThis.__DANGER = { COGNE, robuste, degSubi, degJoueur, danger, VIT_MARCHE, VIT_COURSE, VIT_EPUISE, ENDU_COURSE, ENDU_SEUIL,
   noirceur, majFeux, feux, eclaire, RAYON, NOIR_MAX, voileNuit, majEndu, stick, porterCoup, frapperLoin, encaisser,
   majDistant, Autres, draw, get t(){return t} };
+globalThis.__BETA = { GUIDE, majGuide, ligneGuide, contexteJeu, ouvrirRetour, fermerRetour, envoyerRetour, signalerIncident,
+  supprimerCompte, TEXTE_DONNEES, lireCopie, get incidentsEnvoyes(){return incidentsEnvoyes}, set incidentsEnvoyes(v){incidentsEnvoyes=v},
+  set incidentT(v){incidentT=v}, rattraper: (e, ou) => rattraper(e, ou) };
+globalThis.__RESERVE = { reserveCommune, dispo, puiser, payer, payable, ameliorerCamp, nourrirCompagne };
 globalThis.__VISEE = { ligneDeVue, voitCible, posteDeTir, TIRS };
 globalThis.__COURSIER = { coursier, majCoursier, coursierBones, pattesCoursier, monter, descendre, majRodeo, coursierAuContact, nomBete, icone,
   get Rodeo(){return Rodeo}, set actTenu(v){actTenu=v}, get actTenu(){return actTenu}, monture, AURORE, DITS_ETAT, capEsp, populationSauvage };
