@@ -1640,7 +1640,10 @@ function butin(b) {
   }
   const os = 1 + (Math.random() * 2 | 0), fi = 1 + (Math.random() * 2 | 0);
   P.sac.os += os; P.sac.fibre += fi;
-  say('+' + os + ' os · +' + fi + ' fibre', 1.8); majSac();
+  // le cerf de verre laisse ses bois, la salamandre un cœur de braise durci
+  const ec = b.sp.id === 'cerf' ? 2 + (Math.random() * 2 | 0) : b.sp.id === 'salamandre' ? 1 : 0;
+  P.sac.eclat += ec;
+  say('+' + os + ' os · +' + fi + ' fibre' + (ec ? ' · +' + ec + ' éclat' + (ec > 1 ? 's' : '') : ''), 1.8); majSac();
 }
 
 // ============================================================
@@ -2012,6 +2015,7 @@ const degSubi = deg => deg * danger() * COGNE;
 const degJoueur = (deg, b) => deg / danger() / robuste(b);
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
 function capEsp(sp) {
+  if (sp.biome) return especesIle.has(sp.id) ? sp.cap : 0;   // un Tellurien : autant que son sol en nourrit
   if (especesIle.size && !especesIle.has(sp.id)) return 0;   // la graine ne l'a pas mise sur cette île
   const p = Math.min(profondeur(), NIV_MAX);
   if (automate(sp)) return Math.round(sp.cap * (1 + p * .12));
@@ -2896,6 +2900,35 @@ function dessinAutomate(d, sp) {
   d.net(8, 8, sp.dark); d.net(8, 3, PIX.eclat);                     // la plaque solaire
   if (sp.tir) d.ligne(13, 12, 15, 11, sp.leg);                       // le canon du bras
 }
+// Les Telluriens en pictogramme : chacun sa silhouette, et toujours sa pierre natale.
+function dessinTellurien(d, sp) {
+  const c = sp.corps;
+  if (c === 'crapaud') {                                            // un dos large, la gorge claire, les pattes pliées
+    d.ligne(4, 12, 2, 14, sp.leg, 2); d.ligne(11, 12, 13, 14, sp.leg);
+    d.disque(7, 10, 4.4, sp.shell); d.disque(11.3, 9.6, 2.8, sp.shell);
+    d.disque(11.8, 12, 1.4, [226, 206, 150]);
+    d.net(11, 7, sp.oeil); d.net(13, 7, sp.oeil); d.net(6, 7, sp.dark); d.net(8, 8, sp.dark);
+    d.net(7, 5, sp.pierre);
+  } else if (c === 'saurien') {                                     // long et bas, la queue qui traîne
+    d.ligne(1, 12, 5, 10, sp.shell, 2);
+    d.ligne(6, 10, 5, 13, sp.leg); d.ligne(10, 10, 11, 13, sp.leg);
+    d.disque(7.6, 9.4, 2.2, sp.shell); d.disque(10.4, 9.2, 1.9, sp.shell); d.disque(13, 8.8, 1.6, sp.shell);
+    for (const x of [6, 8, 10]) d.net(x, 7, sp.dark);
+    d.net(13, 8, sp.oeil); d.net(11, 7, sp.pierre);
+  } else if (c === 'myconide') {                                    // un chapeau, un pied, deux petits pieds
+    d.rect(6, 8, 9, 13, sp.leg); d.rect(5, 14, 6, 14, sp.leg); d.rect(9, 14, 10, 14, sp.leg);
+    d.rect(2, 5, 13, 7, sp.shell); d.rect(4, 3, 11, 4, sp.shell); d.rect(6, 2, 9, 2, sp.shell);
+    d.rect(3, 8, 12, 8, sp.dark);
+    d.net(4, 5, [236, 228, 214]); d.net(10, 4, [236, 228, 214]); d.net(12, 6, [236, 228, 214]);
+    d.net(7, 10, sp.oeil); d.net(8, 10, sp.oeil); d.net(7, 1, sp.pierre);
+  } else {                                                          // le cerf : pattes fines, bois de cristal
+    for (const x of [4, 6, 9, 11]) d.ligne(x, 11, x, 15, sp.leg);
+    d.rect(4, 7, 11, 10, sp.shell); d.rect(3, 7, 3, 8, [236, 250, 250]);
+    d.ligne(11, 7, 12, 4, sp.shell, 2); d.disque(13, 3.6, 1.5, sp.shell); d.net(14, 4, sp.dark);
+    d.ligne(12, 2, 10, 0, sp.bois); d.ligne(13, 2, 15, 0, sp.bois); d.net(11, 0, sp.bois);
+    d.net(13, 3, sp.oeil); d.net(12, 2, sp.pierre);
+  }
+}
 function livre(d, couv, symbole) {
   d.rect(4, 2, 12, 13, couv);
   d.rect(4, 2, 5, 13, couv.map(v => v * .7));
@@ -3174,7 +3207,8 @@ const DITS_ETAT = { suivre: 'vous suit', 'récolter': 'travaille', repos: 'se re
   'défendre': 'se bat pour vous', garder: 'garde le campement', patrouiller: 'patrouille', viser: 'met en joue', veille: 'en veille',
   boire: 'boit', brouter: 'broute', chasser: 'chasse', assaut: 'se bat', fuir: 'fuit', 'acculé': 'fait front',
   'décrocher': 'se dégage', errer: 'flâne', troupeau: 'flâne', dormir: 'dort', 'quête': 'rôde', traquer: 'traque',
-  guet: 'fait le guet', 'monté': 'vous porte', 'rodéo': 'se cabre', 'se poster': 'cherche l\'angle' };
+  guet: 'fait le guet', 'monté': 'vous porte', 'rodéo': 'se cabre', 'se poster': 'cherche l\'angle',
+  'lézarder': 'lézarde au soleil', rentrer: 'rentre chez lui', enfoui: 's\'est enfoui dans la boue', regagner: 'regagne les braises' };
 const compagneDe = id => P.compagnes.find(c => String(c.id) === String(id));
 const valeurComp = (c, k) => c.b ? c.b[k] : c[k];
 function ouEstCompagne(c) {
@@ -3711,11 +3745,37 @@ const SPEC = [
     shell:[240,120,120], dark:[120,90,200], leg:[220,180,120], oeil:[38,30,30], bec:[250,230,160], bio:[2,3,4], riposte:.8, arc:1,
     lien:0, travail:{}, metier:'plane au-dessus du vide, et vous avec', grimpe:0, dur:1.2,
     monture:{ marche:4.2, course:6.8, saut:10.5, endu:24, fougue:12, plane:1 } },
+  // --- la famille des Telluriens : nés du sol rare où ils vivent ---
+  // Chacun porte sa pierre natale, un éclat de son sol qui luit la nuit. Sauvages, ils ne quittent
+  // pas leur biome — ils y reviennent toujours —, et ils y reprennent des forces deux fois plus
+  // vite. On ne les croise que sur les îles qui portent leur sol, hors du tirage du bestiaire.
+  // Ils se lient aux baies et à l'Appel, comme les Rampants. En QUEUE de liste : les fiches du
+  // journal comptent les bêtes par rang d'espèce.
+  { id:'crapaud',    n:'Crapaud-buffle',       fam:'tellurien', corps:'crapaud',  biome:9,  diet:'o', sz:1.5, spd:1.9, vue:12, peur:.7, herd:0, cap:16, mat:80,
+    shell:[104,118,70], dark:[70,82,46], leg:[92,104,60], oeil:[232,196,70], bio:[9], riposte:.3, lueur:1.2, anneau:.7,
+    lien:.75, travail:{ fibre:1.2 }, metier:'fauche les massettes et la sphaigne', grimpe:.5 },
+  { id:'varan',      n:'Varan d\'ocre',        fam:'tellurien', corps:'saurien',  biome:10, diet:'o', sz:1.35, spd:3.0, vue:18, peur:.25, herd:0, cap:6, mat:110,
+    shell:[196,122,70], dark:[120,68,40], leg:[170,104,60], oeil:[250,210,90], bio:[10], chasse:['glaneur','brouteur','crapaud'], dur:1.3, lueur:1.2, anneau:.6,
+    lien:.3, travail:{ os:1 }, metier:'chasse au soleil, et rapporte les os', grimpe:.8 },
+  { id:'vesseron',   n:'Vesseron',             fam:'tellurien', corps:'myconide', biome:11, diet:'h', sz:1.2, spd:1.6, vue:11, peur:.6, herd:1, cap:14, mat:90,
+    shell:[152,74,172], dark:[96,48,110], leg:[226,214,198], oeil:[40,26,50], bio:[11], lueur:1.5, anneau:1,
+    lien:.85, travail:{ fibre:1, bois:.8 }, metier:'cueille la fibre et abat les champignons géants', grimpe:.35 },
+  { id:'cerf',       n:'Cerf de verre',        fam:'tellurien', corps:'cerf',     biome:12, diet:'h', sz:1.4, spd:3.6, vue:20, peur:1, herd:1, cap:8, mat:130,
+    shell:[226,244,252], dark:[96,140,176], leg:[132,176,204], oeil:[30,50,80], bois:[150,250,255], bio:[12], dur:.9, lueur:2, anneau:1.3,
+    lien:.2, travail:{ eclat:.6, fibre:.6 }, metier:'détache les éclats des druses', grimpe:.6 },
+  { id:'salamandre', n:'Salamandre de braise', fam:'tellurien', corps:'saurien',  biome:13, diet:'o', sz:1.25, spd:2.8, vue:16, peur:.1, herd:0, cap:4, mat:140,
+    shell:[58,44,46], dark:[255,122,44], leg:[70,52,52], oeil:[255,220,120], bio:[13,14], nuit:1, dur:1.6, brule:1, lueur:2.4, anneau:.6,
+    chasse:['coursier_r','traqueur','glaneur','brouteur','varan'],
+    lien:.15, travail:{ os:1 }, metier:'chasse la nuit, et rapporte les os', grimpe:.6 },
 ];
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const automate = sp => !!sp && sp.fam === 'automate';
 const coursier = sp => !!sp && sp.fam === 'coursier';
-for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp) : dessinBete(d, sp);
+const tellurien = sp => !!sp && sp.fam === 'tellurien';
+// la pierre natale prend la teinte de son biome
+for (const sp of SPEC) if (sp.biome) { const h = RARES.find(r => r.b === sp.biome).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
+for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
+  : tellurien(sp) ? dessinTellurien(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;
 const JOUR = 240;
 // Le soleil se lève à 6 h et se couche à 20 h : quatorze heures de jour, dix de nuit. Le noir
@@ -3873,7 +3933,7 @@ function majFeux() {
   for (const b of beasts) if (b.tame && !b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
   for (const j of Autres.values()) pousse(j.x, j.y, j.z + 1, j.lum ? vacille(RAYON.lanterne, 5) : RAYON.joueur);
   for (const b of betesLoin) if (!b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
-  if (RaresIle.length && noirceur() > .05) lueursRares(pousse);
+  if (noirceur() > .05) lueursRares(pousse);
   L.sort((a, b) => a[4] - b[4]);
   for (let i = 0; i < L.length && feux.length < FEUX_MAX; i++) feux.push(L[i]);
   return feux;
@@ -3909,8 +3969,10 @@ function lueursRares(pousse) {
     if (sp && sp.luit && maturite(i, sp) > .5) L.push([x + .5, y + .5, solFlore(x, y) + sp.h * .6, 1.1 + sp.luit * .9, d]);
     else if (Bio[i] === 14 && !(x & 1) && !(y & 1)) L.push([x + .5, y + .5, Hgt[i] + .3, 1.6, d]);
   }
+  // et les Telluriens, dont la pierre natale luit — la salamandre tout entière
+  for (const b of beasts) if (!b.dead && b.sp.lueur) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < 144) L.push([b.x, b.y, b.z + .45 * b.sp.sz, b.sp.lueur, d]); }
   L.sort((a, b) => a[4] - b[4]);
-  for (let j = 0; j < Math.min(4, L.length); j++) pousse(L[j][0], L[j][1], L[j][2], L[j][3]);
+  for (let j = 0; j < Math.min(5, L.length); j++) pousse(L[j][0], L[j][1], L[j][2], L[j][3]);
 }
 const AMBIANCE = {
   9:  { col: '#d8f27a', nuit: 1, z: [.4, 1.6], v: .35, vz: 0, g: 0, vie: 3, luit: 1, tl: .09, n: 6 },    // lucioles
@@ -3931,6 +3993,13 @@ function majBiome(dt) {
     burst(P.x, P.y, P.z + .8, 22, R.coul);
     if (sacOuvert) majSac();
   }
+  // la morsure de la salamandre brûle encore trois secondes ; les spores, elles, piquent les yeux
+  if (P.brulure > t && P.pv > 0) {
+    P.pv = Math.max(0, P.pv - BRULURE * 1.2 * dt); P.dernierCoup = t;
+    if (Math.random() < dt * 8) burst(P.x, P.y, P.z + .5, 1, '#ffa04c');
+    if (P.pv <= 0) { P.brulure = 0; terrasse(); }
+  }
+  if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
   if (biomeIci === 12) P.mana = Math.min(100, P.mana + dt * 4 * (1 + ((porte('armure') || {}).mana || 0)));
   if (biomeIci === 14 && !P.monture && P.ground && P.pv > 0) {
     P.pv = Math.max(0, P.pv - BRULURE * dt); P.dernierCoup = t;   // on ne se remet pas sur la braise
@@ -3963,10 +4032,11 @@ function blocAtlas() {
     l += `<div class="obj" data-atlas="${r.id}"><div style="flex:1;min-width:0">`
       + `<div class="n" style="color:${vu ? r.coul : 'var(--texte2)'}">${vu ? ESC(r.n) : '? ? ?'}</div>`
       + `<div class="d">${ESC(r.rang)} · dès l'exploration ${r.niv}<br>`
-      + (vu ? ESC(r.d) : ouvert ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
+      + (vu ? ESC(r.d) + '<br>' + ESC(habitantDe(r.b)) : ouvert ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
   }
   return l;
 }
+const habitantDe = b => { const sp = SPEC.find(s => s.biome === b); return sp ? 'y vit : ' + sp.n + ', de la famille des Telluriens' : ''; };
 // Sous les jauges, tant qu'on foule un biome rare : son nom, son rang, et ce qu'il fait.
 function ligneBiome() {
   const R = rareDe(biomeIci); if (!R) return '';
@@ -4036,6 +4106,7 @@ function loadWorld() {
   beasts = []; berries = []; TIRS.length = 0;
   placerPortailIle();                                // l'arche d'abord : les sentinelles la gardent
   especesIle = tirerBestiaire();                     // ce que la graine met sur cette île
+  for (const sp of SPEC) if (sp.biome && RaresIle.includes(sp.biome)) especesIle.add(sp.id);   // et chaque sol rare, son Tellurien
   regleHerbe();
   for (const sp of SPEC) { const n = Math.round(capEsp(sp) * .75); for (let i = 0; i < n; i++) { const b = poser(sp); if (b) beasts.push(b); } }
   // Buissons à baies, dans les herbages. Leur place vient de la graine et non du hasard : deux
@@ -4341,7 +4412,8 @@ function update(dt) {
   if (P.epuise && P.endu >= ENDU_SEUIL) P.epuise = false;
   SPD = P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE;
   }
-  if (biomeIci === 9) SPD *= M ? .88 : BOUE;           // la tourbière colle aux pieds, moins aux sabots
+  if (biomeIci === 9) SPD *= M ? .88 : BOUE;
+  if (P.spores > t) SPD *= .6;                         // les spores du vesseron engourdissent           // la tourbière colle aux pieds, moins aux sabots
   const ACC = 26, FRIC = 20;
   // Projeté par un coup, on ne tient plus ses appuis : ni frottement ni commande pendant 0,3 s.
   // Le frottement (20 par seconde, en l'air aussi) mangeait le recul en six images : on reculait
@@ -4899,7 +4971,7 @@ function menaceEtProie(b, vue) {
       const r = vise ? vue * 1.25 : b.tame ? 0 : eveille ? rayonEveil : 3;
       if (d < r * r) { dM = d; men = o; }
     }
-    if (sp.chasse && sp.chasse.includes(o.sp.id) && !o.tame && d < vue * vue && d < dP) { dP = d; pr = o; }
+    if (sp.chasse && sp.chasse.includes(o.sp.id) && !o.tame && !(o.enfoui > 0) && d < vue * vue && d < dP) { dP = d; pr = o; }
   }
   if (!b.tame && sp.peur > .3) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < (vue * .55) ** 2 && d < dM) { dM = d; men = P; } }
   return [men, dM, pr, dP];
@@ -5242,6 +5314,9 @@ function mourirBete(b, cause) {
 const COMBAT = {
   traqueur: { deg: .13, ramasse: .45, bond: .24, portee: 1.9, recul: .7, pause: 1.5 },
   spectre:  { deg: .19, ramasse: .40, bond: .26, portee: 2.2, recul: .6, pause: 1.3 },
+  // le varan fond de loin, vite ; la salamandre mord moins loin, mais sa morsure brûle
+  varan:    { deg: .15, ramasse: .35, bond: .30, portee: 2.5, recul: .6, pause: 1.4 },
+  salamandre: { deg: .16, ramasse: .45, bond: .26, portee: 2.0, recul: .6, pause: 1.5 },
   defense:  { deg: null, ramasse: .25, bond: .16, portee: 1.5, recul: .5, pause: 1.0 },
   // la compagne qui vous défend : elle se ramasse aussi, et son coup vaut selon sa taille
   compagne: { deg: null, ramasse: .30, bond: .18, portee: 1.7, recul: .45, pause: .8 },
@@ -5278,6 +5353,7 @@ function porterCoup(b, c, deg) {
     P.pv = Math.max(0, P.pv - degSubi(deg) * (1 - ((porte('armure') || {}).red || 0)));
     P.vx = dx / d * 7; P.vy = dy / d * 7; P.vz = 4.2; P.recul = .3;
     burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
+    if (b.sp.brule) { P.brulure = t + 3; say('la morsure brûle', 1.4); }   // la salamandre
     if (P.monture && b !== P.monture) { const m = P.monture; P.monture = null; P.rodeo = false; Rodeo = null; P.selle = 0; m.fuite = 3; m.menace = b; say('désarçonné', 1.4); }
     if (P.pv <= 0) terrasse();
     return true;
@@ -5391,6 +5467,7 @@ function envieDuJoueur(b, actif, dJ, dzJ) {
   const sp = b.sp;
   if (!sp.chasse || b.tame || b.pv < .3 || dzJ > 3) return false;
   if (b.colere > 0) return dJ < sp.vue * 1.3;
+  if (b.etat === 'lézarder' && dJ < 5) return true;   // le varan au soleil : on passe trop près, il fond
   if (!actif) return false;
   if (b.traque) return dJ < sp.vue * 1.3 && b.traqueT < 30;
   return dJ < sp.vue * (sp.nuit ? .5 : .45) && (sp.nuit || b.faim > .45);
@@ -5553,15 +5630,15 @@ function tirerBestiaire() {
   let r = tir() * 100, n = 2;
   for (const [k, p] of NB_ESPECES) if ((r -= p) <= 0) { n = k; break; }
   const e = new Set();
-  const base = SPEC.filter(sp => sp.diet === 'h' || sp.diet === 'o');
+  const base = SPEC.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.biome);
   e.add(tirerParmi(base).id);
-  while (e.size < n) e.add(tirerParmi(SPEC.filter(sp => !e.has(sp.id))).id);
+  while (e.size < n) e.add(tirerParmi(SPEC.filter(sp => !e.has(sp.id) && !sp.biome)).id);
   return e;
 }
 // Moins d'espèces d'herbivores, plus de chacune : une île à un seul herbivore en porte deux fois
 // plus, sinon elle paraîtrait vide et ses chasseurs mourraient de faim.
 function regleHerbe() {
-  const nh = SPEC.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && especesIle.has(sp.id)).length;
+  const nh = SPEC.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.biome && especesIle.has(sp.id)).length;
   facteurHerbe = nh >= 3 ? 1 : nh === 2 ? 1.4 : 2;
 }
 const especePresente = sp => especesIle.has(sp.id);
@@ -6152,8 +6229,9 @@ function majBete(b, dt) {
     : b.etat === 'dormir' ? .10 : (b.etat === 'errer' || b.etat === 'troupeau' || b.etat === 'brouter') ? .012 : -.014;
   b.nrj = Math.max(0, Math.min(1, b.nrj + dt * repos));
   if (b.faim > 1 || b.soif > 1) b.pv -= dt * .05;
-  else if (b.faim < .55 && b.soif < .55) b.pv = Math.min(1, b.pv + dt * .022);
+  else if (b.faim < .55 && b.soif < .55) b.pv = Math.min(1, b.pv + dt * .022 * (sp.biome && sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? 2 : 1));
   if (b.pv <= 0) { mourirBete(b, b.soif > b.faim ? 'soif' : 'faim'); return; }
+  if (b.hit > 0) b.enfoui = 0;                        // frappé dans sa boue, le crapaud en jaillit
   if (b.alarm > 0) b.alarm -= dt * .6;
   if (!b.as && b.ramasse) b.ramasse = Math.max(0, b.ramasse - dt * 5);
   if (b.colere > 0) b.colere -= dt;
@@ -6165,7 +6243,7 @@ function majBete(b, dt) {
   if (pr && pr === b.epargne && b.t < b.epargneT) { pr = null; dP = 1e9; }
   // engagement : on garde sa proie. Sans mémoire de cible, le chasseur bascule sur la
   // première proie devenue plus proche, coupe sa course, et n'aboutit presque jamais.
-  if (b.cible && (b.cible.pv <= 0 || b.cible.dead || !beasts.includes(b.cible)
+  if (b.cible && (b.cible.pv <= 0 || b.cible.dead || b.cible.enfoui > 0 || !beasts.includes(b.cible)
       || (b.x - b.cible.x) ** 2 + (b.y - b.cible.y) ** 2 > (vue * 2.2) ** 2 || b.t - b.cibleT > 16)) { b.cible = null; b.renonce = b.t; }
   if (!b.cible && pr && b.faim > .5 && b.t - b.renonce > 2.5) { b.cible = pr; b.cibleT = b.t; }
   if (b.cible) { pr = b.cible; dP = (b.x - pr.x) ** 2 + (b.y - pr.y) ** 2; }
@@ -6199,7 +6277,8 @@ function majBete(b, dt) {
   const assoiffe = dEau !== EAU_LOIN && (b.soif > Math.max(.3, .7 - dEau * .005) || (b.etat === 'boire' && b.soif > .05));
 
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
-  if (b.as) etat = 'assaut';
+  if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
+  else if (b.as) etat = 'assaut';
   else if (panique) { etat = 'fuir'; men = P; dM = dJ * dJ; }
   else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
   else if (b.decroche > 0 && b.epargne && !b.epargne.dead) etat = 'décrocher';
@@ -6210,7 +6289,7 @@ function majBete(b, dt) {
   else if (b.traque) etat = 'traquer';
   else if (assoiffe) etat = 'boire';
   else if (b.soif > .98 && dEau === EAU_LOIN) b.soif = .98;               // pas de source connue : on n'en meurt pas non plus (la vie baisse au-delà de 1)
-  else if (b.faim > .5 && sp.diet !== 'h' && pr) etat = 'chasser';
+  else if (b.faim > (sp.biome ? .75 : .5) && sp.diet !== 'h' && pr) etat = 'chasser';   // un Tellurien vit d'abord de son sol
   else if (b.faim > .55 && sp.diet === 'c') etat = 'quête';
   else if (b.faim > .35 && sp.diet !== 'c') etat = 'brouter';
   else if (!actif || b.nrj < .30 || (b.etat === 'dormir' && b.nrj < .80)) etat = 'dormir';
@@ -6281,7 +6360,7 @@ function majBete(b, dt) {
     if (!b.mur && auBordDeLEau(b.x, b.y)) { b.soif = Math.max(0, b.soif - dt * .9); vit = 0; }
     else { const w = versLEau(b.x, b.y); if (w) { tx = w[0]; ty = w[1]; } }
   } else if (etat === 'brouter') {
-    const f = b.mur ? 0 : BIOME[bAt(b.x | 0, b.y | 0)].food;
+    const f = b.mur ? 0 : sp.biome && sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? (sp.diet === 'h' ? .8 : .5) : BIOME[bAt(b.x | 0, b.y | 0)].food;
     if (f > .15) { b.faim = Math.max(0, b.faim - dt * .30 * f); vit *= .25; b.brouteVain = 0; }
     else if (b.tame) {                                // une compagne cherche l'herbe près d'elle, sans s'égarer
       const h = herbePres(b);
@@ -6292,7 +6371,7 @@ function majBete(b, dt) {
       if ((b.brouteVain = (b.brouteVain || 0) + dt) > 8) { b.jeune = b.t + 20; b.brouteVain = 0; }
     }
     else { const a = b.dirT + (Math.random() - .5); tx = b.x + Math.cos(a) * 12; ty = b.y + Math.sin(a) * 12; }
-  } else if (etat === 'dormir') { vit = 0; b.vx *= .85; b.vy *= .85; }
+  } else if (etat === 'dormir' || etat === 'enfoui') { vit = 0; b.vx *= .85; b.vy *= .85; }
   else if (etat === 'défendre') {
     // la cible de son ordre : ce que vous frappez, ce qui vous attaque, l'intrus du campement,
     // ou le chasseur de sa patrouille
@@ -6341,6 +6420,7 @@ function majBete(b, dt) {
     tx = b.x + Math.cos(b.dirT) * 9; ty = b.y + Math.sin(b.dirT) * 9; vit *= .5;
   }
 
+  if (sp.biome) { const r = instinctTellurien(b, etat, tx, ty, vit, men, dM, dt); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
   const x0 = b.x, y0 = b.y;
   if (b.mur) majParoi(b, tx, ty, vit, sprint, dt);      // sur une paroi, le chemin mène la bête
   else {
@@ -6398,7 +6478,8 @@ function majBete(b, dt) {
       // paroi où se reprendre.
       let nx = b.x + (Math.random() - .5) * 2, ny = b.y + (Math.random() - .5) * 2;
       if (hAt(nx | 0, ny | 0) <= SEA) { nx = b.x; ny = b.y; }
-      beasts.push(naitre(sp, nx, ny, 0));
+      const petit = naitre(sp, nx, ny, 0); if (sp.biome) petit.home = b.home.slice();   // un Tellurien : le sol de sa mère
+      beasts.push(petit);
       b.faim += .35; b.nrj -= .3;
     }
   }
@@ -7010,6 +7091,7 @@ const FOE_REST = [[0.24, 0.21], [0.02, 0.25], [-0.20, 0.21]];
 function initFoeLegs(f) {
   f.feet = [];
   if (f.sp && coursier(f.sp)) { initPattesCoursier(f); return; }
+  if (f.sp && tellurien(f.sp)) { f.px = f.x; f.py = f.y; return; }          // leur démarche suit une phase
   const R = repere(f), F = R.F, L = R.L;
   for (const sd of [-1, 1]) FOE_REST.forEach(([rx, ry], i) => {
     const ly = ry * sd;
@@ -7046,6 +7128,7 @@ function poserPied(T, U) {
 }
 function updateFoeLegs(f, dt) {
   if (f.sp && coursier(f.sp)) return pattesCoursier(f, dt);
+  if (f.sp && tellurien(f.sp)) return pasTellurien(f, dt);
   const R = repere(f), F = R.F, L = R.L, U = R.U;
   // Au sol, rien ne change depuis v24 : l'écart se mesure à plat et les pieds restent dans le
   // plan du corps. En paroi et dans les angles, la patte se replace aussi quand elle décolle.
@@ -7087,6 +7170,7 @@ function foeBones(f) {
   const sp = f.sp;
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
+  if (tellurien(sp)) return osTellurien(f);
   EC = sp ? { shell: sp.shell, dark: sp.dark, leg: sp.leg, eye: sp.oeil, shard: [150, 226, 255] } : ECdef;
   const B = [], al = f.alarm || 0, dead = f.dead || 0;
   const dk = Math.min(1, dead * 2.6);
@@ -7128,6 +7212,219 @@ function foeBones(f) {
     B.push({ a: [0.17, sd * 0.05, bz - 0.02], b: [0.27, sd * (0.05 + open), bz - 0.045], w: 0.03, h: 0.03, c: EC.leg });
   return B;
 }
+// ============================================================
+//  LES TELLURIENS, EN VOLUMES
+//  Quatre corps pour cinq espèces. Leur démarche n'a pas de pieds posés dans le monde, comme les
+//  Rampants : elle suit une PHASE qui avance avec le chemin parcouru — une foulée par longueur de
+//  pas —, si bien que les pieds ne glissent pas, à l'allure qu'on veut, et même à pas larges.
+//  Le crapaud bondit, pattes arrière tendues en l'air ; le varan et la salamandre ondulent de la
+//  tête à la queue, pattes écartées en diagonale ; le vesseron se dandine sur deux pieds ; le cerf
+//  trotte, puis galope, broute tête au sol, et dresse la tête et la queue à l'alerte.
+// ============================================================
+const FOULEE = { crapaud: .8, saurien: .7, myconide: .32, cerf: .95 };
+function pasTellurien(f, dt) {
+  const d = Math.hypot(f.x - (f.px ?? f.x), f.y - (f.py ?? f.y));
+  f.px = f.x; f.py = f.y;
+  if (d > .6) return;                                  // déplacée d'un coup : ce n'est pas un pas
+  f.ph = ((f.ph || 0) + d / (FOULEE[f.sp.corps] * f.sp.sz)) % 1;
+  f.vit = (f.vit || 0) + (d / Math.max(dt, 1e-3) - (f.vit || 0)) * Math.min(1, dt * 8);
+  f.enfK = (f.enfK || 0) + ((f.enfoui > 0 ? 1 : 0) - (f.enfK || 0)) * Math.min(1, dt * 4);
+}
+const mixP = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+function osTellurien(f) {
+  const sp = f.sp, B = [], add = (a, b, w, h, c) => B.push({ a, b, w, h, c });
+  const dk = Math.min(1, (f.dead || 0) * 2.6), v = f.dead ? 0 : (f.vit || 0), ph = (f.ph || 0) * 6.2832;
+  if (sp.corps === 'crapaud') {
+    const bouge = Math.min(1, v / .6), enf = f.enfK || 0;
+    const saut = Math.sin(Math.PI * (f.ph || 0)) * bouge * (1 - enf);   // en l'air à mi-bond
+    const bz = .13 + saut * .20 - enf * .20 - dk * .06;
+    // la nuit, au repos, sa gorge se gonfle et se vide : il chante
+    const chante = !f.dead && enf < .5 && v < .1 && lumiere() < .5 ? Math.max(0, Math.sin(t * 2.6 + f.bob)) ** 3 : 0;
+    add([-.17, 0, bz], [.10, 0, bz + .02], .36, .19, sp.shell);                       // le corps, large et plat
+    add([-.12, 0, bz + .09], [.04, 0, bz + .10], .26, .06, sp.dark);                  // le dos
+    for (const [x, y] of [[-.10, .07], [-.04, -.08], [.02, .05]]) add([x, y, bz + .12], [x + .03, y, bz + .13], .045, .03, sp.dark);   // les pustules
+    add([.08, 0, bz + .02], [.21, 0, bz + .01], .30, .13, sp.shell);                  // la tête, soudée au corps
+    add([.12, 0, bz - .045], [.22, 0, bz - .045], .28, .02, sp.dark);                 // la bouche, d'une commissure à l'autre
+    add([.12, 0, bz - .06], [.19, 0, bz - .06], .16 + chante * .14, .06 + chante * .13, [226, 206, 150]);   // la gorge
+    for (const s of [-1, 1]) {
+      add([.14, s * .09, bz + .07], [.17, s * .09, bz + .10], .07, .07, sp.oeil);   // les yeux, deux bosses dorées
+      add([.17, s * .09, bz + .10], [.18, s * .09, bz + .11], .03, .03, [20, 16, 10]);
+    }
+    add([-.03, 0, bz + .12], [.0, 0, bz + .16], .05, .05, sp.pierre);                // la pierre natale
+    if (enf > .7) return B;                                                           // enfoui : le dos et les yeux
+    for (const s of [-1, 1]) {
+      // devant : de courts bras, coudes en dehors, qui se tendent vers l'avant au saut
+      const ep = [.10, s * .12, bz - .03];
+      const pd = mixP([.16, s * .19, 0], [.22, s * .14, Math.max(0, bz - .14)], saut);
+      add(ep, mixP([.12, s * .21, bz - .02], [.18, s * .17, bz - .06], saut), .06, .06, sp.leg);
+      add(mixP([.12, s * .21, bz - .02], [.18, s * .17, bz - .06], saut), pd, .05, .05, sp.leg);
+      // derrière : repliées en Z au sol, tendues vers l'arrière en l'air
+      const ha = [-.13, s * .13, bz - .02];
+      const ge = mixP([.0, s * .27, bz + .03], [-.24, s * .18, bz - .05], saut);
+      const ch = mixP([-.17, s * .23, .04], [-.34, s * .15, Math.max(.02, bz - .12)], saut);
+      const pi = mixP([-.07, s * .24, 0], [-.44, s * .14, Math.max(0, bz - .16)], saut);
+      add(ha, ge, .09, .08, sp.leg); add(ge, ch, .06, .06, sp.leg); add(ch, pi, .07, .03, sp.leg);
+    }
+    return B;
+  }
+  if (sp.corps === 'saurien') {
+    const bouge = Math.min(1, v / .8), lez = f.etat === 'lézarder' || f.etat === 'dormir' || !!f.dead;
+    const bz = (lez ? .07 : .11) - dk * .04 - (f.ramasse || 0) * .03;
+    // l'onde du tronc : elle court de la tête à la queue, et la queue ondule encore à l'arrêt
+    const Y = x => (Math.sin(ph - x * 6) * (.035 + .02 * bouge) * bouge
+      + Math.sin(t * 1.4 + f.bob) * .035 * (1 - bouge) * Math.max(0, -x - .1) * 3) * (1 + Math.max(0, -x - .12) * 2.5);
+    const Z = x => x > .12 ? bz + .02 + (x - .12) * (lez ? .3 : .12) + (f.alarm || 0) * .04
+      : x < -.12 ? Math.max(.02, bz - (-.12 - x) * .18) : bz;
+    const pt = x => [x, Y(x), Z(x)];
+    const tete = pt(.36), nuque = pt(.22), epaule = pt(.10), hanche = pt(-.12), q1 = pt(-.28), q2 = pt(-.45), q3 = pt(-.64);
+    add(epaule, hanche, .19, .12, sp.shell);                                         // le tronc
+    add(nuque, epaule, .13, .10, sp.shell);                                          // le cou
+    add(nuque, tete, .12, .08, sp.shell);                                            // la tête
+    add(hanche, q1, .13, .09, sp.shell); add(q1, q2, .09, .07, sp.shell); add(q2, q3, .05, .05, sp.shell);   // la queue
+    add([epaule[0], epaule[1], epaule[2] + .065], [hanche[0], hanche[1], hanche[2] + .065], .07, .025, sp.dark);   // l'échine
+    if (sp.brule) for (const x of [.14, .02, -.08, -.22, -.36]) {                      // les veines de feu, en travers
+      const p = pt(x); add([p[0] - .015, p[1] - .07, p[2] + .045], [p[0] + .015, p[1] + .07, p[2] + .045], .03, .02, sp.dark);
+    }
+    for (const s of [-1, 1]) add([tete[0] - .07, tete[1] + s * .045, tete[2] + .035], [tete[0] - .05, tete[1] + s * .045, tete[2] + .04], .035, .035, sp.oeil);
+    // le varan goûte l'air : la langue sort, fourchue, par à-coups
+    if (!sp.brule && f.etat !== 'dormir' && !f.dead && Math.sin(t * 3.1 + f.bob * 2) > .82)
+      add(tete, [tete[0] + .09, tete[1], tete[2] - .01], .02, .01, [220, 70, 80]);
+    add([nuque[0], nuque[1], nuque[2] + .06], [nuque[0] + .03, nuque[1], nuque[2] + .09], .05, .05, sp.pierre);   // la pierre natale
+    // les pattes écartées, en diagonale : avant droite et arrière gauche ensemble
+    const A = FOULEE.saurien / 4 * bouge;
+    for (const [ax, base, dph] of [[.10, epaule, 0], [-.12, hanche, Math.PI]]) for (const s of [-1, 1]) {
+      const phase = ph + dph + (s > 0 ? 0 : Math.PI);
+      const sw = -Math.cos(phase) * A, lift = Math.max(0, Math.sin(phase)) * .06 * bouge;
+      const epa = [base[0], base[1] + s * .07, base[2] - .02];
+      const coude = [ax + sw * .5, base[1] + s * .22, base[2] + .05];
+      const pied = [ax + sw, base[1] + s * .25, lift];
+      add(epa, coude, .05, .05, sp.leg); add(coude, pied, .04, .04, sp.leg);
+      add(pied, [pied[0] + .045, pied[1] + s * .01, pied[2]], .05, .02, sp.leg);
+    }
+    return B;
+  }
+  if (sp.corps === 'myconide') {
+    const bouge = Math.min(1, v / .5);
+    const roule = Math.sin(ph) * .05 * bouge, hop = Math.abs(Math.cos(ph)) * .025 * bouge;
+    const nuage = f.nuageT != null && t - f.nuageT < .6 ? 1 - (t - f.nuageT) / .6 : 0;   // il se gonfle et crache
+    const bz = .15 + hop - dk * .1;
+    for (const s of [-1, 1]) {                                                        // deux pieds, qui se dandinent
+      const phase = ph + (s > 0 ? Math.PI : 0), sw = -Math.cos(phase) * FOULEE.myconide / 4 * bouge;
+      const p = [sw, s * .075, Math.max(0, Math.sin(phase)) * .05 * bouge];
+      add([sw * .3, s * .06, bz], p, .08, .08, sp.leg); add(p, [p[0] + .05, p[1], p[2]], .08, .04, sp.leg);
+    }
+    const haut = [roule * .4, roule, bz + .30];
+    add([0, 0, bz - .02], haut, .20, .20, sp.leg);                                    // le pied, qui est son corps
+    const cz = bz + .34, cr = .23 * (1 + nuage * .25), cx = haut[0], cy = haut[1] + roule;
+    add([cx - cr, cy, cz], [cx + cr, cy, cz], cr * 2, .13, sp.shell);                 // le chapeau
+    add([cx - cr * .8, cy, cz - .07], [cx + cr * .8, cy, cz - .07], cr * 1.7, .02, sp.dark);   // les lamelles
+    add([cx - cr * .45, cy, cz + .08], [cx + cr * .45, cy, cz + .08], cr * 1.1, .06, sp.shell);   // le dôme
+    for (const [x, y] of [[-.10, .08], [.08, -.09], [.02, .12], [-.06, -.10]])
+      add([cx + x, cy + y, cz + .07], [cx + x + .03, cy + y, cz + .075], .045, .025, [236, 228, 214]);   // les taches
+    add([cx, cy, cz + .115], [cx + .02, cy, cz + .15], .05, .05, sp.pierre);          // la pierre natale
+    for (const s of [-1, 1]) {
+      add([.09, s * .04 + roule * .8, bz + .22], [.10, s * .04 + roule * .8, bz + .23], .035, .035, sp.oeil);
+      const bras = Math.sin(ph + (s > 0 ? 0 : Math.PI)) * .06 * bouge;                 // de petits bras qui battent
+      add([.02, s * .09 + roule * .6, bz + .18], [.05 + bras, s * .15 + roule * .6, bz + .10 + (f.alarm || 0) * .08], .04, .04, sp.leg);
+    }
+    return B;
+  }
+  // le cerf
+  const bouge = Math.min(1, v / 1.2), galop = Math.min(1, Math.max(0, (v - 3.2) / 1.5));
+  const bz = .46 + Math.abs(Math.sin(ph)) * .03 * bouge + galop * Math.sin(ph) * .05 - dk * .3;
+  const broute = f.etat === 'brouter' && v < .3 && !f.dead, alerte = (f.alarm || 0) > .2;
+  add([-.22, 0, bz], [.18, 0, bz + .02], .19, .18, sp.shell);                         // le corps
+  add([-.18, 0, bz - .07], [.12, 0, bz - .06], .15, .05, sp.dark);                    // le ventre
+  add([-.23, 0, bz + .05], [-.29, 0, bz + (alerte ? .15 : .08)], .06, .05, [236, 250, 250]);   // la queue, dressée à l'alerte
+  const cou0 = [.16, 0, bz + .06];
+  const tete = broute ? [.36, 0, .12] : alerte ? [.27, 0, bz + .42] : [.31, 0, bz + .30];
+  const nuq = [cou0[0] + (tete[0] - cou0[0]) * .75, 0, cou0[2] + (tete[2] - cou0[2]) * .8];
+  const mus = broute ? [.44, 0, .05] : [tete[0] + .12, 0, tete[2] - .05];
+  add(cou0, nuq, .09, .09, sp.shell); add(nuq, tete, .09, .09, sp.shell); add(tete, mus, .07, .07, sp.shell);
+  add([mus[0] - .015, 0, mus[2]], [mus[0] + .01, 0, mus[2] - .005], .045, .045, sp.dark);   // le mufle
+  for (const s of [-1, 1]) {
+    add([tete[0] + .03, s * .04, tete[2] + .02], [tete[0] + .045, s * .04, tete[2] + .025], .03, .03, sp.oeil);
+    add([tete[0] - .02, s * .04, tete[2] + .04], [tete[0] - .05, s * (alerte ? .08 : .11), tete[2] + (alerte ? .11 : .06)], .03, .015, sp.shell);   // les oreilles
+    // les bois de cristal : un merrain, trois andouillers
+    const b0 = [tete[0], s * .03, tete[2] + .05], b1 = [tete[0] - .06, s * .12, tete[2] + .22], b2 = [tete[0] - .12, s * .16, tete[2] + .36];
+    add(b0, b1, .035, .035, sp.bois); add(b1, b2, .028, .028, sp.bois);
+    add(b1, [b1[0] + .07, b1[1] + s * .02, b1[2] + .10], .022, .022, sp.bois);
+    add(mixP(b1, b2, .5), [b2[0] + .02, b2[1] + s * .07, b2[2] - .02], .02, .02, sp.bois);
+    add(b2, [b2[0] + .04, b2[1] - s * .01, b2[2] + .08], .018, .018, sp.bois);
+  }
+  add([tete[0] + .01, 0, tete[2] + .06], [tete[0] + .03, 0, tete[2] + .09], .045, .045, sp.pierre);   // la pierre natale, au front
+  // le trot en diagonale, qui devient galop — les paires avant, puis arrière — quand il file
+  const A = FOULEE.cerf / 4 * bouge;
+  for (const [ax, dph, arr] of [[.13, 0, 0], [-.18, Math.PI, 1]]) for (const s of [-1, 1]) {
+    const trot = ph + dph + (s > 0 ? 0 : Math.PI), gal = ph + (arr ? Math.PI * .5 : 0) + (s > 0 ? .35 : 0);
+    const phase = trot * (1 - galop) + gal * galop;
+    const sw = -Math.cos(phase) * A * (1 + galop * .5), lift = Math.max(0, Math.sin(phase)) * .10 * bouge;
+    const hanche = [ax, s * .07, bz - .04], pied = [ax + sw, s * .075, dk ? .02 : lift];
+    const genou = [(hanche[0] + pied[0]) / 2 + (arr ? -.06 : .03), s * .075, (hanche[2] + pied[2]) * .5 + .02];
+    add(hanche, genou, .065, .065, sp.shell); add(genou, pied, .04, .04, sp.leg);
+    add(pied, [pied[0] + .03, pied[1], pied[2]], .045, .03, sp.dark);                 // le sabot
+  }
+  return B;
+}
+// ---------- l'instinct des Telluriens ----------
+// Ce que chaque espèce ajoute au comportement commun, juste avant le pas. Rend [état, x, y, allure].
+//  - Sauvage, un Tellurien ne quitte pas son sol : flâner, paître, rôder l'y ramènent (boire, fuir
+//    et chasser l'en font sortir, un temps).
+//  - Le varan lézarde au soleil, face à lui, deux tiers du jour quand il n'a rien d'autre à faire.
+//  - La salamandre regagne les braises pour y dormir, le jour.
+//  - Le crapaud qui fuit dans sa tourbière s'y enfouit : les chasseurs perdent sa trace.
+//  - Le vesseron menacé, frappé — ou qui vous défend — crache un nuage de spores : les chasseurs
+//    pris dedans restent sonnés et renoncent, le joueur s'y engourdit.
+function instinctTellurien(b, etat, tx, ty, vit, men, dM, dt) {
+  const sp = b.sp, sauvage = !b.tame;
+  if (sauvage && sp.corps === 'saurien' && !sp.nuit && etat === 'errer' && lumiere() > .6 && (b.t + b.bob * 7) % 26 < 17) {
+    etat = b.etat = 'lézarder'; b.dirT = SUN_AZ; vit = 0;
+  }
+  if (sauvage && sp.brule && etat === 'dormir' && bAt(b.x | 0, b.y | 0) !== 14) {
+    const q = b.lit && bAt(b.lit[0] | 0, b.lit[1] | 0) === 14 ? b.lit : (b.lit = braiseProche(b));
+    if (q) { etat = b.etat = 'regagner'; tx = q[0]; ty = q[1]; vit = sp.spd * .5; }
+  }
+  if (sauvage && sp.corps === 'crapaud' && etat === 'fuir' && !(b.enfoui > 0) && famille(bAt(b.x | 0, b.y | 0)) === sp.biome
+      && Math.random() < dt * 1.5) {
+    b.enfoui = 3 + Math.random() * 4; etat = b.etat = 'enfoui'; vit = 0;
+    burst(b.x, b.y, b.z + .1, 10, '#5c5436');
+  }
+  if (sp.corps === 'myconide' && b.t > (b.sporeT || 0)) {
+    const menace = sauvage && men && dM < 9 && (etat === 'fuir' || etat === 'acculé');
+    const defend = !sauvage && etat === 'défendre' && b.cibleD && (b.x - b.cibleD.x) ** 2 + (b.y - b.cibleD.y) ** 2 < 5;
+    if (menace || defend || (sauvage && b.hit > 0)) nuageSpores(b, sauvage);
+  }
+  if (sauvage && !b.mur && (etat === 'errer' || etat === 'troupeau' || etat === 'brouter' || etat === 'quête')
+      && !sp.bio.includes(bAt(tx | 0, ty | 0))) {
+    tx = b.home[0]; ty = b.home[1];                    // le bord de son sol : il fait demi-tour
+    if (etat === 'errer') b.dirT = Math.atan2(ty - b.y, tx - b.x);
+  }
+  // et il ne s'endort pas ailleurs, tant qu'il lui reste de quoi rentrer
+  if (sauvage && !b.mur && etat === 'dormir' && b.nrj > .08 && !sp.bio.includes(bAt(b.x | 0, b.y | 0))) {
+    etat = b.etat = 'rentrer'; tx = b.home[0]; ty = b.home[1]; vit = sp.spd * .6;
+  }
+  return [etat, tx, ty, vit];
+}
+function braiseProche(b) {
+  let best = null, bd = 1e9;
+  for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
+    const x = (b.x | 0) + dx, y = (b.y | 0) + dy;
+    if (bAt(x, y) !== 14) continue;
+    const d = dx * dx + dy * dy; if (d < bd) { bd = d; best = [x + .5, y + .5]; }
+  }
+  return best;
+}
+function nuageSpores(b, surJoueur) {
+  b.nuageT = t; b.sporeT = b.t + 7;
+  for (let k = 0; k < 26; k++) parts.push({ x: b.x + (Math.random() - .5) * .6, y: b.y + (Math.random() - .5) * .6, z: b.z + .5 * b.sp.sz,
+    vx: (Math.random() - .5) * 1.6, vy: (Math.random() - .5) * 1.6, vz: Math.random() * .6, g: -.08, life: 1.6 + Math.random(), age: 0,
+    col: '#d6b8f0', luit: 1, tl: .09 });
+  for (const o of beasts) if (o !== b && !o.dead && o.sp.chasse && !o.tame && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 7) {
+    o.etourdi = 1.6; o.as = null;
+    if (o.cible === b || surJoueur === false) { o.cible = null; o.epargne = b; o.epargneT = o.t + 8; o.renonce = o.t; }
+  }
+  if (surJoueur && (P.x - b.x) ** 2 + (P.y - b.y) ** 2 < 7) { P.spores = t + 3.5; say('les spores vous engourdissent', 1.8); }
+}
 // L'anneau du lien : rouge, il bat autour de l'éclat que porte la bête. Les trois rendus en
 // tirent les mêmes mesures — position, rayon, opacité — et le même rouge que le lien du sac.
 // Il battait de 0,10 à 0,80 d'opacité : au creux de chaque battement il n'y avait plus rien à
@@ -7135,7 +7432,7 @@ function foeBones(f) {
 // Il se tient au-dessus du dos, le long de la normale du corps. Sur une paroi il s'en écarte
 // moins : vu de côté, un anneau à 0,62 du mur flottait à côté de la bête au lieu de l'entourer.
 function anneauLien(b) {
-  const kz = b.sp.sz, ph = t * 3.4 + b.x, U = repere(b).U, hz = (.25 + .37 * U[2] * U[2]) * kz;
+  const kz = b.sp.sz, ph = t * 3.4 + b.x, U = repere(b).U, hz = (.25 + .37 * U[2] * U[2]) * kz * (b.sp.anneau || 1);
   return { x: b.x + U[0] * hz, y: b.y + U[1] * hz, z: b.z + U[2] * hz,
            r: (.42 + .05 * Math.sin(ph)) * kz, a: .62 + .22 * Math.sin(ph) };
 }
@@ -7808,7 +8105,7 @@ function majCible() {
     else if (automate(o.sp)) { nom = o.sp.n; cl = 'meca';
       info = o.etat === 'veille' ? 'en veille · un éclat le rallume' : `${o.etat} · charge ${Math.round(o.nrj * 100)} %`; }
     else { nom = o.sp.n;
-      info = `${o.etat} · faim ${Math.round(o.faim * 100)} % · confiance ${Math.round(o.conf * 100)} %`
+      info = (tellurien(o.sp) ? 'tellurien · ' : '') + `${DITS_ETAT[o.etat] || o.etat} · faim ${Math.round(o.faim * 100)} % · confiance ${Math.round(o.conf * 100)} %`
         + ((porte('grimoire') || {}).id === 'appel' ? ` · lien ${Math.round(chanceLien(o) * 100)} %` : ''); }
     html = `<b>${ESC(nom)}</b><div class="br"><i style="width:${Math.round(Math.max(0, o.pv) * 100)}%"></i></div><small>${ESC(info)}</small>`;
   }
@@ -9823,6 +10120,7 @@ globalThis.__BETA = { GUIDE, majGuide, ligneGuide, contexteJeu, ouvrirRetour, fe
   supprimerCompte, TEXTE_DONNEES, lireCopie, get incidentsEnvoyes(){return incidentsEnvoyes}, set incidentsEnvoyes(v){incidentsEnvoyes=v},
   set incidentT(v){incidentT=v}, rattraper: (e, ou) => rattraper(e, ou) };
 globalThis.__RESERVE = { reserveCommune, dispo, puiser, payer, payable, ameliorerCamp, nourrirCompagne };
+globalThis.__TELLURIENS = { osTellurien, pasTellurien, instinctTellurien, nuageSpores, braiseProche, tellurien, FOULEE, habitantDe, dessinTellurien };
 globalThis.__BIOMES = { RARES, AMBIANCE, HABITATS_RARES, BOUE, CHALEUR, BRULURE, biomesGraine, nivGraine, tirerGraine, signee,
   poserBiomesRares, lueursRares, majBiome, blocAtlas, ligneBiome, famille, rareDe, Flo, ESP, TEX, TEX_HAUT, TEX_COTE, ouvrirPortail,
   get RaresIle(){return RaresIle}, get biomeIci(){return biomeIci}, set biomeIci(v){biomeIci=v},
