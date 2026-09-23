@@ -484,7 +484,8 @@ function biomesGraine(g) {
   for (let k = RARES.length - 1; k >= 0; k--) { const p = tir(); if (r.length < 2 && p < RARES[k].chance) r.push(RARES[k].b); }
   return r;
 }
-const nivGraine = g => biomesGraine(g).reduce((m, b) => Math.max(m, rareDe(b).niv), 0);
+const nivGraine = g => Math.max(biomesGraine(g).reduce((m, b) => Math.max(m, rareDe(b).niv), 0),
+  ...betesRaresGraine(g).map(b => b.niv));   // un biome rare, ou un coursier rare, dit l'exploration qu'il faut
 // Une île neuve pour l'exploration `niv` : une graine signée dont aucun biome n'est encore défendu.
 function tirerGraine(niv, sauf) {
   let g = 0;
@@ -3969,10 +3970,14 @@ function lueursRares(pousse) {
     if (sp && sp.luit && maturite(i, sp) > .5) L.push([x + .5, y + .5, solFlore(x, y) + sp.h * .6, 1.1 + sp.luit * .9, d]);
     else if (Bio[i] === 14 && !(x & 1) && !(y & 1)) L.push([x + .5, y + .5, Hgt[i] + .3, 1.6, d]);
   }
-  // et les Telluriens, dont la pierre natale luit — la salamandre tout entière
-  for (const b of beasts) if (!b.dead && b.sp.lueur) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < 144) L.push([b.x, b.y, b.z + .45 * b.sp.sz, b.sp.lueur, d]); }
   L.sort((a, b) => a[4] - b[4]);
-  for (let j = 0; j < Math.min(5, L.length); j++) pousse(L[j][0], L[j][1], L[j][2], L[j][3]);
+  for (let j = 0; j < Math.min(4, L.length); j++) pousse(L[j][0], L[j][1], L[j][2], L[j][3]);
+  // et les trois Telluriens les plus proches, à part — leur pierre natale luit, la salamandre tout
+  // entière : un champ de braises ne doit pas les éteindre
+  const Lb = [];
+  for (const b of beasts) if (!b.dead && b.sp.lueur) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < 144) Lb.push([b.x, b.y, b.z + .45 * b.sp.sz, b.sp.lueur, d]); }
+  Lb.sort((a, b) => a[4] - b[4]);
+  for (let j = 0; j < Math.min(3, Lb.length); j++) pousse(Lb[j][0], Lb[j][1], Lb[j][2], Lb[j][3]);
 }
 const AMBIANCE = {
   9:  { col: '#d8f27a', nuit: 1, z: [.4, 1.6], v: .35, vz: 0, g: 0, vie: 3, luit: 1, tl: .09, n: 6 },    // lucioles
@@ -5002,8 +5007,9 @@ function pasVersBete(b, tx, ty, vit, dt) {
     }
     if (!ok) { dx = -dx; dy = -dy; }
   }
-  b.vx += (dx * vit - b.vx) * Math.min(1, dt * 5);
-  b.vy += (dy * vit - b.vy) * Math.min(1, dt * 5);
+  const vif = b.sp.corps === 'crapaud' ? 16 : 5;       // le crapaud bondit : son élan ne se lisse pas
+  b.vx += (dx * vit - b.vx) * Math.min(1, dt * vif);
+  b.vy += (dy * vit - b.vy) * Math.min(1, dt * vif);
   let d2 = Math.atan2(dy, dx) - b.dirT;
   while (d2 > Math.PI) d2 -= 6.2832; while (d2 < -Math.PI) d2 += 6.2832;
   b.dirT += d2 * Math.min(1, dt * 6);
@@ -5614,7 +5620,20 @@ function emitTirs(view, out) {
 // ressemblaient à une ou deux espèces près.
 const POIDS_ESPECE = { brouteur: 1, glaneur: .9, bosseu: .75, traqueur: .7, spectre: .4,
   moissonneur: .5, traceur: .45, sentinelle: .35, mercenaire: .3,
-  coursier: .6, coursier_o: .25, coursier_r: .12, coursier_a: .05 };
+  coursier: .6, coursier_o: .25 };
+// Le coursier rouge et celui d'aurore ne sortent plus de ce tirage : ils se tirent à part, de la
+// graine signée seule, et le portail tient compte de l'exploration — comme les biomes rares. Le
+// rouge n'apparaît qu'à partir de la troisième exploration, sur une île sur seize ; l'aurore à
+// partir de la sixième, sur une île sur soixante-dix. Les îles d'avant n'en portent plus.
+function betesRaresGraine(g) {
+  const h = n => { n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); return (n ^ (n >>> 16)) >>> 0; };
+  if (!Number.isInteger(g) || (h(g ^ 0x5b10e) & 15) !== 11) return [];   // la signature des îles neuves
+  let s = h(g ^ 0xc0a51e) || 1;
+  const tir = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const r = [];
+  for (const [id, niv, chance] of [['coursier_r', 3, .06], ['coursier_a', 6, .014]]) if (tir() < chance) r.push({ id, niv });
+  return r;
+}
 const NB_ESPECES = [[2, 12], [3, 22], [4, 26], [5, 20], [6, 13], [7, 7]];   // combien d'espèces, et sur cent îles
 let especesIle = new Set(), facteurHerbe = 1;
 function tirerBestiaire() {
@@ -5630,9 +5649,10 @@ function tirerBestiaire() {
   let r = tir() * 100, n = 2;
   for (const [k, p] of NB_ESPECES) if ((r -= p) <= 0) { n = k; break; }
   const e = new Set();
-  const base = SPEC.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.biome);
-  e.add(tirerParmi(base).id);
-  while (e.size < n) e.add(tirerParmi(SPEC.filter(sp => !e.has(sp.id) && !sp.biome)).id);
+  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE);           // ni Telluriens, ni coursiers rares
+  e.add(tirerParmi(tirables.filter(sp => sp.diet === 'h' || sp.diet === 'o')).id);
+  while (e.size < n) e.add(tirerParmi(tirables.filter(sp => !e.has(sp.id))).id);
+  for (const b of betesRaresGraine(SEED)) e.add(b.id);
   return e;
 }
 // Moins d'espèces d'herbivores, plus de chacune : une île à un seul herbivore en porte deux fois
@@ -7091,7 +7111,7 @@ const FOE_REST = [[0.24, 0.21], [0.02, 0.25], [-0.20, 0.21]];
 function initFoeLegs(f) {
   f.feet = [];
   if (f.sp && coursier(f.sp)) { initPattesCoursier(f); return; }
-  if (f.sp && tellurien(f.sp)) { f.px = f.x; f.py = f.y; return; }          // leur démarche suit une phase
+  if (f.sp && tellurien(f.sp)) { f.px = f.x; f.py = f.y; initPiedsTellurien(f); return; }
   const R = repere(f), F = R.F, L = R.L;
   for (const sd of [-1, 1]) FOE_REST.forEach(([rx, ry], i) => {
     const ly = ry * sd;
@@ -7128,7 +7148,7 @@ function poserPied(T, U) {
 }
 function updateFoeLegs(f, dt) {
   if (f.sp && coursier(f.sp)) return pattesCoursier(f, dt);
-  if (f.sp && tellurien(f.sp)) return pasTellurien(f, dt);
+  if (f.sp && tellurien(f.sp)) { pasTellurien(f, dt); piedsPoses(f, dt); return; }
   const R = repere(f), F = R.F, L = R.L, U = R.U;
   // Au sol, rien ne change depuis v24 : l'écart se mesure à plat et les pieds restent dans le
   // plan du corps. En paroi et dans les angles, la patte se replace aussi quand elle décolle.
@@ -7214,14 +7234,90 @@ function foeBones(f) {
 }
 // ============================================================
 //  LES TELLURIENS, EN VOLUMES
-//  Quatre corps pour cinq espèces. Leur démarche n'a pas de pieds posés dans le monde, comme les
-//  Rampants : elle suit une PHASE qui avance avec le chemin parcouru — une foulée par longueur de
-//  pas —, si bien que les pieds ne glissent pas, à l'allure qu'on veut, et même à pas larges.
-//  Le crapaud bondit, pattes arrière tendues en l'air ; le varan et la salamandre ondulent de la
-//  tête à la queue, pattes écartées en diagonale ; le vesseron se dandine sur deux pieds ; le cerf
-//  trotte, puis galope, broute tête au sol, et dresse la tête et la queue à l'alerte.
+//  Quatre corps pour cinq espèces. Comme les Rampants, leurs pieds se POSENT dans le monde : une
+//  patte reste où elle est tant que le corps ne s'en éloigne pas, puis fait un pas, en arc, avec
+//  une accélération et un freinage — en diagonale pour les quadrupèdes, en alternance pour le
+//  vesseron. Le pas vise d'autant plus loin devant que la bête va vite, dure moins quand elle
+//  court, et se pose sur le sol réel : une marche, le flanc d'une paroi. La jambe se plie par
+//  cinématique inverse, deux os de longueur fixe, et le genou du côté que la nature lui donne :
+//  coudes en dehors et en l'air pour les sauriens, genou devant et jarret derrière pour le cerf.
+//  Le corps suit ses pattes : il monte à chaque pas, le vesseron penche vers le pied qui porte.
+//  Le crapaud, lui, avance vraiment par bonds : son allure s'arrête au sol et file en l'air.
 // ============================================================
-const FOULEE = { crapaud: .8, saurien: .7, myconide: .32, cerf: .95 };
+const FOULEE = { crapaud: .8, saurien: .7, myconide: .32, cerf: .95 };   // l'onde du tronc et le balancier des bras
+const PATTES_T = {
+  saurien:  { pieds: [[.10, .25], [-.12, .25]], duree: .15, haut: .06, seuil: .15 },
+  cerf:     { pieds: [[.14, .075], [-.19, .075]], duree: .18, haut: .10, seuil: .20 },
+  myconide: { pieds: [[.02, .075]], duree: .20, haut: .06, seuil: .075 },
+};
+function initPiedsTellurien(f) {
+  const T = PATTES_T[f.sp.corps]; f.feet = []; f.gait = 0; if (!T) return;
+  const R = repere(f), F = R.F, L = R.L, k = f.sp.sz;
+  T.pieds.forEach(([rx, ry], i) => { for (const s of [1, -1]) {
+    const x = f.x + (rx * F[0] + ry * s * L[0]) * k, y = f.y + (rx * F[1] + ry * s * L[1]) * k;
+    f.feet.push({ i, s, rx, ry: ry * s, grp: (i + (s > 0 ? 0 : 1)) % 2, x, y, z: f.z,
+      step: 0, sx: x, sy: y, sz: f.z, tx: x, ty: y, tz: f.z, duree: T.duree });
+  } });
+}
+function piedsPoses(f, dt) {
+  const T = PATTES_T[f.sp.corps]; if (!T) return;
+  if (!f.feet || !f.feet.length) initPiedsTellurien(f);
+  const R = repere(f), F = R.F, L = R.L, U = R.U, k = f.sp.sz, paroi = !!f.mur || !!f.tang;
+  const v = f.dead ? 0 : (f.vit || 0), duree = T.duree / (1 + v * .22), avance = Math.min(.35 * k, v * duree * .8);
+  for (const ft of f.feet) {
+    const ox = ft.rx * k + avance, oy = ft.ry * k;
+    ft.cx = f.x + ox * F[0] + oy * L[0]; ft.cy = f.y + ox * F[1] + oy * L[1]; ft.cz = f.z + ox * F[2] + oy * L[2];
+  }
+  const ecart = ft => {
+    const dx = ft.x - ft.cx, dy = ft.y - ft.cy;
+    if (!paroi) return Math.hypot(dx, dy);
+    const dz = ft.z - ft.cz, n = dx * U[0] + dy * U[1] + dz * U[2];
+    return Math.sqrt(Math.max(0, dx * dx + dy * dy + dz * dz - n * n)) + Math.max(0, Math.abs(n) - .08);
+  };
+  const seuil = T.seuil * k, besoin = ft => ecart(ft) > seuil;
+  const viser = ft => {
+    if (paroi) return poserPied([ft.cx, ft.cy, ft.cz], U);
+    const h = hAt(ft.cx | 0, ft.cy | 0);
+    return [ft.cx, ft.cy, Math.abs(h - f.z) <= 1.05 ? h : f.z];      // une marche, oui ; le pied d'une falaise, non
+  };
+  let enl = false;
+  for (const ft of f.feet) if (ft.step > 0) {
+    ft.step -= dt / ft.duree;
+    if (ft.step <= 0) { ft.step = 0; ft.x = ft.tx; ft.y = ft.ty; ft.z = ft.tz; } else enl = true;
+  }
+  if (!enl && !f.dead) {
+    // l'alternance imposée, comme chez les Rampants : sinon la paire qui vient de se poser repart aussitôt
+    if (f.feet.some(ft => ft.grp !== f.gait && besoin(ft))) f.gait = 1 - f.gait;
+    for (const ft of f.feet) if (ft.grp === f.gait && besoin(ft)) {
+      ft.step = 1; ft.duree = duree; ft.sx = ft.x; ft.sy = ft.y; ft.sz = ft.z;
+      const q = viser(ft); ft.tx = q[0]; ft.ty = q[1]; ft.tz = q[2];
+    }
+  }
+  for (const ft of f.feet) if (ecart(ft) > 1.1 * k) { const q = viser(ft); ft.step = 0; ft.x = q[0]; ft.y = q[1]; ft.z = q[2]; }
+}
+// Un pied, dans le repère du corps : où il est — sur son arc pendant le pas — et de combien il est levé.
+function piedLocal(f, ft, R, haut) {
+  const k = f.sp.sz, F = R.F, L = R.L, U = R.U;
+  let wx = ft.x, wy = ft.y, wz = ft.z, lev = 0;
+  if (ft.step > 0) {
+    const u = 1 - ft.step, e = u < .5 ? 2 * u * u : 1 - (-2 * u + 2) ** 2 / 2;
+    wx = ft.sx + (ft.tx - ft.sx) * e; wy = ft.sy + (ft.ty - ft.sy) * e; wz = ft.sz + (ft.tz - ft.sz) * e;
+    lev = Math.sin(u * Math.PI) * haut;
+  }
+  const dx = wx - f.x, dy = wy - f.y, dz = wz - f.z;
+  return [(dx * F[0] + dy * F[1] + dz * F[2]) / k, (dx * L[0] + dy * L[1] + dz * L[2]) / k, (dx * U[0] + dy * U[1] + dz * U[2]) / k + lev];
+}
+// Deux os, H→genou→P, de longueurs fixes : le genou se place dans le plan de la jambe, du côté du pli.
+function genou(H, P, L1, L2, pli) {
+  const dx = P[0] - H[0], dy = P[1] - H[1], dz = P[2] - H[2], d = Math.hypot(dx, dy, dz) || 1e-4;
+  const ux = dx / d, uy = dy / d, uz = dz / d, dm = Math.min(d, (L1 + L2) * .999);
+  const a = (L1 * L1 - L2 * L2 + dm * dm) / (2 * dm), h = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+  let px = pli[0], py = pli[1], pz = pli[2]; const pd = px * ux + py * uy + pz * uz;
+  px -= pd * ux; py -= pd * uy; pz -= pd * uz; const pn = Math.hypot(px, py, pz) || 1;
+  return [H[0] + ux * a + px / pn * h, H[1] + uy * a + py / pn * h, H[2] + uz * a + pz / pn * h];
+}
+// combien le corps est porté en l'air, là, par les pas en cours
+const envolee = f => (f.feet || []).reduce((m, ft) => m + (ft.step > 0 ? Math.sin((1 - ft.step) * Math.PI) : 0), 0);
 function pasTellurien(f, dt) {
   const d = Math.hypot(f.x - (f.px ?? f.x), f.y - (f.py ?? f.y));
   f.px = f.x; f.py = f.y;
@@ -7235,8 +7331,8 @@ function osTellurien(f) {
   const sp = f.sp, B = [], add = (a, b, w, h, c) => B.push({ a, b, w, h, c });
   const dk = Math.min(1, (f.dead || 0) * 2.6), v = f.dead ? 0 : (f.vit || 0), ph = (f.ph || 0) * 6.2832;
   if (sp.corps === 'crapaud') {
-    const bouge = Math.min(1, v / .6), enf = f.enfK || 0;
-    const saut = Math.sin(Math.PI * (f.ph || 0)) * bouge * (1 - enf);   // en l'air à mi-bond
+    const enf = f.enfK || 0;
+    const saut = Math.sin(Math.PI * (f.hop || 0)) * (1 - enf);          // en l'air à mi-bond
     const bz = .13 + saut * .20 - enf * .20 - dk * .06;
     // la nuit, au repos, sa gorge se gonfle et se vide : il chante
     const chante = !f.dead && enf < .5 && v < .1 && lumiere() < .5 ? Math.max(0, Math.sin(t * 2.6 + f.bob)) ** 3 : 0;
@@ -7269,7 +7365,7 @@ function osTellurien(f) {
   }
   if (sp.corps === 'saurien') {
     const bouge = Math.min(1, v / .8), lez = f.etat === 'lézarder' || f.etat === 'dormir' || !!f.dead;
-    const bz = (lez ? .07 : .11) - dk * .04 - (f.ramasse || 0) * .03;
+    const bz = (lez ? .07 : .11) + envolee(f) * .008 - dk * .04 - (f.ramasse || 0) * .03;
     // l'onde du tronc : elle court de la tête à la queue, et la queue ondule encore à l'arrêt
     const Y = x => (Math.sin(ph - x * 6) * (.035 + .02 * bouge) * bouge
       + Math.sin(t * 1.4 + f.bob) * .035 * (1 - bouge) * Math.max(0, -x - .1) * 3) * (1 + Math.max(0, -x - .12) * 2.5);
@@ -7290,28 +7386,27 @@ function osTellurien(f) {
     if (!sp.brule && f.etat !== 'dormir' && !f.dead && Math.sin(t * 3.1 + f.bob * 2) > .82)
       add(tete, [tete[0] + .09, tete[1], tete[2] - .01], .02, .01, [220, 70, 80]);
     add([nuque[0], nuque[1], nuque[2] + .06], [nuque[0] + .03, nuque[1], nuque[2] + .09], .05, .05, sp.pierre);   // la pierre natale
-    // les pattes écartées, en diagonale : avant droite et arrière gauche ensemble
-    const A = FOULEE.saurien / 4 * bouge;
-    for (const [ax, base, dph] of [[.10, epaule, 0], [-.12, hanche, Math.PI]]) for (const s of [-1, 1]) {
-      const phase = ph + dph + (s > 0 ? 0 : Math.PI);
-      const sw = -Math.cos(phase) * A, lift = Math.max(0, Math.sin(phase)) * .06 * bouge;
-      const epa = [base[0], base[1] + s * .07, base[2] - .02];
-      const coude = [ax + sw * .5, base[1] + s * .22, base[2] + .05];
-      const pied = [ax + sw, base[1] + s * .25, lift];
-      add(epa, coude, .05, .05, sp.leg); add(coude, pied, .04, .04, sp.leg);
-      add(pied, [pied[0] + .045, pied[1] + s * .01, pied[2]], .05, .02, sp.leg);
+    // les pattes écartées, posées en diagonale : coudes en dehors et en l'air
+    const R = repere(f);
+    for (const ft of f.feet || []) {
+      const base = ft.i === 0 ? epaule : hanche, s = ft.s;
+      const H = [base[0], base[1] + s * .07, base[2] - .02], Pd = piedLocal(f, ft, R, PATTES_T.saurien.haut);
+      const G = genou(H, Pd, .17, .16, [0, s, .8]);
+      add(H, G, .05, .05, sp.leg); add(G, Pd, .04, .04, sp.leg);
+      add(Pd, [Pd[0] + .045, Pd[1] + s * .012, Pd[2]], .05, .02, sp.leg);   // les doigts
     }
     return B;
   }
   if (sp.corps === 'myconide') {
-    const bouge = Math.min(1, v / .5);
-    const roule = Math.sin(ph) * .05 * bouge, hop = Math.abs(Math.cos(ph)) * .025 * bouge;
+    const bouge = Math.min(1, v / .5), R = repere(f);
+    let roule = 0, hop = 0;                                                            // il penche vers le pied qui porte
+    for (const ft of f.feet || []) if (ft.step > 0) { const l = Math.sin((1 - ft.step) * Math.PI); roule -= ft.s * l * .05; hop += l * .025; }
     const nuage = f.nuageT != null && t - f.nuageT < .6 ? 1 - (t - f.nuageT) / .6 : 0;   // il se gonfle et crache
     const bz = .15 + hop - dk * .1;
-    for (const s of [-1, 1]) {                                                        // deux pieds, qui se dandinent
-      const phase = ph + (s > 0 ? Math.PI : 0), sw = -Math.cos(phase) * FOULEE.myconide / 4 * bouge;
-      const p = [sw, s * .075, Math.max(0, Math.sin(phase)) * .05 * bouge];
-      add([sw * .3, s * .06, bz], p, .08, .08, sp.leg); add(p, [p[0] + .05, p[1], p[2]], .08, .04, sp.leg);
+    for (const ft of f.feet || []) {                                                   // deux pieds, posés tour à tour
+      const s = ft.s, H = [0, s * .06, bz], Pd = piedLocal(f, ft, R, PATTES_T.myconide.haut);
+      const G = genou(H, Pd, .09, .08, [1, 0, .2]);
+      add(H, G, .08, .08, sp.leg); add(G, Pd, .07, .07, sp.leg); add(Pd, [Pd[0] + .05, Pd[1], Pd[2]], .08, .04, sp.leg);
     }
     const haut = [roule * .4, roule, bz + .30];
     add([0, 0, bz - .02], haut, .20, .20, sp.leg);                                    // le pied, qui est son corps
@@ -7330,8 +7425,7 @@ function osTellurien(f) {
     return B;
   }
   // le cerf
-  const bouge = Math.min(1, v / 1.2), galop = Math.min(1, Math.max(0, (v - 3.2) / 1.5));
-  const bz = .46 + Math.abs(Math.sin(ph)) * .03 * bouge + galop * Math.sin(ph) * .05 - dk * .3;
+  const bz = .46 + envolee(f) * .02 - dk * .3;
   const broute = f.etat === 'brouter' && v < .3 && !f.dead, alerte = (f.alarm || 0) > .2;
   add([-.22, 0, bz], [.18, 0, bz + .02], .19, .18, sp.shell);                         // le corps
   add([-.18, 0, bz - .07], [.12, 0, bz - .06], .15, .05, sp.dark);                    // le ventre
@@ -7353,16 +7447,14 @@ function osTellurien(f) {
     add(b2, [b2[0] + .04, b2[1] - s * .01, b2[2] + .08], .018, .018, sp.bois);
   }
   add([tete[0] + .01, 0, tete[2] + .06], [tete[0] + .03, 0, tete[2] + .09], .045, .045, sp.pierre);   // la pierre natale, au front
-  // le trot en diagonale, qui devient galop — les paires avant, puis arrière — quand il file
-  const A = FOULEE.cerf / 4 * bouge;
-  for (const [ax, dph, arr] of [[.13, 0, 0], [-.18, Math.PI, 1]]) for (const s of [-1, 1]) {
-    const trot = ph + dph + (s > 0 ? 0 : Math.PI), gal = ph + (arr ? Math.PI * .5 : 0) + (s > 0 ? .35 : 0);
-    const phase = trot * (1 - galop) + gal * galop;
-    const sw = -Math.cos(phase) * A * (1 + galop * .5), lift = Math.max(0, Math.sin(phase)) * .10 * bouge;
-    const hanche = [ax, s * .07, bz - .04], pied = [ax + sw, s * .075, dk ? .02 : lift];
-    const genou = [(hanche[0] + pied[0]) / 2 + (arr ? -.06 : .03), s * .075, (hanche[2] + pied[2]) * .5 + .02];
-    add(hanche, genou, .065, .065, sp.shell); add(genou, pied, .04, .04, sp.leg);
-    add(pied, [pied[0] + .03, pied[1], pied[2]], .045, .03, sp.dark);                 // le sabot
+  // le trot en diagonale, pieds posés : le genou pointe devant, le jarret derrière
+  const R = repere(f);
+  for (const ft of f.feet || []) {
+    const arr = ft.i === 1, s = ft.s;
+    const H = [arr ? -.19 : .14, s * .07, bz - .04], Pd = piedLocal(f, ft, R, PATTES_T.cerf.haut);
+    const G = genou(H, Pd, arr ? .26 : .24, arr ? .27 : .25, [arr ? -1 : 1, 0, 0]);
+    add(H, G, .065, .065, sp.shell); add(G, Pd, .04, .04, sp.leg);
+    add(Pd, [Pd[0] + .03, Pd[1], Pd[2]], .045, .03, sp.dark);                         // le sabot
   }
   return B;
 }
@@ -7388,6 +7480,11 @@ function instinctTellurien(b, etat, tx, ty, vit, men, dM, dt) {
       && Math.random() < dt * 1.5) {
     b.enfoui = 3 + Math.random() * 4; etat = b.etat = 'enfoui'; vit = 0;
     burst(b.x, b.y, b.z + .1, 10, '#5c5436');
+  }
+  // le crapaud avance par bonds : l'allure s'éteint au sol et file en l'air, même moyenne
+  if (sp.corps === 'crapaud') {
+    if (vit > 0 && etat !== 'enfoui') { b.hop = ((b.hop || 0) + dt * 1.7 * Math.max(1, vit / sp.spd)) % 1; vit *= 2.2 * Math.sin(Math.PI * b.hop) ** 2; }
+    else if (b.hop) b.hop = Math.min(1, b.hop + dt * 1.7) % 1;                  // il finit son bond, sur place
   }
   if (sp.corps === 'myconide' && b.t > (b.sporeT || 0)) {
     const menace = sauvage && men && dM < 9 && (etat === 'fuir' || etat === 'acculé');
@@ -10120,7 +10217,7 @@ globalThis.__BETA = { GUIDE, majGuide, ligneGuide, contexteJeu, ouvrirRetour, fe
   supprimerCompte, TEXTE_DONNEES, lireCopie, get incidentsEnvoyes(){return incidentsEnvoyes}, set incidentsEnvoyes(v){incidentsEnvoyes=v},
   set incidentT(v){incidentT=v}, rattraper: (e, ou) => rattraper(e, ou) };
 globalThis.__RESERVE = { reserveCommune, dispo, puiser, payer, payable, ameliorerCamp, nourrirCompagne };
-globalThis.__TELLURIENS = { osTellurien, pasTellurien, instinctTellurien, nuageSpores, braiseProche, tellurien, FOULEE, habitantDe, dessinTellurien };
+globalThis.__TELLURIENS = { piedsPoses, initPiedsTellurien, genou, PATTES_T, betesRaresGraine, osTellurien, pasTellurien, instinctTellurien, nuageSpores, braiseProche, tellurien, FOULEE, habitantDe, dessinTellurien };
 globalThis.__BIOMES = { RARES, AMBIANCE, HABITATS_RARES, BOUE, CHALEUR, BRULURE, biomesGraine, nivGraine, tirerGraine, signee,
   poserBiomesRares, lueursRares, majBiome, blocAtlas, ligneBiome, famille, rareDe, Flo, ESP, TEX, TEX_HAUT, TEX_COTE, ouvrirPortail,
   get RaresIle(){return RaresIle}, get biomeIci(){return biomeIci}, set biomeIci(v){biomeIci=v},
