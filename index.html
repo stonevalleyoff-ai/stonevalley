@@ -434,7 +434,66 @@ const BIOME = [
   { n: 'pierre',   top: [172, 176, 188], side: [126, 130, 144], food: .08 },
   { n: 'neige',    top: [236, 240, 248], side: [188, 196, 212], food: .03 },
   { n: 'vide',     top: [14, 13, 22],    side: [30, 26, 40],   food: 0 },   // le fond des gouffres
+  // les biomes rares : on ne les trouve qu'en s'enfonçant d'île en île (voir RARES)
+  { n: 'tourbière',          top: [92, 100, 60],   side: [76, 60, 42],   food: .9 },
+  { n: 'canyon d\'ocre',     top: [214, 148, 86],  side: [182, 100, 64], food: .22 },
+  { n: 'sylve fongique',     top: [112, 86, 130],  side: [88, 66, 76],   food: .55 },
+  { n: 'champs de cristal',  top: [148, 212, 212], side: [92, 148, 168], food: .12 },
+  { n: 'caldeira de cendre', top: [64, 58, 62],    side: [46, 40, 44],   food: .04 },
+  { n: 'braises',            top: [210, 88, 42],   side: [118, 46, 32],  food: 0 },   // les plaques vives de la caldeira
 ];
+// ============================================================
+//  LES BIOMES RARES
+//  Cinq sols qu'on ne trouve pas chez soi : chaque île en tire au plus deux de sa graine, les
+//  plus rares d'abord. La graine décide seule — deux joueurs sur la même île voient la même
+//  tourbière —, et c'est le PORTAIL qui fait le tri : à l'exploration n, il ne tire que des îles
+//  dont les biomes sont permis à n. D'où la progression : la caldeira ne s'ouvre qu'au septième saut.
+//  Seules les graines « signées » en portent : les îles tirées avant les biomes rares restent
+//  telles qu'elles étaient, à une sur seize près.
+// ============================================================
+const RARES = [
+  { b: 9,  id: 'tourbiere', n: 'Tourbière', rang: 'commun', niv: 1, chance: .40, part: .14,
+    sur: [1, 2, 3, 4], alt: [0, .45], eau: [0, 9], coul: '#b8c87c',
+    d: 'la boue ralentit la marche · des lucioles la nuit' },
+  { b: 10, id: 'canyon', n: 'Canyon d\'ocre', rang: 'peu commun', niv: 2, chance: .25, part: .20,
+    sur: [2, 4, 5, 6], alt: [.1, .85], eau: [3, 255], coul: '#f0a868',
+    d: 'en plein jour, courir y coupe le souffle plus vite' },
+  { b: 11, id: 'sylve', n: 'Sylve fongique', rang: 'rare', niv: 3, chance: .15, part: .16,
+    sur: [2, 3, 4], alt: [.05, .72], eau: [1, 255], coul: '#c9a2ec',
+    d: 'des spores flottent · la clavaire luit la nuit' },
+  { b: 12, id: 'cristal', n: 'Champs de cristal', rang: 'très rare', niv: 5, chance: .08, part: .15,
+    sur: [2, 4, 5, 6, 7], alt: [.28, 1], eau: [2, 255], coul: '#8ff0ea',
+    d: 'le mana y revient deux fois plus vite · tout y luit la nuit' },
+  { b: 13, id: 'caldeira', n: 'Caldeira de cendre', rang: 'légendaire', niv: 7, chance: .04, part: .18,
+    sur: [2, 3, 4, 5, 6, 7], alt: [.16, 1], eau: [2, 255], coul: '#ff9058',
+    d: 'des braises volent · les plaques vives brûlent qui s\'y attarde' },
+];
+const famille = b => b === 14 ? 13 : b;               // les braises sont de la caldeira
+const rareDe = b => RARES.find(r => r.b === famille(b)) || null;
+let RaresIle = [];                                    // ceux que genWorld a posés ici
+function hash32(n) {
+  n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+  return (n ^ (n >>> 16)) >>> 0;
+}
+const signee = g => (hash32(g ^ 0x5b10e) & 15) === 11;
+function biomesGraine(g) {
+  if (!Number.isInteger(g) || !signee(g)) return [];
+  let s = hash32(g ^ 0x7a1e5) || 1;
+  const tir = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const r = [];
+  for (let k = RARES.length - 1; k >= 0; k--) { const p = tir(); if (r.length < 2 && p < RARES[k].chance) r.push(RARES[k].b); }
+  return r;
+}
+const nivGraine = g => biomesGraine(g).reduce((m, b) => Math.max(m, rareDe(b).niv), 0);
+// Une île neuve pour l'exploration `niv` : une graine signée dont aucun biome n'est encore défendu.
+function tirerGraine(niv, sauf) {
+  let g = 0;
+  for (let k = 0; k < 40000; k++) {
+    g = (Math.random() * 1e9) | 0;
+    if (g !== sauf && signee(g) && nivGraine(g) <= niv) return g;
+  }
+  return g;
+}
 function mkNoise(seed) {
   let st = seed >>> 0;
   const rnd = () => (st = (st * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -486,7 +545,7 @@ function expSauvee() {
       sortie: e.s === 1 || e.sortie === 1 ? 1 : 0 };
   } catch (e) { return null; }
 }
-const SEED = graineSauvee() ?? ((Math.random() * 1e9) | 0);
+const SEED = graineSauvee() ?? tirerGraine(0);        // un départ : aucun biome rare
 const nA = mkNoise(SEED), nB = mkNoise(SEED ^ 0x9e37), nC = mkNoise(SEED ^ 0x51ed);
 const MAXH = 24;                                     // relief bien plus marqué qu'avant
 // Ombrage du terrain, calculé une fois. Trois composantes qui se cumulent :
@@ -796,7 +855,52 @@ function genWorld() {
   for (const i of gouffres) Bio[i] = 8;             // après les biomes : le vide n'est pas de l'eau
   creuserLacs(gouffres);                            // quelques cuvettes, que les eaux rempliront
   calcEaux();                                       // lacs et rivières, avant l'ombrage du relief
+  poserBiomesRares(Array.isArray(globalThis.__RARES) ? globalThis.__RARES : biomesGraine(SEED));   // les bancs choisissent
   calcOmbrage();
+}
+// Un biome rare prend une région : les cases qui lui conviennent (sol d'origine, altitude,
+// distance à l'eau), et parmi elles celles où un bruit lent est le plus haut — des massifs
+// d'un seul tenant, pas un semis. Sa part est comptée sur la terre ferme, pour qu'il pèse autant
+// sur une île ramassée que sur une grande. Le relief ne bouge pas : seul le sol change.
+function poserBiomesRares(liste) {
+  RaresIle = [];
+  if (!liste || !liste.length) return;
+  const de = new Uint8Array(WS * WS).fill(255), f = [];
+  for (let i = 0; i < WS * WS; i++) if ((Hgt[i] <= SEA || Eau[i]) && Bio[i] !== 8) { de[i] = 0; f.push(i); }
+  for (let k = 0; k < f.length; k++) {
+    const c = f[k]; if (de[c] >= 40) continue;
+    const x = c % WS, y = (c / WS) | 0;
+    for (const [dx, dy] of VOISINS4) {
+      const nx = x + dx, ny = y + dy;
+      if (nx < 0 || ny < 0 || nx >= WS || ny >= WS) continue;
+      const n = ny * WS + nx;
+      if (de[n] === 255) { de[n] = de[c] + 1; f.push(n); }
+    }
+  }
+  let terre = 0;
+  for (let i = 0; i < WS * WS; i++) if (Hgt[i] > SEA && Bio[i] !== 8 && !Eau[i]) terre++;
+  for (const b of liste) {
+    const R = rareDe(b); if (!R || R.b !== b) continue;
+    const cand = [];
+    for (let y = 2; y < WS - 2; y++) for (let x = 2; x < WS - 2; x++) {
+      const i = y * WS + x, h = Hgt[i], a = h / MAXH;
+      if (h <= SEA || Eau[i] || Bio[i] === 8 || Bio[i] > 8 || !R.sur.includes(Bio[i])) continue;
+      if (a < R.alt[0] || a > R.alt[1] || de[i] < R.eau[0] || de[i] > R.eau[1]) continue;
+      cand.push(i, fbm(nA, x / 44 + 71 * (b - 8), y / 44 - 37 * (b - 8), 3));
+    }
+    const nc = cand.length / 2; if (!nc) continue;
+    const ord = Array.from({ length: nc }, (_, k) => k).sort((p, q) => cand[q * 2 + 1] - cand[p * 2 + 1]);
+    const n = Math.round(Math.min(R.part * terre, nc * .7));
+    for (let j = 0; j < n; j++) Bio[cand[ord[j] * 2]] = b;
+    if (n) RaresIle.push(b);
+  }
+  // Les braises : des plaques vives, à plat, au cœur de la caldeira.
+  if (RaresIle.includes(13)) for (let y = 2; y < WS - 2; y++) for (let x = 2; x < WS - 2; x++) {
+    const i = y * WS + x; if (Bio[i] !== 13) continue;
+    let plat = true;
+    for (const [dx, dy] of VOISINS4) if (Hgt[i + dy * WS + dx] !== Hgt[i] || Bio[i + dy * WS + dx] < 13) plat = false;
+    if (plat && fbm(nC, x / 6 + 11, y / 6 - 7, 2) > .62) Bio[i] = 14;
+  }
 }
 const SEA = 2;                                       // tout ce qui est à cette hauteur ou moins est noyé
 const GW = WS, GH = WS;
@@ -1055,6 +1159,7 @@ P.equip = { arme: null, outil: null, armure: null, grimoire: null, accessoire: n
 P.endu = 1; P.epuise = false; P.courseT = -9;   // l'endurance, de 0 à 1
 P.raccourcis = [null, null, null, null, null];     // les cinq cases du bord droit
 P.guide = { e: 0, masque: false, parti: false, vu: false };   // le guide de départ
+P.biomes = [];                                   // les biomes rares déjà foulés
 P.objets = {};                                   // ce qui a déjà été fabriqué
 P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.arc = null;
 // Les compagnes. Un lien d'éclat est une place : chaque bête liée en occupe un, qu'elle soit
@@ -1221,6 +1326,44 @@ const ESP = [
     bio:[5,6,7],   alt:[.10,1],   eau:[1,99], dens:.14, grain:20, seuil:.30, bas:[140,146,160], haut:[184,190,204] },
   { id:'sapin',    n:'Sapin des neiges',forme:'conifere',res:'bois',  rend:5, pousse:200, h:2.5, larg:.20,
     bio:[7],       alt:[.55,1],   eau:[4,99], dens:.34, grain:18, seuil:.40, bas:[74,62,52],   haut:[208,220,230] },
+  // --- la flore des biomes rares. En QUEUE de liste : le tirage de chaque espèce dépend de son
+  //     rang, et rien ne doit bouger sur les îles d'avant. Leurs sols n'appartiennent qu'à elles.
+  //     « luit » : la nuit, le pied répand une petite lumière.
+  // tourbière
+  { id:'cypres',   n:'Cyprès chauve',  forme:'conifere',res:'bois',   rend:6, pousse:170, h:2.7, larg:.22,
+    bio:[9],       alt:[0,1],     eau:[0,99], dens:.36, grain:20, seuil:.44, bas:[96,74,52],   haut:[108,124,66] },
+  { id:'massette', n:'Massette',       forme:'roseau',  res:'fibre',  rend:5, pousse:60,  h:1.3, larg:.10,
+    bio:[9],       alt:[0,1],     eau:[0,5],  dens:.55, grain:9,  seuil:.30, bas:[110,126,70], haut:[124,88,54] },
+  { id:'sphaigne', n:'Sphaigne rouge', forme:'boule',   res:'fibre',  rend:5, pousse:70,  h:.22, larg:.24,
+    bio:[9],       alt:[0,1],     eau:[0,99], dens:.34, grain:8,  seuil:.36, bas:[120,70,62],  haut:[156,80,70] },
+  // canyon d'ocre
+  { id:'josue',    n:'Arbre de Josué', forme:'josue',   res:'bois',   rend:6, pousse:220, h:2.2, larg:.18,
+    bio:[10],      alt:[0,1],     eau:[0,99], dens:.24, grain:18, seuil:.48, bas:[150,122,90], haut:[122,152,92] },
+  { id:'cactus',   n:'Cactus cierge',  forme:'cactus',  res:'fibre',  rend:6, pousse:150, h:1.6, larg:.16,
+    bio:[10],      alt:[0,1],     eau:[0,99], dens:.30, grain:12, seuil:.42, bas:[74,122,82],  haut:[98,152,96] },
+  { id:'rose',     n:'Rose des sables',forme:'cristal', res:'pierre', rend:7, pousse:160, h:.50, larg:.20,
+    bio:[10],      alt:[0,1],     eau:[0,99], dens:.22, grain:10, seuil:.50, bas:[178,120,80], haut:[238,186,142] },
+  // sylve fongique
+  { id:'geant',    n:'Champignon géant',forme:'geant',  res:'bois',   rend:7, pousse:200, h:3.0, larg:.30,
+    bio:[11],      alt:[0,1],     eau:[0,99], dens:.36, grain:18, seuil:.44, bas:[224,212,198], haut:[152,74,172] },
+  { id:'vesse',    n:'Vesse-de-loup',  forme:'boule',   res:'fibre',  rend:5, pousse:80,  h:.34, larg:.16,
+    bio:[11],      alt:[0,1],     eau:[0,99], dens:.34, grain:9,  seuil:.40, bas:[210,204,190], haut:[236,230,214] },
+  { id:'clavaire', n:'Clavaire lumineuse',forme:'cristal',res:'fibre',rend:6, pousse:110, h:.70, larg:.16,
+    bio:[11],      alt:[0,1],     eau:[0,99], dens:.30, grain:10, seuil:.44, bas:[90,160,170], haut:[150,250,236], luit:1 },
+  // champs de cristal
+  { id:'verre',    n:'Arbre de verre', forme:'verre',   res:'bois',   rend:8, pousse:240, h:2.6, larg:.20,
+    bio:[12],      alt:[0,1],     eau:[0,99], dens:.26, grain:20, seuil:.46, bas:[150,210,220], haut:[204,250,250], luit:.6 },
+  { id:'drusegeante',n:'Druse géante', forme:'cristal', res:'eclat',  rend:5, pousse:260, h:1.3, larg:.34,
+    bio:[12],      alt:[0,1],     eau:[0,99], dens:.16, grain:16, seuil:.52, bas:[80,150,170], haut:[172,246,250], luit:1 },
+  { id:'quartz',   n:'Herbe de quartz',forme:'touffe',  res:'fibre',  rend:5, pousse:80,  h:.55, larg:.14,
+    bio:[12],      alt:[0,1],     eau:[0,99], dens:.40, grain:9,  seuil:.32, bas:[170,210,214], haut:[228,250,250] },
+  // caldeira de cendre
+  { id:'calcine',  n:'Arbre calciné',  forme:'mort',    res:'bois',   rend:7, pousse:230, h:2.3, larg:.20,
+    bio:[13],      alt:[0,1],     eau:[0,99], dens:.26, grain:16, seuil:.44, bas:[46,40,38],   haut:[74,64,58] },
+  { id:'fleurbraise',n:'Fleur de braise',forme:'fleur', res:'fibre',  rend:6, pousse:90,  h:.50, larg:.12,
+    bio:[13],      alt:[0,1],     eau:[0,99], dens:.30, grain:10, seuil:.40, bas:[72,54,46],   haut:[255,122,52], luit:1 },
+  { id:'obsidienne',n:'Obsidienne',    forme:'rocher',  res:'eclat',  rend:4, pousse:240, h:.70, larg:.40,
+    bio:[13],      alt:[0,1],     eau:[0,99], dens:.16, grain:18, seuil:.50, bas:[30,26,40],   haut:[74,64,100] },
 ];
 const FLORE = {}; for (const e of ESP) FLORE[e.id] = e;
 // Carte de peuplement, calculée une fois : sans elle il faudrait éprouver vingt et un
@@ -1432,6 +1575,57 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
              [cx + Math.cos(a) * o * 2, cy + Math.sin(a) * o * 2, z + hh * (1 - e * .22)],
              w * .45, w * .45, B);
       }
+      break; }
+    // --- les silhouettes des biomes rares ---
+    case 'boule': {                              // un coussin rond : la vesse, la sphaigne
+      pose([cx - w * .9, cy, z + hh * .42], [cx + w * .9, cy, z + hh * .42], w * 1.8, hh * .84, B);
+      if (det > 1) pose([cx - w * .55, cy, z + hh * .82], [cx + w * .55, cy, z + hh * .82], w * 1.1, hh * .26, B);
+      break; }
+    case 'cactus': {                             // un fût, et des bras qui repartent vers le ciel
+      const r = w * .9;
+      pose([cx, cy, z], [cx, cy, z + hh], r, r, B);
+      for (let e = 0; e < (det > 1 ? 2 : det); e++) {
+        const a = ha * 6.2832 + e * 3.1416, bx = cx + Math.cos(a) * w * 2.1, by = cy + Math.sin(a) * w * 2.1;
+        const zb = z + hh * (.34 + e * .16 + ha * .1);
+        pose([cx, cy, zb], [bx, by, zb], r * .7, r * .7, B);
+        pose([bx, by, zb - r * .3], [bx, by, zb + hh * (.34 - e * .1)], r * .7, r * .7, B);
+      }
+      break; }
+    case 'josue': {                              // un tronc qui fourche, une houppe de piques à chaque bout
+      const zt = z + hh * .48, tx = cx + pen * hh * .5;
+      pose([cx, cy, z], [tx, cy, zt], w * .7, w * .7, A);
+      const n = det > 1 ? 3 : 2;
+      for (let e = 0; e < n; e++) {
+        const a = e * 6.2832 / n + ha * 5, r = w * 2.6;
+        const ex = tx + Math.cos(a) * r, ey = cy + Math.sin(a) * r, ez = z + hh * (.76 + .12 * ((e * .37 + ha) % 1));
+        pose([tx, cy, zt], [ex, ey, ez], w * .45, w * .45, A);
+        pose([ex, ey, ez - w * .2], [ex, ey, ez + hh * .2], w * 1.3, w * 1.3, B);
+      }
+      break; }
+    case 'geant': {                              // un pied pâle, un chapeau large comme un toit
+      const zc = z + hh * .70, sx = cx + pen * hh * .4, r = w * 2.6;
+      pose([cx, cy, z], [sx, cy, zc], w * .8, w * .8, A);
+      pose([sx - r, cy, zc + hh * .09], [sx + r, cy, zc + hh * .09], r * 1.6, hh * .2, B);
+      if (det > 1) pose([sx, cy - r * .85, zc + hh * .13], [sx, cy + r * .85, zc + hh * .13], r * 1.3, hh * .18, B);
+      if (det) pose([sx - r * .5, cy, zc + hh * .24], [sx + r * .5, cy, zc + hh * .24], r * .8, hh * .12, B);
+      break; }
+    case 'mort': {                               // un tronc noirci, des branches nues
+      const tx = cx + pen * hh;
+      pose([cx, cy, z], [tx, cy, z + hh], w * .6, w * .6, A);
+      for (let e = 0; e < (det > 1 ? 3 : det ? 2 : 0); e++) {
+        const a = e * 2.4 + ha * 6, f = .42 + e * .17, r = w * (3 - e * .5), bx = cx + pen * hh * f, bz = z + hh * f;
+        pose([bx, cy, bz], [bx + Math.cos(a) * r, cy + Math.sin(a) * r, bz + hh * .22], w * .3, w * .3, B);
+      }
+      break; }
+    case 'verre': {                              // un fût de verre, une couronne d'aiguilles
+      const zt = z + hh * .45;
+      pose([cx, cy, z], [cx, cy, zt], w * .55, w * .55, A);
+      const n = det > 1 ? 4 : 2;
+      for (let e = 0; e < n; e++) {
+        const a = e * 6.2832 / n + ha * 3, r = w * 1.7;
+        pose([cx, cy, zt - hh * .05], [cx + Math.cos(a) * r, cy + Math.sin(a) * r, z + hh * (.82 + .14 * (e % 2))], w * .85, w * .85, B);
+      }
+      pose([cx, cy, zt], [cx, cy, z + hh], w * 1.0, w * 1.0, B);
       break; }
   }
 }
@@ -1733,7 +1927,7 @@ function travailAbsence(liste, depuis) {
 function ouvrirPortail() {
   if (!P.camp) { say('posez d\'abord un campement · sans lui, pas de retour', 3); return false; }
   if (!auCamp() && !auPortailIle()) { say('il faut être devant un portail', 2.5); return false; }
-  let g; do { g = (Math.random() * 1e9) | 0; } while (g === SEED);
+  const g = tirerGraine(profondeur() + 1, SEED);      // une île permise à l'exploration suivante
   burst(P.x, P.y, P.z + .8, 24, '#8fe3ff');
   return voyagerVers(g, null, 'le portail s\'ouvre · exploration ' + (profondeur() + 1));
 }
@@ -2998,6 +3192,7 @@ function ouEstCompagne(c) {
 function ficheGraine(v, gardee_) {
   const ici = v.g === SEED;
   const dit = [ditBiomes(v), ditBetes(v)];
+  const rr = (v.g === SEED ? RaresIle : biomesGraine(v.g)).map(b => P.biomes.includes(b) ? rareDe(b).n : 'biome inconnu').join(' · ');
   const part = [v.eau ? 'eau ' + v.eau + ' %' : '', v.vol ? v.vol + ' île' + (v.vol > 1 ? 's' : '') + ' volante' + (v.vol > 1 ? 's' : '') : '',
     v.gouffre ? 'gouffres ' + v.gouffre + ' %' : ''].filter(Boolean).join(' · ');
   const boutons = [];
@@ -3007,7 +3202,7 @@ function ficheGraine(v, gardee_) {
   } else if (!gardee(v.g)) boutons.push(`<button data-jr="garder" data-g="${v.g}">Garder</button>`);
   return `<div class="obj${ici ? ' porte' : ''}"><div style="flex:1;min-width:0">`
     + `<div class="n">${ESC(v.nom || 'Île ' + nomIle(v.g))}${ici ? ' · vous y êtes' : ''}</div>`
-    + `<div class="d">${ESC(dit[0])}<br>${ESC(dit[1])}${part ? '<br>' + ESC(part) : ''}<br>`
+    + `<div class="d">${ESC(dit[0])}${rr ? '<br><span style="color:#c9a2ec">' + ESC(rr) + '</span>' : ''}<br>${ESC(dit[1])}${part ? '<br>' + ESC(part) : ''}<br>`
     + `<span style="color:var(--or)">${ESC(ditProprio(v.g))}</span></div></div>`
     + `<div style="display:flex;flex-direction:column;gap:6px">${boutons.join('')}</div></div>`;
 }
@@ -3044,7 +3239,7 @@ function pageJournal() {
     return `<div class="sac-corps lignes"><div class="vide-texte">`
       + `<p style="margin:10px 0 0">Le journal est celui du campement : posez-en un pour l'ouvrir.</p>`
       + `<p style="margin:0">Il garde les graines des îles visitées, ce qu'on y trouve, et permet d'y retourner.</p>`
-      + `<button class="btn principal" data-onglet="camp">Voir le campement</button></div></div>`;
+      + `<button class="btn principal" data-onglet="camp">Voir le campement</button></div>${blocAtlas()}</div>`;
   const j = P.journal, m = memoireJournal();
   const ici = j.visites.find(v => v.g === SEED) || ficheIle(SEED, composerIle());
   const gardees = (j.gardees || []).map(v => ficheGraine(v, true)).join('')
@@ -3059,6 +3254,7 @@ function pageJournal() {
     + `<h3>Expéditions <span class="compte">${(j.visites || []).length} île${(j.visites || []).length > 1 ? 's' : ''} connue${(j.visites || []).length > 1 ? 's' : ''}</span></h3>`
     + (passees.length ? passees.map(v => ficheGraine(v, false)).join('')
       : `<p class="note" style="margin:2px 2px 0">Aucune autre île visitée. Le portail du campement en ouvre une au hasard.</p>`)
+    + blocAtlas()
     + `</div>`;
 }
 // ---------- onglet Campement ----------
@@ -3677,6 +3873,7 @@ function majFeux() {
   for (const b of beasts) if (b.tame && !b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
   for (const j of Autres.values()) pousse(j.x, j.y, j.z + 1, j.lum ? vacille(RAYON.lanterne, 5) : RAYON.joueur);
   for (const b of betesLoin) if (!b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
+  if (RaresIle.length && noirceur() > .05) lueursRares(pousse);
   L.sort((a, b) => a[4] - b[4]);
   for (let i = 0; i < L.length && feux.length < FEUX_MAX; i++) feux.push(L[i]);
   return feux;
@@ -3690,6 +3887,92 @@ function eclaire(x, y, z) {
     e += 1 - k * k * (3 - 2 * k);
   }
   return Math.min(1, e);
+}
+// ============================================================
+//  LES BIOMES RARES, SUR PLACE
+//  Ce que le sol fait au corps : la boue de la tourbière alourdit le pas, le soleil du canyon
+//  coupe le souffle, les champs de cristal rendent le mana deux fois plus vite, les plaques
+//  vives de la caldeira brûlent. Ce qui bouge dans l'air : lucioles, poussière, spores, éclats,
+//  braises. Et leurs lumières : la nuit, quelques plantes et les braises éclairent autour d'elles.
+// ============================================================
+const BOUE = .78, CHALEUR = 1.35, BRULURE = .035, LUEUR_R = 9;
+let biomeIci = 0, ambT = 0, braiseT = -9, raresAnnonce = false;
+// Les quatre lueurs les plus proches : la clavaire, l'arbre de verre, la druse géante, la fleur de
+// braise — mûres seulement : un pied coupé s'est éteint — et une plaque vive sur quatre.
+function lueursRares(pousse) {
+  const L = [], cx = P.x | 0, cy = P.y | 0;
+  for (let y = cy - LUEUR_R; y <= cy + LUEUR_R; y++) for (let x = cx - LUEUR_R; x <= cx + LUEUR_R; x++) {
+    if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) continue;
+    const i = y * WS + x, d = (x + .5 - P.x) ** 2 + (y + .5 - P.y) ** 2;
+    if (d > LUEUR_R * LUEUR_R) continue;
+    const k = Flo[i], sp = k ? ESP[k - 1] : null;
+    if (sp && sp.luit && maturite(i, sp) > .5) L.push([x + .5, y + .5, solFlore(x, y) + sp.h * .6, 1.1 + sp.luit * .9, d]);
+    else if (Bio[i] === 14 && !(x & 1) && !(y & 1)) L.push([x + .5, y + .5, Hgt[i] + .3, 1.6, d]);
+  }
+  L.sort((a, b) => a[4] - b[4]);
+  for (let j = 0; j < Math.min(4, L.length); j++) pousse(L[j][0], L[j][1], L[j][2], L[j][3]);
+}
+const AMBIANCE = {
+  9:  { col: '#d8f27a', nuit: 1, z: [.4, 1.6], v: .35, vz: 0, g: 0, vie: 3, luit: 1, tl: .09, n: 6 },    // lucioles
+  10: { col: '#e8c090', jour: 1, z: [.05, .5], v: .2, vz: .15, g: .05, vie: 1.8, vent: 1.6, n: 4 },       // poussière
+  11: { col: '#e6d4ff', z: [.2, 1.8], v: .12, vz: .22, g: -.03, vie: 3.4, luit: 1, tl: .05, n: 6 },       // spores
+  12: { col: '#d4ffff', z: [.1, 1.4], v: 0, vz: .05, g: 0, vie: .8, luit: 1, tl: .07, n: 5 },             // éclats
+  13: { col: '#ffa04c', z: [0, .4], v: .3, vz: 1.1, g: -.25, vie: 2.2, luit: 1, tl: .06, n: 8 },         // braises
+};
+function majBiome(dt) {
+  const x = P.x | 0, y = P.y | 0;
+  // le sol sous les pieds — pas celui qu'on survole d'une île volante, ni le fond d'un lac ;
+  // en l'air on garde le dernier, pour que la ligne du HUD ne clignote pas à chaque saut
+  if (P.ground) biomeIci = !eauAt(x, y) && Math.abs(P.z - hAt(x, y)) < .45 ? bAt(x, y) : 0;
+  const R = rareDe(biomeIci);
+  if (R && !P.biomes.includes(R.b)) {
+    P.biomes.push(R.b);
+    say('biome découvert · ' + R.n + ' · ' + R.rang, 4.5);
+    burst(P.x, P.y, P.z + .8, 22, R.coul);
+    if (sacOuvert) majSac();
+  }
+  if (biomeIci === 12) P.mana = Math.min(100, P.mana + dt * 4 * (1 + ((porte('armure') || {}).mana || 0)));
+  if (biomeIci === 14 && !P.monture && P.ground && P.pv > 0) {
+    P.pv = Math.max(0, P.pv - BRULURE * dt); P.dernierCoup = t;   // on ne se remet pas sur la braise
+    if (t - braiseT > 3) { braiseT = t; say('les braises brûlent', 1.4); }
+    if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .1, 1, '#ffa04c');
+    if (P.pv <= 0) terrasse();
+  }
+  if (!raresAnnonce && t > 6) {                      // à l'arrivée : ce que l'île cache
+    raresAnnonce = true;
+    const inc = RaresIle.filter(b => !P.biomes.includes(b)).length;
+    if (RaresIle.length) say(inc ? (inc > 1 ? 'deux biomes inconnus poussent sur cette île' : 'un biome inconnu pousse sur cette île')
+      : 'sur cette île · ' + RaresIle.map(b => rareDe(b).n).join(' · '), 4);
+  }
+  if (!RaresIle.length || (ambT += dt) < .07) return;   // l'air : une dizaine de tirages par seconde
+  ambT = 0;
+  const ax = P.x + (Math.random() * 2 - 1) * 8, ay = P.y + (Math.random() * 2 - 1) * 8;
+  const A = AMBIANCE[famille(bAt(ax | 0, ay | 0))];
+  if (!A || Math.random() * 8 > A.n || (A.nuit && noirceur() < .35) || (A.jour && lumiere() < .5) || eauAt(ax | 0, ay | 0)) return;
+  const vent = A.vent ? A.vent * Meteo.vent : 0;
+  parts.push({ x: ax, y: ay, z: hAt(ax | 0, ay | 0) + A.z[0] + Math.random() * (A.z[1] - A.z[0]),
+    vx: (Math.random() - .5) * 2 * A.v + Math.cos(Meteo.dir) * vent, vy: (Math.random() - .5) * 2 * A.v + Math.sin(Meteo.dir) * vent,
+    vz: A.vz, g: A.g, life: A.vie * (.7 + Math.random() * .6), age: 0, col: A.col, luit: A.luit, tl: A.tl });
+}
+// L'atlas du journal : les cinq, trouvés ou non, et ce qu'il faut pour y prétendre.
+function blocAtlas() {
+  const n = RARES.filter(r => P.biomes.includes(r.b)).length;
+  let l = `<h3>Atlas des biomes <span class="compte">${n} sur ${RARES.length}</span></h3>`;
+  for (const r of RARES) {
+    const vu = P.biomes.includes(r.b), ouvert = profondeur() >= r.niv;
+    l += `<div class="obj" data-atlas="${r.id}"><div style="flex:1;min-width:0">`
+      + `<div class="n" style="color:${vu ? r.coul : 'var(--texte2)'}">${vu ? ESC(r.n) : '? ? ?'}</div>`
+      + `<div class="d">${ESC(r.rang)} · dès l'exploration ${r.niv}<br>`
+      + (vu ? ESC(r.d) : ouvert ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
+  }
+  return l;
+}
+// Sous les jauges, tant qu'on foule un biome rare : son nom, son rang, et ce qu'il fait.
+function ligneBiome() {
+  const R = rareDe(biomeIci); if (!R) return '';
+  const e = { 9: 'la boue alourdit le pas', 10: lumiere() > .5 ? 'le soleil essouffle à la course' : 'la roche fraîchit',
+    11: 'les spores flottent', 12: 'le mana revient deux fois plus vite', 13: 'la cendre crisse', 14: 'les braises brûlent' }[biomeIci];
+  return `<br><span style="color:${R.coul}">${R.n.toUpperCase()} · <b>${R.rang}</b> · ${e}</span>`;
 }
 // En canvas, le noir est une toile à part, percée d'un trou doux à chaque lumière.
 let ombreC = null;
@@ -3738,6 +4021,13 @@ function poser(sp) {
   }
   return null;
 }
+// Qui peuple les biomes rares : chaque espèce y gagne les sols qui lui ressemblent. Les brouteurs
+// paissent la tourbière, les coursiers courent le canyon, le rouge hante la caldeira, l'aurore les
+// champs de cristal ; spectres et automates s'y plaisent aussi — c'est là qu'ils sont rares ailleurs.
+const HABITATS_RARES = { brouteur: [9, 11], glaneur: [9, 10, 11], bosseu: [9, 10], traqueur: [10, 11, 13],
+  spectre: [11, 12], moissonneur: [12, 13], traceur: [10, 12], sentinelle: [12, 13], mercenaire: [10, 13],
+  coursier: [10], coursier_o: [9, 10], coursier_r: [13, 14, 10], coursier_a: [12, 11] };
+for (const sp of SPEC) for (const b of HABITATS_RARES[sp.id] || []) if (!sp.bio.includes(b)) sp.bio.push(b);
 function loadWorld() {
   calcCarteEau();                                    // les chemins de l'eau, pour le bestiaire
   calcFlore();                                       // peuplement de l'île, une fois pour toutes
@@ -3755,7 +4045,7 @@ function loadWorld() {
   for (let k = 0; k < 260; k++) {
     const x = (8 + tirB() * (WS - 16)) | 0, y = (8 + tirB() * (WS - 16)) | 0;
     const bi = bAt(x, y);
-    if (hAt(x, y) > SEA && (bi === 2 || bi === 3))
+    if (hAt(x, y) > SEA && (bi === 2 || bi === 3 || bi === 9 || bi === 11))   // airelles de tourbière, mûres de sylve
       berries.push({ i: berries.length, x: x + .5, y: y + .5, z: hAt(x, y), pris: 0 });
   }
   // point de départ : une prairie assez plate
@@ -4001,7 +4291,7 @@ function update(dt) {
 
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.age += dt;
-    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vz -= 9 * dt;
+    p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vz -= (p.g ?? 9) * dt;   // g : les braises montent, les spores flottent
     if (p.age > p.life) parts.splice(i, 1);
   }
   for (const c of crates) if (c.slide > 0) {
@@ -4046,11 +4336,12 @@ function update(dt) {
     SPD = Mt.essouffle ? M.marche * .8 : court ? M.course : M.marche;
   } else {
   const court = im > .06 && veutCourir && !P.epuise && !(P.recul > 0);
-  if (court) { P.endu = Math.max(0, P.endu - dt / ENDU_COURSE); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
+  if (court) { P.endu = Math.max(0, P.endu - dt / ENDU_COURSE * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1)); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
   else if (t - P.courseT > .5) P.endu = Math.min(1, P.endu + dt * (im > .06 ? ENDU_REPRISE : ENDU_REPOS));
   if (P.epuise && P.endu >= ENDU_SEUIL) P.epuise = false;
   SPD = P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE;
   }
+  if (biomeIci === 9) SPD *= M ? .88 : BOUE;           // la tourbière colle aux pieds, moins aux sabots
   const ACC = 26, FRIC = 20;
   // Projeté par un coup, on ne tient plus ses appuis : ni frottement ni commande pendant 0,3 s.
   // Le frottement (20 par seconde, en l'air aussi) mangeait le recul en six images : on reculait
@@ -4130,6 +4421,7 @@ function update(dt) {
   if (P.recolte > 0) P.recolte -= dt;
   if (P.frappe > 0) P.frappe -= dt;
   P.mana = Math.min(100, P.mana + dt * 4 * (1 + ((porte('armure') || {}).mana || 0)));
+  majBiome(dt);
   majDalles(dt);
   if (agirQ) { agirQ = false; attaquerDown(); }
   if (lacheQ) { lacheQ = false; attaquerUp(); }
@@ -7072,11 +7364,34 @@ const raie = y => y === 0;
 TEX.terreM = motif(3, (x, y, h) => raie(y) ? [-.32] : h < .34 ? [-.24] : h > .92 ? [.09] : null);
 TEX.rocheM = motif(4, (x, y, h) => raie(y) ? [-.32] : (y % 5 === 0 && h < .7) ? [-.17] : h < .16 ? [-.13] : h > .95 ? [.08] : null);
 TEX.sableM = motif(5, (x, y, h) => raie(y) ? [-.28] : h < .22 ? [-.11] : h > .90 ? [.09] : null);
-//                 eau     rivage  prairie bois    lande   falaise pierre  neige   vide
-const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.touffu, TEX.herbe, TEX.roche, TEX.roche, TEX.neige, TEX.roche];
-const TEX_COTE = [null, TEX.sableM, TEX.terreM, TEX.terreM, TEX.terreM, TEX.rocheM, TEX.rocheM, TEX.rocheM, TEX.rocheM];
+// Les sols des biomes rares. Même principe : du noir et du blanc transparents sur l'aplat.
+// La tourbe : sombre, et des flaques qui accrochent le jour en traits couchés.
+TEX.tourbe = motif(20, (x, y, h) => (y % 3 === 1 && hachCell((x >> 2) + 900, y * 3 + 17) > .8) ? [.22]
+  : h < .32 ? [-.24] : h > .95 ? [.08] : null);
+// L'ocre : les rides que le vent laisse sur le sable, en biais.
+TEX.ocre = motif(21, (x, y, h) => { const r = (x + y * 2) % 6;
+  return r === 0 ? [-.15] : r === 1 ? [.10] : h < .10 ? [-.10] : null; });
+// Ses flancs : des strates, une bande claire et une sombre par assise de quatre pixels.
+TEX.strates = motif(22, (x, y, h) => raie(y) ? [-.30] : y % 4 === 2 ? [.15] : y % 4 === 3 ? [-.10] : h < .10 ? [-.12] : null);
+// Le mycélium : un semis de spores claires sur un feutre de fils.
+TEX.myce = motif(23, (x, y, h) => h > .92 ? [.28] : ((x * 7 + y * 3) % 11 === 0 && h < .6) ? [.10] : h < .26 ? [-.20] : null);
+// Le cristal : des facettes en losange, arêtes vives.
+TEX.facette = motif(24, (x, y, h) => { const a = (x + y) % 8, b = (x - y + 16) % 8;
+  return a === 0 || b === 0 ? [.24] : a === 1 || b === 1 ? [-.10] : h < .08 ? [-.08] : null; });
+TEX.facetteM = motif(25, (x, y, h) => raie(y) ? [-.28] : x % 5 === 1 ? [.20] : x % 5 === 2 ? [-.08] : null);
+// Le basalte : des fentes sombres en réseau, quelques grains de cendre clairs.
+TEX.basalte = motif(26, (x, y, h) => { const v = Math.sin(x * .9 + hachCell(y >> 3, 5) * 6) + Math.sin(y * 1.1 + hachCell(x >> 3, 9) * 6);
+  return Math.abs(v) < .22 ? [-.36] : h > .95 ? [.18] : h < .08 ? [-.12] : null; });
+// Les braises : une croûte sombre déchirée de veines vives.
+TEX.braise = motif(27, (x, y, h) => h < .42 ? [-.34] : (x + y * 3) % 7 === 0 ? [.34] : h > .9 ? [.2] : null);
+//                 eau     rivage  prairie bois    lande   falaise pierre  neige   vide    tourbe  ocre     sylve   cristal  cendre  braises
+const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.touffu, TEX.herbe, TEX.roche, TEX.roche, TEX.neige, TEX.roche,
+  TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise];
+const TEX_COTE = [null, TEX.sableM, TEX.terreM, TEX.terreM, TEX.terreM, TEX.rocheM, TEX.rocheM, TEX.rocheM, TEX.rocheM,
+  TEX.terreM, TEX.strates, TEX.terreM, TEX.facetteM, TEX.rocheM, TEX.rocheM];
 const TEX_FORME = { conifere:TEX.touffu, feuillu:TEX.touffu, palme:TEX.touffu, buisson:TEX.touffu,
-  touffe:TEX.herbe, roseau:TEX.herbe, fleur:TEX.herbe, champi:TEX.sable, rocher:TEX.roche, cristal:TEX.onde };
+  touffe:TEX.herbe, roseau:TEX.herbe, fleur:TEX.herbe, champi:TEX.sable, rocher:TEX.roche, cristal:TEX.onde,
+  cactus:TEX.facetteM, josue:TEX.touffu, boule:TEX.sable, geant:TEX.sable, mort:TEX.terre, verre:TEX.facette };
 let msDessin = 0, imgSec = 0, facesDern = 0;
 function draw() {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -7214,6 +7529,7 @@ function drawHud() {
         + `EXPLORATION <b>${profondeur()}</b> · DANGER <b>×${danger().toFixed(2)}</b>`
         + (ecart() ? ` · À <b>${ecart()}</b> DE CHEZ VOUS · BUTIN <b>${Math.round(partGardee() * 100)}%</b>` : '')
         + (auDelaBarriere() ? ' · <b>BARRIÈRE FRANCHIE</b>' : '') + `</span>` : '')
+    + ligneBiome()
     + ligneGuide()
     + `<br><span style="color:#8d9ab4">${pops}</span>`
     + (t - avisComp.t < 3.5 ? `<br><span style="color:#e8a0a8">${ESC(texteAvisComp())}</span>` : '')
@@ -7927,6 +8243,11 @@ void main() {
     if (q > 1.0) discard;
     a *= q < 0.385 ? 1.0 : 0.35 * (1.0 - q);
   }
+  if (vG == 7) {                                      // une lueur : un point doux, que la nuit n'éteint pas
+    float q = length(vO);
+    if (q > 1.0) discard;
+    a *= smoothstep(1.0, 0.25, q);
+  }
   if (vG == 5) {                                      // l'ombre au sol : un disque estompé
     float q = length(vO);
     if (q > 1.0) discard;
@@ -7951,7 +8272,7 @@ void main() {
     }
   }
   // les astres et le décor du ciel ne s'éteignent pas : ce sont eux qui restent, la nuit
-  o = vec4(vG == 2 || vG == 4 ? mix(c, uVoile.rgb, uVoile.a) : nocturne(c, vW), a);
+  o = vec4(vG == 2 || vG == 4 ? mix(c, uVoile.rgb, uVoile.a) : vG == 7 ? c : nocturne(c, vW), a);
 }`;
   // La pluie : des traits d'épaisseur fixe à l'écran, que le relief cache comme le reste.
   const TRAIT_VS = `#version 300 es
@@ -8638,7 +8959,8 @@ void main() { o = uC; }`;
     }
     for (const pa of parts) {
       const c = rvb(pa.col);
-      panneau(pa.x, pa.y, pa.z, .06, .06, c[0], c[1], c[2], Math.max(0, 1 - pa.age / pa.life), 0);
+      const tl = pa.tl || .06;                         // lucioles et braises : leur propre lumière
+      panneau(pa.x, pa.y, pa.z, tl, tl, c[0], c[1], c[2], Math.max(0, 1 - pa.age / pa.life), pa.luit ? 7 : 0);
     }
     const vx = Math.cos(Meteo.dir) * Meteo.vent, vy = Math.sin(Meteo.dir) * Meteo.vent;
     let nt = 0;
@@ -8807,7 +9129,7 @@ function photo() {
     v: 1, graine: SEED,
     sac: Object.assign({}, P.sac),
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
-    equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide),
+    equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
     fleches: P.fleches, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -8837,7 +9159,7 @@ function photo() {
 }
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
-const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.raccourcis, P.guide, P.fleches, P.baies, lives, Math.round(P.pv * 10),
+const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.fleches, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
@@ -8872,6 +9194,8 @@ function appliquer(d, vivantes) {
   // et il saute tout seul ce qui est déjà fait
   const gd = d.guide && typeof d.guide === 'object' ? d.guide : {};
   P.guide = { e: Math.max(0, Math.min(GUIDE.length, gd.e | 0)), masque: !!gd.masque, parti: !!gd.parti, vu: !!gd.vu || !!d.guide };
+  // l'atlas : des biomes rares connus, une fois chacun
+  P.biomes = [...new Set((Array.isArray(d.biomes) ? d.biomes : []).filter(b => RARES.some(r => r.b === b)))];
   P.fleches = nb(d.fleches, 0, 1e5, 0) | 0;
   P.baies = nb(d.baies, 0, 1e5, 3) | 0;
   P.pv = nb(d.pv, .05, 1, 1);
@@ -9187,8 +9511,7 @@ function nouvelleIle() {
   }
   confirmeIle = 0;
   if (essai) sortirEssai();                              // on part avec le vrai sac
-  let g;
-  do { g = (Math.random() * 1e9) | 0; } while (g === SEED);
+  const g = tirerGraine(profondeur(), SEED);          // même exploration : mêmes biomes permis
   const d = photo();
   d.graine = g; d.pos = null; d.sol = null;
   // les places des compagnes ne valent que sur l'île quittée : elles se poseront près du joueur
@@ -9500,6 +9823,10 @@ globalThis.__BETA = { GUIDE, majGuide, ligneGuide, contexteJeu, ouvrirRetour, fe
   supprimerCompte, TEXTE_DONNEES, lireCopie, get incidentsEnvoyes(){return incidentsEnvoyes}, set incidentsEnvoyes(v){incidentsEnvoyes=v},
   set incidentT(v){incidentT=v}, rattraper: (e, ou) => rattraper(e, ou) };
 globalThis.__RESERVE = { reserveCommune, dispo, puiser, payer, payable, ameliorerCamp, nourrirCompagne };
+globalThis.__BIOMES = { RARES, AMBIANCE, HABITATS_RARES, BOUE, CHALEUR, BRULURE, biomesGraine, nivGraine, tirerGraine, signee,
+  poserBiomesRares, lueursRares, majBiome, blocAtlas, ligneBiome, famille, rareDe, Flo, ESP, TEX, TEX_HAUT, TEX_COTE, ouvrirPortail,
+  get RaresIle(){return RaresIle}, get biomeIci(){return biomeIci}, set biomeIci(v){biomeIci=v},
+  set raresAnnonce(v){raresAnnonce=v}, get feux(){return feux}, majFeux, get parts(){return parts} };
 globalThis.__VISEE = { ligneDeVue, voitCible, posteDeTir, TIRS };
 globalThis.__COURSIER = { coursier, majCoursier, coursierBones, pattesCoursier, monter, descendre, majRodeo, coursierAuContact, nomBete, icone,
   get Rodeo(){return Rodeo}, set actTenu(v){actTenu=v}, get actTenu(){return actTenu}, monture, AURORE, DITS_ETAT, capEsp, populationSauvage };
