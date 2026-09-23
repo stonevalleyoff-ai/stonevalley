@@ -2927,7 +2927,7 @@ const DITS_ETAT = { suivre: 'vous suit', 'récolter': 'travaille', repos: 'se re
   'défendre': 'se bat pour vous', garder: 'garde le campement', patrouiller: 'patrouille', viser: 'met en joue', veille: 'en veille',
   boire: 'boit', brouter: 'broute', chasser: 'chasse', assaut: 'se bat', fuir: 'fuit', 'acculé': 'fait front',
   'décrocher': 'se dégage', errer: 'flâne', troupeau: 'flâne', dormir: 'dort', 'quête': 'rôde', traquer: 'traque',
-  guet: 'fait le guet', 'monté': 'vous porte', 'rodéo': 'se cabre' };
+  guet: 'fait le guet', 'monté': 'vous porte', 'rodéo': 'se cabre', 'se poster': 'cherche l\'angle' };
 const compagneDe = id => P.compagnes.find(c => String(c.id) === String(id));
 const valeurComp = (c, k) => c.b ? c.b[k] : c[k];
 function ouEstCompagne(c) {
@@ -3441,19 +3441,19 @@ const SPEC = [
   { id:'coursier',   n:'Coursier',           fam:'coursier', diet:'h', sz:1.15, spd:3.3, vue:18, peur:.9, herd:1, cap:14, mat:90,
     shell:[232,190,60], dark:[176,124,36], leg:[214,164,96], oeil:[38,30,30], bec:[236,150,60], bio:[2,4], riposte:.6,
     lien:0, travail:{}, metier:'vous porte, plus vite que tout', grimpe:0, dur:.9,
-    monture:{ marche:3.8, course:5.6, saut:7.6, endu:11, fougue:5 } },
+    monture:{ marche:3.8, course:5.6, saut:10.5, endu:11, fougue:5 } },
   { id:'coursier_o', n:'Coursier orange',    fam:'coursier', diet:'h', sz:1.18, spd:3.5, vue:20, peur:.9, herd:1, cap:5,  mat:100,
     shell:[236,132,48], dark:[176,80,30], leg:[210,150,90], oeil:[38,30,30], bec:[240,190,90], bio:[1,2,4], riposte:.6,
     lien:0, travail:{}, metier:'vous porte longtemps sans s\'essouffler', grimpe:0, dur:1,
-    monture:{ marche:4.0, course:6.0, saut:7.8, endu:20, fougue:7 } },
+    monture:{ marche:4.0, course:6.0, saut:10.5, endu:20, fougue:7 } },
   { id:'coursier_r', n:'Coursier rouge',     fam:'coursier', diet:'h', sz:1.22, spd:3.6, vue:20, peur:.85, herd:0, cap:2,  mat:110,
     shell:[214,60,54], dark:[140,34,40], leg:[200,140,90], oeil:[38,30,30], bec:[240,200,110], bio:[4,5,6], riposte:.8,
-    lien:0, travail:{}, metier:'saute par-dessus deux cubes, et vous avec', grimpe:0, dur:1.1,
-    monture:{ marche:4.0, course:6.4, saut:10.4, endu:16, fougue:9 } },
+    lien:0, travail:{}, metier:'saute quatre cubes de haut, et vous avec', grimpe:0, dur:1.1,
+    monture:{ marche:4.0, course:6.4, saut:12, endu:16, fougue:9 } },
   { id:'coursier_a', n:"Coursier d'aurore",  fam:'coursier', diet:'h', sz:1.25, spd:3.8, vue:22, peur:.9, herd:0, cap:1,  mat:120,
     shell:[240,120,120], dark:[120,90,200], leg:[220,180,120], oeil:[38,30,30], bec:[250,230,160], bio:[2,3,4], riposte:.8, arc:1,
     lien:0, travail:{}, metier:'plane au-dessus du vide, et vous avec', grimpe:0, dur:1.2,
-    monture:{ marche:4.2, course:6.8, saut:8.6, endu:24, fougue:12, plane:1 } },
+    monture:{ marche:4.2, course:6.8, saut:10.5, endu:24, fougue:12, plane:1 } },
 ];
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const automate = sp => !!sp && sp.fam === 'automate';
@@ -4533,13 +4533,17 @@ function menaceEtProie(b, vue) {
   if (!b.tame && sp.peur > .3) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < (vue * .55) ** 2 && d < dM) { dM = d; men = P; } }
   return [men, dM, pr, dP];
 }
+// Ce qu'une bête qui ne grimpe pas peut franchir à pied : un cube, ou trois en descente pour un coursier.
+const enjambe = (b, h, hn) => Math.abs(hn - h) <= 1 || (!!b.sp.monture && h - hn <= 3 && hn < h);
 function pasVersBete(b, tx, ty, vit, dt) {
   let dx = tx - b.x, dy = ty - b.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
   const h = hAt(b.x | 0, b.y | 0);
   // Une paroi ne l'arrête plus : elle la gravira (voir LES PAROIS). Restent l'eau et le vide —
   // et, juste après une traversée, la paroi qu'elle vient de quitter, qu'elle longe un instant.
-  const grimpe = b.t >= (b.murPause || 0);
-  const libre = (ux, uy) => { const hn = hAt((b.x + ux * .8) | 0, (b.y + uy * .8) | 0); return hn > SEA && (grimpe || hn <= h + 1); };
+  // Une bête qui ne grimpe pas — automate, coursier — voit la paroi comme l'eau : elle la longe.
+  // Et la falaise aussi : elle ne s'y jette pas, sauf le coursier, qui saute trois cubes en contrebas.
+  const grimpe = (b.sp.grimpe || 0) > 0 && b.t >= (b.murPause || 0);
+  const libre = (ux, uy) => { const hn = hAt((b.x + ux * .8) | 0, (b.y + uy * .8) | 0); return hn > SEA && (grimpe || enjambe(b, h, hn)); };
   if (!libre(dx, dy)) {
     // Falaise ou eau : on longe. Le côté de l'esquive se tirait de la parité de la position —
     // il changeait tous les vingtièmes de case, si bien que la bête hésitait sur place au lieu
@@ -4822,6 +4826,7 @@ function pasBete(b, nx, ny, grimpe, glisse) {
     if (Math.abs(h2 - h) > 1) {
       const monte = h2 > h;
       if (!monte && !dansPas) break;                     // le bord d'une descente n'est pas atteint
+      if (!monte && !grimpe && enjambe(b, h, h2)) { i = i2; j = j2; h = h2; continue; }   // le coursier saute en contrebas
       const comp = Math.abs(ax ? sy : sx) / ls;
       if (!grimpe || PlT[j * WS + i] || PlT[j2 * WS + i2]) { if (dansPas) return 0; break; }
       if (comp < .34) {                                  // de biais : on longe
@@ -5050,6 +5055,37 @@ const eveille = b => lumiere() > .45 && b.nrj > CHARGE_MIN;   // au jour, et pas
 
 // Le tir : d'un peu au-dessus de l'épaule, vers un point d'avance sur la cible, avec la chute
 // compensée et un écart qui suit la précision de l'espèce.
+// Le tir n'a de sens qu'à vue : on remonte le trait, de la bouche du canon au corps visé, en
+// cherchant la roche ou une dalle en travers. Un automate tirait à travers les murs.
+function ligneDeVue(ax, ay, az, bx, by, bz) {
+  const dx = bx - ax, dy = by - ay, dz = bz - az, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / .35));
+  for (let i = 1; i < n; i++) {
+    const f = i / n, x = ax + dx * f, y = ay + dy * f, z = az + dz * f;
+    if (sol(x, y) > z + .05) return false;
+    const pt = plaT(x | 0, y | 0); if (pt && plaB(x | 0, y | 0) <= z && z <= pt) return false;
+  }
+  return true;
+}
+const centreCible = c => c === P ? [P.x, P.y, P.z + .55] : [c.x, c.y, (c.z || 0) + (c.sp ? .3 * c.sp.sz : .55)];
+function voitCible(b, c) { const q = centreCible(c); return ligneDeVue(b.x, b.y, b.z + .62 * b.sp.sz, q[0], q[1], q[2]); }
+// Une place d'où le trait passe : autour de soi d'abord, puis autour de la cible — la plus
+// proche qui convienne, sur une terre à sa hauteur, ni trop près ni hors de portée.
+function posteDeTir(b, c) {
+  const T = b.sp.tir, q = centreCible(c);
+  let best = null, bd = 1e9;
+  const essai = (x, y) => {
+    const h = hAt(x | 0, y | 0);
+    if (h <= SEA || eauAt(x | 0, y | 0) || Math.abs(h - b.z) > 2.5) return;
+    const d = Math.hypot(x - b.x, y - b.y), dc = Math.hypot(x - q[0], y - q[1]);
+    if (dc < 1.5 || dc > T.portee * .95 || d >= bd) return;
+    if (!ligneDeVue(x, y, h + .62 * b.sp.sz, q[0], q[1], q[2])) return;
+    bd = d; best = [x, y];
+  };
+  for (const r of [1.5, 3, 4.5]) for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; essai(b.x + Math.cos(a) * r, b.y + Math.sin(a) * r); }
+  const rc = Math.min(T.portee * .6, Math.max(2.5, Math.hypot(b.x - q[0], b.y - q[1]) * .7));
+  for (let k = 0; k < 12; k++) { const a = k * Math.PI / 6; essai(q[0] + Math.cos(a) * rc, q[1] + Math.sin(a) * rc); }
+  return best;
+}
 function tirer(b, c) {
   const sp = b.sp, T = sp.tir;
   const cz = c === P ? P.z + .55 : c.z + (c.sp ? .3 * c.sp.sz : .55);
@@ -5242,7 +5278,7 @@ function majAutomate(b, dt) {
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
   const cible = cibleAutomate(b, actif);
   b.cibleC = cible && cible.tame ? cible : null;
-  if (cible === P && !b.viseJ && !b.tame && t - dernierAvis > 6) {
+  if (cible === P && !b.viseJ && !b.tame && t - dernierAvis > 6 && voitCible(b, P)) {
     dernierAvis = t; say((sp.garde ? 'la ' : 'un ') + sp.n.toLowerCase() + ' vous met en joue', 2);
   }
   b.viseJ = cible === P;
@@ -5266,12 +5302,25 @@ function majAutomate(b, dt) {
   else if (etat === 'viser') {
     const T = sp.tir, d = Math.hypot(cible.x - b.x, cible.y - b.y);
     b.dirT = Math.atan2(cible.y - b.y, cible.x - b.x);
-    if (sp.garde) vit = 0;                            // la sentinelle tire de sa place
+    const vue = voitCible(b, cible);
+    if (!vue) {
+      // le trait ne passe pas — roche ou dalle en travers : il se déplace pour dégager sa
+      // visée, vers la place la plus proche d'où l'on voit la cible. La sentinelle, elle, attend.
+      b.etat = 'se poster';
+      if (sp.garde) vit = 0;
+      else {
+        if (!b.poste || b.t > (b.posteT || 0) || (b.x - b.poste[0]) ** 2 + (b.y - b.poste[1]) ** 2 < .3) { b.poste = posteDeTir(b, cible); b.posteT = b.t + 1.2; }
+        if (b.poste) { tx = b.poste[0]; ty = b.poste[1]; sprint = 1.15; }
+        else { tx = cible.x; ty = cible.y; sprint = 1; }        // rien de mieux : il approche
+      }
+    }
+    else if (sp.garde) vit = 0;                       // la sentinelle tire de sa place
     else if (d > T.portee * .85) { tx = cible.x; ty = cible.y; sprint = 1.2; }
     else if (d < T.portee * .4) { tx = b.x - (cible.x - b.x); ty = b.y - (cible.y - b.y); sprint = .9; }   // il garde ses distances
     else vit = 0;
+    if (vue) b.poste = null;
     // jamais à bout portant : à moins d'une case, le tir n'a plus de sens (et la visée non plus)
-    if (d > 1 && d <= T.portee && b.t - b.lastAtk >= T.cadence && Math.abs((cible.z || 0) - b.z) < 4) tirer(b, cible);
+    if (vue && d > 1 && d <= T.portee && b.t - b.lastAtk >= T.cadence && Math.abs((cible.z || 0) - b.z) < 4) tirer(b, cible);
   }
   else if (etat === 'fuir') { sprint = 1.5; tx = b.x + (b.x - P.x) * 3; ty = b.y + (b.y - P.y) * 3; }
   else if (etat === 'patrouiller') { const e = explorer(b); if (e) { tx = e[0]; ty = e[1]; vit *= .6; } else vit = 0; }
@@ -5351,12 +5400,32 @@ function automateBones(f) {
 //  On ne les lie ni aux baies ni à l'appel : on leur saute sur le dos (ACTION, au contact) et
 //  l'on tient — ACTION enfoncée — pendant qu'ils se cabrent, jusqu'à ce que leur fougue passe.
 //  Lâcher, ou se retrouver à bout de souffle, c'est être jeté à terre. La monture court à sa
-//  vitesse, saute à sa hauteur, avec son propre souffle ; le rouge saute deux cubes, l'aurore
-//  plane au-dessus du vide.
+//  vitesse, avec son propre souffle. Pas de double saut en selle : à la place, tout coursier
+//  saute trois cubes de haut, le rouge quatre, et l'aurore plane au-dessus du vide.
 // ============================================================
 const monture = () => P.monture && !P.monture.dead ? P.monture : null;
 let Rodeo = null, actTenu = false;
 const nomBete = b => b.comp ? b.comp.nom : b.sp.n.toLowerCase();
+// La fuite ne va pas droit à l'opposé de la menace : seize caps, sondés jusqu'à six cases
+// devant — l'eau, le vide et la paroi arrêtent la sonde — et l'on prend celui qui court le
+// plus loin, en préférant l'opposé à égalité. Ainsi la falaise se longe et le mur se contourne.
+function capDeFuite(b, m) {
+  const a0 = Math.atan2(b.y - m.y, b.x - m.x);
+  let best = a0, bs = -1e9;
+  for (let i = -8; i < 8; i++) {
+    const a = a0 + i * Math.PI / 8, ca = Math.cos(a), sa = Math.sin(a);
+    let libre = 0, h = hAt(b.x | 0, b.y | 0);
+    for (let d = .7; d <= 6; d += .7) {
+      const hn = hAt((b.x + ca * d) | 0, (b.y + sa * d) | 0);
+      if (hn <= SEA || !enjambe(b, h, hn) || eauAt((b.x + ca * d) | 0, (b.y + sa * d) | 0)) break;
+      libre = d; h = hn;
+    }
+    const sc = libre - Math.abs(i) * .35 + (i === (b.capCote || 0) ? .2 : 0);   // et l'on garde son côté
+    if (sc > bs) { bs = sc; best = a; b.capCote = i; }
+  }
+  b.accule = bs < 1;                                  // nulle part où aller : il fera front
+  return best;
+}
 function majCoursier(b, dt) {
   const sp = b.sp, M = sp.monture;
   b.t += dt; b.age += dt;
@@ -5410,13 +5479,14 @@ function majCoursier(b, dt) {
   b.etat = etat;
 
   if (etat === 'fuir') {
-    const m = b.menace, ax = b.x - m.x, ay = b.y - m.y, d = Math.hypot(ax, ay) || 1;
-    tx = b.x + ax / d * 8; ty = b.y + ay / d * 8;
+    const m = b.menace, d = Math.hypot(b.x - m.x, b.y - m.y) || 1;
+    if (b.capFuite === undefined || b.t > (b.capFuiteT || 0) || b.bloque) { b.capFuite = capDeFuite(b, m); b.capFuiteT = b.t + .4; b.bloque = false; }
+    tx = b.x + Math.cos(b.capFuite) * 8; ty = b.y + Math.sin(b.capFuite) * 8;
     b.endu = Math.max(0, b.endu - dt / M.endu);
     sprint = b.endu > .15 ? M.course / sp.spd * (1 + .1 * Math.sin(b.t * 5)) : 1.1;   // à bout de souffle, il traîne
     b.couT = .45; b.aileT = .7;
     // acculé — l'eau ou le vide derrière lui — ou blessé au contact : il rue
-    if (d < 1.4 && b.t - (b.lastAtk || 0) > 1.6 && (b.endu < .3 || b.colere > 0)) {
+    if (d < 1.4 && b.t - (b.lastAtk || 0) > 1.6 && (b.endu < .3 || b.colere > 0 || b.accule)) {
       b.lastAtk = b.t; b.coup = 1; b.dirT = Math.atan2(m.y - b.y, m.x - b.x);
       if (m === P) porterCoup(b, P, .11); else porterCoup(b, m, .18);
       say((m === P ? 'le ' : 'un ') + sp.n.toLowerCase() + ' rue' + (m === P ? ' · vous êtes projeté' : ''), 1.4);
@@ -5459,7 +5529,7 @@ function majCoursier(b, dt) {
   const pas = Math.max(1, Math.min(8, Math.ceil(Math.hypot(b.vx, b.vy) * dt / .35)));
   for (let k = 0; k < pas; k++) {
     const r = pasBete(b, b.x + b.vx * dt / pas, b.y + b.vy * dt / pas, false);
-    if (r === 0) { b.vx *= -.3; b.vy *= -.3; if (etat === 'fuir') b.endu = Math.max(0, b.endu - .1); break; }   // coincé : il s'épuise
+    if (r === 0) { b.vx *= -.3; b.vy *= -.3; b.bloque = true; if (etat === 'fuir') b.endu = Math.max(0, b.endu - .04); break; }   // buté : il change de cap
   }
   b.x = Math.max(2, Math.min(WS - 3, b.x)); b.y = Math.max(2, Math.min(WS - 3, b.y));
   // en fuite, il saute les ressauts d'un cube
@@ -9234,6 +9304,7 @@ globalThis.__MUR = { cheminParoi, pointChemin, repere, engagerParoi, placerParoi
 globalThis.__DANGER = { COGNE, robuste, degSubi, degJoueur, danger, VIT_MARCHE, VIT_COURSE, VIT_EPUISE, ENDU_COURSE, ENDU_SEUIL,
   noirceur, majFeux, feux, eclaire, RAYON, NOIR_MAX, voileNuit, majEndu, stick, porterCoup, frapperLoin, encaisser,
   majDistant, Autres, draw, get t(){return t} };
+globalThis.__VISEE = { ligneDeVue, voitCible, posteDeTir, TIRS };
 globalThis.__COURSIER = { coursier, majCoursier, coursierBones, pattesCoursier, monter, descendre, majRodeo, coursierAuContact, nomBete, icone,
   get Rodeo(){return Rodeo}, set actTenu(v){actTenu=v}, get actTenu(){return actTenu}, monture, AURORE, DITS_ETAT, capEsp, populationSauvage };
 globalThis.__HUD = { actionContexte, faireAction, attaquerDown, attaquerUp, frapper, agir, utiliser, assignerRaccourci, rangerRaccourci,
