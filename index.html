@@ -397,7 +397,13 @@
 //  isométrie, où le relief cache toujours quelque chose.
 // ============================================================
 const cv = document.getElementById('c'), g = cv.getContext('2d');
-const TW = 34, ZH = 25.4;                 // demi-largeur au sol, et hauteur d'un cube à plat
+const TW0 = 34, ZH0 = 25.4;               // demi-largeur au sol, et hauteur d'un cube à plat, sans zoom
+let TW = TW0, ZH = ZH0;
+// Le zoom : il grossit la vue de dessus (et rapproche l'œil en perspective). En reculant, la brume
+// recule d'autant, pour ne pas noyer ce qu'on vient de gagner.
+const ZOOM_MIN = .6, ZOOM_MAX = 2.2;
+let zoom = 1, zoomT = 1;
+let BRU0 = 11, BRU1 = 30;                // la brume de la vue de dessus : où elle commence, où elle culmine
 let TH = 17, TZ = 22;                     // recalculés depuis l'inclinaison
 // Trois inclinaisons de caméra. Ce n'est pas cosmétique : à 16° on lit les façades
 // et le relief vertical, à 50° on lit le plan au sol. Les deux servent.
@@ -409,6 +415,8 @@ let mode = 'iso';
 let yaw = Math.PI * .25, pitch = -0.05;
 const EYE = 0.58, NEAR = 0.06;
 function setProjection() {
+  TW = TW0 * zoom; ZH = ZH0 * zoom;
+  BRU0 = 11 / Math.min(1, zoom); BRU1 = 30 / Math.min(1, zoom);
   TH = TW * Math.sin(elev);               // le plan au sol s'écrase avec sin(inclinaison)
   TZ = ZH * Math.cos(elev);               // la hauteur se dresse avec cos(inclinaison)
 }
@@ -594,7 +602,7 @@ function couleurCiel() {
 }
 // Sans perspective atmosphérique, une falaise à trente cases a le même contraste qu'une à
 // deux, et toute la profondeur s'écrase. On fond donc vers l'horizon avec la distance.
-const BRU0 = 11, BRU1 = 30, BRU_MAX = .72;
+const BRU_MAX = .72;                                 // (BRU0 et BRU1 : avec le zoom, plus haut)
 // L'abîme ne prend qu'un tiers de la brume. Sans rien du tout il gardait exactement la même
 // noirceur à trois cases et à trente, pendant que tout le reste s'estompait : une forme noire
 // absolue au fond d'un paysage pâle ne se lit pas comme un trou dans le MONDE, mais comme un
@@ -1508,6 +1516,51 @@ function maturite(i, sp) {
   return Math.max(0, m);
 }
 function solFlore(x, y) { return plaT(x, y) || hAt(x, y); }
+// ============================================================
+//  LA FLORE QUI ARRÊTE, LA FLORE QUI FREINE
+//  Un tronc, une pierre, une druse, une pièce de métal se touchent : on ne passe pas au travers,
+//  et ils arrêtent les tirs et la vue — une flèche s'y fiche, un obus y éclate. Les grands arbres
+//  arrêtent aussi par leur couronne, mais on passe dessous. Les herbes, les fleurs, les buissons
+//  et les roseaux se traversent en freinant le pas. Un pied tout juste coupé ne compte pas.
+// ============================================================
+const FLORE_DURE = { conifere: .22, feuillu: .24, palme: .18, cactus: .26, josue: .22, geant: .26, mort: .2, verre: .22,
+  pylone: .18, rocher: .38, cristal: .3, geode: .34, engrenage: .32, bobine: .3 };
+const FLORE_COURONNE = { conifere: [.26, .55], feuillu: [.52, .6], palme: [.78, .55], geant: [.66, .75], josue: [.6, .5] };
+const FLORE_FREINE = { buisson: 1, touffe: 1, fleur: 1, champi: 1, roseau: 1, boule: 1 };
+function obstacleFlore(x, y) {
+  if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) return null;
+  const i = y * WS + x, k = Flo[i]; if (!k) return null;
+  const sp = ESP[k - 1], r = FLORE_DURE[sp.forme]; if (!r) return null;
+  const m = maturite(i, sp); if (m < .3) return null;
+  const z0 = solFlore(x, y), hh = sp.h * (.22 + .78 * m), c = FLORE_COURONNE[sp.forme];
+  return { cx: x + .5, cy: y + .5, r: r * (.6 + .4 * m), z0, z1: z0 + hh,
+    zc: c ? z0 + hh * c[0] : 1e9, rc: c ? c[1] * (.6 + .4 * m) : 0 };
+}
+// Le corps du joueur (rayon R, de pz à pz + 1,4) entre-t-il dans un tronc ou une pierre ? On peut
+// toujours s'en écarter : seul le pas qui s'enfonce est refusé (une arrivée sur un pied n'emmure pas).
+function floreBloque(px, py, pz, ox, oy) {
+  const cx = px | 0, cy = py | 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const o = obstacleFlore(cx + dx, cy + dy); if (!o) continue;
+    if (pz >= o.z1 - .05 || pz + 1.4 <= o.z0) continue;     // par-dessus (un saut passe une pierre), ou dessous (une île volante)
+    const d2 = (px - o.cx) ** 2 + (py - o.cy) ** 2;
+    if (d2 < (o.r + R) ** 2 && (ox === undefined || d2 < (ox - o.cx) ** 2 + (oy - o.cy) ** 2)) return true;
+  }
+  return false;
+}
+// Un point (un tir, un regard) est-il dans un tronc, une couronne, une pierre ?
+function floreTouche(x, y, z) {
+  const o = obstacleFlore(x | 0, y | 0); if (!o || z < o.z0 || z > o.z1 + .1) return false;
+  const d2 = (x - o.cx) ** 2 + (y - o.cy) ** 2;
+  return d2 < o.r * o.r || (z >= o.zc && d2 < o.rc * o.rc);
+}
+// Les herbes hautes sous les pieds.
+function floreFreine(px, py, pz) {
+  const x = px | 0, y = py | 0; if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) return false;
+  const i = y * WS + x, k = Flo[i]; if (!k) return false;
+  const sp = ESP[k - 1]; if (!FLORE_FREINE[sp.forme] || Math.abs(pz - solFlore(x, y)) > .3) return false;
+  return maturite(i, sp) >= .35;
+}
 // Le pied mûr le plus proche, dans le rayon de bras.
 function noeudProche() {
   let best = null, db = 1.75 * 1.75;
@@ -1905,6 +1958,7 @@ function impactFleche(f, nx, ny, nz) {
   const cx = nx | 0, cy = ny | 0;
   if (nx < 1 || ny < 1 || nx >= WS - 1 || ny >= WS - 1) return false;
   if (hAt(cx, cy) > nz && nz > -5) { planter(f); return true; }
+  if (f.age > .04 && floreTouche(nx, ny, nz)) { planter(f); return true; }   // fichée dans un tronc, une pierre
   const t = plaT(cx, cy);
   if (t && nz <= t && nz >= plaB(cx, cy)) { planter(f); return true; }
   return false;
@@ -4455,6 +4509,8 @@ const TOUCHES = {
   KeyG:   () => { nourrir = true; },
   KeyH:   () => { sifflerQ = true; },                // le sifflet : rappeler les compagnes
   KeyQ:   () => { angT += Math.PI / 4; },
+  Equal:  () => zoomer(1.15), NumpadAdd: () => zoomer(1.15),
+  Minus:  () => zoomer(1 / 1.15), NumpadSubtract: () => zoomer(1 / 1.15),
   KeyE:   () => { angT -= Math.PI / 4; },
   KeyR:   () => setElev(elevIdx + 1),
   KeyF:   () => setElev(elevIdx - 1),
@@ -4538,20 +4594,32 @@ addEventListener('pointerlockchange', () => { if (!camPrise()) { agirQ = false; 
 // l'horizontale l'angle, librement ; à la verticale l'inclinaison, entre rasante et plongée. Le
 // tracé en canvas ne sait trier qu'aux huitièmes de tour : sans carte graphique, on s'y range
 // en lâchant.
+// Deux doigts : on pince pour zoomer. La molette et les touches + et − font de même.
+const zoomer = k => { zoomT = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomT * k)); };
 {
   let id = null, lx = 0, ly = 0;
+  const doigts = new Map();                            // les pointeurs posés sur la vue
+  const ecartDoigts = () => { const [a, b] = [...doigts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
+  let ecart0 = 0;
   const libre = () => isoGL && G3.ok && !G3.perdu;
   cv.addEventListener('pointerdown', e => {
     if (mode === 'fps' || sacOuvert || (e.pointerType === 'mouse' && e.button > 2)) return;
-    id = e.pointerId; lx = e.clientX; ly = e.clientY;
+    doigts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (doigts.size === 2) { id = null; ecart0 = ecartDoigts(); return; }   // le pincement prend la main
+    if (doigts.size === 1) { id = e.pointerId; lx = e.clientX; ly = e.clientY; }
   });
   cv.addEventListener('pointermove', e => {
-    if (e.pointerId !== id || mode === 'fps') return;
+    if (mode === 'fps' || !doigts.has(e.pointerId)) return;
+    doigts.set(e.pointerId, [e.clientX, e.clientY]);
+    if (doigts.size === 2) { const d = ecartDoigts(); if (ecart0 > 10 && d > 10) zoomer(d / ecart0); ecart0 = d; return; }
+    if (e.pointerId !== id) return;
     const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
     angT -= dx * .008; ang = angT;
     elevT = Math.max(ELEVS[0].a, Math.min(ELEVS[ELEVS.length - 1].a, elevT + dy * .004));
   });
+  cv.addEventListener('wheel', e => { if (mode === 'fps') return; e.preventDefault(); zoomer(Math.exp(-e.deltaY * .0015)); }, { passive: false });
   const fin = e => {
+    doigts.delete(e.pointerId);
     if (e.pointerId !== id) return;
     id = null;
     if (!libre()) angT = Math.round(angT / (Math.PI / 4)) * (Math.PI / 4);
@@ -4619,6 +4687,7 @@ function update(dt) {
   t += dt;
   ang += (angT - ang) * Math.min(1, dt * 9);
   elev += (elevT - elev) * Math.min(1, dt * 7);
+  zoom += (zoomT - zoom) * Math.min(1, dt * 10);
   setProjection();
   if (msgT > 0) { msgT -= dt; if (msgT <= 0) document.getElementById('msg').style.opacity = 0; }
   // Le retour se constate sur place : arrivé près de son feu, l'expédition se ferme et le
@@ -4680,7 +4749,8 @@ function update(dt) {
   SPD = P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE;
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
-  if (P.spores > t) SPD *= .6;                         // les spores du vesseron engourdissent           // la tourbière colle aux pieds, moins aux sabots
+  if (P.spores > t) SPD *= .6;
+  if (!M && floreFreine(P.x, P.y, P.z)) SPD *= .72;   // les herbes hautes, les buissons, les roseaux (la monture les enjambe)                         // les spores du vesseron engourdissent           // la tourbière colle aux pieds, moins aux sabots
   const glisse = biomeIci === 16 && P.ground && !M;     // l'huile : on accélère mal, on s'arrête plus mal encore
   const ACC = glisse ? 7 : 26, FRIC = glisse ? 1.6 : 20;
   // Projeté par un coup, on ne tient plus ses appuis : ni frottement ni commande pendant 0,3 s.
@@ -4698,7 +4768,7 @@ function update(dt) {
     const step = (axis === 'x' ? P.vx : P.vy) * dt;
     if (!step) return;
     const nx = P.x + (axis === 'x' ? step : 0), ny = P.y + (axis === 'y' ? step : 0);
-    if (!blockedAt(nx, ny, P.z)) { P.x = nx; P.y = ny; return; }
+    if (!blockedAt(nx, ny, P.z) && !(P.monture ? false : floreBloque(nx, ny, P.z, P.x, P.y))) { P.x = nx; P.y = ny; return; }
     // obstacle : si c'est une caisse posée à notre niveau, on tente de la pousser
     const cx = Math.floor(nx + (axis === 'x' ? Math.sign(step) * R : 0));
     const cy = Math.floor(ny + (axis === 'y' ? Math.sign(step) * R : 0));
@@ -4833,7 +4903,7 @@ function update(dt) {
 // ---------- rendu ----------
 // Une carte de hauteurs n'a pas d'excroissance : chaque colonne se résume à sa face de
 // dessus et aux flancs qui dépassent du voisin. On passe de 520 000 cubes à ~1 200 faces.
-const COLS_VIS = 27;                                 // rayon de colonnes affichées autour du joueur
+const COLS_VIS = 28;                                 // rayon de colonnes affichées autour du joueur (zoom arrière compris)
 const SIDES = [[1,0],[-1,0],[0,1],[0,-1]];
 function colonnesVisibles() {
   const out = [], cx = P.x | 0, cy = P.y | 0, R = COLS_VIS;
@@ -5800,11 +5870,13 @@ const eveille = b => lumiere() > .45 && b.nrj > CHARGE_MIN;   // au jour, et pas
 // Le tir n'a de sens qu'à vue : on remonte le trait, de la bouche du canon au corps visé, en
 // cherchant la roche ou une dalle en travers. Un automate tirait à travers les murs.
 function ligneDeVue(ax, ay, az, bx, by, bz) {
-  const dx = bx - ax, dy = by - ay, dz = bz - az, n = Math.max(1, Math.ceil(Math.hypot(dx, dy) / .35));
+  const dx = bx - ax, dy = by - ay, dz = bz - az, L = Math.hypot(dx, dy), n = Math.max(1, Math.ceil(L / .35));
   for (let i = 1; i < n; i++) {
     const f = i / n, x = ax + dx * f, y = ay + dy * f, z = az + dz * f;
     if (sol(x, y) > z + .05) return false;
     const pt = plaT(x | 0, y | 0); if (pt && plaB(x | 0, y | 0) <= z && z <= pt) return false;
+    // un tronc, une pierre, une couronne — mais pas celui qu'on frôle au départ ou à l'arrivée
+    if (f * L > .6 && (1 - f) * L > .6 && floreTouche(x, y, z)) return false;
   }
   return true;
 }
@@ -5973,7 +6045,7 @@ const rayonsLaser = l => l.etat === 'on' || (l.etat === 'avert' && (t * 12 | 0) 
   ? LASER_H.map(hh => [[l.ax, l.ay, l.z + hh], [l.bx, l.by, l.z + hh]]) : [];
 // Un obus éclate au premier contact : le sol, une dalle, un corps.
 function toucheObus(f, nx, ny, nz) {
-  if (nz <= sol(nx, ny)) return true;
+  if (nz <= sol(nx, ny) || (f.age > .05 && floreTouche(nx, ny, nz))) return true;
   const pt = plaT(nx | 0, ny | 0); if (pt && plaB(nx | 0, ny | 0) <= nz && nz <= pt) return true;
   if (!f.de.comp && (nx - P.x) ** 2 + (ny - P.y) ** 2 < .36 && nz > P.z - .1 && nz < P.z + 1.4) return true;
   for (const o of beasts) if (o !== f.de && !o.dead && o.pv > 0 && toucheBete(o, nx, ny, nz)) return true;
@@ -5990,6 +6062,7 @@ function majTirs(dt) {
       f.vz -= TIR_G * h;
       const nx = f.x + f.vx * h, ny = f.y + f.vy * h, nz = f.z + f.vz * h;
       fini = f.obus ? toucheObus(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
+      if (!fini && f.age > .05 && floreTouche(nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8b89a'); }   // arrêté par un arbre, une pierre
       f.x = nx; f.y = ny; f.z = nz;
     }
     if (f.obus && (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3.5)) { exploser(f); TIRS.splice(k, 1); continue; }
@@ -8981,8 +9054,9 @@ function cameraTierce() {
   const cp = Math.cos(-elev), sp = Math.sin(-elev);
   const tx = camX, ty = camY, tz = camZ + .9;
   const dx = Math.cos(az) * cp, dy = Math.sin(az) * cp, dz = sp;
-  let D = TIERCE_D;
-  for (let s2 = 1.5; s2 <= TIERCE_D; s2 += .4) {
+  const Dmax = Math.max(5, Math.min(26, TIERCE_D / zoom));
+  let D = Dmax;
+  for (let s2 = 1.5; s2 <= Dmax; s2 += .4) {
     const x = tx - dx * s2, y = ty - dy * s2, z = tz - dz * s2, i = x | 0, j = y | 0;
     const pt = plaT(i, j), pb = plaB(i, j);
     if (hAt(i, j) > z - .45 || (pt && z > pb - .45 && z < pt + .45)) { D = Math.max(2.2, s2 - .6); break; }
@@ -10947,6 +11021,8 @@ globalThis.__BETA = { GUIDE, majGuide, ligneGuide, contexteJeu, ouvrirRetour, fe
 globalThis.__RESERVE = { reserveCommune, dispo, puiser, payer, payable, ameliorerCamp, nourrirCompagne };
 globalThis.__ILEMECA = { LASERS, etatLaser, coupeLaser, majLasers, poserLasers, ileMecaGraine, NIV_MECA, LASER_PER, LASER_ON, LASER_H,
   get ileMeca() { return ileMeca; }, get biomeIci() { return biomeIci; }, rayonsLaser, laserOs };
+globalThis.__FLORE_DURE = { obstacleFlore, floreBloque, floreTouche, floreFreine, FLORE_DURE, FLORE_FREINE, zoomer,
+  get zoom() { return zoom; }, get zoomT() { return zoomT; } };
 globalThis.__DRUSES = { teinteDruse, TEINTES_DRUSE, teinteNoeud, gerbe };
 globalThis.__VARIANTES = { tirerVariante, lireVariante, varianteSure, nomVariante, nomEspeceDe, varier, osDeBase, chanceVariante,
   noterVariante, guetterVariantes, blocCarnet, P_ROBE, P_FORME, ROBES, TAILLES, ORNEMENTS_DE, familleBete, photo, appliquer };
