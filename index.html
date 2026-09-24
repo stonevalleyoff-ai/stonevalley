@@ -38,6 +38,8 @@
   #knob{position:absolute;width:46px;height:46px;border-radius:50%;left:36px;top:36px;
     background:rgba(200,215,240,.5);border:1px solid rgba(255,255,255,.35);}
   #rot button:active{background:rgba(255,210,125,.35);}
+  #rot #bpe{font-size:12px;font-weight:700;letter-spacing:.5px;}
+  #rot #bpe[aria-pressed="true"]{background:rgba(255,210,125,.32);border-color:rgba(255,210,125,.7);color:#ffe2a8;}
   /* Les jauges du coin : vie, mana, souffle. Le souffle pâlit quand il est plein. */
   #jauges{display:grid;gap:4px;width:190px;margin-bottom:5px;}
   .jg{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1px;color:#8d9ab4;}
@@ -348,7 +350,7 @@
 <div id="cible" hidden></div>
 <div class="ui" id="msg"></div>
 <button class="ui" id="bv" style="pointer-events:auto;top:10px;left:14px;padding:0 14px;height:40px;background:rgba(22,26,38,.72);border:1px solid rgba(190,205,230,.28);color:#cfd6e4;border-radius:10px;font:inherit;font-size:13px;cursor:pointer;position:fixed;">1re P.</button>
-<div class="ui" id="rot"><button id="ed">▽</button><button id="eu">△</button><button id="rl">⟲</button><button id="rr">⟳</button></div>
+<div class="ui" id="rot"><button id="bpe" title="Vue en perspective" aria-pressed="false">3D</button><button id="ed">▽</button><button id="eu">△</button><button id="rl">⟲</button><button id="rr">⟳</button></div>
 <div class="ui" id="cases" aria-label="Raccourcis"></div>
 <div class="ui" id="combat">
   <button id="bact" class="vide"><kbd>C</kbd><b>ACTION</b><span></span></button>
@@ -417,6 +419,10 @@ let Wd = 0, Hd = 0, dpr = 1;
 // lesquels refaire, sans relire toute l'île à chaque image.
 let crochetDecor = null;
 let isoGL = true;                                    // l'isométrie passe aussi par la carte graphique
+// La vue de dessus en perspective : la même caméra (angle, inclinaison, suivi du joueur), mais un
+// œil posé en orbite à quatorze cases, qui voit fuir le décor. Carte graphique seulement.
+let perspIso = (() => { try { return localStorage.getItem('stone_valley:persp') === '1'; } catch (e) { return false; } })();
+const TIERCE_D = 14;
 function signalDecor(quoi, i) { if (crochetDecor) crochetDecor(quoi, i); }
 
 // ---------- le niveau ----------
@@ -449,6 +455,11 @@ const BIOME = [
   { n: 'champs de cristal',  top: [148, 212, 212], side: [92, 148, 168], food: .12 },
   { n: 'caldeira de cendre', top: [64, 58, 62],    side: [46, 40, 44],   food: .04 },
   { n: 'braises',            top: [210, 88, 42],   side: [118, 46, 32],  food: 0 },   // les plaques vives de la caldeira
+  // l'île des automates : au-delà du vingtième saut, une île entière de métal (voir L'ÎLE DES AUTOMATES)
+  { n: 'terre des automates', top: [104, 108, 118], side: [86, 76, 68],  food: 0 },
+  { n: 'flaque d\'huile',     top: [34, 30, 42],    side: [78, 72, 66],  food: 0 },
+  // les îles volantes : du nuage, sur toutes les îles (les dalles conjurées restent de pierre)
+  { n: 'nuage',               top: [252, 253, 255], side: [238, 242, 252], food: 0 },
 ];
 // ============================================================
 //  LES BIOMES RARES
@@ -479,11 +490,17 @@ const RARES = [
 const famille = b => b === 14 ? 13 : b;               // les braises sont de la caldeira
 const rareDe = b => RARES.find(r => r.b === famille(b)) || null;
 let RaresIle = [];                                    // ceux que genWorld a posés ici
+let ileMeca = false;                                  // l'île des automates : genWorld le décide
 function hash32(n) {
   n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
   return (n ^ (n >>> 16)) >>> 0;
 }
 const signee = g => (hash32(g ^ 0x5b10e) & 15) === 11;
+// L'île des automates : une graine signée sur trente, permise à partir de la vingt et unième
+// exploration. Le portail en garde alors une île sur six environ (les autres doivent porter trois
+// automates tireurs, et seule une île sur six les porte toutes).
+const NIV_MECA = 21;
+const ileMecaGraine = g => Number.isInteger(g) && signee(g) && hash32(g ^ 0x3ec4a) % 30 === 0;
 function biomesGraine(g) {
   if (!Number.isInteger(g) || !signee(g)) return [];
   let s = hash32(g ^ 0x7a1e5) || 1;
@@ -492,7 +509,7 @@ function biomesGraine(g) {
   for (let k = RARES.length - 1; k >= 0; k--) { const p = tir(); if (r.length < 2 && p < RARES[k].chance) r.push(RARES[k].b); }
   return r;
 }
-const nivGraine = g => Math.max(biomesGraine(g).reduce((m, b) => Math.max(m, rareDe(b).niv), 0),
+const nivGraine = g => Math.max(ileMecaGraine(g) ? NIV_MECA : 0, biomesGraine(g).reduce((m, b) => Math.max(m, rareDe(b).niv), 0),
   ...betesRaresGraine(g).map(b => b.niv));   // un biome rare, ou un coursier rare, dit l'exploration qu'il faut
 // Une île neuve pour l'exploration `niv` : une graine signée dont aucun biome n'est encore défendu.
 // Passé le huitième saut, le portail ne tire plus que des îles gardées : un automate tireur au
@@ -881,9 +898,21 @@ function genWorld() {
     Bio[i] = b;
   }
   for (const i of gouffres) Bio[i] = 8;             // après les biomes : le vide n'est pas de l'eau
+  // L'île des automates : toute la terre passe au métal, et l'huile croupit sur les replats. Le
+  // niveau se lit dans la sauvegarde : la profondeur n'est pas encore là, et une île gardée d'avant
+  // (plus bas que 21) reste l'île qu'elle était.
+  ileMeca = globalThis.__MECA !== undefined ? !!globalThis.__MECA
+    : ileMecaGraine(SEED) && ((expSauvee() || {}).niveau || 0) >= NIV_MECA;
+  if (ileMeca) for (let y = 1; y < WS - 1; y++) for (let x = 1; x < WS - 1; x++) {
+    const i = y * WS + x, h = Hgt[i];
+    if (h <= SEA || Bio[i] === 8) continue;
+    let plat = true;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (Hgt[i + dy * WS + dx] !== h) plat = false;
+    Bio[i] = plat && fbm(nC, x / 7 + 310, y / 7 - 90, 2) > .66 ? 16 : 15;
+  }
   creuserLacs(gouffres);                            // quelques cuvettes, que les eaux rempliront
   calcEaux();                                       // lacs et rivières, avant l'ombrage du relief
-  poserBiomesRares(Array.isArray(globalThis.__RARES) ? globalThis.__RARES : biomesGraine(SEED));   // les bancs choisissent
+  poserBiomesRares(ileMeca ? [] : Array.isArray(globalThis.__RARES) ? globalThis.__RARES : biomesGraine(SEED));   // les bancs choisissent
   calcOmbrage();
 }
 // Un biome rare prend une région : les cases qui lui conviennent (sol d'origine, altitude,
@@ -1181,8 +1210,8 @@ let crystals = [], crates = [], foes = [], goal = null, got = 0, total = 0, live
 //  îles volantes : c'est ce qui donne une raison de grimper, et ce qui fait de
 //  la magie le bout de la progression plutôt que son début.
 // ============================================================
-const RES = { fibre: 'fibre', bois: 'bois', pierre: 'pierre', os: 'os', eclat: 'éclat' };
-P.sac = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0 };
+const RES = { fibre: 'fibre', bois: 'bois', pierre: 'pierre', os: 'os', eclat: 'éclat', ferraille: 'ferraille' };
+P.sac = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0 };
 P.equip = { arme: null, outil: null, armure: null, grimoire: null, accessoire: null, lumiere: null };
 P.endu = 1; P.epuise = false; P.courseT = -9;   // l'endurance, de 0 à 1
 P.raccourcis = [null, null, null, null, null];     // les cinq cases du bord droit
@@ -1199,7 +1228,7 @@ P.journal = { gardees: [], visites: [] };   // les graines tenues en mémoire, e
 P.pseudo = null;                // le nom vu par les autres joueurs ; sans lui, l'adresse fait foi
 P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ déjà payé en travail
 // Le coffre du campement : ce qui y est déposé ne risque plus rien. Le sac, lui, voyage.
-P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, baies: 0 };
+P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, baies: 0 };
 // L'expédition en cours : les sauts faits depuis le campement, et les cœurs perdus en route.
 // Elle se lit avant le peuplement de l'île, sinon la première fournée de bêtes ignorerait
 // qu'on est à cinq sauts de chez soi.
@@ -1229,13 +1258,18 @@ const OBJETS = [
     d:'détache les éclats · deux fois plus' },
   { id:'serpe',   n:'Serpe cristalline',  emp:'outil',   niv:3, rend:3, cout:{eclat:20,bois:32,fibre:24},
     d:'trois fois plus à chaque pied' },
+  { id:'foreuse', n:'Foreuse',            emp:'outil',   niv:4, rend:4, cout:{ferraille:28,eclat:16,bois:20},
+    d:'quatre fois plus à chaque pied' },
   // armes : dégâts et portée
   { id:'gourdin', n:'Gourdin',            emp:'arme', deg:.30, port:1.5, cout:{bois:16},      d:'dégâts 30 · portée courte' },
   { id:'lance',   n:"Lance d'os",         emp:'arme', deg:.45, port:2.4, cout:{bois:20,os:6}, d:'dégâts 45 · longue portée' },
   { id:'epee',    n:'Épée de pierre',     emp:'arme', deg:.65, port:1.8, cout:{pierre:40,bois:20,fibre:20}, d:'dégâts 65' },
   { id:'lame',    n:"Lame d'éclat",       emp:'arme', deg:.95, port:2.0, cout:{eclat:32,pierre:36,os:8},    d:'dégâts 95' },
+  { id:'marteau', n:'Marteau-pilon',      emp:'arme', deg:1.25, port:1.9, cout:{ferraille:36,bois:20,eclat:10}, d:'dégâts 125' },
   { id:'arc',     n:'Arc',                emp:'arme', deg:.85, port:0, arc:1, cout:{bois:28,fibre:32,os:5},
     d:'tir tendu · maintenir pour bander' },
+  { id:'arbalete',n:'Arbalète à poulies', emp:'arme', deg:1.2, port:0, arc:1, cout:{ferraille:30,bois:24,fibre:20},
+    d:'tir tendu, bien plus fort · maintenir pour bander' },
   { id:'fleches', n:'Flèches ×8',         emp:'munition', lot:8, cout:{bois:12,pierre:8,fibre:8},
     d:'se ramassent après le tir' },
   // le lien : une place pour une bête apprivoisée, sans plafond — mais chacun coûte plus que le précédent
@@ -1246,6 +1280,8 @@ const OBJETS = [
   { id:'cuirasse',n:"Cuirasse d'os",      emp:'armure', red:.45, cout:{os:10,fibre:32,bois:20},  d:'−45 % de dégâts' },
   { id:'manteau', n:"Manteau d'éclats",   emp:'armure', red:.60, mana:.6, cout:{eclat:36,fibre:52,pierre:32},
     d:'−60 % de dégâts · mana +60 %' },
+  { id:'plastron',n:'Plastron de ferraille', emp:'armure', red:.72, cout:{ferraille:40,os:10,fibre:30},
+    d:'−72 % de dégâts' },
   // grimoires : un sort chacun, payé en mana
   { id:'souffle', n:'Grimoire : Souffle', emp:'grimoire', mana:18, cout:{eclat:8,fibre:36},
     d:'repousse les bêtes alentour' },
@@ -1278,7 +1314,7 @@ const rendement = () => (porte('outil') || { rend: 1 }).rend;
 
 // Ce que donne le sol sous les pieds. Une dalle suspendue donne des éclats : la
 // seule source de l'île, et elle se mérite.
-const COUL = { fibre:'#9fd08a', bois:'#c08a5a', pierre:'#b9c2d6', os:'#e8e2d0', eclat:'#8fe4e8' };
+const COUL = { fibre:'#9fd08a', bois:'#c08a5a', pierre:'#b9c2d6', os:'#e8e2d0', eclat:'#8fe4e8', ferraille:'#b4aca0' };
 
 // ============================================================
 //  FLORE DYNAMIQUE
@@ -1307,8 +1343,8 @@ function hachCell(x, y) {
 }
 const ESP = [
   // --- sur les dalles suspendues ---
-  { id:'druse',    n:'Druse',          forme:'cristal', res:'eclat',  rend:2, pousse:210, h:.80, larg:.22,
-    dalle:1, dens:.22, grain:7,  seuil:-9, bas:[64,140,152], haut:[152,234,240] },
+  { id:'druse',    n:'Druse',          forme:'geode',   res:'eclat',  rend:2, pousse:210, h:.80, larg:.22,
+    dalle:1, dens:.22, grain:7,  seuil:-9, bas:[64,140,152], haut:[152,234,240], teintes:1, luit:.4 },
   { id:'mousse',   n:'Mousse céleste', forme:'buisson', res:'fibre',  rend:4, pousse:80,  h:.40, larg:.24,
     dalle:1, dens:.30, grain:6,  seuil:-9, bas:[86,132,96],  haut:[128,186,132] },
   // --- espèces rares, en tête pour qu'elles ne soient jamais évincées ---
@@ -1394,6 +1430,15 @@ const ESP = [
     bio:[13],      alt:[0,1],     eau:[0,99], dens:.30, grain:10, seuil:.40, bas:[72,54,46],   haut:[255,122,52], luit:1 },
   { id:'obsidienne',n:'Obsidienne',    forme:'rocher',  res:'eclat',  rend:4, pousse:240, h:.70, larg:.40,
     bio:[13],      alt:[0,1],     eau:[0,99], dens:.16, grain:18, seuil:.50, bas:[30,26,40],   haut:[74,64,100] },
+  // l'île des automates : une flore de métal, en QUEUE de liste pour ne rien déplacer des autres
+  { id:'pylone',   n:'Pylône',          forme:'pylone',  res:'ferraille', rend:6, pousse:260, h:2.9, larg:.16,
+    bio:[15],      alt:[0,1],     eau:[0,99], dens:.16, grain:20, seuil:.48, bas:[64,66,74],   haut:[128,134,146], luit:.5 },
+  { id:'engrenage',n:'Engrenage géant', forme:'engrenage',res:'ferraille', rend:4, pousse:200, h:1.5, larg:.22,
+    bio:[15],      alt:[0,1],     eau:[0,99], dens:.20, grain:14, seuil:.46, bas:[80,72,64],   haut:[168,150,112] },
+  { id:'condensateur',n:'Condensateur', forme:'cristal', res:'eclat',  rend:4, pousse:240, h:.95, larg:.22,
+    bio:[15],      alt:[0,1],     eau:[0,99], dens:.16, grain:16, seuil:.50, bas:[62,70,86],   haut:[150,224,255], luit:1 },
+  { id:'bobine',   n:'Bobine de câble', forme:'bobine',  res:'fibre',  rend:5, pousse:120, h:.60, larg:.22,
+    bio:[15],      alt:[0,1],     eau:[0,99], dens:.20, grain:9,  seuil:.42, bas:[58,50,48],   haut:[178,104,58] },
 ];
 const FLORE = {}; for (const e of ESP) FLORE[e.id] = e;
 // Carte de peuplement, calculée une fois : sans elle il faudrait éprouver vingt et un
@@ -1424,6 +1469,7 @@ function calcFlore() {
     for (let k = 0; k < ESP.length; k++) {
       const e = ESP[k];
       if (!!e.dalle !== surDalle) continue;
+      if (e.id === 'mousse') continue;              // les nuages ne portent rien de vert : seulement les druses
       if (!surDalle) {
         if (!e.bio.includes(b) || alt < e.alt[0] || alt > e.alt[1] || de < e.eau[0] || de > e.eau[1]) continue;
         if (fbm(nB, x / e.grain + k * 53, y / e.grain - k * 31, 2) < e.seuil) continue;   // en bosquets
@@ -1484,12 +1530,14 @@ function recolter() {
   const m = maturite(nd.i, nd.sp);
   if (m < .35) { say(nd.sp.n + ' · encore trop jeune (' + Math.round(m * 100) + ' %)', 1.6); return; }
   if (nd.sp.res === 'eclat' && nivOutil() < 2) { say('une pioche détacherait ces éclats', 1.8); return; }
+  if (nd.sp.res === 'ferraille' && nivOutil() < 2) { say('une pioche démonterait cette ferraille', 1.8); return; }
   const mult = nd.sp.res === 'eclat' ? rendement() * .6 : rendement();
-  const n = Math.max(1, Math.round(nd.sp.rend * m * mult));
+  const tn = teinteNoeud(nd);                          // une druse lavande ou dorée rend davantage
+  const n = Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0);
   P.sac[nd.sp.res] += n; P.recolte = .45;
   couperPied(nd.i);                                    // coupé : il repartira de zéro, ici et en face
-  burst(nd.x + .5, nd.y + .5, nd.z + nd.sp.h * .5, 9, COUL[nd.sp.res]);
-  say('+' + n + ' ' + RES[nd.sp.res] + ' · ' + P.sac[nd.sp.res], 1);
+  gerbe(nd.x + .5, nd.y + .5, nd.z + nd.sp.h * .5, 9, nd.sp, tn);
+  say('+' + n + ' ' + RES[nd.sp.res] + (tn && tn.bonus ? ' · ' + tn.n.toLowerCase() : '') + ' · ' + P.sac[nd.sp.res], 1.4);
   majSac();
 }
 // Onze silhouettes, partagées par les vingt et une espèces. C'est la forme qui porte la
@@ -1534,6 +1582,24 @@ function emitFlore(view, out, cols) {
 }
 // La silhouette d'un pied, commune au canvas et à WebGL : `pose` reçoit chaque volume
 // (deux bouts, largeur, épaisseur, teinte). A est la teinte du bas, B celle du feuillage.
+// Les druses des nuages : la couleur dit la rareté. Presque toutes cyan ; une sur huit lavande,
+// qui rend un éclat de plus ; une sur trente-trois dorée, qui en rend trois de plus. La case en
+// décide, pas le hasard du moment : deux joueurs voient la même druse dorée au même endroit.
+const TEINTES_DRUSE = [
+  { id: 'cyan',    n: 'Druse',         bas: [64, 140, 152],  haut: [152, 234, 240], bonus: 0, css: '#8fe4e8' },
+  { id: 'lavande', n: 'Druse lavande', bas: [104, 88, 150],  haut: [200, 176, 246], bonus: 1, css: '#c8b4f6' },
+  { id: 'or',      n: 'Druse dorée',   bas: [206, 158, 62],  haut: [255, 232, 146], bonus: 3, css: '#fcd676' },
+];
+function teinteDruse(x, y) {
+  const h = hachCell(x * 7 + 13, y * 11 + 5);
+  return TEINTES_DRUSE[h < .03 ? 2 : h < .155 ? 1 : 0];
+}
+const teinteNoeud = nd => nd.sp.teintes ? teinteDruse(nd.x, nd.y) : null;
+// La gerbe d'une récolte : la couleur de la matière, ou celle de la druse.
+function gerbe(x, y, z, n, sp, tn) {
+  burst(x, y, z, n, tn ? tn.css : COUL[sp.res]);
+  if (tn && tn.bonus > 1) burst(x, y, z + .2, n, '#fff4c8');   // la dorée scintille
+}
 function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
   switch (sp.forme) {
     case 'conifere': {                           // étages qui s'affinent vers la pointe
@@ -1606,6 +1672,24 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
              w * .45, w * .45, B);
       }
       break; }
+    case 'geode': {                              // un socle de roche pâle, des prismes trapus qui s'ouvrent
+      // les deux tons de sa teinte, à la clarté que l'éclairage a donnée aux tons d'origine
+      const T = sp.teintes ? teinteDruse(cx | 0, cy | 0) : sp;
+      const kA = (A[0] + A[1] + A[2]) / (sp.bas[0] + sp.bas[1] + sp.bas[2]), kB = (B[0] + B[1] + B[2]) / (sp.haut[0] + sp.haut[1] + sp.haut[2]);
+      const cb = T.bas.map(v => Math.min(255, v * kA)), ch = T.haut.map(v => Math.min(255, v * kB));
+      const roc = [206, 210, 222].map(v => v * kA * 1.4);
+      pose([cx - w * 1.2, cy, z + hh * .07], [cx + w * 1.2, cy, z + hh * .07], w * 2.1, hh * .16, roc);
+      const n = det > 1 ? 4 : det ? 3 : 2;
+      for (let e = 0; e < n; e++) {
+        const a = e * 6.2832 / n + ha * 6, o = e ? w * .55 : 0, pe = e ? .32 : .08;   // le premier, au centre et droit
+        const b0 = [cx + Math.cos(a) * o, cy + Math.sin(a) * o, z + hh * .08];
+        const ht = hh * (e ? .62 - (e % 2) * .12 : 1);
+        const top = [b0[0] + Math.cos(a) * ht * pe, b0[1] + Math.sin(a) * ht * pe, b0[2] + ht];
+        const mid = [b0[0] + (top[0] - b0[0]) * .64, b0[1] + (top[1] - b0[1]) * .64, b0[2] + (top[2] - b0[2]) * .64];
+        pose(b0, mid, w * (e ? .72 : .9), w * (e ? .72 : .9), cb);                  // le fût, sombre
+        pose(mid, top, w * (e ? .42 : .52), w * (e ? .42 : .52), ch);               // la pointe, claire
+      }
+      break; }
     // --- les silhouettes des biomes rares ---
     case 'boule': {                              // un coussin rond : la vesse, la sphaigne
       pose([cx - w * .9, cy, z + hh * .42], [cx + w * .9, cy, z + hh * .42], w * 1.8, hh * .84, B);
@@ -1647,6 +1731,40 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
         pose([bx, cy, bz], [bx + Math.cos(a) * r, cy + Math.sin(a) * r, bz + hh * .22], w * .3, w * .3, B);
       }
       break; }
+    // --- la flore de métal de l'île des automates ---
+    case 'pylone': {                             // un mât, deux traverses, les isolateurs, un feu au sommet
+      pose([cx, cy, z], [cx, cy, z + hh], w * .55, w * .55, A);
+      for (let e = 0; e < (det ? 2 : 1); e++) {
+        const zt = z + hh * (.78 - e * .2), r = w * (3.2 - e * .8), a = ha * 3.1416;
+        pose([cx - Math.cos(a) * r, cy - Math.sin(a) * r, zt], [cx + Math.cos(a) * r, cy + Math.sin(a) * r, zt], w * .4, w * .4, A);
+        if (det > 1) for (const sg of [-1, 1])
+          pose([cx + sg * Math.cos(a) * r, cy + sg * Math.sin(a) * r, zt], [cx + sg * Math.cos(a) * r, cy + sg * Math.sin(a) * r, zt - hh * .08], w * .45, w * .45, B);
+      }
+      pose([cx, cy, z + hh], [cx, cy, z + hh * 1.04], w * .8, w * .8, [255, 70, 50]);
+      break; }
+    case 'engrenage': {                          // une roue dentée dressée sur son axe
+      const r = hh * .4, zc = z + r * 1.12, a0 = ha * 6.2832, u = [Math.cos(a0), Math.sin(a0)];
+      const n = det > 1 ? 10 : det ? 8 : 6;
+      const P2 = k => { const a = k * 6.2832 / n; return [cx + u[0] * Math.cos(a) * r, cy + u[1] * Math.cos(a) * r, zc + Math.sin(a) * r]; };
+      pose([cx, cy, z], [cx, cy, zc], w * .6, w * .6, A);
+      for (let k = 0; k < n; k++) {
+        const p0 = P2(k), p1 = P2(k + 1), a = (k + .5) * 6.2832 / n;
+        pose(p0, p1, w * .7, w * .7, B);                                         // la jante
+        const q = [cx + u[0] * Math.cos(a) * r, cy + u[1] * Math.cos(a) * r, zc + Math.sin(a) * r];
+        if (det) pose(q, [cx + u[0] * Math.cos(a) * r * 1.22, cy + u[1] * Math.cos(a) * r * 1.22, zc + Math.sin(a) * r * 1.22], w * .75, w * .75, B);   // les dents
+      }
+      if (det) { pose(P2(0), P2(n / 2), w * .4, w * .4, A); pose(P2(n / 4), P2(3 * n / 4), w * .4, w * .4, A); }
+      break; }
+    case 'bobine': {                             // un touret de câble cuivré, couché entre ses deux flasques
+      const a = ha * 3.1416, ux = Math.cos(a) * w, uy = Math.sin(a) * w, zc = z + hh * .5;
+      // le câble enroulé : deux prismes croisés font un octogone ; les flasques, plus larges, de même
+      pose([cx - ux, cy - uy, zc], [cx + ux, cy + uy, zc], hh * .62, hh * .62, B);
+      if (det) pose([cx - ux, cy - uy, zc], [cx + ux, cy + uy, zc], hh * .74, hh * .44, B);
+      for (const sg of [-1, 1]) {
+        pose([cx + sg * ux, cy + sg * uy, zc], [cx + sg * ux * 1.3, cy + sg * uy * 1.3, zc], hh * .96, hh * .96, A);
+        if (det > 1) pose([cx + sg * ux * 1.3, cy + sg * uy * 1.3, zc], [cx + sg * ux * 1.5, cy + sg * uy * 1.5, zc], hh * .3, hh * .3, A);   // le moyeu
+      }
+      break; }
     case 'verre': {                              // un fût de verre, une couronne d'aiguilles
       const zt = z + hh * .45;
       pose([cx, cy, z], [cx, cy, zt], w * .55, w * .55, A);
@@ -1665,8 +1783,9 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
 function butin(b) {
   if (automate(b.sp)) {                              // son cœur d'éclat, et ce qui reste de sa carcasse
     const pi = 2 + (Math.random() * 2 | 0), ec = b.sp.coeur || 1;   // l'élite porte un plus gros cœur
-    P.sac.eclat += ec; P.sac.pierre += pi;
-    say('+' + ec + ' éclat' + (ec > 1 ? 's' : '') + ' · +' + pi + ' pierre', 1.8); majSac(); return;
+    const fe = 1 + (Math.random() * 3 | 0) + (b.sp.coeur ? 2 : 0);   // et sa carcasse : de la ferraille
+    P.sac.eclat += ec; P.sac.pierre += pi; P.sac.ferraille += fe;
+    say('+' + ec + ' éclat' + (ec > 1 ? 's' : '') + ' · +' + fe + ' ferraille · +' + pi + ' pierre', 1.8); majSac(); return;
   }
   const os = 1 + (Math.random() * 2 | 0), fi = 1 + (Math.random() * 2 | 0);
   P.sac.os += os; P.sac.fibre += fi;
@@ -2030,7 +2149,7 @@ const NIV_MAX = 8;                                   // au-delà, le danger cess
 const NIV_LOIN = 20;
 const finesse = () => Math.max(0, Math.min(1, (profondeur() - NIV_MAX) / (NIV_LOIN - NIV_MAX)));
 const GARDE = [1, .65, .30, 0];                      // ce qui entre au coffre, selon les cœurs perdus
-const COFFRE_R = ['fibre', 'bois', 'pierre', 'os', 'eclat', 'baies'];
+const COFFRE_R = ['fibre', 'bois', 'pierre', 'os', 'eclat', 'ferraille', 'baies'];
 // Le niveau d'exploration appartient à l'ÎLE où l'on se trouve : chaque portail franchi en ajoute
 // un, et il ne redescend jamais de lui-même. Rentrer au campement, c'est retrouver le sien —
 // celui auquel il a été planté. Poser son campement à l'exploration 5, c'est donc habiter à 5,
@@ -2059,7 +2178,7 @@ function capEsp(sp) {
   if (sp.biome) return especesIle.has(sp.id) ? sp.cap : 0;   // un Tellurien : autant que son sol en nourrit
   if (especesIle.size && !especesIle.has(sp.id)) return 0;   // la graine ne l'a pas mise sur cette île
   const p = Math.min(profondeur(), NIV_MAX);
-  if (automate(sp)) return Math.round(sp.cap * (1 + p * .12 + Math.max(0, Math.min(profondeur(), NIV_LOIN) - NIV_MAX) * .05));
+  if (automate(sp)) return Math.round(sp.cap * (1 + p * .12 + Math.max(0, Math.min(profondeur(), NIV_LOIN) - NIV_MAX) * .05) * (ileMeca ? 1.5 : 1));
   const cap = sp.diet === 'c' ? sp.cap : sp.cap * facteurHerbe;
   if (!p) return Math.round(cap);
   return Math.max(1, Math.round(cap * (sp.diet === 'c' ? 1 + p * .22 : 1 - p * .07)));
@@ -2727,6 +2846,12 @@ const DESSINS = {
     d.ligne(4, 11, 11, 4, PIX.os, 2);
     for (const [cx, cy] of [[3, 10], [5, 13], [10, 2.5], [13, 5]]) d.disque(cx, cy, 1.6, PIX.os);
   },
+  ferraille: d => {                                                  // un écrou, une tige tordue
+    d.ligne(3, 13, 12, 4, PIX.cuir, 2);
+    d.disque(8, 8, 4.6, PIX.pierre); d.disque(8, 8, 2, PIX.nuit);
+    for (const [x, y] of [[8, 2], [8, 14], [2, 8], [14, 8], [4, 4], [12, 12], [12, 4], [4, 12]]) d.net(x, y, PIX.pierreC);
+    d.net(7, 7, PIX.pierreC);
+  },
   eclat: d => {
     const L = [[7, 8], [6, 9], [6, 9], [5, 10], [5, 10], [5, 10], [4, 11], [4, 11], [4, 11], [5, 10], [5, 10], [6, 9], [7, 8]];
     L.forEach(([a, b], i) => d.rect(a, i + 2, b, i + 2, PIX.eclat));
@@ -2758,6 +2883,23 @@ const DESSINS = {
     d.ligne(3, 13, 6, 10, PIX.bois, 2);
     d.arc(9.5, 8, 4.8, 2.2, 5.9, PIX.eclat, 2);
     d.net(13, 6, PIX.eclatC);
+  },
+  foreuse: d => {                                   // un fût, une mèche torse
+    d.rect(2, 9, 7, 13, PIX.pierre); d.rect(3, 10, 6, 12, PIX.pierreC);
+    d.ligne(7, 9, 13, 3, PIX.pierreC, 2);
+    for (const [x, y] of [[9, 7], [11, 5], [13, 3]]) d.net(x, y, PIX.nuit);
+    d.ligne(2, 13, 4, 15, PIX.cuir, 2);
+  },
+  marteau: d => {                                   // un manche, une masse de ferraille rivetée
+    d.ligne(3, 14, 10, 7, PIX.boisF, 2);
+    d.rect(8, 2, 14, 7, PIX.pierre); d.rect(8, 2, 14, 2, PIX.pierreC);
+    d.net(9, 4, PIX.nuit); d.net(13, 4, PIX.nuit); d.net(11, 6, PIX.eclat);
+  },
+  arbalete: d => {                                  // un fût, un arc court, deux poulies
+    d.ligne(3, 13, 12, 4, PIX.boisF, 2);
+    d.ligne(4, 6, 13, 13, PIX.pierre, 2);
+    d.disque(4, 6, 1.6, PIX.pierreC); d.disque(13, 13, 1.6, PIX.pierreC);
+    d.ligne(4, 6, 8, 9, PIX.ficelle); d.ligne(13, 13, 8, 9, PIX.ficelle);
   },
   gourdin: d => {
     d.ligne(3, 13, 7, 9, PIX.boisF, 2);
@@ -2816,6 +2958,13 @@ const DESSINS = {
     d.rect(6, 4, 9, 4, null);
     for (const y of [7, 10]) d.ligne(5, y, 10, y, PIX.cuir);
     d.ligne(8, 5, 8, 13, PIX.cuirC);
+  },
+  plastron: d => {                                  // des plaques rivetées sur un gilet de fibre
+    d.rect(4, 4, 11, 13, PIX.pierre);
+    d.rect(2, 4, 3, 7, PIX.pierreC); d.rect(12, 4, 13, 7, PIX.pierreC);
+    d.rect(6, 4, 9, 4, null);
+    for (const y of [7, 10]) d.ligne(4, y, 11, y, PIX.nuit);
+    for (const [x, y] of [[5, 5], [10, 5], [5, 12], [10, 12]]) d.net(x, y, PIX.orC);
   },
   manteau: d => {
     d.rect(6, 2, 9, 3, PIX.eclatF);                      // col
@@ -3095,7 +3244,7 @@ function avancement(o) {
   return { part: b ? a / b : 1, manque };
 }
 // « 16 éclats », « 3 bois » : le pluriel des matières
-const PLURIEL = { fibre: 'fibres', bois: 'bois', pierre: 'pierres', os: 'os', eclat: 'éclats', baies: 'baies' };
+const PLURIEL = { fibre: 'fibres', bois: 'bois', pierre: 'pierres', os: 'os', eclat: 'éclats', ferraille: 'ferraille', baies: 'baies' };
 const quantite = (r, n) => `${n} ${n > 1 ? PLURIEL[r] : RES[r]}`;
 const nomEmp = emp => (EMPLACEMENTS.find(e => e.id === emp) || { n: 'Réserve' }).n.toLowerCase();
 const genreObjet = o => o.emp === 'munition' ? 'Munition' : o.emp === 'lien' ? 'Compagnes'
@@ -4041,6 +4190,7 @@ const AMBIANCE = {
   11: { col: '#e6d4ff', z: [.2, 1.8], v: .12, vz: .22, g: -.03, vie: 3.4, luit: 1, tl: .05, n: 6 },       // spores
   12: { col: '#d4ffff', z: [.1, 1.4], v: 0, vz: .05, g: 0, vie: .8, luit: 1, tl: .07, n: 5 },             // éclats
   13: { col: '#ffa04c', z: [0, .4], v: .3, vz: 1.1, g: -.25, vie: 2.2, luit: 1, tl: .06, n: 8 },         // braises
+  15: { col: '#ffd878', z: [.3, 1.6], v: .9, vz: 1.2, g: 1.6, vie: .7, luit: 1, tl: .05, n: 3 },          // étincelles
 };
 function majBiome(dt) {
   const x = P.x | 0, y = P.y | 0;
@@ -4048,6 +4198,12 @@ function majBiome(dt) {
   // en l'air on garde le dernier, pour que la ligne du HUD ne clignote pas à chaque saut
   if (P.ground) biomeIci = !eauAt(x, y) && Math.abs(P.z - hAt(x, y)) < .45 ? bAt(x, y) : 0;
   const R = rareDe(biomeIci);
+  if ((biomeIci === 15 || biomeIci === 16) && !P.biomes.includes(15)) {
+    P.biomes.push(15);
+    say('biome découvert · Terre des automates · mythique', 4.5);
+    burst(P.x, P.y, P.z + .8, 22, '#b4c0d0');
+    if (sacOuvert) majSac();
+  }
   if (R && !P.biomes.includes(R.b)) {
     P.biomes.push(R.b);
     say('biome découvert · ' + R.n + ' · ' + R.rang, 4.5);
@@ -4071,10 +4227,11 @@ function majBiome(dt) {
   if (!raresAnnonce && t > 6) {                      // à l'arrivée : ce que l'île cache
     raresAnnonce = true;
     const inc = RaresIle.filter(b => !P.biomes.includes(b)).length;
-    if (RaresIle.length) say(inc ? (inc > 1 ? 'deux biomes inconnus poussent sur cette île' : 'un biome inconnu pousse sur cette île')
+    if (ileMeca) say('l\'île des automates · barrières laser, flaques d\'huile · ici, tout vous vise', 5);
+    else if (RaresIle.length) say(inc ? (inc > 1 ? 'deux biomes inconnus poussent sur cette île' : 'un biome inconnu pousse sur cette île')
       : 'sur cette île · ' + RaresIle.map(b => rareDe(b).n).join(' · '), 4);
   }
-  if (!RaresIle.length || (ambT += dt) < .07) return;   // l'air : une dizaine de tirages par seconde
+  if ((!RaresIle.length && !ileMeca) || (ambT += dt) < .07) return;   // l'air : une dizaine de tirages par seconde
   ambT = 0;
   const ax = P.x + (Math.random() * 2 - 1) * 8, ay = P.y + (Math.random() * 2 - 1) * 8;
   const A = AMBIANCE[famille(bAt(ax | 0, ay | 0))];
@@ -4086,8 +4243,8 @@ function majBiome(dt) {
 }
 // L'atlas du journal : les cinq, trouvés ou non, et ce qu'il faut pour y prétendre.
 function blocAtlas() {
-  const n = RARES.filter(r => P.biomes.includes(r.b)).length;
-  let l = `<h3>Atlas des biomes <span class="compte">${n} sur ${RARES.length}</span></h3>`;
+  const vuM = P.biomes.includes(15), n = RARES.filter(r => P.biomes.includes(r.b)).length + (vuM ? 1 : 0);
+  let l = `<h3>Atlas des biomes <span class="compte">${n} sur ${RARES.length + 1}</span></h3>`;
   for (const r of RARES) {
     const vu = P.biomes.includes(r.b), ouvert = profondeur() >= r.niv;
     l += `<div class="obj" data-atlas="${r.id}"><div style="flex:1;min-width:0">`
@@ -4095,11 +4252,18 @@ function blocAtlas() {
       + `<div class="d">${ESC(r.rang)} · dès l'exploration ${r.niv}<br>`
       + (vu ? ESC(r.d) + '<br>' + ESC(habitantDe(r.b)) : ouvert ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
   }
+  l += `<div class="obj" data-atlas="meca"><div style="flex:1;min-width:0">`
+    + `<div class="n" style="color:${vuM ? '#b4c0d0' : 'var(--texte2)'}">${vuM ? 'Terre des automates' : '? ? ?'}</div>`
+    + `<div class="d">mythique · une île entière, dès l'exploration ${NIV_MECA}<br>`
+    + (vuM ? 'barrières laser par cycles · l\'huile fait glisser · pylônes et engrenages donnent la ferraille<br>y vivent : tous les automates, et rien d\'autre'
+      : profondeur() >= NIV_MECA ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
   return l;
 }
 const habitantDe = b => { const sp = SPEC.find(s => s.biome === b); return sp ? 'y vit : ' + sp.n + ', de la famille des Telluriens' : ''; };
 // Sous les jauges, tant qu'on foule un biome rare : son nom, son rang, et ce qu'il fait.
 function ligneBiome() {
+  if (biomeIci === 15 || biomeIci === 16)
+    return `<br><span style="color:#b4c0d0">TERRE DES AUTOMATES · <b>mythique</b> · ${biomeIci === 16 ? 'l\'huile fait glisser' : 'les lasers s\'allument par cycles'}</span>`;
   const R = rareDe(biomeIci); if (!R) return '';
   const e = { 9: 'la boue alourdit le pas', 10: lumiere() > .5 ? 'le soleil essouffle à la course' : 'la roche fraîchit',
     11: 'les spores flottent', 12: 'le mana revient deux fois plus vite', 13: 'la cendre crisse', 14: 'les braises brûlent' }[biomeIci];
@@ -4160,6 +4324,7 @@ const HABITATS_RARES = { brouteur: [9, 11], glaneur: [9, 10, 11], bosseu: [9, 10
   spectre: [11, 12], moissonneur: [12, 13], traceur: [10, 12], sentinelle: [12, 13], mercenaire: [10, 13],
   tireur: [10, 12, 13], mortier: [10, 13], coursier: [10], coursier_o: [9, 10], coursier_r: [13, 14, 10], coursier_a: [12, 11] };
 for (const sp of SPEC) for (const b of HABITATS_RARES[sp.id] || []) if (!sp.bio.includes(b)) sp.bio.push(b);
+for (const sp of SPEC) if (automate(sp)) sp.bio.push(15, 16);   // l'île des automates est à eux, jusqu'aux flaques
 function loadWorld() {
   calcCarteEau();                                    // les chemins de l'eau, pour le bestiaire
   calcFlore();                                       // peuplement de l'île, une fois pour toutes
@@ -4167,6 +4332,7 @@ function loadWorld() {
   dalles.length = 0; FLECHES.length = 0;             // ni les dalles conjurées ni les flèches en vol
   beasts = []; berries = []; TIRS.length = 0;
   placerPortailIle();                                // l'arche d'abord : les sentinelles la gardent
+  poserLasers();                                     // sur l'île des automates, les barrières
   especesIle = tirerBestiaire();                     // ce que la graine met sur cette île
   for (const sp of SPEC) if (sp.biome && RaresIle.includes(sp.biome)) especesIle.add(sp.id);   // et chaque sol rare, son Tellurien
   regleHerbe();
@@ -4368,6 +4534,40 @@ addEventListener('pointerlockchange', () => { if (!camPrise()) { agirQ = false; 
   const end = e => { if (e.pointerId === id) id = null; };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
 }
+// En vue de dessus, on tourne la caméra en glissant sur la vue, au doigt ou à la souris : à
+// l'horizontale l'angle, librement ; à la verticale l'inclinaison, entre rasante et plongée. Le
+// tracé en canvas ne sait trier qu'aux huitièmes de tour : sans carte graphique, on s'y range
+// en lâchant.
+{
+  let id = null, lx = 0, ly = 0;
+  const libre = () => isoGL && G3.ok && !G3.perdu;
+  cv.addEventListener('pointerdown', e => {
+    if (mode === 'fps' || sacOuvert || (e.pointerType === 'mouse' && e.button > 2)) return;
+    id = e.pointerId; lx = e.clientX; ly = e.clientY;
+  });
+  cv.addEventListener('pointermove', e => {
+    if (e.pointerId !== id || mode === 'fps') return;
+    const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
+    angT -= dx * .008; ang = angT;
+    elevT = Math.max(ELEVS[0].a, Math.min(ELEVS[ELEVS.length - 1].a, elevT + dy * .004));
+  });
+  const fin = e => {
+    if (e.pointerId !== id) return;
+    id = null;
+    if (!libre()) angT = Math.round(angT / (Math.PI / 4)) * (Math.PI / 4);
+    let k = 0; ELEVS.forEach((E, i) => { if (Math.abs(E.a - elevT) < Math.abs(ELEVS[k].a - elevT)) k = i; }); elevIdx = k;
+  };
+  cv.addEventListener('pointerup', fin); cv.addEventListener('pointercancel', fin);
+}
+function majBoutonPersp() { const b = document.getElementById('bpe'); if (b) b.setAttribute('aria-pressed', String(perspIso)); }
+majBoutonPersp();
+document.getElementById('bpe').onclick = () => {
+  if (!(G3.ok && !G3.perdu)) { say('la perspective demande la carte graphique', 2.2); return; }
+  perspIso = !perspIso; if (perspIso) isoGL = true;
+  try { localStorage.setItem('stone_valley:persp', perspIso ? '1' : '0'); } catch (e) { /* tant pis : le réglage vaut pour la partie */ }
+  majBoutonPersp();
+  say(perspIso ? 'VUE EN PERSPECTIVE' : 'VUE ISOMÉTRIQUE', 1.4);
+};
 document.getElementById('eu').onclick = () => setElev(elevIdx + 1);
 document.getElementById('ed').onclick = () => setElev(elevIdx - 1);
 document.getElementById('bj').addEventListener('pointerdown', e => { e.preventDefault(); jumpQ = true; });
@@ -4481,7 +4681,8 @@ function update(dt) {
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;                         // les spores du vesseron engourdissent           // la tourbière colle aux pieds, moins aux sabots
-  const ACC = 26, FRIC = 20;
+  const glisse = biomeIci === 16 && P.ground && !M;     // l'huile : on accélère mal, on s'arrête plus mal encore
+  const ACC = glisse ? 7 : 26, FRIC = glisse ? 1.6 : 20;
   // Projeté par un coup, on ne tient plus ses appuis : ni frottement ni commande pendant 0,3 s.
   // Le frottement (20 par seconde, en l'air aussi) mangeait le recul en six images : on reculait
   // de 0,35 case, et le chasseur, encore lancé par son bond, glissait dessous.
@@ -4566,7 +4767,7 @@ function update(dt) {
   if (lacheQ) { lacheQ = false; attaquerUp(); }
   if (actQ) { actQ = false; faireAction(); }
   if (P.arc !== null) P.arc += dt;
-  majFleches(dt); majTirs(dt);
+  majFleches(dt); majTirs(dt); majLasers();
   if (sortQ) { sortQ = false; lancerSort(); }
   if (sifflerQ) { sifflerQ = false; siffler(); }
   // --- l'écosystème vit sa vie, les compagnes avec lui ---
@@ -4744,10 +4945,17 @@ function emitColonne(x, y, view, out) {
 // horizontale tournée vers le bas n'est jamais visible d'une caméra placée au-dessus de
 // l'horizon. C'est vrai en isométrie, et faux dès qu'on marche sous une île en 1re personne :
 // on voyait alors le ciel au travers, et l'île se réduisait à une couronne de flancs.
+// Les îles volantes sont de nuage ; seule la dalle conjurée par l'Ancrage reste de pierre.
+const dalleConjuree = i => dalles.some(d => d.i === i);
+function styleDalle(x, y, zt) {
+  if (!dalleConjuree(y * WS + x)) return { bhi: 17, bf: BIOME[17], dessous: TEX.nuageM, flanc: TEX.nuageM };
+  const bhi = zt > MAXH * .66 ? 6 : 2;
+  return { bhi, bf: BIOME[5], dessous: TEX.roche, flanc: TEX.rocheM };
+}
 function emitDalle(x, y, view, out) {
   const zt = plaT(x, y); if (!zt) return;
   const zb = plaB(x, y);
-  const bhi = zt > MAXH * .66 ? 6 : 2, bh = BIOME[bhi], bf = BIOME[5];
+  const S = styleDalle(x, y, zt), bhi = S.bhi, bh = BIOME[bhi], bf = S.bf;
   const tex = view === VIEW_ISO;
   const dd = Math.hypot(x + .5 - P.x, y + .5 - P.y);
   const om = .62 + .38 * clarte();
@@ -4764,7 +4972,7 @@ function emitDalle(x, y, view, out) {
     const pts = view.poly([[x, y, zb], [x, y + 1, zb], [x + 1, y + 1, zb], [x + 1, y, zb]]);
     if (pts) out.push({ d: view.kTop(x, y, zb), d2: rang - .1, pts,
       col: view.fog(tt(bf.side).map(v => v * shade([0, 0, -1])), view.dist(x + .5, y + .5, zb)),
-      tex: tex ? TEX.roche : null, texA: 1 - brumeF(dd) });
+      tex: tex ? S.dessous : null, texA: 1 - brumeF(dd) });
   }
   for (const [dx, dy] of SIDES) {
     if (plaT(x + dx, y + dy) >= zt && plaB(x + dx, y + dy) <= zb) continue;   // cachée par la voisine
@@ -4777,7 +4985,7 @@ function emitDalle(x, y, view, out) {
     const pts = view.poly(q); if (!pts) continue;
     const dv = view.dist(mx, my, mz);                 // distance à l'œil, pour le brouillard
     out.push({ d: view.kSide(x, y, dx, dy, mx, my, mz), d2: rang, pts,
-      col: view.fog(tt(bf.side).map(v => v * shade(n)), dv), tex: tex ? TEX.rocheM : null,
+      col: view.fog(tt(bf.side).map(v => v * shade(n)), dv), tex: tex ? S.flanc : null,
       bord: tex ? BORD[1 | 2] : null, nv: zt - zb, texA: 1 - brumeF(dd) });
   }
 }
@@ -5465,7 +5673,7 @@ function porterCoup(b, c, deg) {
     if (assomme) return true;
     // ce qu'une compagne abat, elle le rapporte : des os pour le sac
     if (b.comp) {
-      if (automate(c.sp)) { rapporter(b.comp, 'eclat', c.sp.coeur || 1); rapporter(b.comp, 'pierre', 2); }   // son cœur d'éclat
+      if (automate(c.sp)) { rapporter(b.comp, 'eclat', c.sp.coeur || 1); rapporter(b.comp, 'pierre', 2); rapporter(b.comp, 'ferraille', 2); }   // son cœur d'éclat
       else rapporter(b.comp, 'os', 1 + (Math.random() * 2 | 0));
       majSac();
     }
@@ -5688,6 +5896,81 @@ function rayonsVisee() {
   }
   return r;
 }
+// ============================================================
+//  L'ÎLE DES AUTOMATES : LES BARRIÈRES LASER
+//  Deux bornes, trois rayons entre elles, à hauteur de genou, de hanche et d'épaule. Elles
+//  s'allument 2,2 s, s'éteignent 1,8 s ; la dernière demi-seconde, les rayons clignotent, pâles :
+//  c'est le moment de passer, ou de s'arrêter. Allumés, ils brûlent et repoussent tout ce qui
+//  vit — pas le métal. Un double saut passe au-dessus. Les places et les cadences viennent de la
+//  graine, l'horloge est celle du monde : deux joueurs voient les mêmes barrières battre ensemble.
+// ============================================================
+const LASERS = [];
+const LASER_PER = 4, LASER_ON = 2.2, LASER_AVERT = .5, LASER_H = [.3, .75, 1.2], LASER_DEG = .12;
+const horlogeLaser = () => typeof globalThis.__TLASER === 'number' ? globalThis.__TLASER : Date.now() / 1000;
+function etatLaser(l) {
+  const c = ((horlogeLaser() + l.ph) % LASER_PER + LASER_PER) % LASER_PER;
+  return c < LASER_ON ? 'on' : c > LASER_PER - LASER_AVERT ? 'avert' : 'off';
+}
+function poserLasers() {
+  LASERS.length = 0;
+  if (!ileMeca) return;
+  let g = (SEED ^ 0x1a5e7) >>> 0;
+  const tir = () => (g = (Math.imul(g, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const libre = (x, y, h) => hAt(x, y) === h && !eauAt(x, y) && !plaT(x, y) && !vide(x, y);
+  for (let k = 0; k < 8000 && LASERS.length < 36; k++) {
+    const x = 6 + (tir() * (WS - 12)) | 0, y = 6 + (tir() * (WS - 12)) | 0, h = hAt(x, y);
+    const hor = tir() < .5, L = 3 + (tir() * 4 | 0), ph = tir() * LASER_PER;
+    if (h <= SEA || !libre(x, y, h)) continue;
+    const dx = hor ? 1 : 0, dy = hor ? 0 : 1;
+    let bon = true;
+    for (let s = 1; s <= L && bon; s++) if (!libre(x + dx * s, y + dy * s, h)) bon = false;
+    if (!bon) continue;
+    const l = { ax: x + .5, ay: y + .5, bx: x + dx * L + .5, by: y + dy * L + .5, z: h, ph, etat: 'off' };
+    if (LASERS.some(o => Math.hypot(o.ax - l.ax, o.ay - l.ay) < 13)) continue;
+    if (PortailIle && Math.hypot(PortailIle.x - l.ax, PortailIle.y - l.ay) < 8) continue;
+    LASERS.push(l);
+  }
+}
+// Le point du rayon le plus proche, si le corps (rayon r, de z à z + 1,35) en coupe un.
+function coupeLaser(l, x, y, z, r) {
+  const vx = l.bx - l.ax, vy = l.by - l.ay, L2 = vx * vx + vy * vy || 1;
+  const u = Math.max(0, Math.min(1, ((x - l.ax) * vx + (y - l.ay) * vy) / L2));
+  const qx = l.ax + vx * u, qy = l.ay + vy * u;
+  if ((x - qx) ** 2 + (y - qy) ** 2 > r * r) return null;
+  if (!LASER_H.some(hh => l.z + hh > z - .05 && l.z + hh < z + 1.35)) return null;
+  return [qx, qy];
+}
+let laserAvis = -9;
+function majLasers() {
+  if (!LASERS.length) return;
+  for (const l of LASERS) {
+    l.etat = etatLaser(l);
+    if (l.etat !== 'on') continue;
+    const mx = (l.ax + l.bx) / 2, my = (l.ay + l.by) / 2;
+    if ((mx - P.x) ** 2 + (my - P.y) ** 2 < 25 && P.pv > 0 && !sousAbri()) {
+      const q = coupeLaser(l, P.x, P.y, P.z, .3);
+      if (q && porterCoup({ x: q[0] - (l.by - l.ay) * .01, y: q[1] + (l.bx - l.ax) * .01, sp: {} }, P, LASER_DEG)) {
+        burst(P.x, P.y, P.z + .7, 12, '#ff5a3c');
+        if (t - laserAvis > 3) { laserAvis = t; say('le laser brûle', 1.4); }
+      }
+    }
+    for (const o of beasts) {
+      if (o.dead || o.pv <= 0 || automate(o.sp) || (mx - o.x) ** 2 + (my - o.y) ** 2 > 25 || t - (o.laserT || -9) < 1) continue;
+      const q = coupeLaser(l, o.x, o.y, o.z || 0, .2 + .25 * o.sp.sz);
+      if (q) { o.laserT = t; porterCoup({ x: q[0], y: q[1], sp: {} }, o, LASER_DEG * .7); burst(o.x, o.y, o.z + .4, 8, '#ff5a3c'); }
+    }
+  }
+}
+// Les bornes, et leurs trois émetteurs : rouges allumés, ambre en alerte, éteints sinon.
+function laserOs(l, pose) {
+  const col = l.etat === 'on' ? [255, 70, 50] : l.etat === 'avert' ? [255, 170, 60] : [70, 60, 60];
+  for (const [x, y] of [[l.ax, l.ay], [l.bx, l.by]]) {
+    pose([x, y, l.z], [x, y, l.z + 1.45], .24, .24, [58, 60, 68]);
+    for (const hh of LASER_H) pose([x, y, l.z + hh - .05], [x, y, l.z + hh + .05], .3, .3, col);
+  }
+}
+const rayonsLaser = l => l.etat === 'on' || (l.etat === 'avert' && (t * 12 | 0) % 2)
+  ? LASER_H.map(hh => [[l.ax, l.ay, l.z + hh], [l.bx, l.by, l.z + hh]]) : [];
 // Un obus éclate au premier contact : le sol, une dalle, un corps.
 function toucheObus(f, nx, ny, nz) {
   if (nz <= sol(nx, ny)) return true;
@@ -5731,7 +6014,7 @@ function impactTir(f, nx, ny, nz) {
       if (o.pv <= 0) {
         mourirBete(o, 'tir');
         if (sien) {
-          if (automate(o.sp)) { rapporter(sien, 'eclat', o.sp.coeur || 1); rapporter(sien, 'pierre', 2); }
+          if (automate(o.sp)) { rapporter(sien, 'eclat', o.sp.coeur || 1); rapporter(sien, 'pierre', 2); rapporter(sien, 'ferraille', 2); }
           else rapporter(sien, 'os', 1 + (Math.random() * 2 | 0));
           majSac();
         }
@@ -5765,6 +6048,18 @@ function emitTirs(view, out) {
       continue;
     }
     emitLimb([f.x - u[0] * .3, f.y - u[1] * .3, f.z - u[2] * .3], [f.x, f.y, f.z], .07, .07, f.c, view, out, cle, rang);
+  }
+  // les barrières laser : les bornes, puis les rayons en tronçons d'une case
+  for (const l of LASERS) {
+    const cle = cleA(l.ax, l.ay), rang = rangSol(l.z, false);
+    laserOs(l, (A, B, w, h, c) => emitLimb(A, B, w, h, c, view, out, cle, rang, 1));
+    for (const [A0, B0] of rayonsLaser(l)) {
+      const n = Math.max(1, Math.ceil(Math.hypot(B0[0] - A0[0], B0[1] - A0[1])));
+      for (let i = 0; i < n; i++) {
+        const f0 = i / n, f1 = (i + 1) / n, A = [A0[0] + (B0[0] - A0[0]) * f0, A0[1] + (B0[1] - A0[1]) * f0, A0[2]], B = [A0[0] + (B0[0] - A0[0]) * f1, A0[1] + (B0[1] - A0[1]) * f1, A0[2]];
+        emitLimb(A, B, .05, .05, l.etat === 'on' ? [255, 60, 44] : [255, 190, 120], view, out, cleA((A[0] + B[0]) / 2, (A[1] + B[1]) / 2), rang, 1);
+      }
+    }
   }
   // le rayon de visée, en tronçons d'une case : chacun prend sa place dans le décor
   for (const R of rayonsVisee()) {
@@ -5810,11 +6105,14 @@ let especesIle = new Set(), facteurHerbe = 1;
 // des îles permises — pour elles, le filtre ne change rien.
 function tirerBestiaire() {
   if (Array.isArray(globalThis.__BESTIAIRE)) return new Set(globalThis.__BESTIAIRE);   // les bancs choisissent
+  if (typeof ileMeca !== 'undefined' && ileMeca) return new Set(SPEC.filter(sp => sp.fam === 'automate').map(sp => sp.id));   // l'île des automates
   return bestiaireGraine(SEED, typeof profondeur === 'function' ? profondeur() : Infinity);
 }
 // Combien d'automates qui tirent une graine porte : c'est ce que le portail regarde au-delà du huitième saut.
 function tireursGraine(g, niv) { let n = 0; for (const id of bestiaireGraine(g, niv)) if (SPEC.some(sp => sp.id === id && sp.tir)) n++; return n; }
 function bestiaireGraine(graine, niv) {
+  if (typeof ileMecaGraine === 'function' && niv >= NIV_MECA && ileMecaGraine(graine))
+    return new Set(SPEC.filter(sp => sp.fam === 'automate').map(sp => sp.id));   // tous les automates, rien d'autre
   let g = (graine ^ 0xbe57a1) >>> 0;
   const tir = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
   const tirerParmi = liste => {                      // un tirage pondéré, sans remise
@@ -5880,7 +6178,8 @@ function cibleAutomate(b, actif) {
     return null;
   }
   // le mortier n'a pas besoin de vous voir : il sait où vous êtes, et tire par-dessus
-  if (sp.duel) return dJ2 < vue2 && Math.abs(P.z - b.z) < (T.cloche ? 8 : T.visee ? 6 : 4) && !sousAbri() ? P : null;
+  // sur l'île des automates, le traceur n'a plus de gibier : c'est vous qu'il vise
+  if (sp.duel || (ileMeca && sp.chasse)) return dJ2 < vue2 && Math.abs(P.z - b.z) < (T.cloche ? 8 : T.visee ? 6 : 4) && !sousAbri() ? P : null;
   if (sp.garde) {
     // ce qui approche de l'arche : chasseurs et joueur, dans son rayon
     const R2 = 8 * 8;
@@ -7167,7 +7466,7 @@ function majRecolte(b, dt) {
     const m = maturite(tc.i, tc.e);
     const n = Math.max(1, Math.round(tc.e.rend * m * .6 * (b.sp.travail[tc.e.res] || 1)));
     couperPied(tc.i);
-    burst(tc.x, tc.y, solFlore(tc.i % WS, (tc.i / WS) | 0) + tc.e.h * .5, 8, COUL[tc.e.res]);
+    gerbe(tc.x, tc.y, solFlore(tc.i % WS, (tc.i / WS) | 0) + tc.e.h * .5, 8, tc.e, tc.e.teintes ? teinteDruse(tc.i % WS, (tc.i / WS) | 0) : null);
     rapporter(b.comp, tc.e.res, n);                     // au sac, ou au coffre pour le campement
   } else {
     cueillirBaie(tc.br);
@@ -8117,14 +8416,28 @@ TEX.basalte = motif(26, (x, y, h) => { const v = Math.sin(x * .9 + hachCell(y >>
   return Math.abs(v) < .22 ? [-.36] : h > .95 ? [.18] : h < .08 ? [-.12] : null; });
 // Les braises : une croûte sombre déchirée de veines vives.
 TEX.braise = motif(27, (x, y, h) => h < .42 ? [-.34] : (x + y * 3) % 7 === 0 ? [.34] : h > .9 ? [.2] : null);
-//                 eau     rivage  prairie bois    lande   falaise pierre  neige   vide    tourbe  ocre     sylve   cristal  cendre  braises
+// L'île des automates : des tôles rivetées qu'un câble traverse ; l'huile, noire, et ses cernes.
+TEX.plaque = motif(30, (x, y, h) => {
+  if (x % 8 === 0 || y % 8 === 0) return [-.26];                                     // les joints
+  if ((x % 8 === 2 || x % 8 === 6) && (y % 8 === 2 || y % 8 === 6)) return [.30];    // les rivets
+  const c = (y + Math.round(Math.sin(x * .7) * 1.5) + 16) % 16;                      // un câble qui ondule
+  return c === 11 ? [-.36] : c === 12 ? [.12] : h < .08 ? [-.10] : null; });
+TEX.plaqueM = motif(31, (x, y, h) => x % 8 === 0 ? [-.28] : (x % 8 === 3 && y % 5 === 2) ? [.26] : h < .14 ? [-.18] : h > .93 ? [.10] : null);
+TEX.huile = motif(32, (x, y, h) => { const r = (x - 8) ** 2 * .6 + (y - 8) ** 2;
+  return (r > 18 && r < 25) || (r > 48 && r < 56) ? [.36] : h < .2 ? [-.12] : null; });
+// Le nuage : presque rien — un semis de reflets et quelques creux à peine gris, pour que la
+// masse reste blanche et douce au lieu de se lire en pavés ; en flanc, l'ombre monte du dessous.
+TEX.nuage = motif(33, (x, y, h) => h > .9 ? [.18] : h > .78 ? [.08] : h < .05 ? [-.05] : null);
+TEX.nuageM = motif(34, (x, y, h) => y > 12 ? (h < .55 ? [-.10] : null) : h > .86 ? [.12] : h < .04 ? [-.05] : null);
+//                 eau     rivage  prairie bois    lande   falaise pierre  neige   vide    tourbe  ocre     sylve   cristal  cendre  braises  métal  huile  nuage
 const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.touffu, TEX.herbe, TEX.roche, TEX.roche, TEX.neige, TEX.roche,
-  TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise];
+  TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise, TEX.plaque, TEX.huile, TEX.nuage];
 const TEX_COTE = [null, TEX.sableM, TEX.terreM, TEX.terreM, TEX.terreM, TEX.rocheM, TEX.rocheM, TEX.rocheM, TEX.rocheM,
-  TEX.terreM, TEX.strates, TEX.terreM, TEX.facetteM, TEX.rocheM, TEX.rocheM];
+  TEX.terreM, TEX.strates, TEX.terreM, TEX.facetteM, TEX.rocheM, TEX.rocheM, TEX.plaqueM, TEX.plaqueM, TEX.nuageM];
 const TEX_FORME = { conifere:TEX.touffu, feuillu:TEX.touffu, palme:TEX.touffu, buisson:TEX.touffu,
   touffe:TEX.herbe, roseau:TEX.herbe, fleur:TEX.herbe, champi:TEX.sable, rocher:TEX.roche, cristal:TEX.onde,
-  cactus:TEX.facetteM, josue:TEX.touffu, boule:TEX.sable, geant:TEX.sable, mort:TEX.terre, verre:TEX.facette };
+  cactus:TEX.facetteM, josue:TEX.touffu, boule:TEX.sable, geant:TEX.sable, mort:TEX.terre, verre:TEX.facette,
+  pylone:TEX.plaqueM, engrenage:TEX.plaqueM, bobine:TEX.strates, geode:TEX.onde };
 let msDessin = 0, imgSec = 0, facesDern = 0;
 function draw() {
   g.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -8143,7 +8456,8 @@ function draw() {
     drawHud(); return;
   }
   if (glVu) {                                          // isométrie confiée à la carte graphique
-    G3.dessiner(6, true);
+    if (perspIso) { cameraTierce(); G3.dessiner(6, false, FC.D); }   // ou vue de dessus en perspective
+    else G3.dessiner(6, true);
     g.clearRect(0, 0, Wd, Hd);
     drawHud(); return;
   }
@@ -8282,7 +8596,7 @@ let mesures = false;                               // les chiffres du moteur : d
 //  Les cinq cases du bord droit s'utilisent d'un appui : un grimoire lance son sort, le
 //  sifflet siffle, la lanterne s'allume, une arme ou un outil passe en main.
 // ============================================================
-const VERBE_RES = { bois: 'COUPER', pierre: 'TAILLER', eclat: 'DÉTACHER', fibre: 'CUEILLIR' };
+const VERBE_RES = { bois: 'COUPER', pierre: 'TAILLER', eclat: 'DÉTACHER', fibre: 'CUEILLIR', ferraille: 'DÉMONTER' };
 const nourrirQ = () => { nourrir = true; };
 function actionContexte() {
   if (P.rodeo && Rodeo) return { v: 'TENIR', o: 'fougue ' + Math.round(Rodeo.fougue * 100) + ' %', f: () => {} };
@@ -8310,9 +8624,10 @@ function actionContexte() {
   const nd = noeudProche();
   if (nd) {
     const m = maturite(nd.i, nd.sp);
-    if (m < .35) return { v: 'TROP JEUNE', o: nd.sp.n, f: recolter, vide: true };
+    const nom = (teinteNoeud(nd) || nd.sp).n;
+    if (m < .35) return { v: 'TROP JEUNE', o: nom, f: recolter, vide: true };
     if (nd.sp.res === 'eclat' && nivOutil() < 2) return { v: 'PIOCHE', o: 'il en faut une', f: recolter, vide: true };
-    return { v: VERBE_RES[nd.sp.res] || 'RÉCOLTER', o: nd.sp.n, f: recolter };
+    return { v: VERBE_RES[nd.sp.res] || 'RÉCOLTER', o: nom, f: recolter };
   }
   return { v: 'ACTION', o: '', f: () => say('rien à portée', 1), vide: true };
 }
@@ -8658,6 +8973,22 @@ function cameraFPS() {
   FC = { ex: P.x, ey: P.y, ez: P.z + (P.selle || 0) + EYE + Math.sin(P.bob * 2) * .035,
          cy: Math.cos(yaw), sy: Math.sin(yaw), cp: Math.cos(pitch), sp: Math.sin(pitch),
          F: Math.min(Wd, Hd * 1.5) * .82 };
+}
+// L'œil en orbite : il regarde le joueur dans l'axe de la vue de dessus, à l'inclinaison choisie.
+// Une paroi ou une île volante entre les deux le rapproche, pour ne jamais voir un mur à la place.
+function cameraTierce() {
+  const az = Math.atan2(Math.sin(ang) - Math.cos(ang), -(Math.cos(ang) + Math.sin(ang)));
+  const cp = Math.cos(-elev), sp = Math.sin(-elev);
+  const tx = camX, ty = camY, tz = camZ + .9;
+  const dx = Math.cos(az) * cp, dy = Math.sin(az) * cp, dz = sp;
+  let D = TIERCE_D;
+  for (let s2 = 1.5; s2 <= TIERCE_D; s2 += .4) {
+    const x = tx - dx * s2, y = ty - dy * s2, z = tz - dz * s2, i = x | 0, j = y | 0;
+    const pt = plaT(i, j), pb = plaB(i, j);
+    if (hAt(i, j) > z - .45 || (pt && z > pb - .45 && z < pt + .45)) { D = Math.max(2.2, s2 - .6); break; }
+  }
+  FC = { ex: tx - dx * D, ey: ty - dy * D, ez: tz - dz * D, cy: Math.cos(az), sy: Math.sin(az), cp, sp,
+         F: Math.min(Wd, Hd * 1.5) * .82, D };
 }
 // La boîte [x0,x1]×[y0,y1]×[z0,z1] a-t-elle une chance d'être vue ? On prend son coin le plus
 // favorable face à chaque plan : le plan proche, puis les quatre bords du cadre. `marge`
@@ -9121,13 +9452,16 @@ void main() { o = uC; }`;
     }
     const zt = plaT(x, y); if (!zt) return;
     const zb = plaB(x, y);
-    const bhi = zt > MAXH * .66 ? 6 : 2, bh = BIOME[bhi], bf = BIOME[5];
+    const S = styleDalle(x, y, zt), bhi = S.bhi, bh = BIOME[bhi], bf = S.bf;
+    // l'ombre du relief se calcule depuis le sol de la case : sous un nuage, elle l'assombrissait
+    // lui-même. Un nuage est au-dessus de tout : il prend le jour en plein.
+    const hd = bhi === 17 ? 0 : hor;
     const md = (plaT(x, y - 1) !== zt ? 1 : 0) | (plaT(x, y + 1) !== zt ? 2 : 0)
              | (plaT(x - 1, y) !== zt ? 4 : 0) | (plaT(x + 1, y) !== zt ? 8 : 0);
     quad(T, [x, y, zt], [x + 1, y, zt], [x + 1, y + 1, zt], [x, y + 1, zt], HAUT, bh.top, 1,
-      K(tuile(TEX_HAUT[bhi]), tuile(BORD[md]), 0), L_DALLE + hor, 0, 0, 0);
+      K(tuile(TEX_HAUT[bhi]), tuile(BORD[md]), 0), L_DALLE + hd, 0, 0, 0);
     quad(T, [x, y, zb], [x, y + 1, zb], [x + 1, y + 1, zb], [x + 1, y, zb], BAS, mulc(bf.side, shade(BAS)), 1,
-      K(tuile(TEX.roche), 0, 0), L_DALLE + hor, 0, 0, 0);
+      K(tuile(S.dessous), 0, 0), L_DALLE + hd, 0, 0, 0);
     for (const [dx, dy] of SIDES) {
       if (plaT(x + dx, y + dy) >= zt && plaB(x + dx, y + dy) <= zb) continue;
       const n = [dx, dy, 0];
@@ -9135,7 +9469,7 @@ void main() { o = uC; }`;
       if (dx !== 0) { const px = x + (dx > 0 ? 1 : 0); q = [[px, y, zb], [px, y + 1, zb], [px, y + 1, zt], [px, y, zt]]; }
       else { const py = y + (dy > 0 ? 1 : 0); q = [[x, py, zb], [x + 1, py, zb], [x + 1, py, zt], [x, py, zt]]; }
       quad(T, ...q, n, mulc(bf.side, shade(n)), zt - zb,
-        K(tuile(TEX.rocheM), tuile(BORD[1 | 2]), 0), L_DALLE + 8 * (zt - zb) + hor, 0, 0, 0);
+        K(tuile(S.flanc), tuile(BORD[1 | 2]), 0), L_DALLE + 8 * (zt - zb) + hd, 0, 0, 0);
     }
   }
   // Une boîte le long d'un os : les mêmes coins et le même ordre de faces que emitLimb, donc
@@ -9460,7 +9794,7 @@ void main() { o = uC; }`;
   const FAR = 520;
   let distVue = 64;
   const stats = { troncons: 0, triangles: 0, construits: 0, msConstr: 0 };
-  function dessiner(budgetMs, iso) {
+  function dessiner(budgetMs, iso, tierce) {
     const W = Math.round(Wd * dpr), H = Math.round(Hd * dpr);
     if (cv3.width !== W || cv3.height !== H) { cv3.width = W; cv3.height = H; }
     gl.viewport(0, 0, W, H);
@@ -9500,8 +9834,9 @@ void main() { o = uC; }`;
     const noir = [NOIR[0] / 255, NOIR[1] / 255, NOIR[2] / 255, noirceur() * NOIR_MAX];
     FEUX_GL.fill(0);
     feux.forEach((f, i) => FEUX_GL.set([f[0], f[1], f[2], f[3]], i * 4));
-    distVue = iso ? BRU1 : 10 + 54 * met('brume');
-    const brume = iso ? [BRU0, BRU1, textures ? 1 : 0] : [10, distVue, textures ? 1 : 0];
+    // en orbite, la brume se compte depuis le joueur, pas depuis l'œil posé loin derrière lui
+    distVue = iso ? BRU1 : (tierce || 0) + Math.max(tierce ? 30 : 0, 10 + 54 * met('brume'));
+    const brume = iso ? [BRU0, BRU1, textures ? 1 : 0] : [10 + (tierce || 0), distVue, textures ? 1 : 0];
     const coupe = 1e18;
 
     // le ciel, sans profondeur
@@ -9629,13 +9964,13 @@ void main() { o = uC; }`;
       if (m >= .06) plante(TD, x, y, m);
     }
     const r2 = Math.min(portee2, 40 * 40);
-    if (iso) heros(TD);
+    if (iso || tierce) heros(TD);
     for (const b of beasts) {
       if ((b.x - ex) ** 2 + (b.y - ey) ** 2 >= r2) continue;
       const kz = b.sp ? b.sp.sz : 1, e = 1.3 * kz + .3;
       if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + 1.8 * kz + .4, .05)) continue;
       const { U, put } = posBete(b);
-      if (iso) ombre(b.x, b.y, b.z, kz, U[2] * U[2]);   // pendue à une paroi, elle n'a pas d'ombre au sol
+      if (iso || tierce) ombre(b.x, b.y, b.z, kz, U[2] * U[2]);   // pendue à une paroi, elle n'a pas d'ombre au sol
       const flash = b.hit > 0 && (t * 16 | 0) % 2;
       const hb = L_FIXE + 256 * horizAt(b.x, b.y);
       if (b.tame) {                                   // le lien se voit : un anneau rouge qui bat
@@ -9647,13 +9982,13 @@ void main() { o = uC; }`;
     for (const b of betesLoin) {
       const kz = b.sp.sz, { U, put } = posBete(b);
       if (!iso && !boiteVue(b.x - 2, b.x + 2, b.y - 2, b.y + 2, b.z - .4, b.z + 2.2, .05)) continue;
-      if (iso) ombre(b.x, b.y, b.z, kz, U[2] * U[2]);
+      if (iso || tierce) ombre(b.x, b.y, b.z, kz, U[2] * U[2]);
       const hb = L_FIXE + 256 * horizAt(b.x, b.y), fl = b.hit > 0 && (t * 16 | 0) % 2;
       for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, 0, 0, hb, 0, 0, 0, U);
     }
     for (const j of Autres.values()) {
       if (!iso && !boiteVue(j.x - 1, j.x + 1, j.y - 1, j.y + 1, j.z - .4, j.z + 2, .05)) continue;
-      if (iso) ombre(j.x, j.y, j.z, 1);
+      if (iso || tierce) ombre(j.x, j.y, j.z, 1);
       heros(TD, j);
     }
     if (PortailIle && (PortailIle.x - ex) ** 2 + (PortailIle.y - ey) ** 2 < 110 * 110) {
@@ -9673,6 +10008,8 @@ void main() { o = uC; }`;
       if (f.obus) { boite(TD, [f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], 0, 0, L_FIXE, 0, 0, 0); continue; }
       boite(TD, [f.x - u[0] * .3, f.y - u[1] * .3, f.z - u[2] * .3], [f.x, f.y, f.z], .07, .07, f.c, 0, 0, L_FIXE, 0, 0, 0);
     }
+    for (const l of LASERS) if ((l.ax - ex) ** 2 + (l.ay - ey) ** 2 < r2)
+      laserOs(l, (A, B, w, h, c) => boite(TD, A, B, w, h, c, 0, 0, L_FIXE, 0, 0, 0));
     for (const f of FLECHES) {
       let v = f.dir;
       if (!f.plantee) { const n = Math.hypot(f.vx, f.vy, f.vz) || 1; v = [f.vx / n, f.vy / n, f.vz / n]; }
@@ -9694,7 +10031,7 @@ void main() { o = uC; }`;
     // transparences : baies, éclats, puis précipitations — cachées par le relief, sans l'écrire
     gl.disable(gl.CULL_FACE); gl.depthMask(false);
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-    if (iso) ombre(P.x, P.y, P.z, 1);
+    if (iso || tierce) ombre(P.x, P.y, P.z, 1);
     for (const br of berries) if (br.pris <= t && (br.x - ex) ** 2 + (br.y - ey) ** 2 < r2) {
       const z = br.z + .38 + Math.sin(t * 2 + br.x) * .06;
       panneau(br.x, br.y, z, .2 * 2.6, .2 * 2.6, 224 / 255, 88 / 255, 126 / 255, 1, 1);
@@ -9750,11 +10087,7 @@ void main() { o = uC; }`;
     }
     // les rayons de visée : un trait rouge, d'épaisseur fixe à l'écran ; au dernier quart, il
     // s'épaissit et clignote — c'est le moment de bouger
-    for (const R of rayons) {
-      // en 1re personne, le trait qui vous vise s'arrête avant l'œil : un bout derrière lui l'effacerait tout entier
-      let q = R.b;
-      if (!iso && R.c === P) { const d = Math.hypot(q[0] - R.a[0], q[1] - R.a[1], q[2] - R.a[2]) || 1, f = Math.max(0, 1 - 1.2 / d);
-        q = [R.a[0] + (q[0] - R.a[0]) * f, R.a[1] + (q[1] - R.a[1]) * f, R.a[2] + (q[2] - R.a[2]) * f]; }
+    const traitSeul = (a, q, larg, cr, cg, cb, ca) => {
       if (TRAITS.f.length < 32) {
         TRAITS.f = new Float32Array(64); TRAITS.i = new Uint32Array([0, 1, 2, 1, 3, 2, 4, 5, 6, 5, 7, 6]);
         gl.bindVertexArray(TRAITS.va);
@@ -9762,19 +10095,28 @@ void main() { o = uC; }`;
       }
       const F = TRAITS.f; let j = 0;
       for (const [s2, e] of [[-1, 0], [1, 0], [-1, 1], [1, 1]]) {
-        F[j] = R.a[0]; F[j + 1] = R.a[1]; F[j + 2] = R.a[2]; F[j + 3] = q[0]; F[j + 4] = q[1]; F[j + 5] = q[2]; F[j + 6] = s2; F[j + 7] = e;
+        F[j] = a[0]; F[j + 1] = a[1]; F[j + 2] = a[2]; F[j + 3] = q[0]; F[j + 4] = q[1]; F[j + 5] = q[2]; F[j + 6] = s2; F[j + 7] = e;
         j += 8;
       }
-      const clic = R.imminent && (t * 14 | 0) % 2;
       gl.useProgram(P_TRAIT.p);
       gl.uniformMatrix4fv(P_TRAIT.u.uM, false, M);
       gl.uniform2f(P_TRAIT.u.uPx, 2 / Wd, 2 / Hd);
-      gl.uniform1f(P_TRAIT.u.uLarg, R.imminent ? 3.2 : 1.6);
-      gl.uniform4f(P_TRAIT.u.uC, 1, clic ? .9 : .16, clic ? .8 : .12, R.imminent ? .95 : .6);
+      gl.uniform1f(P_TRAIT.u.uLarg, larg);
+      gl.uniform4f(P_TRAIT.u.uC, cr, cg, cb, ca);
       gl.bindVertexArray(TRAITS.va);
       gl.bindBuffer(gl.ARRAY_BUFFER, TRAITS.vb); gl.bufferData(gl.ARRAY_BUFFER, F.subarray(0, j), gl.STREAM_DRAW);
       gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_INT, 0);
+    };
+    for (const R of rayons) {
+      // en 1re personne, le trait qui vous vise s'arrête avant l'œil : un bout derrière lui l'effacerait tout entier
+      let q = R.b;
+      if (!iso && !tierce && R.c === P) { const d = Math.hypot(q[0] - R.a[0], q[1] - R.a[1], q[2] - R.a[2]) || 1, f = Math.max(0, 1 - 1.2 / d);
+        q = [R.a[0] + (q[0] - R.a[0]) * f, R.a[1] + (q[1] - R.a[1]) * f, R.a[2] + (q[2] - R.a[2]) * f]; }
+      const clic = R.imminent && (t * 14 | 0) % 2;
+      traitSeul(R.a, q, R.imminent ? 3.2 : 1.6, 1, clic ? .9 : .16, clic ? .8 : .12, R.imminent ? .95 : .6);
     }
+    for (const l of LASERS) if ((l.ax - ex) ** 2 + (l.ay - ey) ** 2 < r2)
+      for (const [A, B] of rayonsLaser(l)) l.etat === 'on' ? traitSeul(A, B, 2.4, 1, .2, .14, .9) : traitSeul(A, B, 1, 1, .72, .45, .4);
     gl.disable(gl.BLEND); gl.depthMask(true);
     gl.bindVertexArray(null);
     facesDern = stats.triangles;
@@ -9973,7 +10315,7 @@ function appliquer(d, vivantes) {
   const gd = d.guide && typeof d.guide === 'object' ? d.guide : {};
   P.guide = { e: Math.max(0, Math.min(GUIDE.length, gd.e | 0)), masque: !!gd.masque, parti: !!gd.parti, vu: !!gd.vu || !!d.guide };
   // l'atlas : des biomes rares connus, une fois chacun
-  P.biomes = [...new Set((Array.isArray(d.biomes) ? d.biomes : []).filter(b => RARES.some(r => r.b === b)))];
+  P.biomes = [...new Set((Array.isArray(d.biomes) ? d.biomes : []).filter(b => RARES.some(r => r.b === b) || b === 15))];
   P.variantes = (Array.isArray(d.variantes) ? d.variantes : []).filter(e => Array.isArray(e) && typeof e[0] === 'string'
     && specById[e[0].split(':')[0]] && varianteSure(e[0].split(':')[1])).slice(0, 200).map(e => [e[0], nb(e[1], 1, 1e6, 1) | 0]);
   P.fleches = nb(d.fleches, 0, 1e5, 0) | 0;
@@ -10565,7 +10907,7 @@ globalThis.__V2 = { get beasts(){return beasts}, get berries(){return berries}, 
   CarteEau, distEau, versLEau, calcCarteEau, EAU_LOIN, auBordDeLEau, Eau, eauAt, hRendu, calcEaux };
 globalThis.__ISO = { P, proj, depth, hAt, blockH, floorUnder, blockedAt, camPrise, get yaw(){return yaw}, get crates(){return crates},
   get total(){return total}, get t(){return t}, get won(){return won}, update, loadWorld, GW, GH, VIEW_ISO, VIEW_FPS, setJump(){jumpQ=true},
-  set ang(v){ang=angT=v}, get ang(){return ang}, set elev(v){elev=elevT=v;setProjection()}, get elev(){return elev}, ELEVS, setElev, setMode, look, foeBones, emitFoe, initFoeLegs, updateFoeLegs, VIEW_ISO, VIEW_FPS, get mode(){return mode}, get yaw(){return yaw}, set yaw(v){yaw=v}, get pitch(){return pitch}, set pitch(v){pitch=v}, drawFPS, K, setJump(){jumpQ=true},
+  set ang(v){ang=angT=v}, get ang(){return ang}, get perspIso(){return perspIso}, set perspIso(v){perspIso=v}, cameraTierce, set elev(v){elev=elevT=v;setProjection()}, get elev(){return elev}, ELEVS, setElev, setMode, look, foeBones, emitFoe, initFoeLegs, updateFoeLegs, VIEW_ISO, VIEW_FPS, get mode(){return mode}, get yaw(){return yaw}, set yaw(v){yaw=v}, get pitch(){return pitch}, set pitch(v){pitch=v}, drawFPS, K, setJump(){jumpQ=true},
   G3, boiteVue, cameraFPS, get isoGL(){return isoGL}, set isoGL(v){isoGL=v},
   proj, TW, ZH, get TH(){return TH}, get TZ(){return TZ}, get camX(){return camX}, get camY(){return camY}, get camZ(){return camZ}, masqueHaut, masqueBiome, masqueFlanc, formeFlore, get FC(){return FC}, signalDecor, Flo, get textures(){return textures}, set textures(v){textures=v},
   Sauve, SUPA, SEED, graineSauvee, photo, appliquer, signature, synchroniser, envoyer, adopter,
@@ -10603,6 +10945,9 @@ globalThis.__BETA = { GUIDE, majGuide, ligneGuide, contexteJeu, ouvrirRetour, fe
   supprimerCompte, TEXTE_DONNEES, lireCopie, get incidentsEnvoyes(){return incidentsEnvoyes}, set incidentsEnvoyes(v){incidentsEnvoyes=v},
   set incidentT(v){incidentT=v}, rattraper: (e, ou) => rattraper(e, ou) };
 globalThis.__RESERVE = { reserveCommune, dispo, puiser, payer, payable, ameliorerCamp, nourrirCompagne };
+globalThis.__ILEMECA = { LASERS, etatLaser, coupeLaser, majLasers, poserLasers, ileMecaGraine, NIV_MECA, LASER_PER, LASER_ON, LASER_H,
+  get ileMeca() { return ileMeca; }, get biomeIci() { return biomeIci; }, rayonsLaser, laserOs };
+globalThis.__DRUSES = { teinteDruse, TEINTES_DRUSE, teinteNoeud, gerbe };
 globalThis.__VARIANTES = { tirerVariante, lireVariante, varianteSure, nomVariante, nomEspeceDe, varier, osDeBase, chanceVariante,
   noterVariante, guetterVariantes, blocCarnet, P_ROBE, P_FORME, ROBES, TAILLES, ORNEMENTS_DE, familleBete, photo, appliquer };
 globalThis.__TELLURIENS = { piedsPoses, initPiedsTellurien, genou, PATTES_T, betesRaresGraine, osTellurien, pasTellurien, instinctTellurien, nuageSpores, braiseProche, tellurien, FOULEE, habitantDe, dessinTellurien };
