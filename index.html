@@ -1576,23 +1576,194 @@ function noeudProche() {
   }
   return best;
 }
+// ============================================================
+//  LA RÉCOLTE, COUP PAR COUP
+//  Un pied ne se prend plus d'un geste : un arbre demande quatre coups, une pierre ou une druse
+//  trois, un buisson deux, une herbe un seul. Chaque coup rend sa part — un ou plusieurs — et le
+//  dernier abat le pied. Le geste suit la matière : la cognée en diagonale pour le bois, la
+//  pioche par-dessus la tête pour la pierre, les éclats et la ferraille, la cueillette accroupie
+//  pour la fibre. Ce qu'on rapporte vient au coup, pas au début du geste ; le pied tremble et
+//  rapetisse d'un coup à l'autre. ACTION tenue enchaîne les coups ; se remettre en marche les
+//  interrompt. Un pied entamé qu'on laisse une demi-minute se referme.
+// ============================================================
+const ENTAME = new Map();                             // case → { reste, coups, total, choc }
+const COUPS_FORME = { conifere: 4, feuillu: 4, palme: 4, mort: 4, verre: 4, geant: 4, josue: 4, cactus: 3, pylone: 4,
+  rocher: 3, cristal: 3, geode: 3, engrenage: 3, bobine: 2, buisson: 2, roseau: 2, champi: 1, boule: 1, touffe: 1, fleur: 1 };
+const gesteDe = sp => sp.res === 'bois' ? 'hache' : sp.res === 'fibre' || sp.res === 'baies' ? 'cueille' : 'pioche';
 function recolter() {
-  if (P.recolte > 0) return;
+  if (P.recolte > 0 || P.anim) return;
   const nd = noeudProche();
   if (!nd) { say('rien à récolter à portée', 1.2); return; }
   const m = maturite(nd.i, nd.sp);
   if (m < .35) { say(nd.sp.n + ' · encore trop jeune (' + Math.round(m * 100) + ' %)', 1.6); return; }
   if (nd.sp.res === 'eclat' && nivOutil() < 2) { say('une pioche détacherait ces éclats', 1.8); return; }
   if (nd.sp.res === 'ferraille' && nivOutil() < 2) { say('une pioche démonterait cette ferraille', 1.8); return; }
-  const mult = nd.sp.res === 'eclat' ? rendement() * .6 : rendement();
-  const tn = teinteNoeud(nd);                          // une druse lavande ou dorée rend davantage
-  const n = Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0);
-  P.sac[nd.sp.res] += n; P.recolte = .45;
-  couperPied(nd.i);                                    // coupé : il repartira de zéro, ici et en face
-  gerbe(nd.x + .5, nd.y + .5, nd.z + nd.sp.h * .5, 9, nd.sp, tn);
-  say('+' + n + ' ' + RES[nd.sp.res] + (tn && tn.bonus ? ' · ' + tn.n.toLowerCase() : '') + ' · ' + P.sac[nd.sp.res], 1.4);
+  const G = GESTES[gesteDe(nd.sp)];
+  P.face = P.faceS = Math.atan2(nd.y + .5 - P.y, nd.x + .5 - P.x);   // face au pied
+  P.vx = P.vy = 0;
+  P.anim = { g: gesteDe(nd.sp), t0: t, dur: G.dur, coup: G.coup, nd, fait: false, w0: poidsGeste() };
+  P.recolte = G.dur * .9;
+}
+// Le coup porte : la part de ce coup, le tremblement, les copeaux qui volent vers le sac.
+function coupRecolte(nd) {
+  const m = maturite(nd.i, nd.sp);
+  if (!Flo[nd.i] || m < .35) return;                   // abattu entre-temps (en face, ou par une compagne)
+  let e = ENTAME.get(nd.i);
+  if (!e) {
+    const mult = nd.sp.res === 'eclat' ? rendement() * .6 : rendement();
+    const tn = teinteNoeud(nd);                        // une druse lavande ou dorée rend davantage
+    const n = Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0);
+    // un outil de haut rang abat plus vite : un coup de moins à partir de la serpe
+    const c = Math.max(1, Math.min(n, (COUPS_FORME[nd.sp.forme] || 2) - (nivOutil() >= 3 ? 1 : 0)));
+    e = { reste: n, coups: c, total: c, choc: 0, tn };
+    ENTAME.set(nd.i, e); signalDecor('flore', nd.i);   // il quitte le décor figé : il va trembler
+  }
+  const part = Math.ceil(e.reste / e.coups);
+  e.reste -= part; e.coups--; e.choc = t; e.t = t;
+  P.sac[nd.sp.res] += part;
+  const cx = nd.x + .5, cy = nd.y + .5, cz = nd.z + nd.sp.h * .45;
+  gerbe(cx, cy, cz, e.coups ? 6 : 12, nd.sp, e.tn);
+  // les copeaux : ils partent en cloche du pied vers vous
+  const col = e.tn ? e.tn.css : COUL[nd.sp.res];
+  for (let k = 0; k < 3 + part * 2; k++) {
+    const vol = .45 + Math.random() * .15, dx = P.x - cx, dy = P.y - cy;
+    parts.push({ x: cx, y: cy, z: cz, vx: dx / vol + (Math.random() - .5), vy: dy / vol + (Math.random() - .5),
+      vz: (P.z + .8 - cz) / vol + 9 * vol * .5, life: vol, age: 0, col, tl: .09 });
+  }
+  if (!e.coups) {
+    ENTAME.delete(nd.i);
+    couperPied(nd.i);                                  // abattu : il repartira de zéro, ici et en face
+    burst(cx, cy, nd.z + .2, 10, '#b8a88a');
+  }
+  say('+' + part + ' ' + RES[nd.sp.res] + (e.tn && e.tn.bonus ? ' · ' + e.tn.n.toLowerCase() : '') + ' · ' + P.sac[nd.sp.res]
+    + (e.coups ? ' · encore ' + e.coups + ' coup' + (e.coups > 1 ? 's' : '') : ''), 1.4);
   majSac();
 }
+// Chaque image : le geste avance ; au bon instant le coup porte ; au bout, ACTION tenue relance.
+// L'arrêt au contact : l'outil mord et le geste se fige un court instant avant de repartir.
+const ARRET = .07;
+function xGeste(A) {
+  const p = (t - A.t0) / A.dur, h = ARRET / A.dur;
+  return p < A.coup ? p : p < A.coup + h ? A.coup : Math.min(1, p - h);
+}
+function majGeste() {
+  for (const [i, e] of ENTAME) if (t - e.t > 30) { ENTAME.delete(i); signalDecor('flore', i); }   // laissé : il se referme
+  const A = P.anim; if (!A) return;
+  const p = (t - A.t0) / A.dur;
+  if (!A.fait && p >= A.coup) { A.fait = true; coupRecolte(A.nd); }
+  if (p >= 1 + ARRET / A.dur) {
+    P.anim = null;
+    if ((actTenu || K.KeyC) && ENTAME.has(A.nd.i)) { P.recolte = 0; recolter(); }
+  }
+}
+// Le pied entamé tremble au coup (une oscillation qui s'amortit, dans le sens du coup) et
+// rapetisse d'un coup à l'autre.
+function secousse(i) {
+  const e = ENTAME.get(i); if (!e) return null;
+  const dt2 = t - e.choc, x = i % WS, y = (i / WS) | 0;
+  const a = dt2 < 1.2 ? Math.exp(-dt2 * 6) * Math.sin(dt2 * 38) * .09 : 0;
+  const d = Math.atan2(y + .5 - P.y, x + .5 - P.x);
+  return { dx: Math.cos(d) * a, dy: Math.sin(d) * a, k: .8 + .2 * (e.coups / e.total) };
+}
+
+// ---------- le geste, en volumes ----------
+// Des images-clés, et entre elles des courbes : l'élan lent, la frappe qui accélère, le rebond,
+// le retour. Chaque clé dit où est la main qui tient (g), vers où pointe l'outil (u), combien le
+// buste penche (l) et tourne (w), combien on plie les genoux (s), où se pose l'autre main (m2) et
+// de combien le pied gauche s'avance (p). Le corps se résout ensuite en cinématique inverse.
+const easeIO = x => x < .5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2;
+const easeI = x => x * x * x, easeO = x => 1 - (1 - x) ** 3;
+const REPOS = { g: [.13, -.07, .29], u: [.35, 0, -.94], l: 0, w: 0, s: 0, m2: null, p: 0 };
+const GESTES = {
+  pioche: { dur: .66, coup: .52, cles: [
+    [0, null, REPOS],
+    [.40, easeIO, { g: [-.03, -.02, .80], u: [-.5, 0, .87], l: -.15, w: .08, s: 0, m2: null, p: .06 }],
+    [.52, easeI, { g: [.27, 0, .26], u: [.62, 0, -.78], l: .42, w: -.04, s: .07, m2: null, p: .08 }],
+    [.62, easeO, { g: [.25, 0, .33], u: [.8, 0, -.6], l: .34, w: -.03, s: .05, m2: null, p: .08 }],
+    [1, easeIO, REPOS]] },
+  hache: { dur: .62, coup: .5, cles: [
+    [0, null, REPOS],
+    [.38, easeIO, { g: [-.04, -.17, .62], u: [-.45, -.42, .79], l: -.06, w: .52, s: .015, m2: null, p: .06 }],
+    [.50, easeI, { g: [.23, -.02, .36], u: [.93, .28, -.14], l: .2, w: -.18, s: .06, m2: null, p: .09 }],   // le fer entre dans le tronc, droit devant
+    [.60, easeO, { g: [.24, .05, .37], u: [.72, .67, -.12], l: .16, w: -.32, s: .05, m2: null, p: .09 }],  // et l'élan l'emporte à gauche
+    [1, easeIO, REPOS]] },
+  cueille: { dur: .56, coup: .5, cles: [
+    [0, null, REPOS],
+    [.36, easeIO, { g: [.33, -.06, .07], u: [.5, 0, -.86], l: .52, w: .1, s: .13, m2: [.14, .11, .2], p: .1 }],
+    [.50, easeI, { g: [.35, -.05, .03], u: [.5, 0, -.86], l: .56, w: .1, s: .15, m2: [.14, .11, .19], p: .1 }],
+    [.74, easeO, { g: [.16, -.11, .45], u: [.2, -.2, .95], l: .14, w: .05, s: .04, m2: [.12, .12, .26], p: .05 }],
+    [1, easeIO, REPOS]] },
+};
+const mixv = (a, b, f) => [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+function poseGeste(nom, x) {
+  const C = GESTES[nom].cles;
+  let k = 1; while (k < C.length - 1 && x > C[k][0]) k++;
+  const [t0, , A] = C[k - 1], [t1, ease, B] = C[k];
+  const f = ease(Math.max(0, Math.min(1, (x - t0) / (t1 - t0))));
+  const mix = (a, b) => a + (b - a) * f;
+  const m2a = A.m2 || [.13, .12, .29], m2b = B.m2 || [.13, .12, .29];
+  return { g: mixv(A.g, B.g, f), u: v3.norm(mixv(A.u, B.u, f)), l: mix(A.l, B.l), w: mix(A.w, B.w), s: mix(A.s, B.s),
+    m2: A.m2 || B.m2 ? mixv(m2a, m2b, f) : null, p: mix(A.p, B.p) };
+}
+// Deux segments, une cible : où plier le coude (ou le genou) pour que la main (le pied) y arrive.
+function ik2(S, T, a, b, pole) {
+  const d0 = v3.sub(T, S), L = Math.min(v3.len(d0), (a + b) * .999) || 1e-4, u = v3.mul(d0, 1 / (v3.len(d0) || 1));
+  const ca = Math.max(-1, Math.min(1, (a * a + L * L - b * b) / (2 * a * L))), sa = Math.sqrt(1 - ca * ca);
+  let n = v3.sub(pole, v3.mul(u, pole[0] * u[0] + pole[1] * u[1] + pole[2] * u[2]));
+  n = v3.norm(v3.len(n) > 1e-4 ? n : [0, 0, -1]);
+  return { j: v3.add(S, v3.add(v3.mul(u, a * ca), v3.mul(n, a * sa))), e: v3.add(S, v3.mul(u, L)) };
+}
+// L'outil en main, selon ce qu'on porte : la pioche, la serpe, la foreuse, le couteau — ou rien.
+function osOutil(g, u, B, geste) {
+  const id = P.equip.outil, pose = (a, b, w, h, c) => B.push({ a, b, w, h, c });
+  const at = k => v3.add(g, v3.mul(u, k));
+  let v = v3.cross(u, [0, 1, 0]); if (v3.len(v) < .2) v = v3.cross(u, [1, 0, 0]); v = v3.norm(v);
+  if (v[2] < 0) v = v3.mul(v, -1);                        // la tête de l'outil, du côté du ciel au repos
+  if (id === 'pioche') {
+    pose(at(-.03), at(.34), .028, .028, [138, 90, 51]);
+    const T = at(.33);
+    pose(v3.add(T, v3.mul(v, -.11)), v3.add(T, v3.mul(v, .09)), .045, .04, [150, 152, 162]);
+    pose(v3.add(T, v3.mul(v, -.11)), v3.add(T, v3.mul(v, -.15)), .025, .025, [110, 112, 124]);   // la pointe
+  } else if (id === 'serpe') {
+    pose(at(-.02), at(.15), .028, .028, [138, 90, 51]);
+    const T = at(.15), c = [120, 220, 232];
+    pose(T, v3.add(at(.23), v3.mul(v, .05)), .03, .012, c);
+    pose(v3.add(at(.23), v3.mul(v, .05)), v3.add(at(.2), v3.mul(v, .11)), .026, .012, c);
+  } else if (id === 'foreuse') {
+    pose(at(-.03), at(.18), .06, .06, [92, 96, 108]);
+    pose(at(.18), at(.33), .022, .022, [188, 190, 200]);
+    const r = t * 32;                                     // le foret tourne
+    for (let k = 0; k < 3; k++) { const q = at(.2 + k * .045), o = v3.mul(v3.add(v3.mul(v, Math.cos(r + k * 2.1)), v3.mul(v3.norm(v3.cross(u, v)), Math.sin(r + k * 2.1))), .025);
+      pose(v3.add(q, o), v3.add(at(.22 + k * .045), v3.mul(o, -1)), .012, .012, [150, 152, 162]); }
+  } else if (id === 'couteau') {
+    pose(at(-.01), at(.05), .026, .026, [122, 82, 54]);
+    pose(at(.05), at(.15), .03, .012, [226, 218, 196]);
+  } else if (!id && geste !== 'cueille') {               // à mains nues : un galet taillé, serré à deux mains
+    pose(at(-.02), at(.08), .06, .05, [128, 124, 116]);
+    pose(at(.06), at(.11), .04, .035, [150, 146, 138]);
+  }
+}
+// Le geste se fond dans l'allure : il s'y mêle au départ (on empoigne), et s'en retire après
+// le dernier coup ou quand on se remet en marche (on range), au lieu d'y sauter d'une image.
+const MELE = .22, RANGE = .22;
+function gestePose() {
+  const A = P.anim;
+  if (A) {
+    const x = xGeste(A);
+    P.dernierGeste = { pose: poseGeste(A.g, x), g: A.g, w: A.w0 + (1 - A.w0) * lisse01(x / MELE), t };
+    return P.dernierGeste;
+  }
+  const D = P.dernierGeste; if (!D) return null;
+  if (!D.fin) { if (t - D.t > .1) { P.dernierGeste = null; return null; } D.fin = t; }
+  const d = (t - D.fin) / RANGE; if (d >= 1) { P.dernierGeste = null; return null; }
+  return { pose: D.pose, g: D.g, w: D.w * (1 - lisse01(d)) };
+}
+function poidsGeste() {                                  // où en est le mélange, pour qu'un coup enchaîné reparte de là
+  const D = P.dernierGeste; if (!D) return 0;
+  if (!D.fin) return t - D.t > .1 ? 0 : D.w;
+  return D.w * (1 - lisse01((t - D.fin) / RANGE));
+}
+
 // Onze silhouettes, partagées par les vingt et une espèces. C'est la forme qui porte la
 // diversité : vingt variantes du même arbre se verraient tout de suite. La taille suit la
 // maturité, si bien qu'on lit d'un coup d'œil ce qui est prêt et ce qui vient d'être coupé.
@@ -1605,7 +1776,8 @@ function emitFlore(view, out, cols) {
     const sp = ESP[k - 1], i = y * WS + x, m = maturite(i, sp);
     if (m < .06) continue;
     const cx = x + .5, cy = y + .5, z = solFlore(x, y);
-    const hh = sp.h * (.22 + .78 * m), w = sp.larg * (.45 + .55 * m);
+    const sq = ENTAME.size ? secousse(i) : null;        // entamé : il tremble, et rapetisse d'un coup à l'autre
+    const hh = sp.h * (.22 + .78 * m) * (sq ? sq.k : 1), w = sp.larg * (.45 + .55 * m);
     const cle = view.kEnt && view.kEnt(cx, cy), rang = rangSol(z, false);
     const dd = (cx - P.x) ** 2 + (cy - P.y) ** 2, lm = .55 + .45 * clarte();
     if (dd > sp.h * 300) continue;                 // portée de dessin proportionnée à la taille
@@ -1626,7 +1798,7 @@ function emitFlore(view, out, cols) {
     const ha = hachCell(x * 3 + 5, y * 3 + 9), pen = (ha - .5) * .22;   // chacun penche un peu
     const sou = PLANTE_PLATE[sp.forme] ? 1 : .32;
     const amp = Meteo.vent * sou * (.10 + .06 * Math.sin(t * 2.3 + ha * 6.3)) * hh;
-    const wx = Math.cos(Meteo.dir) * amp, wy = Math.sin(Meteo.dir) * amp;
+    const wx = Math.cos(Meteo.dir) * amp + (sq ? sq.dx : 0), wy = Math.sin(Meteo.dir) * amp + (sq ? sq.dy : 0);
     const ploie = a => { const f = Math.max(0, Math.min(1, (a[2] - z) / (hh || 1)));
                          return [a[0] + wx * f * f, a[1] + wy * f * f, a[2]]; };
 
@@ -4384,6 +4556,7 @@ function loadWorld() {
   calcFlore();                                       // peuplement de l'île, une fois pour toutes
   crystals = []; crates = []; foes = []; parts.length = 0; got = 0; won = false;
   dalles.length = 0; FLECHES.length = 0;             // ni les dalles conjurées ni les flèches en vol
+  ENTAME.clear(); P.anim = null;                     // ni les pieds entamés, ni le geste en cours
   beasts = []; berries = []; TIRS.length = 0;
   placerPortailIle();                                // l'arche d'abord : les sentinelles la gardent
   poserLasers();                                     // sur l'île des automates, les barrières
@@ -4750,7 +4923,8 @@ function update(dt) {
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
-  if (!M && floreFreine(P.x, P.y, P.z)) SPD *= .72;   // les herbes hautes, les buissons, les roseaux (la monture les enjambe)                         // les spores du vesseron engourdissent           // la tourbière colle aux pieds, moins aux sabots
+  if (!M && floreFreine(P.x, P.y, P.z)) SPD *= .72;   // les herbes hautes, les buissons, les roseaux (la monture les enjambe)
+  if (P.anim && im > .3) P.anim = null;               // on se remet en marche : le geste s'interrompt
   const glisse = biomeIci === 16 && P.ground && !M;     // l'huile : on accélère mal, on s'arrête plus mal encore
   const ACC = glisse ? 7 : 26, FRIC = glisse ? 1.6 : 20;
   // Projeté par un coup, on ne tient plus ses appuis : ni frottement ni commande pendant 0,3 s.
@@ -4829,6 +5003,7 @@ function update(dt) {
   }
   // --- sac, sorts et récolte ---
   if (P.recolte > 0) P.recolte -= dt;
+  majGeste();
   if (P.frappe > 0) P.frappe -= dt;
   P.mana = Math.min(100, P.mana + dt * 4 * (1 + ((porte('armure') || {}).mana || 0)));
   majBiome(dt);
@@ -5236,7 +5411,7 @@ function heroBones(J) {
   const Z = k => (k + bob + br) * sq * st;
 
   const affaisse = J.veille ? 0.05 : 0;                // en veille, l'automate s'affaisse un peu
-  const hip = [lean * 0.06, 0, Z(0.30) - affaisse * .3], neck = [lean * 0.14 + affaisse, 0, Z(0.545) - affaisse];
+  let hip = [lean * 0.06, 0, Z(0.30) - affaisse * .3], neck = [lean * 0.14 + affaisse, 0, Z(0.545) - affaisse];
   const B = [];
   const selle = !!J.selle;                             // à cheval : cuisses ouvertes, mains au cou
   const leg = (sd, phase) => {
@@ -5266,6 +5441,37 @@ function heroBones(J) {
   };
   leg(1, ph); leg(-1, ph + Math.PI);
   arm(-1, ph); arm(1, ph + Math.PI);
+  // le geste de récolte : le buste penche et tourne, les genoux plient, les mains suivent l'outil ;
+  // il se mêle à l'allure ci-dessus selon son poids (on empoigne, on range)
+  const GG = J === P && J.ground && !J.selle ? gestePose() : null;
+  if (GG && GG.w > .001) {
+    const GP = GG.pose, wG = GG.w, Bg = [];
+    const cw = Math.cos(GP.w), sw = Math.sin(GP.w), tourne = v => [v[0] * cw - v[1] * sw, v[0] * sw + v[1] * cw, v[2]];
+    const hipG = [GP.l * .03, 0, 0.30 - GP.s + br];
+    const neckG = v3.add(hipG, tourne([Math.sin(GP.l) * .245, 0, Math.cos(GP.l) * .245]));
+    for (const sd of [1, -1]) {                        // les jambes : les pieds restent plantés, les genoux cèdent
+      const hp = v3.add(hipG, tourne([0, sd * .068, 0])), pied = [sd > 0 ? GP.p : -GP.p * .6, sd * .075, 0];
+      const k = ik2(hp, pied, .155, .145, [1, sd * .2, 0]);
+      Bg.push({ a: hp, b: k.j, w: 0.085, h: 0.085, c: HC.pants });
+      Bg.push({ a: k.j, b: k.e, w: 0.072, h: 0.072, c: HC.pants });
+      Bg.push({ a: k.e, b: v3.add(k.e, [0.085, 0, -0.028]), w: 0.088, h: 0.075, c: HC.boot });
+    }
+    const deux = GG.g !== 'cueille';                      // la pioche, la cognée : à deux mains sur le manche
+    const mains = deux ? [GP.g, v3.add(GP.g, v3.mul(GP.u, .075))] : [GP.g, GP.m2 || [.13, .12, .29]];
+    for (const [sd, M] of [[-1, mains[0]], [1, mains[1]]]) {
+      const sh = v3.add(neckG, tourne([0, sd * .115, -.02]));
+      const k = ik2(sh, M, .125, .115, [-.35, sd * .6, -.8]);
+      Bg.push({ a: sh, b: k.j, w: 0.068, h: 0.068, c: HC.tunic });
+      Bg.push({ a: k.j, b: k.e, w: 0.058, h: 0.058, c: HC.skin });
+    }
+    osOutil(GP.g, GP.u, Bg, GG.g);
+    const mx = (a, b) => [a[0] + (b[0] - a[0]) * wG, a[1] + (b[1] - a[1]) * wG, a[2] + (b[2] - a[2]) * wG];
+    for (let k = 0; k < 10; k++) { B[k].a = mx(B[k].a, Bg[k].a); B[k].b = mx(B[k].b, Bg[k].b); }
+    const hb = B[7].b;                                    // l'outil sort de la main qui le tient, et y rentre
+    for (let k = 10; k < Bg.length; k++) { const o = Bg[k];
+      B.push({ ...o, a: v3.add(hb, v3.mul(v3.sub(o.a, GP.g), wG)), b: v3.add(hb, v3.mul(v3.sub(o.b, GP.g), wG)) }); }
+    hip = mx(hip, hipG); neck = mx(neck, neckG);
+  }
   B.push({ a: hip, b: neck, w: 0.205, h: 0.145, c: HC.tunic });                    // buste
   if (J.automate) {
     // la plaque solaire dans le dos, l'œil-lampe, et le bras-canon qui recule au tir
@@ -5296,7 +5502,7 @@ function heroBones(J) {
     return B;
   }
   B.push({ a: v3.add(hip, [-0.09, 0, 0.05]), b: v3.add(neck, [-0.085, 0, -0.04]), w: 0.15, h: 0.10, c: HC.pack });  // sac
-  const head = [neck[0] + 0.012, 0, neck[2] + 0.105];
+  const head = [neck[0] + 0.012, neck[1], neck[2] + 0.105];
   B.push({ a: v3.add(head, [0, 0, -0.085]), b: v3.add(head, [0, 0, 0.055]), w: 0.185, h: 0.175, c: HC.skin });
   B.push({ a: v3.add(head, [-0.01, 0, 0.03]), b: v3.add(head, [0.005, 0, 0.075]), w: 0.195, h: 0.185, c: HC.hair });
   // écharpe : trois segments qui traînent derrière, d'autant plus que l'on court
@@ -8697,7 +8903,8 @@ function actionContexte() {
   const nd = noeudProche();
   if (nd) {
     const m = maturite(nd.i, nd.sp);
-    const nom = (teinteNoeud(nd) || nd.sp).n;
+    const en = ENTAME.get(nd.i);
+    const nom = (teinteNoeud(nd) || nd.sp).n + (en ? ' · ' + (en.total - en.coups) + '/' + en.total : '');
     if (m < .35) return { v: 'TROP JEUNE', o: nom, f: recolter, vide: true };
     if (nd.sp.res === 'eclat' && nivOutil() < 2) return { v: 'PIOCHE', o: 'il en faut une', f: recolter, vide: true };
     return { v: VERBE_RES[nd.sp.res] || 'RÉCOLTER', o: nom, f: recolter };
@@ -9043,8 +9250,12 @@ function toCam(x, y, z) {
 }
 const scr = c => [Wd / 2 + c[0] * FC.F / c[2], Hd / 2 - c[1] * FC.F / c[2]];
 function cameraFPS() {
-  FC = { ex: P.x, ey: P.y, ez: P.z + (P.selle || 0) + EYE + Math.sin(P.bob * 2) * .035,
-         cy: Math.cos(yaw), sy: Math.sin(yaw), cp: Math.cos(pitch), sp: Math.sin(pitch),
+  // à la première personne, le corps ne se voit pas : le regard suit le geste (il se relève à
+  // l'élan, plonge au coup, descend quand on s'accroupit pour cueillir)
+  const GP = P.anim && P.ground && !P.selle ? poseGeste(P.anim.g, xGeste(P.anim)) : null;
+  const pi = pitch - (GP ? GP.l * .2 : 0);
+  FC = { ex: P.x, ey: P.y, ez: P.z + (P.selle || 0) + EYE + Math.sin(P.bob * 2) * .035 - (GP ? GP.s * .6 : 0),
+         cy: Math.cos(yaw), sy: Math.sin(yaw), cp: Math.cos(pi), sp: Math.sin(pi),
          F: Math.min(Wd, Hd * 1.5) * .82 };
 }
 // L'œil en orbite : il regarde le joueur dans l'axe de la vue de dessus, à l'inclinaison choisie.
@@ -9600,13 +9811,15 @@ void main() { o = uC; }`;
   function plante(T, x, y, m) {
     const i = y * WS + x, sp = ESP[Flo[i] - 1];
     const cx = x + .5, cy = y + .5, z = solFlore(x, y);
-    const hh = sp.h * (.22 + .78 * m), w = sp.larg * (.45 + .55 * m);
+    const sq = ENTAME.size ? secousse(i) : null;
+    const hh = sp.h * (.22 + .78 * m) * (sq ? sq.k : 1), w = sp.larg * (.45 + .55 * m);
+    const sec = !sq ? a => a : a => { const f = Math.max(0, Math.min(1, (a[2] - z) / (hh || 1))); return [a[0] + sq.dx * f * f, a[1] + sq.dy * f * f, a[2]]; };
     const plat = PLANTE_PLATE[sp.forme] ? 1 : 0, sou = plat ? 1 : .32;
     const ha = hachCell(x * 3 + 5, y * 3 + 9), pen = (ha - .5) * .22;
     const k = K(tuile(TEX_FORME[sp.forme] || TEX.touffu), 0, 0);
     const pl = a => { const f = Math.max(0, Math.min(1, (a[2] - z) / (hh || 1))); return sou * hh * f * f; };
     formeFlore(sp, cx, cy, z, hh, w, ha, pen, 2, sp.bas, sp.haut,
-      (a, b, lw, lh, c) => boite(T, a, b, lw, lh, c, plat, k, L_DECOR + 256 * horizAt(x, y), pl(a), pl(b), ha * 6.3));
+      (a, b, lw, lh, c) => boite(T, sec(a), sec(b), lw, lh, c, plat, k, L_DECOR + 256 * horizAt(x, y), pl(a), pl(b), ha * 6.3));
   }
 
   // La mer du large. L'île s'arrête au bord de la carte, et avec une vue portée à soixante
@@ -9728,7 +9941,7 @@ void main() { o = uC; }`;
       for (let y = Math.max(1, c.y0); y < Math.min(WS - 1, c.y1); y++)
         for (let x = Math.max(1, c.x0); x < Math.min(WS - 1, c.x1); x++) {
           const i = y * WS + x;
-          if (!Flo[i] || coupes.has(i)) continue;       // un pied qui repousse se dessine à part
+          if (!Flo[i] || coupes.has(i) || ENTAME.has(i)) continue;   // un pied qui repousse, ou entamé, se dessine à part
           plante(TT, x, y, 1);
         }
       c.f = maillage(c.f, TT); c.bf = c.verF;
@@ -10028,7 +10241,8 @@ void main() { o = uC; }`;
     }
     // les êtres, les flèches, les pieds qui repoussent
     TD.nv = TD.ni = 0;
-    for (const [i] of coupes) {
+    for (const i of [...coupes.keys(), ...ENTAME.keys()]) {
+      if (coupes.has(i) && ENTAME.has(i)) continue;
       const x = i % WS, y = (i / WS) | 0;
       if ((x + .5 - ex) ** 2 + (y + .5 - ey) ** 2 > portee2) continue;
       const k = Flo[i]; if (!k) continue;
@@ -11023,6 +11237,8 @@ globalThis.__ILEMECA = { LASERS, etatLaser, coupeLaser, majLasers, poserLasers, 
   get ileMeca() { return ileMeca; }, get biomeIci() { return biomeIci; }, rayonsLaser, laserOs };
 globalThis.__FLORE_DURE = { obstacleFlore, floreBloque, floreTouche, floreFreine, FLORE_DURE, FLORE_FREINE, zoomer,
   get zoom() { return zoom; }, get zoomT() { return zoomT; } };
+globalThis.__RECOLTE = { xGeste, ARRET, gestePose, poidsGeste, heroBones, ENTAME, GESTES, poseGeste, coupRecolte, majGeste, secousse, ik2, COUPS_FORME, gesteDe, recolter,
+  get anim() { return P.anim; } };
 globalThis.__DRUSES = { teinteDruse, TEINTES_DRUSE, teinteNoeud, gerbe };
 globalThis.__VARIANTES = { tirerVariante, lireVariante, varianteSure, nomVariante, nomEspeceDe, varier, osDeBase, chanceVariante,
   noterVariante, guetterVariantes, blocCarnet, P_ROBE, P_FORME, ROBES, TAILLES, ORNEMENTS_DE, familleBete, photo, appliquer };
