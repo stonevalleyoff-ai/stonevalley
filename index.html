@@ -387,9 +387,14 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · B ÉTABLI · V VUE · Q/E PIVOTER · R/F INCLINER · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
+<script src="donjon.js"></script>
 <script>
-(() => {
 'use strict';
+// Le jeu partage sa portée avec donjon.js, chargé juste avant : plus d'enveloppe (() => {…})().
+if (typeof djIci !== 'function') {                   // déposé sans son second fichier : on le dit, au lieu d'un écran noir
+  document.body.insertAdjacentHTML('afterbegin', '<p style="position:fixed;inset:40% 10% auto;z-index:99;color:#ffd27d;font:16px sans-serif;text-align:center">donjon.js est introuvable : il doit être déposé à côté de index.html.</p>');
+  throw new Error('donjon.js manquant');
+}
 // ============================================================
 //  ÎLE DE PIERRE — moteur isométrique
 //  Le monde est une grille de cubes unitaires. On les projette en
@@ -788,7 +793,7 @@ const SON = (() => {
     if (P.pv < J.pv - .01) jouer('blesse', { vol: Math.min(1.3, .6 + (J.pv - P.pv) * 2) });
     J.pv = P.pv;
     const a = armeDe(P);                                  // l'arc qu'on bande, l'arbalète qu'on remonte
-    if (P.arc !== null && a) {
+    if (P.arc !== null && a && !djEstFusil(a)) {
       const k = Math.min(1, P.arc / ARC_TEMPS), c = Math.floor(k * (a === 'arbalete' ? 24 : 6));
       if (c !== J.cran && k < 1) { J.cran = c; jouer(a === 'arbalete' ? 'cliquet' : 'bande', { k, vol: .8 }); }
     } else J.cran = -1;
@@ -828,7 +833,7 @@ const SON = (() => {
       const x = P.x | 0, y = P.y | 0, bio = bAt(x, y), nk = nuitK(), pl = met('pluie');
       const autour = pr => { let n = 0; for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832, u = (x + Math.cos(a) * 5) | 0, v = (y + Math.sin(a) * 5) | 0; if (pr(u, v)) n++; } return n / 12; };
       this.raf = Math.max(.55, Math.min(1.5, this.raf + (Math.random() - .5) * dt * 1.6));   // les rafales
-      const alt = Math.max(0, Math.min(1, (P.z - SEA) / 26)), vent = Math.min(1.8, Meteo.vent);
+      const alt = djIci() ? 0 : Math.max(0, Math.min(1, (P.z - SEA) / 26)), vent = djIci() ? 0 : Math.min(1.8, Meteo.vent);
       vers(this.vent, (.022 + .04 * vent * (.5 + alt)) * this.raf);
       this.vent.F.frequency.setTargetAtTime(300 + 260 * vent * this.raf + 300 * alt, now, .6);
       const foret = autour((u, v) => Flo[v * WS + u] && ESP[Flo[v * WS + u] - 1].res === 'bois');
@@ -847,7 +852,7 @@ const SON = (() => {
         if (l._son !== l.etat) { if (l.etat === 'on' && d < 12) jouer('laser', {}, (l.ax + l.bx) / 2, (l.ay + l.by) / 2, l.z + .7); l._son = l.etat; } }
       vers(this.laser, dl < 9 ? .03 * (1 - dl / 9) : 0, .2);
       let df = 99;
-      if (P.camp && campIci()) df = Math.hypot(P.camp.x - P.x, P.camp.y - P.y);
+      for (const c of campsIci()) df = Math.min(df, Math.hypot(c.x - P.x, c.y - P.y));
       vers(this.feu, df < 8 ? .03 * (1 - df / 8) * alea(.4, 1.3) : 0, .05);
       this.feu.F.frequency.setTargetAtTime(alea(1500, 4000), now, .05);
       // les petits événements : la lave qui bout, le carillon du cristal, un choc de métal au loin
@@ -856,6 +861,7 @@ const SON = (() => {
         if (bio === 13 || bio === 14) jouer('bloop', { bus: 'a', vol: .8 }, P.x + alea(-4, 4), P.y + alea(-4, 4), P.z);
         else if (bio === 12 || autour((u, v) => bAt(u, v) === 12) > .3) { if (Math.random() < .5 * vent) jouer('carillon', { bus: 'a' }, P.x + alea(-5, 5), P.y + alea(-5, 5), P.z + 1); }
         else if (meca && Math.random() < .4) jouer('clank', { bus: 'a', vol: .7 }, P.x + alea(-12, 12), P.y + alea(-12, 12), P.z);
+        if (djIci() && Math.random() < .5) jouer('goutte', { bus: 'a', vol: alea(.4, .9) }, P.x + alea(-6, 6), P.y + alea(-6, 6), P.z + 2);   // l'eau suinte de la roche
       }
     },
   };
@@ -891,7 +897,7 @@ const SON = (() => {
     choisir() {
       for (const b of beasts) if (!b.dead && !b.tame && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 18 * 18
         && (b.etat === 'viser' || b.etat === 'assaut' || (b.cible === P && (b.etat === 'chasser' || b.etat === 'traquer')))) return 'danger';
-      if (ileMeca) return 'automates';
+      if (ileMeca || djIci()) return 'automates';
       return nuitK() > .6 ? 'nuit' : 'jour';
     },
     maj(forcer) {
@@ -1093,6 +1099,7 @@ const SUNX = Math.cos(SUN_AZ) * Math.cos(SUN_EL), SUNY = Math.sin(SUN_AZ) * Math
 // Couleur de l'horizon, dont dépendent le ciel et le brouillard. Elle suit le jour : le
 // brouillard doit toujours virer vers ce que l'on voit derrière, sinon il se voit.
 function couleurCiel() {
+  if (djIci()) return [16, 18, 26];                    // la roche, au loin
   const l = clarte();
   return [30 + 118 * l, 38 + 126 * l, 58 + 118 * l];
 }
@@ -1130,6 +1137,7 @@ function calcOmbrage() {
   }
 }
 function genWorld() {
+  if (djGenere()) return;                              // sous l'île : un étage du Centre des automates
   const tmp = new Float32Array(WS * WS);
   for (let y = 0; y < WS; y++) for (let x = 0; x < WS; x++) {
     const u = x / WS, v = y / WS;
@@ -1733,6 +1741,7 @@ P.pseudo = null;                // le nom vu par les autres joueurs ; sans lui, 
 P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ déjà payé en travail
 // Le coffre du campement : ce qui y est déposé ne risque plus rien. Le sac, lui, voyage.
 P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, baies: 0 };
+P.pillages = [];                                      // les derniers pillages subis : qui, quoi, quand
 // L'expédition en cours : les sauts faits depuis le campement, et les cœurs perdus en route.
 // Elle se lit avant le peuplement de l'île, sinon la première fournée de bêtes ignorerait
 // qu'on est à cinq sauts de chez soi.
@@ -2411,6 +2420,7 @@ const armeDe = J => J === P ? (P.equip.arme || null) : (J.arme || null);
 const tensionDe = J => J === P ? (P.arc === null ? null : Math.min(1, P.arc / ARC_TEMPS)) : (J.arcT ?? null);
 function poseTir(J, id) {
   const k = tensionDe(J), r = t - (J.decoche ?? -99), ts = t - (J.tir0 ?? -99);
+  if (djEstFusil(id)) return djPoseFusil(J, id, k, r, ts);
   return id === 'arbalete' ? poseArb(J, k, r, ts) : poseArc(J, k, r, ts);
 }
 
@@ -2460,6 +2470,7 @@ const RANGEES = {
   arbalete: (h, n) => ({ arb: { o: v3.add(h, [-.19, -.02, .05]), u: nrm([0, .25, .97]), side: nrm([0, .97, -.25]), k: 0, th: 0, trait: 0 } }),
 };
 function geomArme(id, F, J, B) {
+  if (djEstFusil(id)) return djGeomFusil(id, F, J, B);
   const pose = (a, b, w, h, c) => B.push({ a, b, w, h, c });
   if (id === 'arc') {
     const A = F.arc, L = .21, bend = .045 + .065 * (A.k || 0);
@@ -2542,7 +2553,7 @@ function accessoiresArme(id, J, hip, neck, B) {
     pose(v3.add(R.o, v3.mul(R.u, .05)), v3.add(R.o, v3.mul(R.u, .37)), .062, .036, cuir);
     pose(v3.add(R.o, v3.mul(R.u, .35)), v3.add(R.o, v3.mul(R.u, .4)), .068, .04, [130, 128, 120]);
   }
-  if (id === 'lance' || id === 'marteau' || id === 'arc' || id === 'arbalete')
+  if (id === 'lance' || id === 'marteau' || id === 'arc' || id === 'arbalete' || djEstFusil(id))
     pose(v3.add(mixv(hip, neck, .95), [.08, -.095, 0]), v3.add(mixv(hip, neck, .12), [.08, .1, 0]), .022, .018, [92, 64, 40]);
   if (id === 'arc' || id === 'arbalete') {
     const a = v3.add(hip, [-.1, -.11, -.06]), b = v3.add(hip, [-.15, -.13, .2]);
@@ -2560,7 +2571,7 @@ function osArmePortee(id, J, hip, neck, GG, B) {
   if (main > .001) {
     const p = GG.pose;
     enMain = id === 'arc' ? { arc: { ...(p.arc || ARC_GARDE.arc), o: p.m2 || ARC_GARDE.m2 } }
-      : id === 'arbalete' ? { arb: p.arb || ARB_GARDE.arb } : { o: p.g, u: p.u };
+      : id === 'arbalete' || djEstFusil(id) ? { arb: p.arb || ARB_GARDE.arb } : { o: p.g, u: p.u };
   }
   if (main >= .999) { geomArme(id, enMain, J, B); return; }
   const Br = []; geomArme(id, rang, J, Br);
@@ -2999,6 +3010,7 @@ const versOu = (dx, dy) => CARDINAUX[(Math.round(Math.atan2(-dy, dx) / .7854) + 
 let PortailIle = null;
 const PORTAIL_R = 2.4;
 function placerPortailIle() {
+  if (djIci()) { PortailIle = null; return; }          // pas d'arche sous terre
   PortailIle = null;
   let g = (SEED ^ 0x50a7d1) >>> 0;
   const tir = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
@@ -3063,9 +3075,21 @@ const campAuSac = () => !P.camp && !!P.objets.campement;
 // `niv` impose le niveau d'arrivée (la chute) ; sinon, un portail de plus, un niveau de plus.
 function voyagerVers(g, pos, mot, niv) {
   if (essai) sortirEssai();
+  // en pleine visite, le butin passe d'abord par la base — ou se perd, faute de réseau
+  if (raidIci() && !Raid.fini) {
+    if (Raid.part > 0) {
+      const attendre = () => Raid.envoi ? new Promise(r => setTimeout(r, 150)).then(attendre) : emporter('depart');
+      say('vous emportez le butin…', 2);
+      attendre().finally(() => { Raid.fini = true; voyagerVers(g, pos, mot, niv); });
+      return true;
+    }
+    emporter('quitte');                                // part nulle : la visite se ferme, rien n'est pris
+    Raid.fini = true;
+  }
   debrancher('changement d\'île');                   // on prévient avant de disparaître
   const d = photo();
   d.graine = g; d.pos = pos || null; d.sol = null;
+  d.raid = raidPart ? raidPhoto(raidPart) : null; raidPart = null;
   // S'éloigner creuse l'expédition ; rentrer chez soi la garde telle quelle, pour que le
   // campement fasse les comptes au premier pas près du feu.
   d.exp = niv != null ? { n: niv, c: 0, s: 0 }
@@ -3074,6 +3098,7 @@ function voyagerVers(g, pos, mot, niv) {
     : { n: profondeur() + 1, c: P.camp ? coeursPerdus() : 0, s: P.camp ? 1 : 0 };   // un portail de plus, un niveau de plus
   d.compagnes = d.compagnes.map(c => { const r = Object.assign({}, c); delete r.pos; return r; });
   laisserAuCamp(d, g);
+  djTransit(d);                                        // dessus ou dessous : la descente passe avec la sauvegarde
   Sauve.sale = true; Sauve.local = ''; Sauve.pret = false;
   if (ecrireLocal(d) && graineSauvee() === g) { say(mot, 2.5); setTimeout(() => location.reload(), 500); return true; }
   Sauve.pret = true; say('impossible d\'écrire la copie locale : on reste ici', 4);
@@ -3119,14 +3144,244 @@ function travailAbsence(liste, depuis) {
 function ouvrirPortail() {
   if (!P.camp && !campAuSac()) { say('il faut un campement, posé ou dans le sac', 3); return false; }
   if (!auCamp() && !auPortailIle()) { say('il faut être devant un portail', 2.5); return false; }
+  if (chercheRaid) return false;                     // le portail hésite déjà
+  // une fois sur douze, avec un compte, il mène au campement d'un autre joueur
+  if (Compte.dedans && !essai && Math.random() < probaRaid()) { chercherRaid(); return true; }
+  return portailNormal();
+}
+function portailNormal() {
   const g = tirerGraine(profondeur() + 1, SEED);      // une île permise à l'exploration suivante
-  burst(P.x, P.y, P.z + .8, 24, '#8fe3ff');
+  burst(P.x, P.y, P.z + .8, 24, '#8fe3ff'); SON.jouer('portail');
   return voyagerVers(g, null, 'le portail s\'ouvre · exploration ' + (profondeur() + 1));
+}
+
+// ============================================================
+//  LE PILLAGE
+//  Un portail sur douze, pour qui a un compte, mène au campement d'un autre joueur absent
+//  de son île, d'une exploration voisine. Au coffre, on prend un centième par seconde, un
+//  cinquième au plus ; le butin n'est à soi qu'une fois sorti du campement (ou d'un appui sur
+//  EMPORTER) — terrassé avant, on repart les mains vides. Les gardiennes du pillé (ses
+//  compagnes en défense, laissées au camp) défendent l'endroit. La base borne la part au temps
+//  passé depuis l'ouverture du portail, tire le butin de son propre instantané du coffre, pose
+//  douze heures de bouclier et prévient le pillé, qui le déduit à son retour.
+// ============================================================
+const RAID_P = 1 / 12, RAID_TAUX = .01, RAID_MAX = .2, RAID_R = 2.4, RAID_ZONE = 11, RAID_DUREE = 18 * 60e3;
+let Raid = null, raidPart = null, chercheRaid = false;
+const raidIci = () => !!Raid && Raid.graine === SEED;
+const probaRaid = () => typeof globalThis.__RAID_P === 'number' ? globalThis.__RAID_P : RAID_P;
+const coffreRaid = () => [Raid.x - .7, Raid.y + .84];            // les deux caisses, près de la tente
+const campsIci = () => { const L = []; if (campIci()) L.push(P.camp); if (raidIci()) L.push(Raid); return L; };
+const GARDE_COMBAT = { deg: null, ramasse: .32, bond: .2, portee: 1.8, recul: .5, pause: 1.2 };
+// Ce que la base (ou la sauvegarde) en dit : rien d'autre à croire que des nombres bornés.
+function raidLu(r) {
+  if (!r || typeof r !== 'object') return null;
+  const g = Number(r.graine), x = Number(r.x), y = Number(r.y), z = Number(r.z);
+  if (!Number.isInteger(g) || !(x > 1 && y > 1 && x < WS - 1 && y < WS - 1) || !Number.isFinite(z)
+    || typeof r.jeton !== 'string' || !/^[0-9a-f-]{36}$/i.test(r.jeton)) return null;
+  const coffre = {};
+  for (const k of COFFRE_R) coffre[k] = Math.max(0, Math.min(1e6, Number((r.coffre || {})[k]) | 0));
+  const gardiennes = (Array.isArray(r.gardiennes) ? r.gardiennes : []).filter(o => o && specById[o.esp] && !coursier(specById[o.esp]))
+    .slice(0, 6).map(o => ({ esp: o.esp, pv: Math.max(.05, Math.min(1, Number(o.pv) || 1)), v: varianteSure(o.v) }));
+  const ko = (Array.isArray(r.ko) ? r.ko : []).filter(i => Number.isInteger(i) && i >= 0 && i < 6);
+  return { jeton: r.jeton, graine: g, x, y, z: Math.max(-8, Math.min(64, z)),
+    pseudo: String(r.pseudo || '').replace(/[<>]/g, '').slice(0, 18).trim() || 'quelqu\'un',
+    niv: Math.max(1, Math.min(3, Number(r.niv_camp ?? r.niv) | 0 || 1)), coffre, gardiennes, ko,
+    part: Math.max(0, Math.min(RAID_MAX, Number(r.part) || 0)), fini: !!r.fini, place: !!r.place,
+    depuis: Number.isFinite(r.depuis) ? r.depuis : Date.now(), echecs: 0 };
+}
+const raidPhoto = (R = Raid) => ({ jeton: R.jeton, graine: R.graine, x: R.x, y: R.y, z: R.z, pseudo: R.pseudo,
+  niv: R.niv, coffre: R.coffre, gardiennes: R.gardiennes, ko: R.ko, part: Math.round(R.part * 1000) / 1000,
+  fini: R.fini, place: R.place, depuis: R.depuis });
+async function chercherRaid() {
+  chercheRaid = true;
+  say('le portail hésite…', 2.5); burst(P.x, P.y, P.z + .8, 16, '#ff9a7a');
+  let c = null;
+  try { c = await Promise.race([rpc('vp_camp_cible', { p_niv: profondeur() + 1 }), new Promise(r => setTimeout(() => r(null), 4000))]); }
+  catch (e) { c = null; }
+  chercheRaid = false;
+  const v = raidLu(c && Object.assign({}, c, { depuis: Date.now() }));
+  // personne à visiter (ou la même île que la sienne) : le portail s'ouvre comme d'habitude
+  if (!v || v.graine === SEED || (P.camp && v.graine === P.camp.graine)) return portailNormal();
+  raidPart = v;
+  burst(P.x, P.y, P.z + .8, 30, '#ff7a5a'); SON.jouer('portail');
+  if (!voyagerVers(v.graine, null, 'le portail vous mène au campement de ' + v.pseudo)) raidPart = null;
+}
+// À l'arrivée : on se pose à une quinzaine de cases du campement, et ses gardiennes sortent.
+function preparerRaid() {
+  Raid.pret = true;
+  if (!Raid.place && !Raid.fini) {
+    const a0 = Math.random() * 6.2832;
+    for (let k = 0; k < 16; k++) {
+      const a = a0 + k * .39, r = 14 + (k % 3), x = Raid.x + Math.cos(a) * r, y = Raid.y + Math.sin(a) * r;
+      if (x < 4 || y < 4 || x > WS - 4 || y > WS - 4 || hAt(x | 0, y | 0) <= SEA) continue;
+      const q = placePres(x, y, hAt(x | 0, y | 0), 3); if (!q) continue;
+      P.x = q[0]; P.y = q[1]; P.z = hAt(q[0] | 0, q[1] | 0); P.vx = P.vy = P.vz = 0; P.sol = [P.x, P.y, P.z]; P.ground = true;
+      P.face = P.faceS = Math.atan2(Raid.y - P.y, Raid.x - P.x);
+      break;
+    }
+    Raid.place = true;
+  }
+  if (Raid.fini) return;
+  const n = Raid.gardiennes.length;
+  Raid.gardiennes.forEach((g, i) => {
+    if (Raid.ko.includes(i)) return;
+    const sp = specById[g.esp], a = i / Math.max(1, n) * 6.2832 + .4;
+    const q = placePres(Raid.x + Math.cos(a) * 2.6, Raid.y + Math.sin(a) * 2.6, Raid.z, 2) || placePres(Raid.x, Raid.y, Raid.z, 5);
+    if (!q) return;
+    const b = naitre(sp, q[0], q[1], sp.mat * 2);
+    b.pv = g.pv; if (g.v) b.variante = g.v;
+    b.gardeCamp = { i, px: q[0], py: q[1] };
+    b.dir = b.dirT = a; initFoeLegs(b);
+    beasts.push(b);
+  });
+  const reste = n - Raid.ko.length;
+  say('le campement de ' + Raid.pseudo + (reste > 0 ? ' · ' + reste + ' gardienne' + (reste > 1 ? 's' : '') : ' · sans gardienne')
+    + ' · au coffre, un centième par seconde', 5);
+}
+function majRaid(dt) {
+  if (!raidIci()) return;
+  if (!Raid.pret) preparerRaid();
+  if (Raid.fini || Raid.envoi) return;
+  if (Date.now() - Raid.depuis > RAID_DUREE) { emporter('temps'); return; }   // avant que la base ne ferme la visite
+  const [cx, cy] = coffreRaid();
+  const auCoffre = Math.hypot(P.x - cx, P.y - cy) < RAID_R && Math.abs(P.z - Raid.z) < 2 && P.pv > 0;
+  if (auCoffre && P.hurt <= 0 && Raid.part < RAID_MAX) {           // un coup reçu fait lâcher prise un instant
+    const p0 = Math.floor(Raid.part * 100 + 1e-6);
+    Raid.part = Math.min(RAID_MAX, Raid.part + RAID_TAUX * dt);
+    const p1 = Math.floor(Raid.part * 100 + 1e-6);
+    if (p1 > p0) {
+      SON.jouer('ramasse', {}, cx, cy, Raid.z + .3); burst(cx, cy, Raid.z + .5, 4, '#ffd27d');
+      if (p1 % 5 === 0) say('pillage · ' + p1 + ' % du coffre de ' + Raid.pseudo + (p1 >= 20 ? '' : ' · sortez du campement pour l\'emporter'), 2);
+    }
+    if (Raid.part >= RAID_MAX - 1e-9) { emporter('plein'); return; }
+  }
+  if (Raid.part > 0 && Math.hypot(P.x - Raid.x, P.y - Raid.y) > RAID_ZONE && t >= (Raid.reessai || 0)) emporter('sortie');
+}
+// Le butin passe par la base : c'est elle qui dit ce qu'on emporte.
+async function emporter(pourquoi) {
+  if (!Raid || Raid.fini || Raid.envoi) return false;
+  Raid.envoi = true;
+  const part = pourquoi === 'mort' || pourquoi === 'quitte' ? 0 : Math.floor(Math.min(RAID_MAX, Raid.part) * 1000) / 1000;
+  let r;
+  try { r = await rpc('vp_piller', { p_jeton: Raid.jeton, p_part: part, p_pseudo: pseudo() }, true); }
+  catch (e) {
+    Raid.envoi = false; Raid.reessai = t + 5;
+    if (pourquoi === 'depart' || pourquoi === 'mort' || pourquoi === 'quitte' || ++Raid.echecs >= 4) { Raid.fini = true; Sauve.sale = true; if (part > 0) say('le butin s\'est perdu en route', 3); }
+    else say('le butin ne passe pas · nouvel essai', 2);
+    return false;
+  }
+  Raid.envoi = false; Raid.fini = true; Sauve.sale = true;
+  if (pourquoi === 'quitte') return true;
+  if (pourquoi === 'mort') { say('le butin reste au coffre de ' + Raid.pseudo, 3.5); return true; }
+  const b = r && r.ok && r.butin && typeof r.butin === 'object' ? r.butin : null;
+  if (!b) { say(part > 0 ? 'trop tard : la visite a expiré, rien d\'emporté' : 'vous repartez les mains vides', 3); return true; }
+  const L = [];
+  for (const k of COFFRE_R) {
+    const q = Math.max(0, Math.min(1e5, Number(b[k]) | 0));
+    if (q) { metSac(k, auSac(k) + q); L.push('+' + q + ' ' + (RES[k] || k)); }
+  }
+  Raid.butin = b;
+  say(L.length ? 'butin emporté · ' + L.join(' · ') : 'le coffre ne rendait rien', 4.5);
+  SON.jouer('niveau'); burst(P.x, P.y, P.z + 1, 22, '#ffd27d');
+  if (sacOuvert) majSac();
+  return true;
+}
+// Une gardienne : elle tient son poste, et fond sur qui entre dans le campement pendant la visite.
+function majGardienne(b, dt) {
+  const sp = b.sp, g = b.gardeCamp;
+  b.t += dt; b.age += dt; b.bob += dt * (3 + b.alarm * 4);
+  if (b.hit > 0) b.hit -= dt;
+  if (b.dead) {
+    b.dead += dt; chute(b, dt); updateFoeLegs(b, dt);
+    if (!g.ko && raidIci()) {
+      g.ko = true; if (!Raid.ko.includes(g.i)) Raid.ko.push(g.i); Sauve.sale = true;
+      const reste = beasts.filter(o => o.gardeCamp && !o.dead).length;
+      say(reste ? 'une gardienne à terre · encore ' + reste : 'le campement n\'a plus de gardienne', 2.5);
+    }
+    return;
+  }
+  const dJ = Math.hypot(P.x - b.x, P.y - b.y);
+  const alerte = raidIci() && !Raid.fini && P.pv > 0 && Math.hypot(P.x - Raid.x, P.y - Raid.y) < RAID_ZONE && Math.abs(P.z - b.z) < 3;
+  let tx = g.px, ty = g.py, vit = 0;
+  if (alerte) { tx = P.x; ty = P.y; vit = dJ > 1.3 ? sp.spd * 1.05 : 0; b.alarm = 1; b.etat = 'repousser'; }
+  else { vit = Math.hypot(g.px - b.x, g.py - b.y) > .8 ? sp.spd * .5 : 0; b.alarm = Math.max(0, b.alarm - dt); b.etat = 'garder'; }
+  if (alerte && !b.as && !b.mur && b.t >= (b.pret || 0) && dJ < GARDE_COMBAT.portee + .5 && Math.abs(P.z - b.z) < 1.4) lancerAssaut(b, P, GARDE_COMBAT);
+  if (b.as) majAssaut(b, dt);
+  else if (b.etourdi > 0) { b.etourdi -= dt; const k = Math.max(0, 1 - dt * 3); b.vx *= k; b.vy *= k; }
+  else if (vit > 0) pasVersBete(b, tx, ty, vit, dt);
+  else { b.vx *= Math.max(0, 1 - dt * 6); b.vy *= Math.max(0, 1 - dt * 6); if (alerte) b.dirT = Math.atan2(P.y - b.y, P.x - b.x); }
+  const pas = Math.max(1, Math.min(8, Math.ceil(Math.hypot(b.vx, b.vy) * dt / .35)));
+  for (let k = 0; k < pas; k++) {
+    const r = pasBete(b, b.x + b.vx * dt / pas, b.y + b.vy * dt / pas, false);
+    if (r === 0) { b.vx *= -.3; b.vy *= -.3; break; }
+    if (r === 2 || r === 3) break;
+  }
+  b.x = Math.max(2, Math.min(WS - 3, b.x)); b.y = Math.max(2, Math.min(WS - 3, b.y));
+  chute(b, dt);
+  let dd = b.dirT - b.dir; while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832;
+  b.dir += Math.max(-5 * dt, Math.min(5 * dt, dd));
+  updateFoeLegs(b, dt);
+}
+// ---------- côté pillé ----------
+// Relever les pillages (et les retirer du coffre) avant de publier son campement ; publier sans
+// hâte : à chaque changement, une fois la minute au plus, et toutes les deux minutes tant qu'on
+// est chez soi — c'est ce qui tient les pillards à distance.
+const PILL = { lu: false, tLu: -1e9, tPub: -1e9, sig: null, envoi: false };
+const PILL_LIRE = 180, PILL_PUB = 60, PILL_PRESENT = 120;
+function gardiennesCamp() {
+  return P.compagnes.filter(c => c.role === 'defense' && c.mode === 'camp' && !c.ko && (c.aucamp || (c.dehors && campIci())))
+    .slice(0, 6).map(c => Object.assign({ esp: c.esp, pv: Math.round((c.b ? c.b.pv : c.pv) * 100) / 100 }, c.variante ? { v: c.variante } : {}));
+}
+function campPublic() {
+  if (!P.camp) return null;
+  return { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100, y: Math.round(P.camp.y * 100) / 100, z: P.camp.z,
+    niv_ile: P.camp.expl || 0, niv_camp: P.camp.niv || 1, pseudo: pseudo(), coffre: Object.assign({}, P.coffre), gardiennes: gardiennesCamp() };
+}
+function majPillage() {
+  if (!Compte.dedans || essai || !Sauve.pret || PILL.envoi) return;
+  const s = maintenant();
+  if (s - PILL.tLu >= PILL_LIRE) { PILL.tLu = s; releverPillages(); return; }
+  if (!PILL.lu) return;
+  const c = campPublic(), sig = JSON.stringify(c), ici = campIci();
+  if ((sig !== PILL.sig && s - PILL.tPub >= PILL_PUB) || (ici && s - PILL.tPub >= PILL_PRESENT)) publierCamp(c, sig, ici, s);
+}
+async function publierCamp(c, sig, ici, s) {
+  PILL.envoi = true; PILL.tPub = s;
+  try { await rpc('vp_camp_publier', { p_camp: c ? Object.assign(c, { present: ici }) : null }); PILL.sig = sig; }
+  catch (e) { /* hors ligne : on réessaiera à la prochaine fenêtre */ }
+  PILL.envoi = false;
+}
+async function releverPillages() {
+  PILL.envoi = true;
+  try { const L = await rpc('vp_mes_pillages', {}); PILL.lu = true; if (Array.isArray(L) && L.length) subirPillages(L); }
+  catch (e) { /* plus tard */ }
+  PILL.envoi = false;
+}
+function subirPillages(L) {
+  const tot = {}; let n = 0;
+  for (const p of L) {
+    if (!p || !p.butin || typeof p.butin !== 'object') continue;
+    const b = {};
+    for (const k of COFFRE_R) {
+      const q = Math.max(0, Math.min(1e6, Number(p.butin[k]) | 0)); if (!q) continue;
+      const pris = Math.min(q, P.coffre[k] || 0);
+      P.coffre[k] = (P.coffre[k] || 0) - pris; tot[k] = (tot[k] || 0) + pris; b[k] = q;
+    }
+    P.pillages.unshift({ n: String(p.pseudo || '').replace(/[<>]/g, '').slice(0, 18) || 'quelqu\'un', b,
+      q: Date.parse(p.quand) || Date.now() });
+    n++;
+  }
+  if (!n) return;
+  P.pillages = P.pillages.slice(0, 5);
+  const pertes = Object.entries(tot).filter(e => e[1]).map(([k, q]) => '−' + q + ' ' + (RES[k] || k)).join(' · ');
+  say((n > 1 ? n + ' pillages' : P.pillages[0].n + ' a pillé votre campement') + (pertes ? ' · ' + pertes : '') + ' · bouclier douze heures', 6);
+  SON.jouer('blesse');
+  Sauve.sale = true;
+  if (sacOuvert) majSac();
 }
 // Devant l'arche d'une île : deux fois la même action, pour ne pas partir par mégarde.
 let confirmePortail = -99;
 function franchirPortail() {
-  SON.jouer('portail');
   if (!auPortailIle()) return false;
   if (t < confirmePortail) { confirmePortail = -99; return ouvrirPortail(); }
   confirmePortail = t + 4;
@@ -3137,6 +3392,7 @@ function franchirPortail() {
 }
 function rentrerAuCampement(mort) {
   if (!P.camp) return false;
+  if (djIci()) { say('la pierre de foyer ne répond pas sous terre · le monte-charge, lui, remonte', 3); return false; }
   if (campIci()) {
     const q = placePres(P.camp.x, P.camp.y, P.camp.z, 3) || [P.camp.x, P.camp.y];
     P.x = q[0]; P.y = q[1]; P.z = Math.max(P.camp.z, hAt(P.x | 0, P.y | 0));
@@ -3339,7 +3595,7 @@ function teinteDe(uid) {
 }
 const teindre = (c, k) => [Math.min(255, c[0] * k[0]), Math.min(255, c[1] * k[1]), Math.min(255, c[2] * k[2])];
 const pseudo = () => P.pseudo || (Compte.email || 'joueur').split('@')[0].slice(0, 18);
-const canalIle = () => 'sv:ile:' + SEED;
+const canalIle = () => 'sv:ile:' + SEED + (djIci() ? ':dj' + DJ.e : '');   // sous terre : un canal par étage
 const r2 = v => Math.round(v * 100) / 100;
 
 function reseauUrl() {
@@ -3489,7 +3745,8 @@ function gesteDistant(j, d) {
   j.en = e[0] | 0;
   const nom = String(e[1] || ''), age = Math.max(0, +e[2] || 0), dur = Math.max(0, Math.min(3, +e[3] || 0));
   if (nom === 'stop') { if (j.anim && j.anim.k === 'recolte') j.anim = null; return; }
-  if (nom === 'decoche') { j.decoche = t - age; j.decocheK = Math.max(0, Math.min(1, +e[4] || 1)); j.arcT = null; j.garde = t - age + GARDE_T; return; }
+  if (nom === 'decoche') { j.decoche = t - age; j.decocheK = Math.max(0, Math.min(1, +e[4] || 1)); j.arcT = null; j.garde = t - age + GARDE_T;
+    if (djEstFusil(j.arme) && age < .5) djTirDistant(j); return; }
   const G = GESTES[nom];
   if (!G || !(dur > 0) || age >= dur) return;
   const arme = !!G.arme;
@@ -3683,6 +3940,7 @@ const ditProprio = g => P.camp && P.camp.graine === g ? 'votre campement' : 'lib
 // Une fiche d'île, telle qu'elle s'inscrit au journal.
 const ficheIle = (g, o) => Object.assign({ g, t: Date.now() }, o ? { b: o.b, c: o.c, eau: o.eau, vol: o.vol, gouffre: o.gouffre } : {});
 function noterVisite() {
+  if (djIci()) return;                                 // le souterrain n'est pas l'île : le journal garde celle d'en haut
   const j = P.journal, o = composerIle();
   const f = ficheIle(SEED, o);
   j.visites = [f, ...(j.visites || []).filter(v => v.g !== SEED)].slice(0, VISITES_MAX);
@@ -4074,6 +4332,8 @@ const DESSINS = {
     d.ligne(5, 7, 10, 2, PIX.boisC); d.rect(9, 1, 12, 3, PIX.pierreC); },
   ongletSauve: d => { d.rect(3, 3, 12, 12, PIX.papier); d.rect(3, 2, 12, 3, PIX.boisC); d.rect(3, 12, 12, 13, PIX.boisC);
     for (const y of [5, 7, 9]) d.ligne(5, y, 10, y, PIX.gris); d.net(10, 10, PIX.rouge); },
+  ongletBeta: d => { d.rect(6, 1, 9, 5, PIX.pierreC); d.ligne(6, 5, 2, 13, PIX.pierre, 2); d.ligne(9, 5, 13, 13, PIX.pierre, 2);   // une fiole
+    d.rect(3, 10, 12, 13, [120, 214, 255]); d.ligne(3, 14, 12, 14, PIX.pierre); d.net(7, 8, [120, 214, 255]); d.net(8, 6, [120, 214, 255]); },
   ongletReglages: d => { d.disque(8, 8, 5, PIX.pierre);
     for (const [x, y] of [[8, 1], [8, 15], [1, 8], [15, 8], [3, 3], [13, 13], [13, 3], [3, 13]]) d.disque(x * .85 + 1.2, y * .85 + 1.2, 1.3, PIX.pierre);
     d.disque(8, 8, 2, null); },
@@ -4278,6 +4538,7 @@ const ONGLETS = [
   { id: 'journal', n: 'Journal', ic: 'ongletJournal' },
   { id: 'sauve', n: 'Sauvegarde', ic: 'ongletSauve' },
   { id: 'reglages', n: 'Réglages', ic: 'ongletReglages' },
+  { id: 'beta', n: 'Bêta', ic: 'ongletBeta' },
 ];
 const EMPLACEMENTS = [
   { id: 'outil', n: 'Outil', fantome: 'pioche', vide: 'Aucun outil en main' },
@@ -4669,8 +4930,21 @@ function pageCampement() {
     + `<div class="obj${conf ? ' porte' : ''}"><div><div class="n">Reprendre le campement</div>`
     + `<div class="d">${conf ? 'encore un clic : l\'île ne sera plus la vôtre' : ici ? 'il retourne au sac, à poser ailleurs' : 'il faut être sur son île'}</div></div>`
     + `<button data-camp="reprendre"${ici ? '' : ' disabled'}>${conf ? 'Confirmer' : 'Reprendre'}</button></div>`
-    + `<p class="note" style="margin:14px 2px 0">À venir : le pillage entre campements — et les gardiennes pour le repousser.</p>`
+    + `<h3>Pillage</h3>` + pagePillage()
     + `</div>`;
+}
+// Le pillage, vu du campement : ses gardiennes, la règle, et ce qu'on vous a pris.
+function pagePillage() {
+  const g = gardiennesCamp().length;
+  const depuis = q => { const m = Math.max(0, (Date.now() - q) / 60000); return m < 60 ? Math.round(m) + ' min' : m < 2880 ? Math.round(m / 60) + ' h' : Math.round(m / 1440) + ' j'; };
+  const liste = P.pillages.map(p => `<div class="obj"><div><div class="n">${ESC(p.n)}</div>`
+    + `<div class="d">${ESC(Object.entries(p.b).map(([k, q]) => '−' + q + ' ' + (RES[k] || k)).join(' · ') || 'rien')} · il y a ${depuis(p.q)}</div></div></div>`).join('');
+  return `<div class="obj"><div><div class="n">${g ? g + ' gardienne' + (g > 1 ? 's' : '') : 'Aucune gardienne'}</div>`
+    + `<div class="d">${g ? 'vos compagnes en défense, laissées au camp, le défendent en votre absence' : 'une compagne en défense, laissée au camp, le défendra en votre absence'}</div></div></div>`
+    + `<p class="note" style="margin:10px 2px 0">${Compte.dedans
+      ? 'En votre absence, un portail sur douze peut mener un autre joueur jusqu\'ici. Au coffre, il prend un centième par seconde, un cinquième au plus. Après un pillage, douze heures de bouclier ; tant que vous êtes sur votre île, personne ne vient.'
+      : 'Le pillage se joue avec un compte : sans compte, votre campement reste à l\'abri — et vous ne visitez personne.'}</p>`
+    + (liste ? `<h3>Derniers pillages</h3>` + liste : '');
 }
 function pageCompagnes() {
   if (!P.liens && !P.compagnes.length) {
@@ -4767,6 +5041,63 @@ function majJaugesCompagnes() {
 function pageSauve() {
   return `<div class="sac-corps lignes">${blocSauvegarde()}</div>`;
 }
+// ---------- l'onglet Bêta : tout ce qui sert à éprouver le jeu ----------
+// Ce qui triche passe par le mode essai : rien n'y est sauvegardé, et en le coupant on retrouve le sac
+// d'avant. La descente d'essai au Centre des automates ne rapporte rien, même remontée.
+function pageBeta() {
+  const btn = (k, txt, extra) => `<button data-beta="${k}"${extra || ''}>${txt}</button>`;
+  const ligne = (n, d, b, porte) => `<div class="obj${porte ? ' porte' : ''}"><div><div class="n">${n}</div><div class="d">${d}</div></div><div style="display:flex;gap:6px;flex-shrink:0">${b}</div></div>`;
+  const dj = djIci(), djTest = dj && DJ.etat.test;
+  return `<div class="sac-corps lignes">`
+    + `<p class="note" style="margin:2px 2px 10px">Des outils pour éprouver le jeu pendant la bêta. Tout ce qui triche passe par le mode essai : rien n'y est sauvegardé, et en le coupant on retrouve son sac d'avant.</p>`
+    + `<h3>Ressources</h3>`
+    + `<div class="obj${essai ? ' porte' : ''}"><div><div class="n">Ressources illimitées</div>`
+    + `<div class="d">Rien ne se débite : matières, flèches, mana. Les dégâts restent réels. Rien n'est sauvegardé, et en le coupant on retrouve le sac d'avant.</div></div>`
+    + `<button data-essai="1" aria-pressed="${essai}">${essai ? 'Activé' : 'Coupé'}</button></div>`
+    + `<div class="obj"><div><div class="n">Tout fabriquer</div>`
+    + `<div class="d">Passe en mode essai, débloque tous les objets, ajoute 64 flèches et porte les liens à six au moins.</div></div>`
+    + `<button data-tout="1">Fabriquer</button></div>`
+    + ligne('Remplir le sac', '+200 de chaque matière, 50 baies, 64 flèches · passe en mode essai', btn('sac', 'Remplir'))
+    + ligne('Armes d\'en bas', 'le rayon de sentinelle et le fusil d\'arpenteur, en main · passe en mode essai', btn('armes', 'Prendre'))
+    + `<h3>Le personnage</h3>`
+    + ligne('Soins complets', 'vie, mana, souffle et cœurs au plein · passe en mode essai', btn('plein', 'Soigner'))
+    + ligne('Invincible', 'plus rien ne blesse, pas même la chute · passe en mode essai', btn('invincible', P.invincible ? 'Activé' : 'Coupé', ` aria-pressed="${!!P.invincible}"`), P.invincible)
+    + `<h3>Le monde</h3>`
+    + ligne('L\'heure', dj ? 'sous terre, il ne fait jamais nuit' : 'il est ' + Math.floor(horloge * 24) + ' h · passe en mode essai', btn('midi', 'Midi', dj ? ' disabled' : '') + btn('minuit', 'Minuit', dj ? ' disabled' : ''))
+    + ligne('Le temps qu\'il fait', dj ? 'ni pluie ni vent sous terre' : METEO[Meteo.vers].n + ' · le suivant, tout de suite · passe en mode essai', btn('meteo', 'Changer', dj ? ' disabled' : ''))
+    + `<h3>Centre des automates</h3>`
+    + (djTest ? ligne('Descente d\'essai en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · rien de ce qu\'on trouve ici n\'est gardé', btn('quitterDj', 'Remonter'), true)
+      : dj ? ligne('Vraie descente en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · on ne la quitte que par le monte-charge (ou terrassé)', '')
+      : ligne('Descendre, pour essayer', 'le souterrain de l\'île où vous êtes, sans chercher la trappe · de 3 à 5 étages · rien de ce qu\'on y trouve n\'est gardé',
+          btn('dj1', 'Étage 1') + btn('djFin', 'Dernier étage')))
+    + `<h3>Mesures</h3>`
+    + `<div class="obj"><div><div class="n">Mesures du moteur</div><div class="d">Temps de dessin, images par seconde, faces : sous les jauges.</div></div>`
+    + `<button data-mesures="1" aria-pressed="${mesures}">${mesures ? 'Affichées' : 'Cachées'}</button></div>`
+    + ligne('Où vous êtes', 'graine ' + SEED + ' · exploration ' + profondeur() + (ileMeca ? ' · île des automates' : '') + (dj ? ' · étage ' + DJ.e + '/' + DJ.n : '')
+      + ' · x ' + P.x.toFixed(1) + ', y ' + P.y.toFixed(1) + ', z ' + P.z.toFixed(1), '')
+    + `<h3>Diagnostic</h3>`
+    + `<div class="obj"><div><div class="n">${G3.ok && !G3.perdu ? 'Carte graphique active' : 'Tracé en canvas'}${(globalThis.__PANNE || {}).repli ? ' (repli automatique)' : ''}</div>`
+    + `<div class="d">${(globalThis.__PANNE || {}).n ? __PANNE.n + ' incident(s) · ' + __PANNE.dernier.replace(/[<>]/g, '') : 'Aucun incident.'}`
+    + ` · ${innerWidth}×${innerHeight} · ${Math.round(devicePixelRatio * 100) / 100}× · ${(navigator.userAgent || '').slice(0, 70)}</div></div></div>`
+    + `<div class="obj"><div><div class="n">Un problème, une idée ?</div><div class="d">Un message part vers l'équipe, avec l'état du jeu pour reproduire.</div></div>`
+    + `<button data-retour="1">Écrire</button></div>`
+    + `</div>`;
+}
+// Les outils : chacun passe d'abord en mode essai (sauf la descente d'essai, qui a ses propres règles).
+function outilBeta(k) {
+  const essaiAvant = ['sac', 'armes', 'plein', 'invincible', 'midi', 'minuit', 'meteo'];
+  if (essaiAvant.includes(k) && !essai) entrerEssai();
+  if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; say('sac rempli · essai', 1.6); }
+  else if (k === 'armes') { for (const id of ['laser', 'sniper']) { P.objets[id] = 1; rangerRaccourci(id); } P.equip.arme = 'sniper'; say('rayon de sentinelle et fusil d\'arpenteur · essai', 2); }
+  else if (k === 'plein') { P.pv = 1; P.mana = 100; P.endu = 1; P.epuise = false; lives = 3; say('soigné · essai', 1.4); }
+  else if (k === 'invincible') { P.invincible = !P.invincible; say(P.invincible ? 'invincible · essai' : 'de nouveau vulnérable', 1.6); }
+  else if (k === 'midi' || k === 'minuit') { horloge = k === 'midi' ? .5 : 0; say(k === 'midi' ? 'midi · essai' : 'minuit · essai', 1.4); }
+  else if (k === 'meteo') { const L = Object.keys(METEO), v = L[(L.indexOf(Meteo.vers) + 1) % L.length]; forcerMeteo(v); Meteo.de = v; Meteo.m = 1; say(METEO[v].n + ' · essai', 1.6); }
+  else if (k === 'dj1' || k === 'djFin') { djEssai(k === 'dj1' ? 1 : 99); return; }
+  else if (k === 'quitterDj') { djRemonter(); return; }
+  majSac();
+}
+
 function pageReglages() {
   const densite = DENS_GLOB < .6 ? 'Clairsemée' : DENS_GLOB > 1 ? 'Dense' : 'Normale';
   const touches = [['Z Q S D, W A S D, flèches', 'marcher'], ['Maj', 'courir, tant qu\'il reste du souffle'], ['Espace', 'sauter'],
@@ -4774,10 +5105,10 @@ function pageReglages() {
     ['1 à 5', 'utiliser une case : sort, sifflet, lanterne, arme, outil'], ['G', 'offrir une baie'], ['H', 'siffler : les compagnes accourent'],
     ['Q, E', 'pivoter la vue'], ['R, F', 'incliner la vue'],
     ['V', 'isométrie ou 1re personne'], ['I ou Tab', 'ouvrir ou fermer le sac'], ['B', 'ouvrir l\'établi'],
-    ['1 à 7', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
+    ['1 à 8', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
     ['Clic droit', 'en 1re personne, prendre ou rendre la caméra'], ['Clic gauche', 'attaquer, caméra prise']];
   return `<div class="sac-corps lignes">`
-    + `<h3>Bêta</h3>`
+    + `<h3>Aide</h3>`
     + `<div class="obj"><div><div class="n">Un problème, une idée ?</div><div class="d">Un message part vers l'équipe, avec l'état du jeu pour reproduire.</div></div>`
     + `<button data-retour="1">Écrire</button></div>`
     + `<div class="obj"><div><div class="n">Guide de départ</div><div class="d">${P.guide.e >= GUIDE.length ? 'terminé' : 'étape ' + (P.guide.e + 1) + ' sur ' + GUIDE.length}</div></div>`
@@ -4792,21 +5123,8 @@ function pageReglages() {
     + `<div class="obj"><div><div class="n">Isométrie en WebGL</div>`
     + `<div class="d">La carte graphique dessine aussi la vue de dessus, et tranche au pixel. À couper pour revenir au tracé en canvas.</div></div>`
     + `<button data-isogl="1" aria-pressed="${isoGL}"${G3.ok && !G3.perdu ? '' : ' disabled'}>${isoGL ? 'Activée' : 'Coupée'}</button></div>`
-    + `<div class="obj"><div><div class="n">Mesures du moteur</div><div class="d">Temps de dessin, images par seconde, faces : sous les jauges.</div></div>`
-    + `<button data-mesures="1" aria-pressed="${mesures}">${mesures ? 'Affichées' : 'Cachées'}</button></div>`
     + `<div class="obj"><div><div class="n">Densité de la flore</div><div class="d">Moins de plantes, moins de faces à dessiner.</div></div>`
     + `<button data-dens="1">${densite}</button></div>`
-    + `<h3>Mode essai</h3>`
-    + `<div class="obj${essai ? ' porte' : ''}"><div><div class="n">Ressources illimitées</div>`
-    + `<div class="d">Rien ne se débite : matières, flèches, mana. Les dégâts restent réels. Rien n'est sauvegardé, et en le coupant on retrouve le sac d'avant.</div></div>`
-    + `<button data-essai="1" aria-pressed="${essai}">${essai ? 'Activé' : 'Coupé'}</button></div>`
-    + `<div class="obj"><div><div class="n">Tout fabriquer</div>`
-    + `<div class="d">Passe en mode essai, débloque tous les objets, ajoute 64 flèches et porte les liens à six au moins.</div></div>`
-    + `<button data-tout="1">Fabriquer</button></div>`
-    + `<h3>Diagnostic</h3>`
-    + `<div class="obj"><div><div class="n">${G3.ok && !G3.perdu ? 'Carte graphique active' : 'Tracé en canvas'}${(globalThis.__PANNE || {}).repli ? ' (repli automatique)' : ''}</div>`
-    + `<div class="d">${(globalThis.__PANNE || {}).n ? __PANNE.n + ' incident(s) · ' + __PANNE.dernier.replace(/[<>]/g, '') : 'Aucun incident.'}`
-    + ` · ${innerWidth}×${innerHeight} · ${Math.round(devicePixelRatio * 100) / 100}× · ${(navigator.userAgent || '').slice(0, 70)}</div></div></div>`
     + `<h3>Commandes</h3><dl class="touches">${touches.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`
     + `<h3>Données personnelles</h3><div class="donnees">${TEXTE_DONNEES}</div>`
     + `</div>`;
@@ -4827,7 +5145,7 @@ function majSac() {
   const focusCle = focus ? ['onglet', 'recette', 'choix', 'filtre', 'comp', 'role'].map(k => focus.dataset[k] !== undefined ? `[data-${k}="${focus.dataset[k]}"]` : '').join('') : '';
   feuilleIcones();
   const page = { sac: pageSac, etabli: pageEtabli, compagnes: pageCompagnes, camp: pageCampement,
-    journal: pageJournal, sauve: pageSauve, reglages: pageReglages }[ongletSac]();
+    journal: pageJournal, sauve: pageSauve, reglages: pageReglages, beta: pageBeta }[ongletSac]();
   let nDefil = 0;
   const titre = ONGLETS.find(o => o.id === ongletSac).n;
   const rail = ONGLETS.map((o, i) =>
@@ -4934,6 +5252,7 @@ function clicSac(b) {
   else if (d.isogl) { isoGL = !isoGL; majSac(); }
   else if (d.mesures) { mesures = !mesures; majSac(); }
   else if (d.retour) ouvrirRetour();
+  else if (d.beta) outilBeta(d.beta);
   else if (d.guide) { P.guide.masque = !P.guide.masque; hudT = -9; majSac(); }
   else if (d.dens) { DENS_GLOB = DENS_GLOB < .6 ? .7 : DENS_GLOB > 1 ? .45 : 1.15; calcFlore(); majSac(); }
   else if (d.fin) ouvrirSac(false);
@@ -5062,6 +5381,7 @@ const SPEC = [
     lien:0, travail:{}, metier:'tire en cloche, par-dessus les murs', grimpe:0,
     tir:{ deg:.24, portee:21, min:4.5, cadence:5.5, vit:0, precision:.9, cloche:1, zone:1.9, avance:.75 }, dur:2.1, duel:1, eclats:4, coeur:4 },
 ];
+SPEC.push(...djEspeces());                              // les machines du Centre des automates (donjon.js)
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const automate = sp => !!sp && sp.fam === 'automate';
 const coursier = sp => !!sp && sp.fam === 'coursier';
@@ -5077,6 +5397,7 @@ const JOUR = 240;
 const LEVER = 6, COUCHER = 20, CREPUSCULE = 1.5;
 const lisse01 = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
 function lumiere() {
+  if (djIci()) return .9;                              // en bas, il ne fait jamais nuit
   const H = horloge * 24;
   if (H >= LEVER && H <= COUCHER) return .74 + .26 * Math.sin(Math.PI * (H - LEVER) / (COUCHER - LEVER));
   if (H > COUCHER) return .74 - .44 * lisse01((H - COUCHER) / CREPUSCULE);
@@ -5110,6 +5431,7 @@ const Meteo = { de:'clair', vers:'clair', m:1, reste:90, vent:.45, derive:0,
                 dir:1.2, flash:0, eclair:6 };
 const met = k => { const a = METEO[Meteo.de][k], b = METEO[Meteo.vers][k]; return a + (b - a) * Meteo.m; };
 function majMeteo(dt) {
+  if (djIci()) { Meteo.de = Meteo.vers = 'clair'; Meteo.m = 1; Meteo.reste = 90; Meteo.vent = 0; Meteo.flash = 0; GOUTTES.length = 0; return; }
   if (Meteo.m < 1) Meteo.m = Math.min(1, Meteo.m + dt / 25);       // 25 s pour basculer
   if ((Meteo.reste -= dt) <= 0) {
     const su = METEO[Meteo.vers].suite;
@@ -5222,7 +5544,7 @@ function majFeux() {
   const vacille = (r, s) => r * (1 + .035 * Math.sin(t * 9.3 + s) + .02 * Math.sin(t * 23.1 + s * 2));
   const pousse = (x, y, z, r) => { if (Number.isFinite(x) && Number.isFinite(y)) L.push([x, y, z, r, (x - P.x) ** 2 + (y - P.y) ** 2]); };
   feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : RAYON.joueur]);
-  if (campIci()) pousse(P.camp.x, P.camp.y, P.camp.z + .6, vacille(RAYON.feu, 3));
+  for (const c of campsIci()) pousse(c.x, c.y, c.z + .6, vacille(RAYON.feu, 3));
   if (PortailIle) pousse(PortailIle.x, PortailIle.y, PortailIle.z + 1.2, RAYON.arche);
   for (const b of beasts) if (b.tame && !b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
   for (const j of Autres.values()) pousse(j.x, j.y, j.z + 1, j.lum ? vacille(RAYON.lanterne, 5) : RAYON.joueur);
@@ -5445,6 +5767,7 @@ function loadWorld() {
   P.vx = P.vy = P.vz = 0; P.ground = true; P.face = P.faceS = Math.PI * .25; P.land = 0;
   P.saut2 = false; P.sol = [P.x, P.y, P.z];
   camX = P.x; camY = P.y; camZ = P.z;
+  djPeupler();                                       // la trappe, ou tout un étage du donjon
   // L'île repart de zéro, pas les compagnes : celles qui étaient dehors se reposent près de vous.
   for (const c of P.compagnes) if (c.dehors) {
     const v = c.b;
@@ -5876,6 +6199,9 @@ function update(dt) {
   // --- sac, sorts et récolte ---
   if (P.recolte > 0) P.recolte -= dt;
   majGeste();
+  majRaid(dt);
+  djMajMonde(dt);
+  if (P.invincible) { P.pv = 1; P.brulure = 0; }         // l'outil de test : rien ne blesse
   if (P.frappe > 0) P.frappe -= dt;
   P.mana = Math.min(100, P.mana + dt * 4 * (1 + ((porte('armure') || {}).mana || 0)));
   majBiome(dt);
@@ -5896,7 +6222,7 @@ function update(dt) {
     // La baie va à la bête la plus proche — mais pas à une compagne rassasiée, qui la volerait
     // à la bête sauvage qu'on essaie d'apprivoiser juste à côté.
     let c = null, dc = 9, repue = null;
-    for (const b of beasts) if (!b.dead && b.pv > 0) {
+    for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp) {   // une gardienne ne se laisse pas amadouer
       const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
       if (d >= 9) continue;
       if (b.tame && b.faim < .15) { if (!repue) repue = b; continue; }
@@ -6787,7 +7113,10 @@ const degDefense = (b, c) => (.06 + b.sp.sz * .10) * (1 + (b.sp.riposte || 0) * 
 
 // Le joueur à terre : il se relève au départ, un peu plus léger. Les chasseurs le perdent.
 function terrasse() {
+  if (P.invincible) { P.pv = 1; return; }
   SON.jouer('mort');
+  if (djIci() && djMort()) return;                     // sous terre : le butin du donjon est perdu
+  if (raidIci() && !Raid.fini) emporter('mort');       // terrassé en pleine visite : le butin reste au coffre
   P.pv = 1; P.endu = 1; P.epuise = false; P.baies = Math.max(0, P.baies - 2);
   P.x = P.spawn[0]; P.y = P.spawn[1]; P.z = P.spawn[2]; P.vx = P.vy = P.vz = 0;
   for (const b of beasts) { b.traque = false; if (b.as && b.as.c === P) b.as = null; b.colere = 0; }
@@ -6805,6 +7134,7 @@ function blesseParJoueur(b) {
 function porterCoup(b, c, deg) {
   const dx = c.x - b.x, dy = c.y - b.y, d = Math.hypot(dx, dy) || 1;
   if (c === P) {
+    if (P.invincible) return false;                  // l'outil de test « invincible »
     if (P.hurt > 0) return false;                   // encore sonné : ce coup-là ne compte pas
     P.hurt = 1.0; P.dernierCoup = t;
     P.pv = Math.max(0, P.pv - degSubi(deg) * (1 - ((porte('armure') || {}).red || 0)));
@@ -7273,15 +7603,16 @@ let especesIle = new Set(), facteurHerbe = 1;
 // ne voit pas surgir un tireur d'élite à la troisième exploration. Le portail, lui, ne tire que
 // des îles permises — pour elles, le filtre ne change rien.
 function tirerBestiaire() {
+  if (typeof djIci === 'function' && djIci()) return new Set(['—']);   // en bas, seules les machines du donjon, posées une à une
   if (Array.isArray(globalThis.__BESTIAIRE)) return new Set(globalThis.__BESTIAIRE);   // les bancs choisissent
-  if (typeof ileMeca !== 'undefined' && ileMeca) return new Set(SPEC.filter(sp => sp.fam === 'automate').map(sp => sp.id));   // l'île des automates
+  if (typeof ileMeca !== 'undefined' && ileMeca) return new Set(SPEC.filter(sp => sp.fam === 'automate' && !sp.donjon).map(sp => sp.id));   // l'île des automates
   return bestiaireGraine(SEED, typeof profondeur === 'function' ? profondeur() : Infinity);
 }
 // Combien d'automates qui tirent une graine porte : c'est ce que le portail regarde au-delà du huitième saut.
 function tireursGraine(g, niv) { let n = 0; for (const id of bestiaireGraine(g, niv)) if (SPEC.some(sp => sp.id === id && sp.tir)) n++; return n; }
 function bestiaireGraine(graine, niv) {
   if (typeof ileMecaGraine === 'function' && niv >= NIV_MECA && ileMecaGraine(graine))
-    return new Set(SPEC.filter(sp => sp.fam === 'automate').map(sp => sp.id));   // tous les automates, rien d'autre
+    return new Set(SPEC.filter(sp => sp.fam === 'automate' && !sp.donjon).map(sp => sp.id));   // tous les automates, rien d'autre
   let g = (graine ^ 0xbe57a1) >>> 0;
   const tir = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
   const tirerParmi = liste => {                      // un tirage pondéré, sans remise
@@ -7375,6 +7706,7 @@ function cibleAutomate(b, actif) {
 }
 function majAutomate(b, dt) {
   const sp = b.sp;
+  if (sp.donjon) return djMajBete(b, dt);
   b.t += dt; b.age += dt;
   if (b.hit > 0) b.hit -= dt;
   if (b.recul > 0) b.recul -= dt;
@@ -7880,6 +8212,7 @@ function coursierAuContact() {
 }
 
 function majBete(b, dt) {
+  if (b.gardeCamp) return majGardienne(b, dt);           // une gardienne de campement pillé
   const sp = b.sp;
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
@@ -8264,7 +8597,7 @@ function rallumer(b) {
   return !!c;
 }
 function lier(b, voie) {
-  if (liensLibres() <= 0 || b.tame || b.dead || b.pv <= 0) return null;
+  if (liensLibres() <= 0 || b.tame || b.dead || b.pv <= 0 || b.gardeCamp) return null;   // la gardienne d'un autre ne se lie pas
   const c = { id: prochainId++, esp: b.sp.id, nom: tirerNom(), role: 'defense', mode: 'joueur', dehors: true, b,
     pv: b.pv, faim: b.faim, soif: b.soif, nrj: b.nrj, ko: 0 };
   const plein = enJeu() >= EN_JEU_MAX;
@@ -8996,6 +9329,7 @@ function blocCarnet() {
 }
 function osDeBase(f) {
   const sp = f.sp;
+  if (sp && sp.donjon) return djOs(f);                 // les machines du Centre des automates
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
   if (tellurien(sp)) return osTellurien(f);
@@ -9071,7 +9405,10 @@ function piedsPoses(f, dt) {
   const T = PATTES_T[f.sp.corps]; if (!T) return;
   if (!f.feet || !f.feet.length) initPiedsTellurien(f);
   const R = repere(f), F = R.F, L = R.L, U = R.U, k = f.sp.sz, paroi = !!f.mur || !!f.tang;
-  const v = f.dead ? 0 : (f.vit || 0), duree = T.duree / (1 + v * .22), avance = Math.min(.35 * k, v * duree * .8);
+  // Au galop, un pas ne dure pas plus que le temps de parcourir son seuil : sinon l'autre paire,
+  // qui attend son tour, reste loin derrière, et la jambe s'étirait jusqu'à elle.
+  const v = f.dead ? 0 : (f.vit || 0), duree = Math.min(T.duree / (1 + v * .22), Math.max(.045, T.seuil * k * .9 / Math.max(v, .01))),
+    avance = Math.min(.35 * k, v * duree * .8);
   for (const ft of f.feet) {
     const ox = ft.rx * k + avance, oy = ft.ry * k;
     ft.cx = f.x + ox * F[0] + oy * L[0]; ft.cy = f.y + ox * F[1] + oy * L[1]; ft.cz = f.z + ox * F[2] + oy * L[2];
@@ -9088,6 +9425,17 @@ function piedsPoses(f, dt) {
     const h = hAt(ft.cx | 0, ft.cy | 0);
     return [ft.cx, ft.cy, Math.abs(h - f.z) <= 1.05 ? h : f.z];      // une marche, oui ; le pied d'une falaise, non
   };
+  // En l'air — le bond du cerf sur une marche, une chute — les pieds quittent le sol avec le corps :
+  // on cesse de les poser (posés, ils restaient au sol et la jambe s'étirait jusqu'à eux), le dessin
+  // les replie, et on les repose sous le corps à l'atterrissage.
+  const air = !paroi && !f.dead && f.z > sol(f.x, f.y) + .12;
+  f.airK = (f.airK || 0) + ((air ? 1 : 0) - (f.airK || 0)) * Math.min(1, dt * (air ? 16 : 9));
+  if (air) {
+    f.enVol = true;
+    for (const ft of f.feet) if (ft.step > 0) { ft.step = 0; ft.x = ft.tx; ft.y = ft.ty; ft.z = ft.tz; }
+    return;
+  }
+  if (f.enVol) { f.enVol = false; for (const ft of f.feet) { const q = viser(ft); ft.step = 0; ft.x = q[0]; ft.y = q[1]; ft.z = q[2]; } }
   let enl = false;
   for (const ft of f.feet) if (ft.step > 0) {
     ft.step -= dt / ft.duree;
@@ -9104,7 +9452,12 @@ function piedsPoses(f, dt) {
   for (const ft of f.feet) if (ecart(ft) > 1.1 * k) { const q = viser(ft); ft.step = 0; ft.x = q[0]; ft.y = q[1]; ft.z = q[2]; }
 }
 // Un pied, dans le repère du corps : où il est — sur son arc pendant le pas — et de combien il est levé.
-function piedLocal(f, ft, R, haut) {
+// En l'air, il rejoint `vol`, la pose que le corps lui donne pendant le bond.
+function piedLocal(f, ft, R, haut, vol) {
+  const p = piedPose(f, ft, R, haut), a = f.airK || 0;
+  return vol && a > .001 ? mixP(p, vol, a) : p;
+}
+function piedPose(f, ft, R, haut) {
   const k = f.sp.sz, F = R.F, L = R.L, U = R.U;
   let wx = ft.x, wy = ft.y, wz = ft.z, lev = 0;
   if (ft.step > 0) {
@@ -9116,6 +9469,12 @@ function piedLocal(f, ft, R, haut) {
   return [(dx * F[0] + dy * F[1] + dz * F[2]) / k, (dx * L[0] + dy * L[1] + dz * L[2]) / k, (dx * U[0] + dy * U[1] + dz * U[2]) / k + lev];
 }
 // Deux os, H→genou→P, de longueurs fixes : le genou se place dans le plan de la jambe, du côté du pli.
+// Un pied hors d'atteinte de sa hanche — la bête démarre plus vite que ses pas, elle prend son élan —
+// se dessine au bout de la jambe tendue, plutôt que l'os ne s'étire jusqu'à lui.
+function aPortee(H, P, L) {
+  const dx = P[0] - H[0], dy = P[1] - H[1], dz = P[2] - H[2], d = Math.hypot(dx, dy, dz), m = L * .998;
+  return d <= m ? P : [H[0] + dx * m / d, H[1] + dy * m / d, H[2] + dz * m / d];
+}
 function genou(H, P, L1, L2, pli) {
   const dx = P[0] - H[0], dy = P[1] - H[1], dz = P[2] - H[2], d = Math.hypot(dx, dy, dz) || 1e-4;
   const ux = dx / d, uy = dy / d, uz = dz / d, dm = Math.min(d, (L1 + L2) * .999);
@@ -9198,7 +9557,7 @@ function osTellurien(f) {
     const R = repere(f);
     for (const ft of f.feet || []) {
       const base = ft.i === 0 ? epaule : hanche, s = ft.s;
-      const H = [base[0], base[1] + s * .07, base[2] - .02], Pd = piedLocal(f, ft, R, PATTES_T.saurien.haut);
+      const H = [base[0], base[1] + s * .07, base[2] - .02], Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.saurien.haut, [base[0] + .03, s * .19, -.04]), .33);   // en l'air : pendantes
       const G = genou(H, Pd, .17, .16, [0, s, .8]);
       add(H, G, .05, .05, sp.leg); add(G, Pd, .04, .04, sp.leg);
       add(Pd, [Pd[0] + .045, Pd[1] + s * .012, Pd[2]], .05, .02, sp.leg);   // les doigts
@@ -9212,7 +9571,7 @@ function osTellurien(f) {
     const nuage = f.nuageT != null && t - f.nuageT < .6 ? 1 - (t - f.nuageT) / .6 : 0;   // il se gonfle et crache
     const bz = .15 + hop - dk * .1;
     for (const ft of f.feet || []) {                                                   // deux pieds, posés tour à tour
-      const s = ft.s, H = [0, s * .06, bz], Pd = piedLocal(f, ft, R, PATTES_T.myconide.haut);
+      const s = ft.s, H = [0, s * .06, bz], Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.myconide.haut, [.02, s * .08, -.03]), .17);
       const G = genou(H, Pd, .09, .08, [1, 0, .2]);
       add(H, G, .08, .08, sp.leg); add(G, Pd, .07, .07, sp.leg); add(Pd, [Pd[0] + .05, Pd[1], Pd[2]], .08, .04, sp.leg);
     }
@@ -9257,9 +9616,14 @@ function osTellurien(f) {
   add([tete[0] + .01, 0, tete[2] + .06], [tete[0] + .03, 0, tete[2] + .09], .045, .045, sp.pierre);   // la pierre natale, au front
   // le trot en diagonale, pieds posés : le genou pointe devant, le jarret derrière
   const R = repere(f);
+  // Le bond : à l'envol, les antérieurs se replient sous le poitrail et les postérieurs, tendus
+  // derrière, poussent encore ; à la descente, les antérieurs se tendent vers le sol et les
+  // postérieurs se ramènent sous le ventre.
+  const desc = Math.max(0, Math.min(1, .5 - (f.vz || 0) / 14));
   for (const ft of f.feet || []) {
     const arr = ft.i === 1, s = ft.s;
-    const H = [arr ? -.19 : .14, s * .07, bz - .04], Pd = piedLocal(f, ft, R, PATTES_T.cerf.haut);
+    const vol = arr ? mixP([-.46, s * .07, .06], [-.14, s * .07, .16], desc) : mixP([.20, s * .07, .16], [.32, s * .07, .03], desc);
+    const H = [arr ? -.19 : .14, s * .07, bz - .04], Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.cerf.haut, vol), arr ? .53 : .49);
     const G = genou(H, Pd, arr ? .26 : .24, arr ? .27 : .25, [arr ? -1 : 1, 0, 0]);
     add(H, G, .065, .065, sp.shell); add(G, Pd, .04, .04, sp.leg);
     add(Pd, [Pd[0] + .03, Pd[1], Pd[2]], .045, .03, sp.dark);                         // le sabot
@@ -9376,7 +9740,7 @@ function portailOs() {
   }
   return B;
 }
-function campOs() {
+function campOs(ennemi) {
   const B = [], f = Math.sin(t * 7.3) * .5 + .5, g = Math.sin(t * 4.1 + 1.7) * .5 + .5;
   const bat = (a, b, w, h, c) => B.push({ a, b, w, h, c });
   bat([-1.05, 0, .05], [1.05, 0, .05], 2.1, .1, C_BOISF);              // le plancher
@@ -9400,7 +9764,8 @@ function campOs() {
   bat([-.88, .82, .06], [-.54, .82, .06], .34, .36, C_BOIS);
   bat([-.5, .86, .06], [-.28, .86, .06], .22, .24, C_BOISF);
   bat([1.0, .78, .06], [1.0, .78, 1.2], .08, .08, C_BOIS);
-  bat([1.0, .78, 1.12], [1.0, .42, 1.06], .05, .34, C_OR);
+  bat([1.0, .78, 1.12], [1.0, .42, 1.06], .05, .34, ennemi ? [196, 58, 50] : C_OR);   // la bannière d'un autre est rouge
+  if (ennemi) return B;                             // et son portail ne s'ouvre que pour lui
   // le portail du campement : la même arche que celles des îles, posée en lisière
   for (const o of portailOs()) bat([o.a[0], o.a[1] + 1.02, o.a[2]], [o.b[0], o.b[1] + 1.02, o.b[2]], o.w, o.h, o.c);
   return B;
@@ -9415,13 +9780,12 @@ function emitPortailIle(view, out) {
   }
 }
 function emitCamp(view, out) {
-  if (!campIci()) return;
-  const c = P.camp;
-  for (const o of campOs()) {
+  for (const c of campsIci()) for (const o of campOs(c !== P.camp)) {
     const A = [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], Bb = [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]];
     const cle = view.kEnt && view.kEnt((A[0] + Bb[0]) / 2, (A[1] + Bb[1]) / 2);
     emitLimb(A, Bb, o.w, o.h, o.c, view, out, cle, rangSol(c.z, false));
   }
+  djEmit(view, out);                                    // le donjon, sa trappe, et les traits des armes d'en bas
 }
 function emitHero(view, out, J) {
   J = J || P;
@@ -9453,6 +9817,7 @@ function emitHero(view, out, J) {
 // on emportait les nuages avec soi. On projette donc désormais pour de bon : écart d'azimut
 // avec la direction du regard, tangente, et voilà le nuage cloué à son coin de ciel.
 function cielDecor(azVue, pitchVue, F) {
+  if (djIci()) return;                                 // ni astre ni nuage sous terre
   const l = clarte(), cy = Hd / 2;
   const norm = a => { while (a > Math.PI) a -= 6.2832; while (a < -Math.PI) a += 6.2832; return a; };
   const place = (az, el) => {
@@ -9738,9 +10103,9 @@ function drawHud() {
   const oct = ((Math.round(ang / (Math.PI / 4)) % 8) + 8) % 8;
   const html =
     `BAIES <b>${P.baies}</b>`
-    + (P.fleches || (porte('arme') || {}).arc ? ` · FLÈCHES <b>${P.fleches}</b>` : '')
+    + (P.fleches || ((porte('arme') || {}).arc && !(porte('arme') || {}).fusil) ? ` · FLÈCHES <b>${P.fleches}</b>` : '') + djHud()
     + (P.arc !== null ? ` · <b>${'█'.repeat(Math.round(Math.min(1, P.arc / ARC_TEMPS) * 6)).padEnd(6, '·')}</b>` : '')
-    + ` · <b>${hh}:${mm}</b> · ${METEO[Meteo.vers].n}${essai ? ' · <b>ESSAI</b>' : ''}`
+    + (djIci() ? ` · <b style="color:#ffb45a">CENTRE DES AUTOMATES · ÉTAGE ${DJ.e}/${DJ.n}${DJ.etat.test ? ' · ESSAI' : ''}</b>` : ` · <b>${hh}:${mm}</b> · ${METEO[Meteo.vers].n}`) + (essai ? ' · <b>ESSAI</b>' : '')
     + (Autres.size ? ` · <span style="color:#8fe3ff">${Autres.size} JOUEUR${Autres.size > 1 ? 'S' : ''}</span>` : '')
     + (profondeur() || ecart() ? `<br><span style="color:${auDelaBarriere() ? '#ff9a7a' : '#8fe3ff'}">`
         + `EXPLORATION <b>${profondeur()}</b> · DANGER <b>×${danger().toFixed(2)}</b>`
@@ -9778,11 +10143,18 @@ function actionContexte() {
     if (liensLibres() <= 0) return { v: 'LIEN', o: 'il en faut un libre', f: () => monter(cr), vide: true };
     return { v: 'MONTER', o: 'rodéo · ' + cr.sp.n.toLowerCase(), f: () => monter(cr) };
   }
+  const dja = djAction(); if (dja) return dja;         // la trappe, le monte-charge, l'escalier, un coffre
+  // au coffre d'un autre : la part qui monte, et de quoi l'emporter sans attendre
+  if (raidIci() && !Raid.fini && Math.hypot(P.x - coffreRaid()[0], P.y - coffreRaid()[1]) < RAID_R + .6) {
+    const pc = Math.floor(Raid.part * 100 + 1e-6);
+    return pc > 0 ? { v: 'EMPORTER', o: pc + ' % · coffre de ' + Raid.pseudo, f: () => emporter('action') }
+      : { v: 'PILLER', o: 'restez au coffre · 1 % par seconde', f: () => say('restez près du coffre : un centième par seconde', 2), vide: true };
+  }
   if (auPortailIle()) return { v: 'FRANCHIR', o: 'arche · exploration ' + (profondeur() + 1), f: franchirPortail };
   if (auCamp()) return { v: 'CAMPEMENT', o: 'feu · coffre · portail', f: () => ouvrirSac(true, 'camp') };
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && Math.abs(b.z - P.z) < 2) {
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && Math.abs(b.z - P.z) < 2) {
     const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
     if (d < dp) { dp = d; pr = b; }
   }
@@ -9912,6 +10284,7 @@ function coupArme(A) {
 function attaquerDown() {
   const a = porte('arme');
   if (!a) { say('aucune arme en main · sautez-lui dessus', 1.6); return; }
+  if (a.fusil) return djTirDown(a);                    // les armes du Centre des automates
   if (a.arc) {
     if (!essai && P.fleches <= 0) { say('plus de flèches', 1.4); return; }
     if (P.anim) P.anim = null;
@@ -9922,6 +10295,7 @@ function attaquerDown() {
   attaquer(a, cibleContact(a.port));
 }
 function attaquerUp() {
+  const af = porte('arme'); if (af && af.fusil) return djTirUp(af);
   if (P.arc === null) return;
   const p = Math.min(1, P.arc / ARC_TEMPS); P.arc = null;
   P.decoche = t; P.decocheK = p; P.garde = t + GARDE_T;
@@ -10099,6 +10473,8 @@ function majCible() {
     let nom, info;
     if (!o.sp) { nom = o.nom; info = 'joueur'; }
     else if (o.loin) { nom = nomEspeceDe(o); info = 'compagne de ' + o.loin.nom; cl = 'lie'; }
+    else if (o.gardeCamp) { nom = nomEspeceDe(o);
+      info = 'gardienne' + (raidIci() ? ' de ' + Raid.pseudo : '') + ' · ' + (o.etat === 'repousser' ? 'défend le campement' : 'garde le campement'); }
     else if (o.comp) { nom = o.comp.nom; cl = 'lie';
       info = `${nomEspeceDe(o).toLowerCase()} · ${nomRole(o.comp.role)} · ${nomMode(o.comp.mode)} · ${DITS_ETAT[o.etat] || o.etat}`; }
     else if (coursier(o.sp) && !o.tame) { nom = nomEspeceDe(o);
@@ -10130,6 +10506,7 @@ function vueCap() {
 function reperes() {
   const L = [];
   if (P.camp && campIci()) L.push({ x: P.camp.x, y: P.camp.y, k: 'camp' });
+  if (raidIci()) L.push({ x: Raid.x, y: Raid.y, k: 'pillage', n: Raid.pseudo });
   if (PortailIle) L.push({ x: PortailIle.x + .5, y: PortailIle.y + .5, k: 'arche' });
   for (const c of P.compagnes) if (c.dehors && c.b && !c.b.dead) L.push({ x: c.b.x, y: c.b.y, k: 'comp' });
   for (const j of Autres.values()) L.push({ x: j.x, y: j.y, k: 'joueur', n: j.nom });
@@ -10165,8 +10542,8 @@ function majBoussole(forcer) {
     if (bord) a = Math.sign(a) * (BOUS_DEMI - .08);
     const X = px(a), Y = 25;
     x.globalAlpha = bord ? .6 : 1;
-    if (m.k === 'camp') {                           // une tente
-      x.fillStyle = '#ffb45a'; x.beginPath(); x.moveTo(X - 5, Y + 4); x.lineTo(X + 5, Y + 4); x.lineTo(X, Y - 5); x.fill();
+    if (m.k === 'camp' || m.k === 'pillage') {      // une tente — rouge, chez un autre
+      x.fillStyle = m.k === 'camp' ? '#ffb45a' : '#ff6a5a'; x.beginPath(); x.moveTo(X - 5, Y + 4); x.lineTo(X + 5, Y + 4); x.lineTo(X, Y - 5); x.fill();
     } else if (m.k === 'arche') {                   // une arche
       x.strokeStyle = '#8fe3ff'; x.lineWidth = 2; x.beginPath(); x.arc(X, Y + 3, 4.5, Math.PI, 0); x.moveTo(X - 4.5, Y + 3); x.lineTo(X - 4.5, Y + 5); x.moveTo(X + 4.5, Y + 3); x.lineTo(X + 4.5, Y + 5); x.stroke();
     } else if (m.k === 'comp') {
@@ -10456,6 +10833,8 @@ uniform vec2 uLum;
 uniform vec4 uVoile;
 uniform vec2 uIso;      // x : 1 en isométrie · y : rayon au-delà duquel on ne dessine plus
 uniform vec2 uSoleil;   // x : pente du soleil · y : ce que garde une surface à l'ombre
+uniform vec4 uCoupe;    // sous terre : le joueur (xyz) et le rayon de la coupe (w, 0 = rien)
+uniform vec4 uVers;     // la direction de l'œil, et jusqu'où couper
 out vec4 o;
 ${NUIT_GLSL}
 // le grain se répète par cube ; les calques d'arête couvrent la face une seule fois
@@ -10468,6 +10847,11 @@ vec4 calque(int k, vec2 t) {
   return texelFetch(uA, ivec2(k % 8, k / 8) * 16 + p, 0);
 }
 void main() {
+  if (uCoupe.w > 0.0 && vL == 0 && vW.z > uCoupe.z + 0.45) {
+    // seulement ce qui est devant le joueur, vu d'ici : les murs de côté restent debout
+    vec3 r = vW - uCoupe.xyz; float a = dot(r, uVers.xyz), f = dot(r.xy, normalize(uVers.xy));
+    if (a > 0.2 && a < uVers.w && f > 0.35) { vec3 q = r - uVers.xyz * a; if (dot(q, q) < uCoupe.w * uCoupe.w) discard; }
+  }
   // En isométrie, la brume se mesure au sol depuis le joueur, comme en canvas, et le décor
   // s'arrête au même rayon qu'en canvas : la carte graphique ne doit pas montrer plus d'île.
   float d = uIso.x > .5 ? distance(vW.xy, uOeil.xy) : distance(vW, uOeil);
@@ -11094,7 +11478,8 @@ void main() { o = uC; }`;
     feux.forEach((f, i) => FEUX_GL.set([f[0], f[1], f[2], f[3]], i * 4));
     // en orbite, la brume se compte depuis le joueur, pas depuis l'œil posé loin derrière lui
     distVue = iso ? BRU1 : (tierce || 0) + Math.max(tierce ? 30 : 0, 10 + 54 * met('brume'));
-    const brume = iso ? [BRU0, BRU1, textures ? 1 : 0] : [10 + (tierce || 0), distVue, textures ? 1 : 0];
+    const brume = djIci() ? (iso ? [14, 34, textures ? 1 : 0] : [6 + (tierce || 0), 26 + (tierce || 0), textures ? 1 : 0])   // sous terre, le noir vient vite
+      : iso ? [BRU0, BRU1, textures ? 1 : 0] : [10 + (tierce || 0), distVue, textures ? 1 : 0];
     const coupe = 1e18;
 
     // le ciel, sans profondeur
@@ -11118,7 +11503,7 @@ void main() { o = uC; }`;
       return [Math.tan(d) * F2 / (Wd / 2), Math.tan(el + elev) * F2 / (Hd / 2), 1 / (c * c)];
     };
     const elS = hauteurSoleil();
-    for (const [az, el, c, r] of [[SUN_AZ, elS, [255, 226, 150], .052], [SUN_AZ + Math.PI, -elS, [222, 230, 246], .040]]) {
+    for (const [az, el, c, r] of djIci() ? [] : [[SUN_AZ, elS, [255, 226, 150], .052], [SUN_AZ + Math.PI, -elS, [222, 230, 246], .040]]) {
       if (el < -.05) continue;
       const al = Math.min(1, .3 + el * 2) * (1 - met('nuages') * .75);
       if (al < .03) continue;
@@ -11134,7 +11519,7 @@ void main() { o = uC; }`;
       panneau(p[0], p[1], p[2], k, k, c[0] / 255, c[1] / 255, c[2] / 255, al, 2);
     }
     const couv = met('nuages'), cl = 40 + 190 * l * (1 - couv * .45);
-    for (let i = 0; i < 30; i++) {
+    for (let i = 0; i < (djIci() ? 0 : 30); i++) {
       const h1 = hachCell(i * 7 + 101, 37), h2 = hachCell(i * 13 + 5, 91);
       if (h1 > .25 + couv * .75) continue;
       const azN = i / 30 * 6.2832 + h2 * .2 + Meteo.derive, elN = .09 + h2 * .34;
@@ -11169,12 +11554,23 @@ void main() { o = uC; }`;
     gl.uniform4fv(u.uVoile, voile);
     gl.uniform4fv(u.uNuit, noir); gl.uniform4fv(u['uFeux[0]'], FEUX_GL);
     gl.uniform2f(u.uIso, iso ? 1 : 0, coupe);
+    // Sous terre, les murs de quatre cubes cacheraient le joueur : on les ouvre, dans un cylindre qui
+    // va du joueur vers l'œil, au-dessus de ses genoux. Seuls la roche et la flore s'ouvrent.
+    if (u.uCoupe) {
+      if (djIci() && (iso || tierce)) {
+        let vx, vy, vz, lg;
+        if (iso) { const ca = Math.cos(ang), sa = Math.sin(ang), dz = Math.SQRT2 * TH / TZ, n = Math.hypot(1, dz);
+          vx = (ca + sa) / Math.SQRT2 / n; vy = (ca - sa) / Math.SQRT2 / n; vz = dz / n; lg = 400; }
+        else { const dx = FC.ex - P.x, dy = FC.ey - P.y, dz = FC.ez - P.z - .5; lg = Math.hypot(dx, dy, dz) || 1; vx = dx / lg; vy = dy / lg; vz = dz / lg; }
+        gl.uniform4f(u.uCoupe, P.x, P.y, P.z + .5, 2.3); gl.uniform4f(u.uVers, vx, vy, vz, lg);
+      } else gl.uniform4f(u.uCoupe, 0, 0, 0, 0);
+    }
     // la pente du soleil : au ras de l'horizon, les ombres s'allongent ; la nuit, plus d'ombre portée
-    const elSol = hauteurSoleil();
+    const elSol = djIci() ? 1.2 : hauteurSoleil();
     gl.uniform2f(u.uSoleil, elSol > .06 ? Math.tan(elSol) : 99, elSol > .06 ? .72 : 1);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.uniform1i(u.uA, 0);
 
-    if (mer) { gl.bindVertexArray(mer.va); gl.drawElements(gl.TRIANGLES, mer.n, gl.UNSIGNED_INT, 0); }
+    if (mer && !djIci()) { gl.bindVertexArray(mer.va); gl.drawElements(gl.TRIANGLES, mer.n, gl.UNSIGNED_INT, 0); }
     const portee = iso ? 90 : distVue + 2, portee2 = (portee + TR * .75) ** 2;
     const aFaire = [];
     let ntr = 0, ntri = 0;
@@ -11256,12 +11652,13 @@ void main() { o = uC; }`;
         boite(TD, [q.x + o.a[0], q.y + o.a[1], q.z + o.a[2]], [q.x + o.b[0], q.y + o.b[1], q.z + o.b[2]],
           o.w, o.h, o.c, 0, 0, hq, 0, 0, 0);
     }
-    if (campIci() && (P.camp.x - ex) ** 2 + (P.camp.y - ey) ** 2 < 90 * 90) {
-      const c = P.camp, hc = L_FIXE + 256 * horizAt(c.x, c.y);
-      for (const o of campOs())
+    for (const c of campsIci()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {
+      const hc = L_FIXE + 256 * horizAt(c.x, c.y);
+      for (const o of campOs(c !== P.camp))
         boite(TD, [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]],
           o.w, o.h, o.c, 0, 0, hc, 0, 0, 0);
     }
+    for (const o of djDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const f of TIRS) {
       const n = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / n, f.vy / n, f.vz / n];
       if (f.obus) { boite(TD, [f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], 0, 0, L_FIXE, 0, 0, 0); continue; }
@@ -11376,6 +11773,7 @@ void main() { o = uC; }`;
     }
     for (const l of LASERS) if ((l.ax - ex) ** 2 + (l.ay - ey) ** 2 < r2)
       for (const [A, B] of rayonsLaser(l)) l.etat === 'on' ? traitSeul(A, B, 2.4, 1, .2, .14, .9) : traitSeul(A, B, 1, 1, .72, .45, .4);
+    for (const R of djTraits()) traitSeul(R.a, R.b, R.w, R.c[0], R.c[1], R.c[2], Math.max(0, R.al));
     gl.disable(gl.BLEND); gl.depthMask(true);
     gl.bindVertexArray(null);
     facesDern = stats.triangles;
@@ -11517,6 +11915,9 @@ function photo() {
                      expl: P.camp.expl || 0 } : null,
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     coffre: Object.assign({}, P.coffre),
+    pillages: P.pillages.slice(0, 5),
+    raid: raidIci() ? raidPhoto() : null,
+    donjon: djPhoto(),
     exp: { n: profondeur(), c: coeursPerdus(), s: P.exp.sortie ? 1 : 0 },
     pos: [P.x, P.y, P.z].map(v => Math.round(v * 100) / 100),
     sol: P.sol ? P.sol.map(v => Math.round(v * 100) / 100) : null,
@@ -11539,7 +11940,7 @@ function photo() {
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
 const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baies, lives, Math.round(P.pv * 10),
-  P.coffre, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
+  P.coffre, P.pillages.length, djIci() ? [DJ.e, DJ.etat.ouverts.length, DJ.etat.vaincus.length] : 0, raidIci() ? [Raid.fini, Raid.ko.length, Math.round(Raid.part * 100)] : 0, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
   P.liens, P.compagnes.map(c => [c.id, c.nom, c.role, c.mode, c.aucamp ? 1 : 0, c.dehors ? 1 : 0, c.ko ? 1 : 0, Math.round((c.b ? c.b.pv : c.pv) * 10)])]);
@@ -11584,6 +11985,12 @@ function appliquer(d, vivantes) {
   lives = nb(d.vies, 1, 3, 3) | 0;
   // le coffre et l'expédition : des nombres entiers, bornés, et rien d'autre à croire
   for (const r of COFFRE_R) P.coffre[r] = nb(d.coffre && d.coffre[r], 0, 1e6, 0) | 0;
+  P.pillages = (Array.isArray(d.pillages) ? d.pillages : []).filter(o => o && typeof o === 'object').slice(0, 5).map(o => {
+    const b = {}; for (const r of COFFRE_R) { const q = nb(o.b && o.b[r], 0, 1e6, 0) | 0; if (q) b[r] = q; }
+    return { n: String(o.n || '').replace(/[<>]/g, '').slice(0, 18) || 'quelqu\'un', b, q: nb(o.q, 0, 1e13, 0) }; });
+  // une visite de pillage en cours : elle ne vaut que sur l'île visitée ; une copie plus ancienne ne l'efface pas
+  const rd = raidLu(d.raid);
+  if (rd && rd.graine === d.graine) Raid = rd; else if (!Raid || Raid.graine !== d.graine) Raid = null;
   const xe = d.exp || {};
   P.exp = { niveau: nb(Number.isFinite(xe.n) ? xe.n : xe.s, 0, 99, 0) | 0,
     coeurs: nb(xe.c, 0, 3, 0) | 0, sortie: xe.s === 1 || xe.sortie === 1 ? 1 : 0 };
@@ -11867,7 +12274,7 @@ function entrerEssai() {
 }
 function sortirEssai() {
   if (!essai) return;
-  essai = false;
+  essai = false; P.invincible = false;
   const d = Sauve.avantEssai;
   Sauve.avantEssai = null;
   if (!d) return;
@@ -11891,6 +12298,7 @@ function nouvelleIle() {
     return;
   }
   confirmeIle = 0;
+  if (djIci()) { say('pas depuis le souterrain · le monte-charge d\'abord', 2.5); return; }
   if (essai) sortirEssai();                              // on part avec le vrai sac
   const g = tirerGraine(profondeur(), SEED);          // même exploration : mêmes biomes permis
   const d = photo();
@@ -11898,6 +12306,7 @@ function nouvelleIle() {
   // les places des compagnes ne valent que sur l'île quittée : elles se poseront près du joueur
   d.compagnes = d.compagnes.map(c => { const r = Object.assign({}, c); delete r.pos; return r; });
   laisserAuCamp(d, g);
+  djTransit(d);                                        // dessus ou dessous : la descente passe avec la sauvegarde
   Sauve.sale = true; Sauve.local = ''; Sauve.pret = false;
   if (ecrireLocal(d) && graineSauvee() === g) {
     say('cap sur une autre île', 2.5);
@@ -12106,6 +12515,7 @@ function resize() {
   if (cv3) { cv3.style.width = Wd + 'px'; cv3.style.height = Hd + 'px'; }
 }
 addEventListener('resize', resize); resize();
+djInit();                                             // les armes d'en bas, leurs places sur le dos, leurs vignettes
 loadWorld();
 arriveeLe = maintenant();                            // le répit des premières secondes
 addEventListener('pagehide', () => debrancher('parti'));
@@ -12143,6 +12553,7 @@ function frame(now) {
     if (mode === 'iso' && G3.ok && !G3.perdu) G3.prechauffer();
     if (sacOuvert && ongletSac === 'compagnes') majJaugesCompagnes();   // les besoins bougent sac ouvert
     majSauvegarde();
+    majPillage();
   } catch (e) { rattraper(e, 'suite'); }
   requestAnimationFrame(frame);
 }
@@ -12210,6 +12621,9 @@ globalThis.__ILEMECA = { LASERS, etatLaser, coupeLaser, majLasers, poserLasers, 
 globalThis.__FLORE_DURE = { obstacleFlore, floreBloque, floreTouche, floreFreine, FLORE_DURE, FLORE_FREINE, zoomer,
   get zoom() { return zoom; }, get zoomT() { return zoomT; } };
 globalThis.__SON = SON;
+globalThis.__PILLAGE = { get Raid() { return Raid; }, set Raid(v) { Raid = v; }, get raidPart() { return raidPart; }, PILL,
+  raidLu, raidPhoto, majRaid, emporter, preparerRaid, majPillage, subirPillages, campPublic, gardiennesCamp, ouvrirPortail,
+  coffreRaid, campOs, reperes, actionContexte, pagePillage, RAID_R, RAID_ZONE, RAID_MAX, GARDE_COMBAT, voyagerVers, terrasse };
 globalThis.__ARMES = { couche, poseGeste, GESTES, GARDES, SEQ_ARME, GESTES_ARMES, lancerAttaque, attaquer, coupArme, cibleContact,
   poseTir, osArmePortee, geomArme, RANGEES, xGeste, heroBones, pointeArme, secousseCam, armeDe, tensionDe, gesteDistant, majGeste,
   ARRET_ARME, TIR_FIN, GARDE_T, RENG, epauleD, ik2, POLE_D, POLE_G, MAIN_G, get anim() { return P.anim; } };
@@ -12230,7 +12644,6 @@ globalThis.__COURSIER = { coursier, majCoursier, coursierBones, pattesCoursier, 
 globalThis.__HUD = { actionContexte, faireAction, attaquerDown, attaquerUp, frapper, agir, utiliser, assignerRaccourci, rangerRaccourci,
   remplirRaccourcis, cibleVue, majBoussole, vueCap, reperes, majCases, majAction, majCible, drawHud, CASES,
   get mesures(){return mesures}, set mesures(v){mesures=v}, set hudT(v){hudT=v} };
-})();
 </script>
 </body>
 </html>
