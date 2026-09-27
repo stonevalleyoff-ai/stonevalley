@@ -388,6 +388,7 @@
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · B ÉTABLI · V VUE · Q/E PIVOTER · R/F INCLINER · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
 <script src="donjon.js"></script>
+<script src="nomades.js"></script>
 <script>
 'use strict';
 // Le jeu partage sa portée avec donjon.js, chargé juste avant : plus d'enveloppe (() => {…})().
@@ -685,7 +686,7 @@ const SON = (() => {
     brouteur: { k: 'trille', f: 1500, n: 3 }, bosseu: { k: 'grogne', f: 115, d: .35 }, glaneur: { k: 'trille', f: 2700, n: 5, vite: 1 },
     traqueur: { k: 'grogne', f: 80, d: .6, rauque: 1 }, spectre: { k: 'siffle', f: 900 },
     coursier: { k: 'hennit', f: 650 }, coursier_o: { k: 'hennit', f: 560 }, coursier_r: { k: 'hennit', f: 720 }, coursier_a: { k: 'hennit', f: 820 },
-    felin: { k: 'grogne', f: 150, d: .45, rauque: 1 }, crapaud: { k: 'coasse', f: 140 }, varan: { k: 'gorge' }, vesseron: { k: 'bouffee' }, cerf: { k: 'verre', f: 1900 }, salamandre: { k: 'braise' },
+    felin: { k: 'grogne', f: 150, d: .45, rauque: 1 }, bramard: { k: 'grogne', f: 58, d: 1.1, rauque: 1 }, crapaud: { k: 'coasse', f: 140 }, varan: { k: 'gorge' }, vesseron: { k: 'bouffee' }, cerf: { k: 'verre', f: 1900 }, salamandre: { k: 'braise' },
     traceur: { k: 'machine', f: 1300 }, moissonneur: { k: 'machine', f: 900 }, mercenaire: { k: 'machine', f: 1100 }, sentinelle: { k: 'machine', f: 500 },
     tireur: { k: 'machine', f: 1600 }, mortier: { k: 'machine', f: 420 },
     lentigrade: { k: 'soupir', f: 92 }, carillonneur: { k: 'cloche', f: 1250 }, oglodon: { k: 'stridule', f: 2600 },
@@ -2930,6 +2931,7 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
 // les os — donc toute la branche des armes — resteraient hors d'atteinte tant qu'on
 // n'aurait pas d'arme, et rien ne permettait d'en fabriquer une.
 function butin(b) {
+  if (b.sp.pnj || b.pnjSuit) { nmButin(b); return; }   // un nomade (nomades.js)
   if (automate(b.sp)) {                              // son cœur d'éclat, et ce qui reste de sa carcasse
     const pi = 2 + (Math.random() * 2 | 0), ec = b.sp.coeur || 1;   // l'élite porte un plus gros cœur
     const fe = 1 + (Math.random() * 3 | 0) + (b.sp.coeur ? 2 : 0);   // et sa carcasse : de la ferraille
@@ -5214,6 +5216,9 @@ function pageBeta() {
       : dj ? ligne('Vraie descente en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · on ne la quitte que par le monte-charge (ou terrassé)', '')
       : ligne('Descendre, pour essayer', 'le souterrain de l\'île où vous êtes, sans chercher la trappe · de 3 à 5 étages · rien de ce qu\'on y trouve n\'est gardé',
           btn('dj1', 'Étage 1') + btn('djFin', 'Dernier étage')))
+    + `<h3>Nomades du Seuil</h3>`
+    + ligne('Faire venir une caravane', NM.car ? (NM.car.hostile ? 'elle se défend' : NM.car.depart ? 'elle repart' : 'elle est sur l\'île · ' + NM.car.gens.map(g => g.nm.nom).join(', ')) : 'un seuil s\'ouvre non loin, tout de suite · sinon, de loin en loin',
+        btn('nmVenir', 'Venir') + btn('nmPartir', 'Partir'))
     + `<h3>Mesures</h3>`
     + `<div class="obj"><div><div class="n">Mesures du moteur</div><div class="d">Temps de dessin, images par seconde, faces : sous les jauges.</div></div>`
     + `<button data-mesures="1" aria-pressed="${mesures}">${mesures ? 'Affichées' : 'Cachées'}</button></div>`
@@ -5239,6 +5244,8 @@ function outilBeta(k) {
   else if (k === 'meteo') { const L = Object.keys(METEO), v = L[(L.indexOf(Meteo.vers) + 1) % L.length]; forcerMeteo(v); Meteo.de = v; Meteo.m = 1; say(METEO[v].n + ' · essai', 1.6); }
   else if (k === 'dj1' || k === 'djFin') { djEssai(k === 'dj1' ? 1 : 99); return; }
   else if (k === 'quitterDj') { djRemonter(); return; }
+  else if (k === 'nmVenir') { if (!nmVenir(true) && NM.car) say('une caravane est déjà là', 1.4); }
+  else if (k === 'nmPartir') { nmPartir(); }
   majSac();
 }
 
@@ -5561,7 +5568,24 @@ const FELINS = [
     chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','lentigrade','crapaud','cerf'],
     lien:.2, travail:{ os:1 }, metier:'chasse à l\'affût, et rapporte les os', grimpe:.5 },
 ];
-SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS);   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
+// ============================================================
+//  LE BRAMARD
+//  Un grand herbivore des plaines, en troupeau de quatre à six : garrot haut, dos qui descend vers
+//  la croupe, longue face portée bas, un bouclier d'os en croissant sur le front (deux crochets chez
+//  les mâles), une crinière de longues mèches claires de la nuque au milieu du dos, des fanons de
+//  poil aux chevilles. Calme : il ne fuit pas, broute, rumine, laisse passer. Frappé, tout le
+//  troupeau fait front et charge.
+//  LE RUT : une saison d'un jour et demi toutes les six journées (tirée de la graine de l'île). Les
+//  mâles brament, grattent le sol, le bord de leur bouclier rougeoie comme une braise ; ils chargent
+//  ce qui approche à moins de six cases et demie (quatre si l'on reste calme), et se défient entre
+//  eux, front contre front. Les femelles mettent bas davantage ; les petits suivent leur mère.
+// ============================================================
+const BRAMARDS = [
+  { id:'bramard', n:'Bramard', corps:'bramard', diet:'h', sz:1.4, spd:1.7, vue:12, peur:.08, herd:1, meute:6, cap:8, mat:160,
+    shell:[92,74,62], dark:[58,46,40], leg:[74,60,52], crin:[214,196,160], os:[228,216,190], oeil:[36,30,26], bio:[2], dur:3,
+    lien:.35, travail:{ fibre:1.4 }, metier:'perd sa crinière en broutant : de la fibre', grimpe:0 },
+];
+SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces());   // et les Nomades du Seuil (nomades.js)   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const automate = sp => !!sp && sp.fam === 'automate';
 const coursier = sp => !!sp && sp.fam === 'coursier';
@@ -5570,7 +5594,7 @@ const doux = sp => !!sp && sp.fam === 'doux';
 // la pierre natale prend la teinte de son biome
 for (const sp of SPEC) if (sp.biome) { const h = RARES.find(r => r.b === sp.biome).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
 for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
-  : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : dessinBete(d, sp);
+  : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;
 const JOUR = 240;
 // Le soleil se lève à 6 h et se couche à 20 h : quatorze heures de jour, dix de nuit. Le noir
@@ -5902,7 +5926,7 @@ function poser(sp) {
   const vr = b => { b.variante = tirerVariante(sp); return b; };   // une robe, une forme rares, parfois
   if (q) return vr(naitre(sp, q[0], q[1]));
   if (sp.meute) {                                      // une meute naît ensemble : trois ou quatre autour d'un chef
-    const chef = beasts.find(o => o.sp === sp && !o.tame && !o.dead && beasts.filter(m => m.sp === sp && (m.x - o.x) ** 2 + (m.y - o.y) ** 2 < 49).length < 4);
+    const chef = beasts.find(o => o.sp === sp && !o.tame && !o.dead && beasts.filter(m => m.sp === sp && (m.x - o.x) ** 2 + (m.y - o.y) ** 2 < 49).length < (sp.meute > 1 ? sp.meute : 4));
     if (chef) for (let k = 0; k < 30; k++) {
       const a = Math.random() * 6.2832, r = 1.5 + Math.random() * 3, x = chef.x + Math.cos(a) * r, y = chef.y + Math.sin(a) * r;
       if (x > 8 && y > 8 && x < WS - 8 && y < WS - 8 && bonBiome(sp, x, y)) return vr(naitre(sp, x, y));
@@ -6394,6 +6418,7 @@ function update(dt) {
   majRaid(dt);
   djMajMonde(dt);
   ogMaj(dt);                                         // la fourmilière fait son nectar
+  nmMaj(dt);                                         // les Nomades du Seuil passent, parfois (nomades.js)
   if (P.invincible) { P.pv = 1; P.brulure = 0; }         // l'outil de test : rien ne blesse
   if (P.frappe > 0) P.frappe -= dt;
   majBiome(dt);
@@ -6414,7 +6439,7 @@ function update(dt) {
     // La baie va à la bête la plus proche — mais pas à une compagne rassasiée, qui la volerait
     // à la bête sauvage qu'on essaie d'apprivoiser juste à côté.
     let c = null, dc = 25, repue = null;                   // 9 (trois cases), 25 pour l'oglodon : voir plus bas
-    for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp) {   // une gardienne ne se laisse pas amadouer
+    for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit) {   // une gardienne ne se laisse pas amadouer
       const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
       if (d >= (b.sp.roche && !b.tame ? 25 : 9)) continue;        // à l'oglodon méfiant, on la lance de plus loin
       if (b.tame && b.faim < .15) { if (!repue) repue = b; continue; }
@@ -6432,7 +6457,7 @@ function update(dt) {
       else {
         // La confiance vient en mangeant, plus lentement chez les espèces rares, plus vite chez
         // une bête blessée. Au bout, il faut un lien libre pour qu'elle s'y attache.
-        c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))));
+        c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1));
         const colonie = c.sp.roche ? ' · colonie ' + Math.round(Math.min(1, confColonie() + 1 / OG_BAIES) * 100) + ' %' : '';
         if (c.sp.roche) { c.doute = Math.max(0, (c.doute || 0) - .6); gagnerColonie(1 / OG_BAIES); }
         if (c.conf >= 1) { if (!lier(c, 'baies')) say('confiance totale · il faut un lien d\'éclat libre' + colonie, 2.6); }
@@ -6936,11 +6961,13 @@ function menaceEtProie(b, vue) {
       // bêtes liées, et une compagne qui fuirait tout traqueur éveillé ne défendrait personne.
       // un chasseur camouflé (le félin de brume) ne se voit que de près : jusqu'au quart de la distance
       const r = (vise ? vue * 1.25 : b.tame ? 0 : eveille ? rayonEveil : 3) * (1 - (o.camo || 0) * .75);
-      if (d < r * r) { dM = d; men = o; }
+      const faite = o === b.ignore && b.t < b.ignoreT && !vise && d > 6.25;   // une menace à laquelle elle s'est faite
+      if (d < r * r && !faite) { dM = d; men = o; }
     }
-    if (sp.chasse && sp.chasse.includes(o.sp.id) && !o.tame && !(o.enfoui > 0) && d < vue * vue && d < dP) { dP = d; pr = o; }
+    if (sp.chasse && sp.chasse.includes(o.sp.id) && !o.tame && !o.pnjSuit && !(o.enfoui > 0) && d < vue * vue && d < dP) { dP = d; pr = o; }
   }
-  if (!b.tame && sp.peur > .3) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2, r = rayonPeurJoueur(b, vue); if (d < r * r && d < dM) { dM = d; men = P; } }
+  if (!b.tame && sp.peur > .3) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2, r = rayonPeurJoueur(b, vue);
+    if (d < r * r && d < dM && !(b.ignore === P && b.t < b.ignoreT && d > 6.25 && !(b.colere > 0))) { dM = d; men = P; } }
   return [men, dM, pr, dP];
 }
 // ---------- le joueur calme ----------
@@ -6964,7 +6991,7 @@ function majAise(b, dt) {
   const d = Math.hypot(P.x - b.x, P.y - b.y), co = coursier(b.sp);
   if (!joueurCalme()) { if (d < b.sp.vue) b.aise = Math.max(0, (b.aise || 0) - dt * (co ? 1.2 : .6)); }
   else if (d < b.sp.vue * (co ? 1 : .7)) {                           // le troupeau de coursiers erre loin : on le compte à vue
-    const lent = co ? 4 * (Math.hypot(P.vx, P.vy) > .5 ? 3 : 1) : 1;
+    const lent = (co ? 4 * (Math.hypot(P.vx, P.vy) > .5 ? 3 : 1) / (nmSait('regard-oblique') ? 2 : 1) : 1) / (!co && nmSait('main-basse') ? 2 : 1);   // les techniques des nomades
     b.aise = Math.min(1, (b.aise || 0) + dt / ((12 + 18 * b.sp.peur) * lent));
   }
   else b.aise = Math.max(0, (b.aise || 0) - dt * (co ? .012 : .004));   // loin, elle vous oublie en quelques minutes
@@ -7880,6 +7907,7 @@ function bestiaireGraine(graine, niv) {
   if (ogloGraine(graine)) e.add('oglodon');           // la fourmilière est dans le relief de la graine
   for (const b of betesRaresGraine(graine)) if (b.niv <= niv) e.add(b.id);
   if (niv >= NIV_FELIN && felinGraine(graine)) e.add('felin');   // tiré à part : le reste du bestiaire ne bouge pas
+  if (niv >= 1 && bramardGraine(graine)) e.add('bramard');        // de même le bramard, dès la première exploration
   return e;
 }
 // Le félin de brume : environ une île sur trois, à partir de la quatrième exploration.
@@ -7893,7 +7921,7 @@ function felinGraine(g) {
 // Moins d'espèces d'herbivores, plus de chacune : une île à un seul herbivore en porte deux fois
 // plus, sinon elle paraîtrait vide et ses chasseurs mourraient de faim.
 function regleHerbe() {
-  const nh = SPEC.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.biome && !sp.roche && especesIle.has(sp.id)).length;
+  const nh = SPEC.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.biome && !sp.roche && sp.corps !== 'bramard' && especesIle.has(sp.id)).length;   // le bramard, tiré à part, ne change pas les autres troupeaux
   facteurHerbe = nh >= 3 ? 1 : nh === 2 ? 1.4 : 2;
 }
 const especePresente = sp => especesIle.has(sp.id);
@@ -8484,6 +8512,7 @@ function coursierAuContact() {
 
 function majBete(b, dt) {
   if (b.gardeCamp) return majGardienne(b, dt);           // une gardienne de campement pillé
+  if (b.sp.pnj || b.pnjSuit) return majNomade(b, dt);    // un nomade, ou la bête de son dresseur (nomades.js)
   const sp = b.sp;
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
@@ -8558,11 +8587,16 @@ function majBete(b, dt) {
   const dEau = distEau(b.x, b.y);
   const assoiffe = dEau !== EAU_LOIN && (b.soif > Math.max(.3, .7 - dEau * .005) || (b.etat === 'boire' && b.soif > .05));
 
+  // La faim et la soif finissent par l'emporter sur la peur. Assoiffée ou affamée, une bête ne fuit
+  // plus que ce qui la serre de près (trois cases) ou s'en prend à elle : acculée ou méfiante devant
+  // une menace qui ne bougeait pas, elle restait sur place jusqu'à en mourir.
+  const besoin = !b.tame && ((assoiffe && b.soif > .7) || b.faim > .85);
+  const presse = !!men && (dM < 9 || men.cible === b || (!!men.as && men.as.c === b));
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
   if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
   else if (b.as) etat = 'assaut';
   else if (panique) { etat = 'fuir'; men = P; dM = dJ * dJ; }
-  else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
+  else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15 && (!besoin || presse)) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
   else if (b.decroche > 0 && b.epargne && !b.epargne.dead) etat = 'décrocher';
   else if (b.tame) {
     etat = etatCompagne(b, dEau);
@@ -8578,6 +8612,10 @@ function majBete(b, dt) {
   else if (sp.herd) etat = 'troupeau';
   if ((etat === 'errer' || etat === 'troupeau' || (etat === 'brouter' && b.faim < .6)) && curieuse(b, dJ, dzJ)) etat = 'curieux';
   b.etat = etat;
+  // Vingt secondes à fuir ou à faire front devant ce qui ne l'attaque pas : elle s'y fait, et ne le
+  // craint plus de vingt-cinq secondes, sauf s'il approche à deux cases et demie ou s'en prend à elle.
+  if (etat === 'fuir' || etat === 'acculé') b.peurT = (b.peurT || 0) + dt; else b.peurT = 0;
+  if (b.peurT > 20 && men && !(men.cible === b || (men.as && men.as.c === b))) { b.ignore = men; b.ignoreT = b.t + 25; b.peurT = 0; b.accule = 0; }
   b.alarm = Math.max(b.alarm, etat === 'fuir' || etat === 'acculé' || etat === 'assaut' ? 1
     : etat === 'chasser' || etat === 'traquer' ? .7 : 0);
 
@@ -8714,6 +8752,7 @@ function majBete(b, dt) {
 
   if (sp.biome) { const r = instinctTellurien(b, etat, tx, ty, vit, men, dM, dt); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
   if (doux(sp)) { const r = instinctDoux(b, etat, tx, ty, vit, men, dM, dt); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
+  if (sp.corps === 'bramard') { const r = instinctBramard(b, etat, tx, ty, vit, sprint, dt); etat = b.etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; sprint = r[4]; }
   if (sp.camo) { const r = instinctFelin(b, etat, tx, ty, vit, sprint, pr, dP, dt); etat = b.etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; sprint = r[4]; }
   const x0 = b.x, y0 = b.y;
   if (b.mur) majParoi(b, tx, ty, vit, sprint, dt);      // sur une paroi, le chemin mène la bête
@@ -9393,8 +9432,9 @@ const FOE_REST = [[0.24, 0.21], [0.02, 0.25], [-0.20, 0.21]];
 // seuils, trépied, visée un peu en avant — est le même partout.
 function initFoeLegs(f) {
   f.feet = [];
+  if (f.sp && f.sp.pnj) return;                        // les nomades marchent à leur façon (nomades.js)
   if (f.sp && coursier(f.sp)) { initPattesCoursier(f); return; }
-  if (f.sp && (tellurien(f.sp) || doux(f.sp) || f.sp.corps === 'felin')) { f.px = f.x; f.py = f.y; initPiedsTellurien(f); return; }
+  if (f.sp && (tellurien(f.sp) || doux(f.sp) || f.sp.corps === 'felin' || f.sp.corps === 'bramard')) { f.px = f.x; f.py = f.y; initPiedsTellurien(f); return; }
   const R = repere(f), F = R.F, L = R.L;
   for (const sd of [-1, 1]) FOE_REST.forEach(([rx, ry], i) => {
     const ly = ry * sd;
@@ -9430,8 +9470,9 @@ function poserPied(T, U) {
   return h <= T[2] && h >= T[2] - .4 ? [T[0], T[1], h] : T;
 }
 function updateFoeLegs(f, dt) {
+  if (f.sp && f.sp.pnj) return;
   if (f.sp && coursier(f.sp)) return pattesCoursier(f, dt);
-  if (f.sp && (tellurien(f.sp) || doux(f.sp) || f.sp.corps === 'felin')) { pasTellurien(f, dt); piedsPoses(f, dt); return; }
+  if (f.sp && (tellurien(f.sp) || doux(f.sp) || f.sp.corps === 'felin' || f.sp.corps === 'bramard')) { pasTellurien(f, dt); piedsPoses(f, dt); return; }
   const R = repere(f), F = R.F, L = R.L, U = R.U;
   // Au sol, rien ne change depuis v24 : l'écart se mesure à plat et les pieds restent dans le
   // plan du corps. En paroi et dans les angles, la patte se replace aussi quand elle décolle.
@@ -9618,12 +9659,14 @@ function blocCarnet() {
 }
 function osDeBase(f) {
   const sp = f.sp;
-  if (sp && sp.donjon) return djOs(f);                 // les machines du Centre des automates
+  if (sp && sp.donjon) return djOs(f);
+  if (sp && sp.pnj) return nmOs(f);                   // les Nomades du Seuil (nomades.js)                 // les machines du Centre des automates
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
   if (doux(sp)) return osDoux(f);
   if (tellurien(sp)) return osTellurien(f);
   if (sp.corps === 'felin') return osFelin(f);
+  if (sp.corps === 'bramard') return osBramard(f);
   EC = sp ? { shell: sp.shell, dark: sp.dark, leg: sp.leg, eye: sp.oeil, shard: [150, 226, 255] } : ECdef;
   const B = [], al = f.alarm || 0, dead = f.dead || 0;
   const dk = Math.min(1, dead * 2.6);
@@ -9677,7 +9720,7 @@ function osDeBase(f) {
 //  Le corps suit ses pattes : il monte à chaque pas, le vesseron penche vers le pied qui porte.
 //  Le crapaud, lui, avance vraiment par bonds : son allure s'arrête au sol et file en l'air.
 // ============================================================
-const FOULEE = { felin: .95, crapaud: .8, saurien: .7, myconide: .32, cerf: .95, lentigrade: .8, cotonnier: .35, carillon: .95, oglodon: .6 };
+const FOULEE = { bramard: .9, felin: .95, crapaud: .8, saurien: .7, myconide: .32, cerf: .95, lentigrade: .8, cotonnier: .35, carillon: .95, oglodon: .6 };
 const echB = f => f.sp.sz * (f.ech || 1);                   // la taille de la bête, un petit plus petit   // l'onde du tronc et le balancier des bras
 const PATTES_T = {
   saurien:  { pieds: [[.10, .25], [-.12, .25]], duree: .15, haut: .06, seuil: .15 },
@@ -9688,6 +9731,7 @@ const PATTES_T = {
   lentigrade: { pieds: [[.13, .14], [-.17, .14]], duree: .45, haut: .05, seuil: .16, groupes: 4, chevauche: .5 },
   cotonnier: { pieds: [[.07, .07], [-.07, .07]], duree: .11, haut: .06, seuil: .09 },
   felin:    { pieds: [[.19, .075], [-.22, .075]], duree: .17, haut: .09, seuil: .21 },   // le trot : les pieds en diagonale
+  bramard:  { pieds: [[.26, .15], [-.26, .15]], duree: .38, haut: .06, seuil: .2, groupes: 4, chevauche: .5 },   // le pas lourd, une patte après l'autre
   carillon: { pieds: [[.13, .07], [-.17, .07]], duree: .17, haut: .10, seuil: .20 },
   oglodon:  { pieds: [[.16, .15], [0, .19], [-.15, .16]], duree: .13, haut: .06, seuil: .12 },   // trois paires : le trépied
 };
@@ -10311,7 +10355,9 @@ function instinctOglodon(b, etat, tx, ty, vit, men, dM, dt) {
     if (b.t < (b.pret || 0)) return [b.etat = 'guetter', b.x, b.y, 0];                 // il souffle, puis revient
     return [b.etat = 'charger', cible.x, cible.y, sp.spd * 1.2];
   }
-  if ((etat === 'fuir' && men === P) || (b.doute > .15 && dJ < 7 && dzJ < 2.5)) { b.dirT = Math.atan2(P.y - b.y, P.x - b.x); return [b.etat = 'guetter', b.x, b.y, 0]; }
+  const besoinOg = b.soif > .7 || b.faim > .85;                     // affamé ou assoiffé, il vous tient à l'œil en allant boire ou manger
+  if (!besoinOg && ((etat === 'fuir' && men === P && conf < .7) || (b.doute > .15 && dJ < 7 && dzJ < 2.5))) { b.dirT = Math.atan2(P.y - b.y, P.x - b.x); return [b.etat = 'guetter', b.x, b.y, 0]; }
+  if (etat === 'fuir' && men === P) { etat = 'errer'; tx = b.x + Math.cos(b.dir) * 3; ty = b.y + Math.sin(b.dir) * 3; vit = sp.spd * .4; }   // il ne vous fuit pas : il vaque
   if (etat === 'brouter') {
     if (ROCHE.includes(bAt(b.x | 0, b.y | 0))) {
       if (Math.random() < dt * 2.5) parts.push({ x: b.x + Math.cos(b.dir) * .4 * sp.sz, y: b.y + Math.sin(b.dir) * .4 * sp.sz, z: b.z + .12, age: 0, life: .5,
@@ -10354,7 +10400,7 @@ function majDoute(b, dJ, dzJ, chezSoi, conf, dt) {
   const d0 = b.doute || 0;
   if (dJ < 10 && dzJ < 2.5 && conf < .7 && (!joueurCalme() || (chezSoi && dJ < 2.6 && conf < .4))) b.doute = 1;
   else if (dJ < 7 && dzJ < 2.5) {
-    const monte = .5 * (7 - dJ) / 7 * (1 - conf) * (Math.hypot(P.vx, P.vy) > .5 ? 1.6 : 1);
+    const monte = .5 * (7 - dJ) / 7 * (1 - conf) * (Math.hypot(P.vx, P.vy) > .5 ? 1.6 : 1) * (nmSait('souffle-lent') ? .65 : 1);
     b.doute = Math.max(0, d0 + dt * (monte - .08 * conf));
   }
   else b.doute = Math.max(0, d0 - dt * .25);
@@ -10718,7 +10764,7 @@ function instinctFelin(b, etat, tx, ty, vit, sprint, pr, dP, dt) {
       }
     }
     if (cible) r = traqueFelin(b, cible, dt);
-    else if ((etat === 'errer' || etat === 'troupeau' || etat === 'quête' || etat === 'affût') && b.faim > .3) {
+    else if ((etat === 'errer' || etat === 'troupeau' || etat === 'quête' || etat === 'affût') && b.faim > .3 && b.faim < .7) {   // plus affamé : il part en quête
       let q = b.affut;
       if (!q || b.t > q.fin) q = b.affut = choisirAffut(b);
       if (q) {
@@ -10881,6 +10927,174 @@ function dessinFelin(d, sp) {
   d.net(5, 7, sp.dark); d.net(7, 7, sp.dark); d.net(9, 7, sp.dark);
   d.disque(13, 6.5, 2, sp.shell); d.net(14, 6, sp.oeil); d.net(12, 4, sp.dark); d.net(14, 4, sp.dark);
   d.ligne(3, 8, 1, 5, sp.shell); d.net(1, 4, sp.dark);
+}
+// ---------- le bramard : le combat, le rut, le corps (sa fiche est avec les autres, dans SPEC) ----------
+COMBAT.bramard = { deg: .14, ramasse: .8, bond: .5, portee: 5, recul: 1, pause: 4.5 };       // il gratte le sol, puis charge
+COMBAT.joute = { deg: .04, ramasse: .7, bond: .45, portee: 3.5, recul: .9, pause: 4 };          // front contre front
+// Le bramard ne se tire pas avec le reste du bestiaire : environ deux îles sur cinq dès la première
+// exploration, sur les prairies. Les îles d'avant gardent leurs bêtes.
+function bramardGraine(g) {
+  if (!Number.isInteger(g)) return false;
+  let n = (g ^ 0xb4a3d) >>> 0;
+  n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+  return ((n ^ (n >>> 16)) >>> 0) % 100 < 40;
+}
+// la saison : de 0 (hors saison) à 1 (plein rut), en journées de jeu, décalée par la graine
+const RUT_CYCLE = 6, RUT_DUREE = 1.5;
+function saisonRut() {
+  const j = (t / JOUR + ((SEED >>> 0) % 997) / 997 * RUT_CYCLE) % RUT_CYCLE;
+  return j < RUT_DUREE ? Math.min(1, j * 4, (RUT_DUREE - j) * 4) : 0;
+}
+let rutAnnonce = -1;
+function instinctBramard(b, etat, tx, ty, vit, sprint, dt) {
+  const sp = b.sp;
+  if (b.male === undefined) b.male = Math.random() < .45;
+  b.ech = b.age < sp.mat ? .42 + .58 * b.age / sp.mat : 1;             // un petit est petit
+  const adulte = b.age >= sp.mat, rut = saisonRut();
+  b.rut = (b.rut || 0) + ((adulte && b.male && rut > 0 && !b.tame ? rut : 0) - (b.rut || 0)) * Math.min(1, dt * .8);
+  if (b.tame || b.dead) return [etat, tx, ty, vit, sprint];
+  const dJ = Math.hypot(P.x - b.x, P.y - b.y), dzJ = Math.abs(P.z - b.z);
+  // l'annonce de la saison, une fois, si l'on est près d'un troupeau
+  const cycle = Math.floor(t / JOUR / RUT_CYCLE);
+  if (rut > .2 && rutAnnonce !== cycle && dJ < 25) { rutAnnonce = cycle; say('le brame monte des plaines · les bramards sont en rut', 3); }
+  // frappé, le troupeau fait front : la colère gagne les adultes à dix cases
+  if (b.colere > 0 && !b._fait) { b._fait = true; for (const o of beasts) if (o.sp === sp && !o.tame && !o.dead && o.age >= sp.mat && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 100) o.colere = Math.max(o.colere || 0, 12); }
+  if (!(b.colere > 0)) b._fait = false;
+  let cible = null;
+  if (b.colere > 0 && dJ < 12 && dzJ < 2) cible = P;
+  else if (b.rut > .3) {
+    // le rut : il charge qui approche (moins loin si l'on reste calme), et défie les autres mâles
+    // une charge qui a porté l'a satisfait : il vous a chassé de son troupeau, et vous laisse dix secondes
+    const r = typeof joueurCalme === 'function' && joueurCalme() ? 4 : 6.5;
+    if (dJ < r && dzJ < 2 && b.t > (b.chasseT || 0)) cible = P;
+    else if (b.t > (b.jouteT || 0)) {
+      b.jouteT = b.t + 8 + Math.random() * 10;
+      const rival = beasts.find(o => o !== b && o.sp === sp && o.male && !o.tame && !o.dead && o.age >= sp.mat && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 36);
+      if (rival) { b.rival = rival; b.rivalT = b.t + 6; }
+    }
+    if (!cible && b.rival && b.t < b.rivalT && !b.rival.dead) cible = b.rival;
+    // il brame, de loin en loin : la tête levée, un souffle de vapeur
+    if (b.t > (b.brameT || 0)) { b.brameT = b.t + 7 + Math.random() * 9; b.brame = b.t; SON.crier(b, 'appel');
+      if (dJ < 22) parts.push({ x: b.x + Math.cos(b.dir) * .9, y: b.y + Math.sin(b.dir) * .9, z: b.z + 1.1, age: 0, life: 1.1, vx: Math.cos(b.dir) * .6, vy: Math.sin(b.dir) * .6, vz: .5, g: -.1, col: '#e8ecf0' }); }
+  }
+  if (b.as && b.as.c === P && b.as.fait && !(b.colere > 0)) b.chasseT = b.t + 10;
+  if (cible && !b.as) {
+    const d = Math.hypot(cible.x - b.x, cible.y - b.y), prof = cible === P ? COMBAT.bramard : COMBAT.joute;
+    b.dirT = Math.atan2(cible.y - b.y, cible.x - b.x);
+    if (b.t >= (b.pret || 0) && d < prof.portee && Math.abs((cible.z || 0) - b.z) < 1.4 && !b.mur) {
+      lancerAssaut(b, cible, prof); b.pret = b.t + prof.pause;
+      if (cible !== P && !cible.as) { cible.dirT = Math.atan2(b.y - cible.y, b.x - cible.x); lancerAssaut(cible, b, COMBAT.joute); cible.pret = cible.t + COMBAT.joute.pause; }   // front contre front
+      return ['charger', b.x, b.y, 0, 1];
+    }
+    if (b.t < (b.pret || 0)) return ['guetter', b.x, b.y, 0, 1];                         // il souffle, tête basse
+    return ['charger', cible.x, cible.y, sp.spd, 1.4];
+  }
+  // les petits suivent leur mère ; au rut, les femelles mettent bas davantage
+  if (!adulte) {
+    let m = b.mere;
+    if (!m || m.dead || !beasts.includes(m)) m = b.mere = beasts.find(o => o.sp === sp && !o.male && !o.dead && o.age >= sp.mat && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) || null;
+    if (m && etat !== 'boire') { const d = Math.hypot(m.x - b.x, m.y - b.y); return ['suivre sa mère', m.x - Math.cos(m.dir) * 1.2, m.y - Math.sin(m.dir) * 1.2, d > 1.6 ? sp.spd * Math.min(1.6, .5 + d * .3) : 0, 1]; }
+  } else if (!b.male && rut > .5 && b.faim < .5 && Math.random() < dt * .006 && populationSauvage(sp) < capEsp(sp) + 2
+      && beasts.some(o => o.sp === sp && o.male && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 25)) {
+    const p = naitre(sp, b.x - Math.cos(b.dir), b.y - Math.sin(b.dir), 0); p.mere = b; p.male = Math.random() < .45; beasts.push(p); b.faim += .3;
+  }
+  if (etat === 'troupeau' || etat === 'errer') vit *= .8;                                 // il va lourdement
+  return [etat, tx, ty, vit, sprint];
+}
+// ---------- le bramard, en volumes ----------
+// Garrot haut, dos en pente, croupe ronde ; la face longue, portée bas, sous le bouclier d'os ; la
+// crinière claire en longues mèches qui bougent au vent et au pas ; des fanons aux chevilles. Il
+// marche une patte après l'autre (PATTES_T.bramard), le corps qui roule. Il broute et rumine ; au
+// rut, il brame tête levée (la mâchoire s'ouvre), gratte le sol avant de charger, tête basse, et le
+// bord de son bouclier rougeoie.
+function osBramard(f) {
+  const sp = f.sp, B = [], add = (a, b, w, h, c) => B.push({ a, b, w, h, c });
+  const dtl = Math.min(.1, Math.max(0, t - (f._osT ?? t))); f._osT = t;
+  const lisse = (k, cible, vit) => { const a = f[k] ?? cible; return f[k] = a + (cible - a) * Math.min(1, dtl * vit); };
+  const dk = Math.min(1, (f.dead || 0) * 2.6), v = f.dead ? 0 : (f.vit || 0), ph = (f.ph || 0) * 6.2832;
+  const R = repere(f), dort = f.etat === 'dormir' && !f.dead, male = !!f.male;
+  const vent = Math.min(1.5, Meteo.vent || 0), bouge = Math.min(1, v / .6);
+  const broute = lisse('_gB', f.etat === 'brouter' && v < .3 && !f.dead ? 1 : 0, 1.5);
+  const gD = lisse('_gD', dort ? 1 : 0, 1.1);
+  const brame = f.brame != null && f.t - f.brame < 2.2 ? Math.sin((f.t - f.brame) / 2.2 * Math.PI) : 0;
+  const ram = f.as && f.as.phase === 'ramasse' ? f.ramasse || 0 : 0;
+  const charge = lisse('_ch', f.as || f.etat === 'charger' || f.etat === 'guetter' ? 1 : 0, 4);
+  const rut = f.rut || 0;
+  // le pas : le corps roule vers le côté qui porte
+  let roule = 0, hop = 0;
+  for (const ft of f.feet || []) if (ft.step > 0) { const l = Math.sin((1 - ft.step) * Math.PI); roule -= ft.s * l * .04; hop += l * .01; }
+  const bz = .42 + hop - gD * .2 - dk * .24, cr = Math.cos(roule), sr = Math.sin(roule);
+  const T = p => [p[0], p[1] * cr - (p[2] - bz) * sr, bz + p[1] * sr + (p[2] - bz) * cr];
+  const addT = (a, b, w, h, c) => add(T(a), T(b), w, h, c);
+  const poil = sp.shell, sombre = sp.dark, crin = sp.crin, osc = sp.os;
+  // le tronc : la croupe, le ventre, le garrot haut (la bosse), le poitrail
+  addT([-.36, 0, bz + .02], [-.14, 0, bz + .04], .34, .3, poil);
+  addT([-.16, 0, bz + .02], [.12, 0, bz + .06], .38, .34, poil);
+  addT([.08, 0, bz + .1], [.3, 0, bz + .12], .4, .4, poil);                       // le garrot
+  addT([.14, 0, bz + .27], [.3, 0, bz + .24], .26, .12, sombre);                    // la bosse
+  addT([.22, 0, bz - .06], [.34, 0, bz - .02], .3, .22, sombre);                    // le poitrail
+  addT([-.3, 0, bz - .12], [.24, 0, bz - .11], .24, .06, sombre);                   // le ventre
+  // la crinière : des mèches claires de la nuque au milieu du dos, qui battent au vent et au pas
+  for (let i = 0; i < 7; i++) {
+    const x = .3 - i * .07, z = bz + .3 - i * .025 - (i > 3 ? (i - 3) * .02 : 0);
+    const sw = Math.sin(t * 2 + i * .9 + f.bob) * (.012 + vent * .02) + Math.sin(ph) * .01 * bouge;
+    for (const s2 of [-1, 1]) addT([x, s2 * .06, z], [x - .02 + sw, s2 * (.17 + vent * .02), z - .14 - (i % 2) * .03], .05, .035, crin);
+    addT([x, 0, z - .01], [x - .03 + sw * .5, 0, z + .04], .06, .05, crin);
+  }
+  // la tête : portée bas ; au pâturage, au sol, et elle rumine ; au brame, levée, la mâchoire ouverte ;
+  // à la charge, tout bas, le bouclier devant ; au repos, posée
+  const bal = Math.sin(ph) * .03 * bouge;
+  let nuq = [.4, bal * .6, bz + .12], tete = [.54, bal, bz - .02];
+  nuq = mixP(nuq, [.42, 0, bz + .02], broute); tete = mixP(tete, [.58, 0, .14], broute);
+  nuq = mixP(nuq, [.42, 0, bz + .2], brame); tete = mixP(tete, [.55, 0, bz + .24], brame);
+  nuq = mixP(nuq, [.44, 0, bz + .04], charge * (1 - brame)); tete = mixP(tete, [.6, 0, bz - .1 + ram * .02], charge * (1 - brame));
+  nuq = mixP(nuq, [.4, 0, bz - .02], gD); tete = mixP(tete, [.52, 0, .1], gD);
+  addT([.28, 0, bz + .1], nuq, .26, .26, poil);
+  addT(nuq, tete, .22, .22, poil);
+  addT([nuq[0] - .02, 0, nuq[2] - .1], [tete[0] - .06, 0, tete[2] - .14], .08, .1, sombre);     // le fanon
+  const [hx, hy, hz] = tete, lev = brame * .12 - broute * .05;
+  const mus = [hx + .2, hy, hz - .08 + lev];
+  addT([hx - .04, hy, hz], [hx + .1, hy, hz - .02 + lev * .4], .2, .17, poil);                 // le crâne
+  addT([hx + .08, hy, hz - .02 + lev * .4], mus, .15, .12, sombre);                            // la longue face
+  addT([mus[0] - .01, hy, mus[2] + .005], [mus[0] + .03, hy, mus[2]], .13, .09, [48, 40, 36]); // le mufle
+  const mach = broute * (Math.sin(t * 3 + f.bob) * .5 + .5) * .015;
+  addT([hx + .06, hy, hz - .09 + lev * .3 - mach], [mus[0] - .02, hy, mus[2] - .06 - brame * .06 - mach], .12, .04, sombre);   // la mâchoire
+  for (const s2 of [-1, 1]) {
+    addT([hx + .1, hy + s2 * .085, hz + .02 + lev * .4], [hx + .12, hy + s2 * .085, hz + .02 + lev * .4], .03, dort ? .006 : .025, sp.oeil);
+    addT([hx - .02, hy + s2 * .09, hz + .02], [hx - .05, hy + s2 * .15, hz - .03], .06, .025, sombre);   // l'oreille
+  }
+  // le bouclier d'os en croissant, sur le front ; deux crochets chez le mâle ; au rut, le bord rougeoie
+  const braise = [228 + 27 * rut, 216 - 90 * rut, 190 - 150 * rut].map(x => Math.max(0, Math.min(255, x)));
+  const pl = [hx + .04, hy, hz + .1 + lev * .5];
+  addT([pl[0], pl[1] - .15, pl[2]], [pl[0], pl[1] + .15, pl[2]], .08, .09, osc);
+  addT([pl[0] + .01, pl[1] - .16, pl[2] + .05], [pl[0] + .01, pl[1] + .16, pl[2] + .05], .04, .025, rut > .05 ? braise : osc);
+  if (male) for (const s2 of [-1, 1]) {
+    addT([pl[0], pl[1] + s2 * .15, pl[2]], [pl[0] + .03, pl[1] + s2 * .22, pl[2] + .08], .06, .06, osc);
+    addT([pl[0] + .03, pl[1] + s2 * .22, pl[2] + .08], [pl[0] + .09, pl[1] + s2 * .2, pl[2] + .15], .04, .04, rut > .05 ? braise : osc);
+  }
+  // la queue, longue, à touffe, qui fouette les mouches — et se dresse au rut
+  const tq = Math.sin(t * 1.1 + f.bob) * .06 + Math.pow(Math.max(0, Math.sin(t * .7 + f.bob * 2)), 12) * .1;
+  const qh = rut * .12 + charge * .06;
+  addT([-.37, 0, bz + .08], [-.44, tq, bz - .06 + qh], .045, .045, poil);
+  addT([-.44, tq, bz - .06 + qh], [-.47, tq * 1.4, bz - .2 + qh * 1.3], .035, .035, poil);
+  addT([-.47, tq * 1.4, bz - .2 + qh * 1.3], [-.49, tq * 1.6, bz - .28 + qh * 1.4], .07, .07, crin);
+  // les pattes : des piliers, genoux à peine pliés, des fanons clairs aux chevilles, un sabot fendu.
+  // Il gratte le sol de l'antérieur avant de charger.
+  for (const ft of f.feet || []) {
+    const av = ft.i === 0, s2 = ft.s, H = T([av ? .26 : -.26, s2 * .15, bz - .1]);
+    let Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.bramard.haut, [H[0], s2 * .16, .04]), .335);
+    if (av && s2 > 0 && ram > 0) Pd = [Pd[0] + Math.sin(t * 9) * .06 * ram, Pd[1], Pd[2] + Math.max(0, Math.sin(t * 9)) * .06 * ram];   // gratter
+    const G = genou(H, Pd, .17, .165, [av ? 1 : -1, 0, 0]);
+    add(H, G, .15, .15, poil); add(G, Pd, .12, .12, sp.leg);
+    add([Pd[0], Pd[1], Pd[2] + .1], [Pd[0] + .01, Pd[1], Pd[2] + .03], .15, .15, crin);             // le fanon de poil
+    add([Pd[0] - .02, Pd[1], Pd[2] + .015], [Pd[0] + .06, Pd[1], Pd[2] + .015], .12, .035, [40, 34, 30]);
+  }
+  return B;
+}
+function dessinBramard(d, sp) {                                // massif, le garrot haut, le bouclier clair
+  for (const x of [4, 6, 10, 12]) d.ligne(x, 11, x, 14, sp.leg, 2);
+  d.rect(3, 7, 12, 11, sp.shell); d.rect(8, 5, 12, 7, sp.dark); d.rect(5, 6, 10, 6, sp.crin);
+  d.ligne(12, 8, 14, 11, sp.shell, 2); d.net(15, 12, sp.dark); d.ligne(13, 7, 15, 7, sp.os); d.net(15, 6, sp.os);
 }
 // ============================================================
 //  TEXTURES
@@ -11171,7 +11385,8 @@ function actionContexte() {
     return { v: 'MONTER', o: 'rodéo · ' + cr.sp.n.toLowerCase(), f: () => monter(cr) };
   }
   const dja = djAction(); if (dja) return dja;
-  const oga = ogAction(); if (oga) return oga;         // la trappe, le monte-charge, l'escalier, un coffre
+  const oga = ogAction(); if (oga) return oga;
+  const nma = nmAction(); if (nma) return nma;         // parler à un nomade         // la trappe, le monte-charge, l'escalier, un coffre
   // au coffre d'un autre : la part qui monte, et de quoi l'emporter sans attendre
   if (raidIci() && !Raid.fini && Math.hypot(P.x - coffreRaid()[0], P.y - coffreRaid()[1]) < RAID_R + .6) {
     const pc = Math.floor(Raid.part * 100 + 1e-6);
@@ -11501,6 +11716,7 @@ function majCible() {
   if (o) {
     let nom, info;
     if (!o.sp) { nom = o.nom; info = 'joueur'; }
+    else if (o.sp.pnj || o.pnjSuit) { [nom, info] = nmCible(o); }
     else if (o.loin) { nom = nomEspeceDe(o); info = 'compagne de ' + o.loin.nom; cl = 'lie'; }
     else if (o.gardeCamp) { nom = nomEspeceDe(o);
       info = 'gardienne' + (raidIci() ? ' de ' + Raid.pseudo : '') + ' · ' + (o.etat === 'repousser' ? 'défend le campement' : 'garde le campement'); }
@@ -11539,6 +11755,7 @@ function reperes() {
   if (PortailIle) L.push({ x: PortailIle.x + .5, y: PortailIle.y + .5, k: 'arche' });
   for (const c of P.compagnes) if (c.dehors && c.b && !c.b.dead) L.push({ x: c.b.x, y: c.b.y, k: 'comp' });
   for (const j of Autres.values()) L.push({ x: j.x, y: j.y, k: 'joueur', n: j.nom });
+  const nm = nmRepere(); if (nm) L.push(nm);          // la halte des nomades
   return L;
 }
 function majBoussole(forcer) {
@@ -12935,7 +13152,7 @@ function photo() {
     sac: Object.assign({}, P.sac),
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
-    variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20),
+    variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     fleches: P.fleches, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -13010,6 +13227,7 @@ function appliquer(d, vivantes) {
     && specById[e[0].split(':')[0]] && varianteSure(e[0].split(':')[1])).slice(0, 200).map(e => [e[0], nb(e[1], 1, 1e6, 1) | 0]);
   P.ogConf = (Array.isArray(d.ogConf) ? d.ogConf : []).filter(e => Array.isArray(e) && (typeof e[0] === 'number' || typeof e[0] === 'string'))
     .slice(0, 20).map(e => [e[0], nb(e[1], 0, 1, 0)]);
+  nmAppliquer(d.nm);                                   // ce que les nomades savent de vous
   P.fleches = nb(d.fleches, 0, 1e5, 0) | 0;
   P.baies = nb(d.baies, 0, 1e5, 3) | 0;
   P.pv = nb(d.pv, .05, 1, 1);
