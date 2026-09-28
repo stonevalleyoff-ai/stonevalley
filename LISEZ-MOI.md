@@ -6,6 +6,7 @@ Le dossier à mettre en ligne :
 | --- | --- |
 | `index.html` | le jeu entier, porte de connexion comprise |
 | `donjon.js` | le Centre des automates (le donjon) et ses armes, chargé par `index.html` : à déposer avec lui |
+| `nomades.js` | les Nomades du Seuil et leur moteur de conversation, chargé par `index.html` : à déposer avec lui |
 | `manifest.webmanifest` | le nom, les couleurs et les icônes de l'application installable |
 | `sw.js` | le service worker : garde la page et ses images pour jouer hors ligne |
 | `icone-192.png`, `icone-512.png`, `icone-maskable-512.png` | les icônes |
@@ -114,7 +115,7 @@ Cinq sols qu'on ne trouve pas sur l'île de départ. Chaque île en porte au plu
 | Tourbière | commun | 1 | ~40 % | cyprès chauve, massette, sphaigne rouge | la boue ralentit (−22 %), lucioles la nuit |
 | Canyon d'ocre | peu commun | 2 | ~25 % | arbre de Josué, cactus cierge, rose des sables | au soleil, la course essouffle 35 % plus vite |
 | Sylve fongique | rare | 3 | ~15 % | champignon géant, vesse-de-loup, clavaire lumineuse | spores, la clavaire luit la nuit |
-| Champs de cristal | très rare | 5 | ~8 % | arbre de verre, druse géante (éclats), herbe de quartz | mana deux fois plus vite, tout luit la nuit |
+| Champs de cristal | très rare | 5 | ~8 % | arbre de verre, druse géante (éclats), herbe de quartz | les sorts y coûtent moitié moins de mana, tout luit la nuit |
 | Caldeira de cendre | légendaire | 7 | ~4 % | arbre calciné, fleur de braise, obsidienne (éclats) | braises dans l'air, les plaques vives brûlent |
 
 Le premier pas dans un biome le découvre ; l'onglet Journal tient l'atlas (les cinq, trouvés ou « ? ? ? »). Rejoindre un ami plus avancé permet d'en voir un plus tôt : c'est voulu. Les îles tirées avant cette version ne changent pas, sauf une sur seize environ.
@@ -209,6 +210,8 @@ La couleur vient de la case : deux joueurs voient la même druse dorée au même
 ## 14. La flore qui arrête, la flore qui freine
 
 - **On ne passe plus au travers** des troncs (arbres, cactus, champignons géants, pylônes…), des pierres (galets, affleurements, obsidienne) ni des éclats (druses, cristaux, engrenages, bobines). Un saut passe par-dessus une pierre basse ; on passe sous la couronne d'un arbre. Un pied tout juste coupé ne compte pas. Si l'on arrive dans un tronc (retour au campement, chute), on peut toujours en sortir. En selle, la monture passe partout, comme avant ; les bêtes aussi.
+- **On tient dessus** : le dessus d'une pierre, d'une druse, d'une souche ou d'une couronne d'arbre est un sol, comme un cube. Qui saute dessus s'y pose (au lieu de retomber à travers, au pied de la pierre), et en descend en marchant. En selle, rien ne change.
+- **On glisse au lieu de s'accrocher** : contre un tronc ou une pierre, le pas n'est plus refusé ; le corps est repoussé le long de la surface et garde la vitesse qui la longe, et de face il est aiguillé vers le côté où il penche. Contre la flore, le corps compte plus fin qu'à la vue (0,18 case au lieu de 0,30, les troncs à 85 %) : **on passe entre deux troncs voisins**. Contre un mur, un coin qui ne mord que le bord du corps (jusqu'à un tiers de case) fait glisser de côté au lieu d'arrêter net ; un mur de face arrête toujours.
 - **Les herbes hautes, les fleurs, les buissons et les roseaux freinent** : environ −28 % de vitesse à pied.
 - **Tout ce qui est dur bloque la visée** : la vue des automates (ils se déplacent pour trouver un angle), leurs tirs, les obus du mortier (qui éclatent contre l'arbre), et vos flèches, qui s'y fichent et se ramassent. Les grands arbres bloquent aussi par leur couronne.
 
@@ -229,6 +232,7 @@ ACTION près d'un pied : le personnage se tourne vers lui et porte un coup. Le g
 - **Se remettre en marche** interrompt le geste avant le coup : rien n'est reçu. Un pied entamé qu'on laisse se referme au bout de 30 secondes.
 - **Le geste** : on empoigne l'outil (à mains nues, un galet taillé), élan, coup qui se fige une fraction de seconde au contact, puis retour, et on range. Les pieds restent plantés, les genoux plient, le buste tourne. Le pied tremble dans le sens du coup et rapetisse d'un coup à l'autre ; des copeaux volent vers le sac. À la première personne, le regard suit le geste. En selle, les coups sont les mêmes, sans le geste.
 - Les autres joueurs voient le pied tomber au dernier coup, pas les coups eux-mêmes.
+- **La visée va au pied mûr** : un pied qu'on vient de prendre repousse à la même place, et la visée s'y accrochait (« trop jeune ») alors qu'un autre attendait à côté. Elle vise désormais d'abord ce qui se récolte — un pied entamé avant tout, puis le plus proche, un peu plus volontiers devant soi — et ne montre un pied trop jeune que s'il n'y a rien d'autre à portée. ACTION tenue enchaîne donc les pieds voisins sans s'arrêter.
 
 ## 16. Les armes en main
 
@@ -317,10 +321,10 @@ Les deux se portent dans le dos, se voient en main chez les autres joueurs, et l
 
 Dans le sac, le dernier onglet (**touche 8**, sac ouvert) réunit tout ce qui sert à tester. Les outils qui donnent quelque chose passent d'eux-mêmes en **mode essai** : rien de ce qu'on y gagne ne part dans la sauvegarde, et « Arrêter l'essai » rend le vrai sac.
 
-- **Ressources** : le mode essai (ressources illimitées : rien ne se paie, flèches et mana compris) et « Tout fabriquer ».
+- **Ressources** : le mode essai (ressources illimitées : rien ne se paie, flèches et mana compris — la pierre de foyer aussi) et « Tout fabriquer ».
 - **Remplir le sac** : +200 de chaque ressource, 50 baies, 64 flèches.
 - **Armes d'en bas** : le rayon de sentinelle et le fusil d'arpenteur, rangés et en main.
-- **Le personnage** : soins complets (santé, mana, endurance, trois vies) et **Invincible** (plus rien ne blesse : coups, tirs, brûlures, chute).
+- **Le personnage** : soins complets (santé, endurance, trois vies) et **Invincible** (plus rien ne blesse : coups, tirs, brûlures, chute).
 - **Le monde** : midi, minuit, changer le temps qu'il fait (pas sous terre).
 - **Centre des automates** : « Étage 1 » ou « Dernier étage » descend tout de suite dans le souterrain de l'île où l'on est, sans chercher la trappe (même sur une île ordinaire). C'est une **descente d'essai**, marquée ESSAI dans le HUD : l'escalier et les coffres marchent comme d'habitude, mais rien de ce qu'on trouve en bas n'est gardé en remontant (bouton « Remonter » du même onglet, ou le monte-charge). Pendant une vraie descente, l'onglet ne propose pas de raccourci.
 - **Mesures** : les mesures du moteur, et « Où vous êtes » (graine, exploration, étage, position) — utile pour signaler un problème.
@@ -343,16 +347,20 @@ Le bestiaire d'une île se tire toujours de sa graine, mais il dépend maintenan
 | Bête | Ce qu'elle est | Liée, elle… |
 |---|---|---|
 | Lentigrade | un grand herbivore très lent, le dos couvert de mousse et de fleurs (chacun son jardin), la tête qui pend. Il ne fuit presque pas, pousse de longs soupirs | broute la mousse et les fleurs : de la fibre |
-| Cotonnier | une petite boule de duvet, en troupeau. Les petits suivent leur mère **en file indienne**. En fuyant, il perd son duvet : des aigrettes que le vent emporte | file son duvet : de la fibre |
+| Cotonnier | une **grosse** boule de duvet (deux fois et demie la taille d'avant), en troupeau, sur de courtes pattes cachées sous une frange. Les petits suivent leur mère **en file indienne**. En fuyant, il perd son duvet : une aigrette de temps en temps, que le vent emporte, et une petite bouffée quand on le frappe (jamais plus d'une quinzaine en l'air sur toute l'île). Gros mais léger : ses coups et sa faim restent ceux d'avant | file son duvet : de la fibre |
 | Carillonneur | fin et haut sur pattes, des cornes creuses en pavillon, avec des clochettes que le vent balance : **on l'entend avant de le voir** (une gamme mineure, plus souvent quand il vente) | abat le bois mort, et **tinte fort quand un chasseur approche** |
 | Oglodon | un grand scarabée gris d'ardoise, six pattes, une corne, un ventre d'ambre. Il vit en colonie dans une **fourmilière géante**, grignote la pierre, descend aux buissons cueillir des baies qu'il remonte à la fourmilière, où elles deviennent du **nectar** | grignote la pierre (de la pierre), et change en nectar les baies qu'il cueille |
+
+**Approcher sans effrayer.** Les proies (Doux, Rampants herbivores, Telluriens) ne fuient plus le joueur dès qu'elles le voient. Tant qu'il est **calme** — pas de course depuis 2,5 s, ni coup, ni tir, ni blessure donnée depuis 8 s —, elles gardent leurs distances sans détaler, s'habituent à lui en une demi-minute environ, et viennent parfois voir de plus près (« vous observe » sur le panneau de la cible) : de quoi les nourrir sans leur courir après. Arriver trop près trop tôt les fait encore détaler. Courir, frapper ou tirer les fait fuir comme avant, et elles oublient en deux secondes qu'elles s'étaient habituées. Les **coursiers** suivent la même règle, en plus difficile : il faut environ deux minutes **immobile** près d'eux (trois fois plus en marchant), ils perdent confiance deux fois plus vite, et ne viennent voir qu'une fois presque habitués. Galoper sur sa monture compte comme courir. L'oglodon et les chasseurs n'ont pas changé.
 
 Les petits naissent plus petits et grandissent jusqu'à leur maturité. Les chasseurs des îles suivantes (traqueur, spectre, varan, salamandre, traceur) chassent aussi les Doux — sauf l'oglodon.
 
 **La fourmilière** (une île sur deux, sur un replat de la montagne) : un cône d'argile d'une douzaine de cases, qu'on monte d'un cube à la fois, trois entrées dans ses gradins, un cratère et des cheminées au sommet. Le nectar perle aux entrées quand elle est pleine.
 
-- **PUISER** (à une entrée ou au cratère) : jusqu'à 4 nectars. Toute la colonie vous a vu : elle charge.
-- **La charge** : l'oglodon gratte le sol tête basse, puis fonce de loin (plus de 4 cases) et projette. On l'esquive de côté. Il charge aussi si on le frappe, ou si l'on s'approche trop de la fourmilière. Loin de chez lui et calme, il se contente de vous tenir à l'œil : c'est là qu'on peut l'apprivoiser aux baies.
+- **PUISER** (à une entrée ou au cratère) : jusqu'à 4 nectars. Tant que la colonie ne vous fait pas entièrement confiance, elle vous a vu : elle charge, et sa confiance recule d'un quart. **En pleine confiance, elle vous laisse puiser.**
+- **La méfiance** : l'oglodon se méfie, même si l'on approche doucement. À moins de sept cases, il vous tient à l'œil et son doute monte (plus vite de près, si l'on bouge, s'il ne vous connaît pas) : immobile à cinq cases, il charge au bout de sept secondes environ. Au moindre doute, c'est tout de suite : courir, frapper ou tirer à moins de dix cases, ou venir sous la fourmilière sans qu'il vous connaisse. Rien ne dit comment l'apaiser : c'est au joueur de le trouver.
+- **Les baies** (G, lancées jusqu'à cinq cases à un oglodon) font retomber son doute et monter sa confiance (sept baies pour qu'il se lie, s'il reste un lien libre), et celle de **la colonie** : un vingtième par baie. À 70 % de confiance, la sienne ou celle de la colonie, il ne charge plus pour un rien. La confiance de la colonie est gardée dans la sauvegarde, île par île.
+- **La charge** : l'oglodon gratte le sol tête basse, puis fonce de loin (plus de 4 cases) et projette. On l'esquive de côté. Il charge aussi si on le frappe, ou quand son doute est au bout (voir la méfiance).
 - La fourmilière se remplit d'un nectar par baie rapportée, et un peu d'elle-même (jusqu'à la moitié).
 
 **Le nectar d'oglodon** (une nouvelle matière, au sac et au coffre) :
@@ -362,3 +370,62 @@ Les petits naissent plus petits et grandissent jusqu'à leur maturité. Les chas
 
 Côté Supabase, la liste des matières du coffre accepte le nectar (fonction `vp_coffre_propre`, déjà mise à jour).
 
+## 22. Le mana, ce sont les éclats
+
+Le mana n'est plus une jauge qui se recharge seule : **ce sont les éclats que vous portez dans le sac**. Ceux du coffre du campement ne comptent pas, même au campement. La jauge MANA affiche leur nombre (cent éclats la remplissent).
+
+- **Les sorts** gardent leurs prix, payés en éclats pris dans le sac : Souffle 18, Aube 25, Ancrage 30, et Appel 50 (35 avant). Le Manteau d'éclats les rend 35 % moins chers, les champs de cristal moitié moins.
+- **La pierre de foyer** coûte dix éclats par exploration d'écart avec le campement, 20 au moins et 100 au plus. Sans assez d'éclats, elle ne répond pas. Terrassé, le retour reste gratuit : c'est le campement qui vous reprend.
+- Le feu du campement refait la vie et le souffle, plus le mana : il faut aller chercher les éclats (druses, automates, coffres du Centre).
+- En mode essai, rien ne se paie.
+
+## 23. Le félin de brume
+
+Un grand chat gris-bleu, rayé, à la longue queue annelée, qui chasse **en meute** de trois ou quatre. Il se tire à part du bestiaire (les îles d'avant ne changent pas) : environ **une île sur trois à partir de la 4e exploration**. Il chasse les Doux, les Rampants herbivores, les coursiers, le crapaud et le cerf de verre — et vous.
+
+- **Le camouflage** : immobile, à l'affût ou à pas de loup, il prend la teinte du sol sous lui, sa silhouette ondule comme une brume, son ombre s'efface, il ne se désigne plus (pas de panneau de cible) et il se tait. Seuls ses yeux pâles gardent un peu de couleur. Il se révèle en courant, en plein bond, et trois secondes quand on le touche. Les proies ne le remarquent qu'au quart de la distance habituelle. Un filet de brume, de loin en loin, trahit celui qui se déplace.
+- **À pas de loup** : de loin, il trotte bas ; à moins de onze cases, il avance tapi (tête basse, oreilles couchées, omoplates qui roulent, bout de queue qui fouette) et **se fige quand sa proie regarde vers lui**. À moins de 4,6 cases, il se ramasse — la croupe frétille — et **bondit en l'air** de près de cinq cases, pattes tendues. Puis il se dégage, et recommence. Il ne s'annonce pas.
+- **L'embuscade** : à moitié repu, il se poste couché, tête haute, dans les hautes herbes, un buisson ou près de l'eau, et laisse venir : une proie à sept cases, ou vous à cinq et demie, et il part.
+- **La meute** : qui chasse entraîne les autres. Ils se déploient autour de la proie, chacun son angle, et bondissent ensemble (on attend jusqu'à 2,5 s qu'un autre soit en place). Contre vous, deux à la fois au plus : les autres attendent, tapis, à six cases. À l'affût, chacun se poste autour du chef. Une meute naît ensemble.
+- **Chiffres** : bond sur vous 11 % de vie (avant la montée du danger), puis 3 s de pause ; sur une bête, la moitié de sa vie. Lié (20 % de chance de base), il chasse et rapporte les os, à peine voilé pour qu'on le voie.
+
+Pour régler : `FELIN_BOND`, `FELIN_LOUP`, `FELIN_AFFUT` et le bloc « LE FÉLIN DE BRUME » dans `index.html`, `COMBAT.felin` pour la force du bond, `felinGraine` pour la fréquence.
+
+## 24. La faim et la soif plus fortes que la peur
+
+Une bête acculée ou méfiante devant une menace qui ne bougeait pas (un chasseur éveillé qui ne chasse pas, le joueur planté là, un oglodon qui vous guette) restait sur place jusqu'à mourir de faim ou de soif. Désormais :
+
+- **assoiffée** (soif au-delà de 70 %, une source à portée) **ou affamée** (au-delà de 85 %), elle ne fuit plus que ce qui la serre de près (trois cases) ou s'en prend à elle, et va boire ou manger ;
+- **vingt secondes** à fuir ou à faire front devant ce qui ne l'attaque pas : elle s'y fait, et ne le craint plus pendant vingt-cinq secondes, sauf s'il approche à deux cases et demie ou l'attaque ;
+- **l'oglodon** affamé ou assoiffé cesse de vous guetter pour aller boire ou manger (il charge toujours si son doute est au bout) ; en confiance, il ne vous fuit plus ;
+- **le félin** trop affamé (70 %) quitte l'affût et part en quête de proies.
+
+Essai : un cotonnier assoiffé et affamé, un traqueur éveillé entre lui et l'eau. Avant : 24 s à fuir, il boit au bout de 33 s et finit à 29 % de vie. Après : il boit au bout de 7 s, mange, et garde toute sa vie.
+
+## 25. Les Nomades du Seuil (`nomades.js`)
+
+Un peuple qui voyage d'île en île par les seuils. Le jeu tient maintenant en trois fichiers : `index.html`, `donjon.js` et **`nomades.js`**, à déposer ensemble (le service worker passe à `stone-valley-5` pour le garder hors ligne).
+
+- **La venue** : de loin en loin (2 min 30 à 7 min 30 après l'arrivée sur une île, puis 8 à 18 min après chaque départ), un **seuil violet** s'ouvre à 12-18 cases du joueur : « un seuil s'ouvre non loin · des voyageurs en sortent ». La halte est marquée sur la boussole (« nomades »). Jamais sous terre ni pendant un pillage. Elle dure cinq minutes, puis tous rentrent dans le seuil, qui se referme.
+- **La caravane** : une **marchande** (étal sur le dos, lanternes, large chapeau), un **dresseur** (bâton à cristal, cape) et sa bête — une ou deux, d'une espèce tirée au hasard parmi toutes sauf les automates —, et un **conteur** (haute capuche, orbe qui tourne autour de sa tête). Robes, visière de lumière, runes qui luisent. Neuf nomades en tout, toujours les mêmes : on les reconnaît d'une caravane à l'autre. Ils saluent de la main, font face à qui approche, gesticulent en parlant.
+- **Leur parler** : ACTION de près (**PARLER**). Une boîte de dialogue : la réplique s'écrit, les réponses se choisissent au doigt, à la souris ou aux touches 1 à 9 (Entrée achève la réplique, Échap ferme). S'éloigner coupe la conversation.
+  - **la marchande** troque quatre offres tirées à chaque halte (deux fois chacune), en matières : bois, fibres, pierres, os, éclats, ferraille, nectar, baies, flèches. Plus une rumeur sur le monde ;
+  - **le dresseur** parle de sa bête, et **enseigne quatre techniques**, payées en matières (offertes à un ami) : *la main basse* (les bêtes paisibles s'habituent deux fois plus vite), *le regard oblique* (les coursiers deux fois plus vite), *la baie chantée* (+50 % de confiance par baie), *le souffle lent* (la méfiance des bêtes ombrageuses monte moins vite) ;
+  - **le conteur** livre des **indices sur les automates** et **sur le jeu**, sans se répéter tant qu'il en a de neufs, et raconte le Seuil, les Nomades, les Horlogers.
+- **L'amitié** : chaque première parole d'une halte, chaque troc, chaque leçon la font monter. Connu, puis ami (3) : les saluts changent, des répliques s'ouvrent, la marchande ajoute un de plus à chaque troc, le dresseur enseigne gratuitement.
+- **S'ils sont attaqués** : tous se défendent (bâtons, et la bête du dresseur), vingt-cinq secondes, puis repartent. L'amitié de chacun recule de trois ; aucune caravane pendant vingt minutes. **Un nomade tué ne revient jamais**, et les autres en parlent.
+- **Gardé dans la sauvegarde** : les techniques apprises, l'amitié de chacun, les indices déjà entendus, les disparus, la rancune. Les caravanes sont propres à chaque joueur (pas de réseau).
+- **Onglet Bêta** : « Nomades du Seuil » · **Venir** (une caravane tout de suite) et **Partir**.
+
+**Le moteur de conversation**, pour écrire de nouvelles répliques (`NM_DIALOGUES` dans `nomades.js`) : un rôle est un recueil de nœuds ; un nœud a ce que dit le nomade (`dit` : un texte, une liste de variantes, ou une fonction) et les réponses (`choix`). Une réponse : `{ t: 'ce qu'on dit', va: 'nœud suivant', si: () => condition, grise: vrai si elle paraît sans se choisir, fait: () => effet (peut rendre la réplique suivante), fin: true }`. Les textes acceptent `{nom}`, `{moi}`, `{bete}`, `{betes}`, `{role}`. « Au revoir » s'ajoute de lui-même. Les indices (`NM_INDICES`), le récit (`NM_LORE`), les trocs (`NM_TROCS`) et les techniques (`NM_SAVOIRS`) sont des listes à compléter.
+
+## 26. Le bramard
+
+Un grand herbivore des prairies, en **troupeau de quatre à six** : garrot haut, dos en pente, longue face portée bas sous un **bouclier d'os en croissant** (deux crochets chez les mâles), une crinière de longues mèches claires de la nuque au milieu du dos, des fanons de poil aux chevilles, une longue queue à touffe. Tiré à part du bestiaire (les îles d'avant ne changent pas) : environ **deux îles sur cinq dès la première exploration**, sur les prairies. Il ne change pas le nombre des autres troupeaux.
+
+- **Calme** : il ne fuit pas, broute (la tête au sol, il rumine), marche lourdement une patte après l'autre, le corps qui roule. On peut passer au milieu du troupeau, même en courant.
+- **Frappé** : tout le troupeau fait front — la colère gagne les adultes à dix cases — et charge.
+- **Le rut** : un jour et demi toutes les six journées (décalé selon l'île ; « le brame monte des plaines · les bramards sont en rut »). Les mâles **brament** (tête levée, mâchoire ouverte, un souffle de vapeur), **grattent le sol** de l'antérieur, et le bord de leur bouclier **rougeoie comme une braise**. Ils chargent qui approche à moins de **six cases et demie** — **quatre** si l'on reste calme (voir section 21) — puis, la charge portée, vous laissent dix secondes : ils vous ont chassé. Ils se **défient entre eux**, front contre front. Les femelles mettent bas davantage ; les petits suivent leur mère.
+- **Chiffres** : charge 14 % de vie (avant la montée du danger), puis 4,5 s de pause ; robuste (trois fois plus dur à abattre). Lié (35 % de base), il perd sa crinière en broutant : de la fibre.
+
+Pour régler : `COMBAT.bramard`, `RUT_CYCLE` et `RUT_DUREE`, `bramardGraine`, et le bloc « LE BRAMARD » dans `index.html`.

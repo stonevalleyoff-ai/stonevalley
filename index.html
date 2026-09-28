@@ -2161,6 +2161,50 @@ function floreBloque(px, py, pz, ox, oy) {
   }
   return false;
 }
+// Le corps du joueur contre les troncs et les pierres. On ne refuse plus le pas : on repousse le
+// corps hors du tronc, le long de sa surface, et l'on garde la vitesse qui le longe — il glisse d'un
+// côté ou de l'autre au lieu de s'y accrocher ; de face, il est aiguillé vers le côté où il penche.
+// Contre la flore, le corps compte plus fin que contre les murs (RF au lieu de R) et les troncs un
+// peu moins larges qu'à la vue (FLORE_SERRE) : on passe entre deux troncs voisins.
+const RF = .18, FLORE_SERRE = .85;
+function repousserFlore(ox, oy, wx, wy, vit) {
+  for (let passe = 0; passe < 3; passe++) {
+    let bouge = false;
+    const cx = P.x | 0, cy = P.y | 0;
+    for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+      const o = obstacleFlore(cx + dx, cy + dy); if (!o) continue;
+      if (P.z >= o.z1 - .05 || P.z + 1.4 <= o.z0) continue;     // par-dessus (un saut passe une pierre), ou dessous
+      const rr = o.r * FLORE_SERRE + RF, ex = P.x - o.cx, ey = P.y - o.cy, d = Math.hypot(ex, ey);
+      if (d >= rr) continue;
+      let nx, ny;
+      if (d > 1e-4) { nx = ex / d; ny = ey / d; }
+      else { const a = Math.hypot(ox - o.cx, oy - o.cy); nx = a > 1e-4 ? (ox - o.cx) / a : 1; ny = a > 1e-4 ? (oy - o.cy) / a : 0; }
+      const px = o.cx + nx * rr, py = o.cy + ny * rr;
+      if (blockedAt(px, py, P.z)) { P.x = ox; P.y = oy; return; }  // pas la place de glisser : on reste où l'on était
+      P.x = px; P.y = py; bouge = true;
+      const vn = P.vx * nx + P.vy * ny; if (vn < 0) { P.vx -= vn * nx; P.vy -= vn * ny; }
+      // de face : on l'aiguille le long du tronc, du côté où il penche déjà
+      const wn = Math.hypot(wx, wy);
+      if (wn > .06 && vit > 0) {
+        const tx = -ny, ty = nx, mt = (wx * tx + wy * ty) / wn, mn = (wx * nx + wy * ny) / wn;
+        if (mn < -.5 && Math.abs(mt) < .5) { const sg = mt >= 0 ? 1 : -1; P.vx += tx * sg * vit * .7 * (1 - Math.abs(mt) * 2); P.vy += ty * sg * vit * .7 * (1 - Math.abs(mt) * 2); }
+      }
+    }
+    if (!bouge) break;
+  }
+}
+// Le dessus d'une pierre, d'une druse, d'une souche, d'une couronne : on s'y pose comme sur un cube.
+// Il faut arriver d'au-dessus (une demi-marche de tolérance, comme pour les cubes) et avoir le
+// corps assez sur le pied pour y tenir. Sans cela, on retombait à travers, au pied de la pierre.
+function floreSol(px, py, pz) {
+  let f = -99; const cx = px | 0, cy = py | 0;
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) {
+    const o = obstacleFlore(cx + dx, cy + dy); if (!o || o.z1 > pz + .35) continue;   // plus haut que nous : un obstacle, pas un sol
+    const r = Math.max(o.r * FLORE_SERRE + RF * .8, o.rc * .8);
+    if ((px - o.cx) ** 2 + (py - o.cy) ** 2 < r * r) f = Math.max(f, o.z1);
+  }
+  return f;
+}
 // Un point (un tir, un regard) est-il dans un tronc, une couronne, une pierre ?
 function floreTouche(x, y, z) {
   const o = obstacleFlore(x | 0, y | 0); if (!o || z < o.z0 || z > o.z1 + .1) return false;
@@ -2174,20 +2218,27 @@ function floreFreine(px, py, pz) {
   const sp = ESP[k - 1]; if (!FLORE_FREINE[sp.forme] || Math.abs(pz - solFlore(x, y)) > .3) return false;
   return maturite(i, sp) >= .35;
 }
-// Le pied mûr le plus proche, dans le rayon de bras.
+// Le pied qu'on vise. Un pied qu'on vient de prendre repousse de zéro à la même place, et restait le
+// plus proche : la visée s'y accrochait (« trop jeune ») alors qu'un autre, mûr, attendait à côté.
+// On vise d'abord ce qui se récolte — un pied entamé avant tout, puis le plus proche, un peu plus
+// volontiers devant soi — et un pied trop jeune seulement quand il n'y a rien d'autre à portée.
 function noeudProche() {
-  let best = null, db = 1.75 * 1.75;
-  const cx = P.x | 0, cy = P.y | 0;
+  let best = null, sb = Infinity, jeune = null, dj = 1.75 * 1.75;
+  const cx = P.x | 0, cy = P.y | 0, fa = P.faceS ?? P.face ?? 0, fx = Math.cos(fa), fy = Math.sin(fa);
   for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
     const x = cx + dx, y = cy + dy, ty = typeFlore(x, y);
     if (!ty) continue;
     const z = solFlore(x, y);
     if (Math.abs(z - P.z) > 2.2) continue;
-    const d = (x + .5 - P.x) ** 2 + (y + .5 - P.y) ** 2;
-    if (d > db) continue;
-    db = d; best = { x, y, i: y * WS + x, ty, sp: FLORE[ty], z };
+    const ux = x + .5 - P.x, uy = y + .5 - P.y, d = ux * ux + uy * uy;
+    if (d > 1.75 * 1.75) continue;
+    const i = y * WS + x, sp = FLORE[ty], nd = { x, y, i, ty, sp, z };
+    if (maturite(i, sp) < .35) { if (d < dj) { dj = d; jeune = nd; } continue; }
+    const devant = d > 1e-4 ? Math.max(0, (ux * fx + uy * fy) / Math.sqrt(d)) : 1;
+    const sc = d * (1.15 - .3 * devant) * (ENTAME.has(i) ? .4 : 1);
+    if (sc < sb) { sb = sc; best = nd; }
   }
-  return best;
+  return best || jeune;
 }
 // ============================================================
 //  LA RÉCOLTE, COUP PAR COUP
@@ -6353,7 +6404,7 @@ function update(dt) {
     const step = (axis === 'x' ? P.vx : P.vy) * dt;
     if (!step) return;
     const nx = P.x + (axis === 'x' ? step : 0), ny = P.y + (axis === 'y' ? step : 0);
-    if (!blockedAt(nx, ny, P.z) && !(P.monture ? false : floreBloque(nx, ny, P.z, P.x, P.y))) { P.x = nx; P.y = ny; return; }
+    if (!blockedAt(nx, ny, P.z)) { P.x = nx; P.y = ny; return; }   // la flore se règle après, en glissant (repousserFlore)
     // obstacle : si c'est une caisse posée à notre niveau, on tente de la pousser
     const cx = Math.floor(nx + (axis === 'x' ? Math.sign(step) * R : 0));
     const cy = Math.floor(ny + (axis === 'y' ? Math.sign(step) * R : 0));
@@ -6368,10 +6419,24 @@ function update(dt) {
         cr.x = tx; cr.y = ty; cr.z = 0; cr.dx = -dx; cr.dy = -dy; cr.slide = 1;
         burst(tx + .5, ty + .5, 0, 8, '#d9b283'); say('LE VIDE EST COMBLÉ', 1.6);
       }
+    } else if (!cr) {
+      // Un coin de mur qui ne mord que le bord du corps : on glisse de côté au lieu de s'y accrocher —
+      // du côté où l'on penche déjà, sinon du plus proche ; jamais plus d'un tiers de case.
+      const perp = axis === 'x' ? P.vy : P.vx, cotes = perp < 0 ? [-1, 1] : [1, -1];
+      for (const e of [.1, .2, .32]) for (const sg of cotes) {
+        const qx = axis === 'x' ? nx : P.x + sg * e, qy = axis === 'y' ? ny : P.y + sg * e;
+        const rx = axis === 'x' ? P.x : P.x + sg * e, ry = axis === 'y' ? P.y : P.y + sg * e;
+        if (blockedAt(qx, qy, P.z) || blockedAt(rx, ry, P.z)) continue;
+        const pas = Math.min(e, Math.abs(step));
+        if (axis === 'x') P.y += sg * pas; else P.x += sg * pas;
+        return;
+      }
     }
     if (axis === 'x') P.vx = 0; else P.vy = 0;
   };
+  const avantX = P.x, avantY = P.y;
   tryAxis('x'); tryAxis('y');
+  if (!P.monture) repousserFlore(avantX, avantY, wx, wy, SPD);   // les troncs et les pierres : on les longe
 
   // --- vertical ---
   if (jumpQ) { P.buf = .14; jumpQ = false; }
@@ -6393,7 +6458,7 @@ function update(dt) {
   // d'une île volante on descend de plus d'un cube par image — bien au-delà de la tolérance
   // de 0,35 — si bien que le sol passait sous le radar et qu'on le traversait. Même défaut
   // que sur les flèches : un pas d'intégration trop gros pour la géométrie qu'il franchit.
-  const fl = floorUnder(P.x, P.y, Math.max(z0, P.z));
+  const fl = Math.max(floorUnder(P.x, P.y, Math.max(z0, P.z)), P.monture ? -99 : floreSol(P.x, P.y, Math.max(z0, P.z)));   // les cubes, et le dessus des pierres
   const wasAir = !P.ground;
   P.ground = false;
   if (P.vz <= 0 && P.z <= fl && fl > -50) {
@@ -11397,7 +11462,7 @@ function actionContexte() {
   if (auCamp()) return { v: 'CAMPEMENT', o: 'feu · coffre · portail', f: () => ouvrirSac(true, 'camp') };
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && Math.abs(b.z - P.z) < 2) {
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && Math.abs(b.z - P.z) < 2) {
     const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
     if (d < dp) { dp = d; pr = b; }
   }
