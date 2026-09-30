@@ -457,7 +457,7 @@ Façon Animal Crossing. La **canne à pêche** se fabrique à l'établi (12 bois
 
 ## 28. La cuisine
 
-Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu'à quatre ingrédients), et **il en sort toujours un plat**. L'onglet **Cuisine** du sac (touche 9, sac ouvert) montre la marmite, le garde-manger et les plats.
+Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu'à quatre ingrédients), et **il en sort toujours un plat**. L'onglet **Cuisine** du sac (touche 9, sac ouvert) montre la marmite, le plat servi, les plats du sac, le livre de recettes et le garde-manger.
 
 - **Où** : au feu du campement (onglet Campement, « Cuisiner »), ou partout avec la **marmite** (établi : 16 pierre, 10 bois, 6 fibres). Depuis une case du bord, elle se pose devant vous avec son petit feu ; ACTION près d'elle : CUISINER. Elle reste sur son île ; la reposer ailleurs la déplace.
 - **Les ingrédients** :
@@ -477,9 +477,27 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 | grand souffle | la course essouffle deux fois moins | nectar, sève, figue, cerf, carillonneur, mousse céleste, Josué, lune-de-fond |
 
 - **Six plats remarquables** se découvrent en cherchant ; le carnet donne un indice pour chacun (Soupe de lune, Tarte d'ambre, Festin des Horlogers, Gelée-lanterne, Bouillon de braise, Pain des premiers jours).
-- **Manger** : dans l'onglet Cuisine ou le sac. Le sac garde aussi le « garde-manger » : un appui mange cru (moitié moins de vie ; la viande, jamais).
-- **Les compagnes** : G donne à une compagne le plat le plus modeste qu'on ait. Elle est soignée, et n'a plus faim de quatre à douze minutes.
-- **Le carnet des recettes** (onglet Journal) : chaque plat trouvé, ses meilleures étoiles, combien de fois on l'a préparé.
+- **Servi chaud** : la plupart des plats ne se gardent pas. Il faut le **manger** ou le **donner à une compagne près du feu** (à 14 pas du campement ou de la marmite) tout de suite. Fermer le sac, quitter le feu ou cuisiner autre chose, et il est perdu (« a refroidi »).
+- **Ce qui va au sac** : certains plats font plusieurs parts, et/ou se conservent. Une part vaut **la moitié du plat entier** (vie, durée de l'effet). Ceux « d'un moment » se gâtent en **20 minutes de jeu** ; ceux de **longue conservation** tiennent.
+
+| Plat | Parts | Garde |
+|---|---|---|
+| ragoût, soupe, soupe des bois | 3 | 20 min |
+| terre et mer | 2 | 20 min |
+| tourte, confiture, sirop, pain, galette | 2 | longue |
+| caramel | 1 | longue |
+| Soupe de lune, Bouillon de braise | 3 | 20 min |
+| Festin des Horlogers | 4 | 20 min |
+| Tarte d'ambre | 4 | longue |
+| Pain des premiers jours | 3 | longue |
+| Gelée-lanterne | 2 | longue |
+| tout le reste (grillade, brochette, compote, infusion, poêlée, rôti, salade, plat du voyageur…) | 1 | chaud |
+
+- **Manger** : le plat servi, ou une part du sac (onglet Cuisine ou Sac). Le garde-manger se mange aussi cru : un appui (moitié moins de vie ; la viande, jamais).
+- **Les compagnes** : le plat servi se donne depuis l'onglet Cuisine ; G donne une part du plat le plus modeste du sac. Elle est soignée, et n'a plus faim de quatre à douze minutes.
+- **Le livre de recettes** (onglet Cuisine, il a quitté le Journal) : chaque plat trouvé, ses meilleures étoiles, ce qu'il donne en parts et en garde, combien de fois on l'a préparé, et les ingrédients de sa meilleure préparation avec ce qu'on en a (en rouge, ce qui manque). **Marmite** y met ces ingrédients d'un coup. Les recettes notées avant cette version n'ont pas d'ingrédients : les refaire une fois suffit.
+- **Les épingles** : trois au plus. Une recette épinglée passe en tête du livre, et le HUD la suit (« Ragoût de cerf · 1/2 », « prêt » quand tout y est).
+- Pour régler : `CONSERVE` (parts, garde) et `GARDE_MOMENT` dans la section LA CUISINE d'`index.html`. Les plats gardés par une ancienne sauvegarde passent en longue conservation, une part.
 
 
 ## 29. Les bêtes s'en prennent aussi aux compagnes
@@ -509,17 +527,17 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 
 ## 32. Les avis
 
-- Ce que le jeu vous dit (un portail qui s'ouvre, une confiance qui monte, un objet fabriqué…) s'affiche dans une **carte sombre** à bord doré, lisible sur tous les fonds, **juste au-dessus du personnage** — dessous sur un écran bas (téléphone couché), où le haut est pris par le HUD.
+- Ce que le jeu vous dit (un portail qui s'ouvre, une confiance qui monte, un objet fabriqué…) s'affiche dans une **carte sombre** à bord doré, **sous le HUD du coin** (et sa goutte), à sa largeur ; s'il n'y a pas la place au-dessus du sac et du stick, à droite du HUD.
 - **Police Nunito** (arrondie, très lisible ; SIL Open Font License), incluse dans la page : elle marche hors ligne. Plus de capitales espacées : la phrase s'écrit normalement.
 - **Titre et détails** : la première phrase, jusqu'au premier « · », en titre doré ; chaque suite sur sa ligne, plus petite et plus claire.
-- **Deux cartes au plus** : la plus récente en bas, la précédente au-dessus, pâlie et réduite à son titre. Le même avis ne se répète pas, il se prolonge ; un avis qui ne change que d'un nombre (« confiance 40 % » puis « 60 % ») remplace le précédent.
+- **Deux cartes au plus** : la plus récente en haut, contre la goutte, la précédente dessous, pâlie et réduite à son titre. Le même avis ne se répète pas, il se prolonge ; un avis qui ne change que d'un nombre (« confiance 40 % » puis « 60 % ») remplace le précédent.
 - **La durée tient compte de la longueur** : 1,2 s plus 0,045 s par caractère, jamais moins que ce que le jeu demande, 7 s au plus.
-- Pour régler : `.avis` (le style) et `say` dans `index.html`.
+- Pour régler : `.avis` (le style), `say` et `placerAvis` dans `index.html`.
 
 ## 33. Le HUD, en carte ; la récolte, avec son icône
 
 - **Le HUD du coin** devient une carte sombre, comme les avis (police Nunito) : les trois jauges (vie et cœurs, mana et éclats, souffle — ou la monture), puis ce qu'on a sous la main avec leurs icônes (baies, flèches, baumes) et l'heure avec le temps qu'il fait ; dessous, ce qui se passe (escouade, plats, chaleur du rayon, arc bandé, ESSAI, autres joueurs) ; sous un filet, l'exploration, le danger et la distance à la maison (en rouge au-delà de la barrière), avec « Barrière franchie » et « Campement au sac » en étiquettes ; sous un autre filet, l'étape du guide.
-- **Une flèche au coin** (‹ / ›) replie la carte : elle ne garde que les trois jauges. Le choix se garde dans le navigateur. Sans choix, elle est dépliée — sauf sur téléphone une fois le guide terminé. Sur téléphone, la carte est plus serrée et ne passe plus sous la fiche de la cible.
+- **Une goutte pendue sous la carte**, au centre (˄ / ˅), replie la carte : elle ne garde que les trois jauges. Le choix se garde dans le navigateur. Sans choix, elle est dépliée — sauf sur téléphone une fois le guide terminé. Sur téléphone, la carte est plus serrée et ne passe plus sous la fiche de la cible.
 - **Les populations de l'île et les chiffres du moteur** ne s'affichent plus qu'avec les mesures (Réglages, ou l'onglet Bêta).
 - **Le biome rare** n'a plus sa ligne dans le HUD ; sa découverte reste annoncée une fois.
 - **Chaque récolte montre l'icône de ce qu'on gagne** : « +3 bois », « +2 éclats », « +1 figue de cactus », « +1 cuissot de brouteur », les baies, les flèches, le nectar, les poissons — dans l'avis, devant le nombre. La récolte dit aussi ce qu'on a désormais au sac (« 45 au sac »).

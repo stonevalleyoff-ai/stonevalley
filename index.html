@@ -176,6 +176,12 @@
   #porte details{margin-top:10px;font-size:11.5px;color:#8b95aa;line-height:1.5;}
   #porte summary{cursor:pointer;color:#9fb0cd;text-decoration:underline;}
   /* Le guide de départ : sous un filet, son rang en petites capitales, puis l'étape en doré. */
+  #hudtxt .epi{display:flex;align-items:center;gap:5px;color:#d6dae4;margin-top:3px;} #hudtxt .epi svg{color:#ffd27d;flex:none;}
+  #sac .obj .ingr{display:flex;flex-wrap:wrap;gap:2px 9px;margin-top:3px;} #sac .ingr span{display:inline-flex;align-items:center;gap:3px;}
+  #sac .ingr img{width:14px;height:14px;image-rendering:pixelated;} #sac .ingr .manque{color:#ff9a7a;}
+  #sac .obj.epi{background:rgba(255,210,125,.06);border-radius:8px;}
+  #sac .obj button.epingle{padding:6px 8px;color:#8d9ab4;} #sac .obj button.epingle[aria-pressed="true"]{color:#ffd27d;border-color:rgba(255,210,125,.55);}
+  #sac .servi-a{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;}
   #hudtxt .guide{color:#ffd27d;font-size:12.5px;line-height:1.35;}
   #hudtxt .guide small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#8d9ab4;margin-bottom:1px;}
   #hudtxt .guide b{color:#fff1c8;}
@@ -5104,7 +5110,7 @@ function pageJournal() {
     return `<div class="sac-corps lignes"><div class="vide-texte">`
       + `<p style="margin:10px 0 0">Le journal est celui du campement : posez-en un pour l'ouvrir.</p>`
       + `<p style="margin:0">Il garde les graines des îles visitées, ce qu'on y trouve, et permet d'y retourner.</p>`
-      + `<button class="btn principal" data-onglet="camp">Voir le campement</button></div>${blocAtlas()}${blocCarnet()}${blocPeche()}${blocRecettes()}</div>`;
+      + `<button class="btn principal" data-onglet="camp">Voir le campement</button></div>${blocAtlas()}${blocCarnet()}${blocPeche()}</div>`;
   const j = P.journal, m = memoireJournal();
   const ici = j.visites.find(v => v.g === SEED) || ficheIle(SEED, composerIle());
   const gardees = (j.gardees || []).map(v => ficheGraine(v, true)).join('')
@@ -5122,7 +5128,6 @@ function pageJournal() {
     + blocAtlas()
     + blocCarnet()
     + blocPeche()
-    + blocRecettes()
     + `</div>`;
 }
 // ---------- onglet Campement ----------
@@ -5493,6 +5498,7 @@ function choisirOnglet(id) {
 function ouvrirSac(v, onglet) {
   if (!!v !== !!sacOuvert) SON.jouer('sac', { ouvre: !!v });
   sacOuvert = v === undefined ? !sacOuvert : v;
+  if (!sacOuvert && servi) gaspiller();
   if (onglet) ongletSac = onglet;
   if (sacOuvert) {
     for (const k in K) K[k] = false; P.arc = null;   // on lâche tout en ouvrant
@@ -5576,6 +5582,10 @@ function clicSac(b) {
   else if (d.retirer !== undefined) { marmiteSel.splice(+d.retirer, 1); majSac(); }
   else if (d.cuire) cuire();
   else if (d.plat !== undefined) mangerPlat(+d.plat);
+  else if (d.servi) mangerServi();
+  else if (d.donner !== undefined) donnerServi(+d.donner);
+  else if (d.epingle) epingler(d.epingle);
+  else if (d.refaire) refaire(d.refaire);
   else if (d.guide) { P.guide.masque = !P.guide.masque; hudT = -9; majSac(); }
   else if (d.dens) { DENS_GLOB = DENS_GLOB < .6 ? .7 : DENS_GLOB > 1 ? .45 : 1.15; calcFlore(); majSac(); }
   else if (d.fin) ouvrirSac(false);
@@ -6536,6 +6546,7 @@ document.getElementById('sac').addEventListener('click', e => {
 // ---------- mise à jour ----------
 function update(dt) {
   t += dt;
+  cuisineTic(dt);                                    // le plat servi refroidit, ceux du sac se gâtent (voir LA CUISINE)
   grilleCorps();                                     // où sont les corps, pour ce tour (voir LES CORPS)
   ang += (angT - ang) * Math.min(1, dt * 9);
   elev += (elevT - elev) * Math.min(1, dt * 7);
@@ -6738,10 +6749,7 @@ function update(dt) {
     else if (coursier(c.sp) && !c.tame) say('un coursier ne se lie pas aux baies : sautez sur son dos', 2);
     else if (c.tame && P.plats.length) {                  // un plat à une compagne : soignée, rassasiée pour longtemps
       let k = 0; P.plats.forEach((p, i) => { if (p.q < P.plats[k].q) k = i; });
-      const p = P.plats.splice(k, 1)[0];
-      c.pv = Math.min(1, c.pv + .4 + .1 * p.q); c.faim = 0; c.repueT = t + 240 + 90 * p.q; c.alarm = 0;
-      burst(c.x, c.y, c.z + .5, 12, '#ffd27d'); if (sacOuvert) majSac();
-      say((c.comp ? c.comp.nom : c.sp.n) + ' mange ' + p.n.toLowerCase() + ' · rassasiée ' + Math.round((c.repueT - t) / 60) + ' min', 2.2);
+      donnerPlat(c, prendrePart(k));
     }
     else if (dispo('baies') <= 0 && !((c.sp.diet === 'c' || c.sp.diet === 'o') && poissonADonner())) say('plus de baies', 1.4);
     else if (!c.tame && c.sp.diet === 'c' && c.faim < .35) say(c.sp.n + " n'a pas faim", 1.6);
@@ -11584,6 +11592,77 @@ function preparer(ids) {
   const main = L.slice().sort((a, b) => b.r - a.r)[0];
   return { c: cle, n, q, soin: Math.round(soin * 100) / 100, tag, d, so: souffle, col: main.c };
 }
+// ---------- ce qui se garde ----------
+// Un plat sort chaud et ne se garde pas : on le mange, ou on le donne à une compagne près du feu, tout
+// de suite ; sinon il est perdu (sac fermé, feu quitté, autre plat cuisiné). Certains font plusieurs
+// parts et vont au sac : ceux « d'un moment » se gâtent en vingt minutes de jeu, ceux « de longue
+// conservation » tiennent. Une part vaut la moitié du plat entier (vie, durée de l'effet).
+const GARDE_MOMENT = 20 * 60;
+const CONSERVE = { ragout: [3, 0], soupe: [3, 0], bois: [3, 0], mt: [2, 0], tourte: [2, 1], confiture: [2, 1], sirop: [2, 1],
+  caramel: [1, 1], pain: [2, 1], galette: [2, 1], 'r:lune': [3, 0], 'r:ambre': [4, 1], 'r:horlogers': [4, 0],
+  'r:lanterne': [2, 1], 'r:braise': [3, 0], 'r:premiers': [3, 1] };
+const conserve = c => CONSERVE[c.startsWith('r:') ? c : c.split(':')[0]] || null;   // [parts, longue] ; null : se mange chaud
+const dureeTxt = s => { const m = Math.ceil(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min'; };
+const gardeTxt = p => ((p.parts || 1) > 1 ? p.parts + ' parts · ' : '') + (p.g === undefined ? 'longue conservation' : 'se garde encore ' + dureeTxt(p.g));
+const conserveTxt = c => { const k = conserve(c); return !k ? 'se mange chaud' : (k[0] > 1 ? k[0] + ' parts · ' : '') + (k[1] ? 'longue conservation' : 'se garde ' + dureeTxt(GARDE_MOMENT)); };
+const valeurTxt = p => `+${Math.round(p.soin * 100)} % de vie${p.so ? ' · souffle' : ''}${p.tag ? ' · ' + EFFETS[p.tag] + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min' : ''}`;
+let servi = null, gateT = 0;                          // le plat chaud, tant qu'on ne l'a ni mangé ni donné
+const foyer = () => auCamp() ? P.camp : marmiteIci() ? P.marmite : null;
+function compagnesAuFeu() {
+  const f = foyer(); if (!f) return [];
+  return beasts.filter(b => b.tame && !b.dead && b.pv > 0 && (b.x - f.x) ** 2 + (b.y - f.y) ** 2 < 14 * 14);
+}
+function gaspiller() {
+  if (!servi) return;
+  say(servi.n + ' a refroidi · perdu', 2); servi = null; if (sacOuvert) majSac();
+}
+// chaque tour : le plat servi refroidit loin du feu ; ceux d'un moment se gâtent au sac
+function cuisineTic(dt) {
+  if (servi && !presDuFeu()) gaspiller();
+  if ((gateT += dt) < 1) return; const s = gateT; gateT = 0;
+  for (let k = P.plats.length - 1; k >= 0; k--) {
+    const p = P.plats[k]; if (p.g === undefined || (p.g -= s) > 0) continue;
+    P.plats.splice(k, 1); say(p.n + ' s\'est gâté' + ((p.parts || 1) > 1 ? ' · ' + p.parts + ' parts perdues' : ''), 2.2);
+    if (sacOuvert) majSac();
+  }
+}
+// un plat (ou une part) à une compagne : soignée, rassasiée pour longtemps
+function donnerPlat(c, p) {
+  c.pv = Math.min(1, c.pv + .4 + .1 * p.q); c.faim = 0; c.repueT = t + 240 + 90 * p.q; c.alarm = 0;
+  burst(c.x, c.y, c.z + .5, 12, '#ffd27d'); if (sacOuvert) majSac();
+  say((c.comp ? c.comp.nom : c.sp.n) + ' mange ' + p.n.toLowerCase() + ' · rassasiée ' + Math.round((c.repueT - t) / 60) + ' min', 2.2);
+}
+function mangerServi() { const p = servi; if (!p) return; servi = null; consommer(p); }
+function donnerServi(k) { const c = compagnesAuFeu()[k], p = servi; if (!p || !c) return; servi = null; donnerPlat(c, p); }
+// ---------- le livre de recettes, les épingles ----------
+const EPINGLE = '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" style="display:block"><path d="M10.2 1.3l4.5 4.5-1.6.9-2.6 2.6.4 3.3-1.4 1.4-2.8-2.8-3.6 3.6-1-1 3.6-3.6-2.8-2.8 1.4-1.4 3.3.4 2.6-2.6z" fill="currentColor"/></svg>';
+function ingrCompte(ids) {
+  const n = {}; for (const id of ids) n[id] = (n[id] || 0) + 1;
+  let a = 0; for (const id in n) a += Math.min(qteIngr(id), n[id]);
+  return [a, ids.length, n];
+}
+function ingrTxt(ids) {
+  const n = ingrCompte(ids)[2];
+  return Object.keys(n).map(id => { const q = qteIngr(id), u = icone(icIngr(id));
+    return `<span${q < n[id] ? ' class="manque"' : ''}>${u ? `<img src="${u}" alt="">` : ''}${ESC(INGR[id].court)} ${Math.min(q, n[id])}/${n[id]}</span>`; }).join('');
+}
+function epingler(cle) {
+  const r = P.recettes[cle]; if (!r || !r.i) return;
+  if (r.e) delete r.e;
+  else if (Object.values(P.recettes).filter(x => x.e).length >= 3) { say('trois épingles au plus', 1.4); return; }
+  else r.e = 1;
+  hudT = -9; majSac();
+}
+function refaire(cle) {
+  const r = P.recettes[cle]; if (!r || !r.i) return;
+  const [a, n, c] = ingrCompte(r.i);
+  if (a < n) { say('il manque · ' + Object.keys(c).filter(id => qteIngr(id) < c[id]).map(id => INGR[id].court).join(', '), 2); return; }
+  marmiteSel = r.i.slice(); SON.jouer('equipe'); majSac();
+}
+function ligneEpingles() {
+  return Object.values(P.recettes).filter(r => r.e && r.i).map(r => { const [a, n] = ingrCompte(r.i);
+    return `<div class="epi">${EPINGLE}<span>${ESC(r.n)} · <b>${a}/${n}</b>${a >= n ? ' · prêt' : ''}</span></div>`; }).join('');
+}
 // ---------- la marmite, le feu ----------
 let marmiteSel = [];
 const MARMITE_MAX = 4, PLATS_MAX = 40;
@@ -11612,22 +11691,32 @@ function cuire() {
   if (!presDuFeu()) { say('il faut un feu : celui du campement, ou votre marmite posée', 2.2); return; }
   if (!marmiteSel.length) { say('la marmite est vide', 1.2); return; }
   for (const id of new Set(marmiteSel)) if (qteIngr(id) < marmiteSel.filter(x => x === id).length) { marmiteSel = []; say('il manque un ingrédient', 1.4); return; }
-  const plat = preparer(marmiteSel);
+  const plat = preparer(marmiteSel), ids = marmiteSel.slice();
   for (const id of marmiteSel) oterIngr(id);
   marmiteSel = [];
-  P.plats.unshift(plat); if (P.plats.length > PLATS_MAX) P.plats.length = PLATS_MAX;
+  const cs = conserve(plat.c);
+  if (cs) {                                           // plusieurs parts, ou longue conservation : au sac
+    plat.parts = cs[0]; if (!cs[1]) plat.g = GARDE_MOMENT;
+    if (plat.parts > 1) { plat.soin = Math.round(plat.soin * 50) / 100; plat.d = Math.round(plat.d / 2); }
+    P.plats.unshift(plat); if (P.plats.length > PLATS_MAX) P.plats.length = PLATS_MAX;
+  } else { if (servi) gaspiller(); servi = plat; }  // chaud : à manger ou donner tout de suite
   const c = P.recettes[plat.c], neuf = !c;
-  P.recettes[plat.c] = { n: plat.n, q: Math.max(plat.q, c ? c.q : 0), f: (c ? c.f : 0) + 1 };
+  P.recettes[plat.c] = Object.assign({ n: plat.n, q: Math.max(plat.q, c ? c.q : 0), f: (c ? c.f : 0) + 1,
+    i: !c || !c.i || plat.q >= c.q ? ids : c.i }, c && c.e ? { e: 1 } : {});
   SON.jouer('cuisson'); SON.jouer('prise', { rare: plat.q >= 5 || plat.c.startsWith('r:') ? 1 : 0 });
   const f = marmiteIci() && !auCamp() ? P.marmite : P.camp;
   if (f) burst(f.x, f.y, f.z + .8, 6, '#f2f2f2');
-  say(`${plat.n} ${etoiles(plat.q)}` + (neuf ? ' · noté au carnet des recettes' : '') + (plat.c.startsWith('r:') && neuf ? ' · un plat remarquable !' : ''), 3.5);
+  say(`${plat.n} ${etoiles(plat.q)}` + (cs ? ' · ' + gardeTxt(plat) + ' · au sac' : ' · servi chaud : à manger ou donner tout de suite') + (neuf ? ' · noté au livre de recettes' : '') + (plat.c.startsWith('r:') && neuf ? ' · un plat remarquable !' : ''), 3.5);
   majSac();
 }
 // Manger un plat : la vie, parfois le souffle, parfois un effet de quelques minutes.
-function mangerPlat(k) {
-  const p = P.plats[k]; if (!p) return;
-  P.plats.splice(k, 1);
+function prendrePart(k) {
+  const p = P.plats[k]; if (!p) return null;
+  if ((p.parts || 1) > 1) { p.parts--; return p; }
+  P.plats.splice(k, 1); return p;
+}
+function mangerPlat(k) { const p = prendrePart(k); if (p) consommer(p); }
+function consommer(p) {
   P.pv = Math.min(1, P.pv + p.soin);
   if (p.so) { P.endu = 1; P.epuise = false; }
   if (p.tag) P.effets[p.tag] = Math.max(P.effets[p.tag] || 0, t) + p.d;
@@ -11709,22 +11798,36 @@ function pageCuisine() {
     + `<div class="col"><h3>La marmite</h3><div class="rangee">${pot}</div>`
     + `<p class="note" style="margin:6px 2px">${feu ? 'Le feu est là. Jusqu\'à quatre ingrédients : il en sort toujours un plat.' : 'Il faut un feu : celui du campement, ou votre marmite posée (établi).'}</p>`
     + `<button class="btn principal" data-cuire="1"${feu && marmiteSel.length ? '' : ' disabled'}>Cuisiner</button>`
-    + blocPlats() + `</div>`
+    + blocServi() + blocPlats() + blocRecettes() + `</div>`
     + `<div class="col"><h3 style="margin-top:0">Garde-manger</h3>${garde || '<div class="vide-texte">Rien à cuisiner. Une bête abattue laisse sa viande ; une plante cueillie mûre, parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille ; et la pêche.</div>'}</div>`
     + `</div>`;
 }
+function blocServi() {
+  if (!servi) return '';
+  const p = servi, L = compagnesAuFeu().slice(0, 4);
+  return `<h3>Servi chaud</h3><div class="obj"><div style="flex:1;min-width:0"><div class="n">${ESC(p.n)} <span style="color:#ffd27d">${etoiles(p.q)}</span></div>`
+    + `<div class="d">${valeurTxt(p)}</div></div><button data-servi="1">Manger</button></div>`
+    + (L.length ? `<div class="servi-a">` + L.map((c, k) => `<button class="btn" data-donner="${k}">Donner à ${ESC(c.comp ? c.comp.nom : c.sp.n)}</button>`).join('') + `</div>` : '')
+    + `<p class="note" style="margin:4px 2px 8px">Il ne se garde pas : mangez-le, ou donnez-le à une compagne près du feu. Sac fermé ou feu quitté, il est perdu.</p>`;
+}
 function blocPlats() {
   if (!P.plats.length) return '';
-  return `<h3>Plats <span class="compte">${P.plats.length}</span></h3>`
+  return `<h3>Au sac <span class="compte">${P.plats.reduce((s, p) => s + (p.parts || 1), 0)} parts</span></h3>`
     + P.plats.slice(0, 20).map((p, k) => `<div class="obj"><div style="flex:1;min-width:0"><div class="n">${ESC(p.n)} <span style="color:#ffd27d">${etoiles(p.q)}</span></div>`
-      + `<div class="d">+${Math.round(p.soin * 100)} % de vie${p.so ? ' · souffle' : ''}${p.tag ? ' · ' + EFFETS[p.tag] + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min' : ''}</div></div>`
+      + `<div class="d">${valeurTxt(p)}${(p.parts || 1) > 1 ? ' par part' : ''}</div><div class="d">${gardeTxt(p)}</div></div>`
       + `<button data-plat="${k}">Manger</button></div>`).join('');
 }
+// Le livre : chaque plat trouvé, ses meilleures étoiles, ce qui se garde, les ingrédients de sa meilleure
+// fois (ce qu'on en a, ce qui manque). Trois épingles au plus : en tête du livre, et dans le HUD.
 function blocRecettes() {
-  const L = Object.entries(P.recettes);
-  let h = `<h3>Carnet des recettes <span class="compte">${L.length} trouvée${L.length > 1 ? 's' : ''}</span></h3>`;
+  const L = Object.entries(P.recettes).sort((a, b) => (b[1].e ? 1 : 0) - (a[1].e ? 1 : 0));
+  let h = `<h3>Livre de recettes <span class="compte">${L.length} trouvée${L.length > 1 ? 's' : ''}</span></h3>`;
   if (!L.length) h += `<p class="note" style="margin:2px 2px 8px">Aucune encore. Au feu du campement, ou à la marmite : on met ce qu'on veut, il en sort toujours un plat.</p>`;
-  for (const [cle, r] of L.slice(0, 60)) h += `<div class="obj"><div style="flex:1;min-width:0"><div class="n">${ESC(r.n)} <span style="color:#ffd27d">${etoiles(r.q)}</span></div><div class="d">${cle.startsWith('r:') ? 'plat remarquable · ' : ''}préparé ${r.f} fois</div></div></div>`;
+  for (const [cle, r] of L.slice(0, 80)) h += `<div class="obj${r.e ? ' epi' : ''}"><div style="flex:1;min-width:0"><div class="n">${ESC(r.n)} <span style="color:#ffd27d">${etoiles(r.q)}</span></div>`
+    + `<div class="d">${conserveTxt(cle)} · préparé ${r.f} fois${cle.startsWith('r:') ? ' · remarquable' : ''}</div>`
+    + `<div class="d ingr">${r.i ? ingrTxt(r.i) : '<span>refaites-le pour noter ses ingrédients</span>'}</div></div>`
+    + (r.i ? `<button class="epingle" data-epingle="${ESC(cle)}" aria-pressed="${r.e ? 'true' : 'false'}" title="${r.e ? 'Désépingler' : 'Épingler'}" aria-label="${r.e ? 'Désépingler' : 'Épingler'}">${EPINGLE}</button>`
+      + `<button data-refaire="${ESC(cle)}">Marmite</button>` : '') + `</div>`;
   for (const R of REMARQUABLES) if (!P.recettes['r:' + R.id]) h += `<div class="obj"><div style="flex:1;min-width:0"><div class="n">? ? ?</div><div class="d">un plat remarquable · ${ESC(R.indice)}</div></div></div>`;
   return h;
 }
@@ -12685,7 +12788,7 @@ function drawHud() {
   }
   const html = `<div class="rang">${main.join('')}</div>`
     + (etats.length ? `<div class="rang etats">${etats.join('<i>·</i>')}</div>` : '')
-    + expl + ligneGuide()
+    + ligneEpingles() + expl + ligneGuide()
     + (t - avisComp.t < 3.5 ? `<div class="note rose">${ESC(texteAvisComp())}</div>` : '')
     + tech;
   if (html !== hudDernier) { const el = document.getElementById('hudtxt'); if (el) el.innerHTML = html; hudDernier = html; }
@@ -14526,7 +14629,7 @@ function photo() {
 }
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
-const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.plats.length, P.recettes, P.marmite, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.baies, lives, Math.round(P.pv * 10),
+const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.plats.map(p => p.parts).join(), P.recettes, P.marmite, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.pillages.length, djIci() ? [DJ.e, DJ.etat.ouverts.length, DJ.etat.vaincus.length] : 0, raidIci() ? [Raid.fini, Raid.ko.length, Math.round(Raid.part * 100)] : 0, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
@@ -14581,10 +14684,11 @@ function appliquer(d, vivantes) {
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
   P.plats = (Array.isArray(d.plats) ? d.plats : []).filter(p => p && typeof p.n === 'string' && typeof p.c === 'string').slice(0, PLATS_MAX)
     .map(p => ({ c: p.c.slice(0, 40), n: p.n.slice(0, 60), q: nb(p.q, 1, 5, 1) | 0, soin: nb(p.soin, 0, 1, 0), tag: EFFETS[p.tag] ? p.tag : null,
-      d: nb(p.d, 0, 1200, 0) | 0, so: p.so ? 1 : 0, col: Array.isArray(p.col) ? p.col.slice(0, 3).map(v => nb(v, 0, 255, 128) | 0) : [196, 130, 80] }));
+      d: nb(p.d, 0, 1200, 0) | 0, so: p.so ? 1 : 0, parts: nb(p.parts, 1, 8, 1) | 0, ...(Number.isFinite(p.g) ? { g: nb(p.g, 0, 7200, 0) } : {}), col: Array.isArray(p.col) ? p.col.slice(0, 3).map(v => nb(v, 0, 255, 128) | 0) : [196, 130, 80] }));
   P.recettes = {};
   if (d.recettes && typeof d.recettes === 'object') for (const [k, r] of Object.entries(d.recettes).slice(0, 300))
-    if (r && typeof r.n === 'string') P.recettes[String(k).slice(0, 40)] = { n: r.n.slice(0, 60), q: nb(r.q, 1, 5, 1) | 0, f: nb(r.f, 1, 1e6, 1) | 0 };
+    if (r && typeof r.n === 'string') { const i = Array.isArray(r.i) ? r.i.filter(x => INGR[x]).slice(0, 4) : [];
+      P.recettes[String(k).slice(0, 40)] = Object.assign({ n: r.n.slice(0, 60), q: nb(r.q, 1, 5, 1) | 0, f: nb(r.f, 1, 1e6, 1) | 0 }, i.length ? { i } : {}, i.length && r.e ? { e: 1 } : {}); }
   const mm = d.marmite;
   P.marmite = mm && Number.isInteger(mm.g) && [mm.x, mm.y, mm.z].every(Number.isFinite) ? { g: mm.g, x: mm.x, y: mm.y, z: mm.z } : null;
   P.pv = nb(d.pv, .05, 1, 1);
