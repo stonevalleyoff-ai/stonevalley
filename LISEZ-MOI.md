@@ -191,7 +191,7 @@ Une île entière de métal, qui ne sort qu'au-delà du vingtième saut : enviro
 
 ## 12. Les îles volantes
 
-Sur toutes les îles, les îles volantes et leurs escaliers sont de **nuage** : blanc, doux, en plein jour même au-dessus d'une falaise, et sans aucun végétal. Elles ne portent que les **druses** : un socle de roche pâle et des prismes trapus, en deux tons comme le reste de la flore. C'est toujours là qu'on détache les éclats, et leur couleur dit ce qu'elles valent :
+Sur toutes les îles, les îles volantes et leurs escaliers sont de **nuage** : blanc, doux, en plein jour même au-dessus d'une falaise, et sans aucun végétal. Elles ne portent que les **druses** : un socle de roche pâle et des prismes trapus, en deux tons comme le reste de la flore. C'est toujours là qu'on détache les éclats (le cerf de verre y monte d'un bond de lumière, section 34), et leur couleur dit ce qu'elles valent :
 
 | Druse | Sur cent | Éclats en plus (druse mûre) |
 |---|---|---|
@@ -551,7 +551,8 @@ Chaque compagne en **Récolte** reçoit une cible, quelle que soit son espèce :
 - **Les ingrédients trouvés en récolte** (produit d'une plante, viande d'une prise) : la chance suit la note de la récolte en cours, ×0,3 / 0,45 / 0,65 / 1 / 1,25 de la vôtre (`CHANCE_APT`). Avant, c'était ×0,6 pour toutes.
 - **Ce qu'elles rapportent s'affiche comme pour vous** : une carte d'avis sous le HUD, le **nom de la compagne en titre**, puis chaque gain avec son icône (« Givre · +5 pierres · +1 noix de palme · +2 baies », « au coffre » si elle travaille pour le campement). Les gains d'une même compagne se cumulent quatre secondes dans sa carte ; la ligne rose du HUD a disparu.
 - **La chasse** n'est proposée qu'aux espèces qui chassent déjà (traqueur, spectre, varan, salamandre, félin, traceur). Une chasseuse mise à autre chose ne court plus le gibier pour le travail, mais chasse encore quand elle a faim.
-- **Rien de sa cible dans son rayon** : elle explore vingt secondes, puis fait son métier et le dit (une fois toutes les deux minutes).
+- **Rien de sa cible dans son rayon** : elle explore vingt secondes, puis prend sa récolte la mieux notée qu'elle trouve à portée, et le dit (une fois toutes les deux minutes). Elle revient à sa cible dès qu'elle en voit.
+- **Le bond de lumière** (cerf de verre seulement) : il atteint ce qui pousse sur les **îles volantes** (druses, mousse céleste). Il se charge de lumière une demi-seconde, se brise en éclats, reparaît sur la dalle à côté de la plante, la récolte, puis redescend de même là d'où il était parti. Il ne marche pas là-haut : tout autre ouvrage, ou poussé hors de la dalle, et il redescend. Pour régler : `BONDIT`, `monterDalle`, `descendreDalle`.
 - **La défense** : dégâts d'une compagne = 0,06 + 0,045 × note (défense) ; 0,10 + 0,05 × note (+0,05 pour une chasseuse) quand elle attaque. La robustesse de l'espèce ne change pas. La note est affichée à côté de « Défense » dans la liste Rôle.
 - **Au campement en votre absence** : 4 de sa récolte par minute × le coefficient de sa note (1,5 os par minute pour la chasse).
 - **Équilibre** : meilleure note de matière + défense = 6 à 8 ; la chasse compte à part. Le moissonneur, rare, est le seul généraliste fort, et nul en défense.
@@ -582,3 +583,14 @@ Chaque compagne en **Récolte** reçoit une cible, quelle que soit son espèce :
 | Sentinelle | 1 | 2 | 1 | 1 | 1 | 3 | — | 5 |
 | Tireur d'élite | 1 | 1 | 1 | 1 | 1 | 2 | — | 5 |
 | Mortier | 1 | 3 | 1 | 1 | 1 | 3 | — | 5 |
+
+
+## 35. Le coffre : répartir sac et campement
+
+Onglet **Campement**, bloc Coffre. **Tout déposer** et **Tout reprendre** restent ; dessous, une ligne par ressource présente au sac ou au coffre (bois, pierre, fibre, os, éclats, ferraille, baies, nectar) :
+
+- **le curseur** dit combien on garde **au sac** (à droite) ; le reste va **au coffre** (à gauche). Les chiffres suivent pendant qu'on glisse ; le transfert se fait au lâcher ;
+- **‹ et ›** déplacent une unité : ‹ vers le coffre, › vers le sac ;
+- un avis confirme (« +5 bois · repris au coffre », « 3 pierres au coffre »).
+
+Seulement au campement (curseurs grisés ailleurs). Le panneau ne se réécrit pas pendant qu'on tient un curseur, même si une compagne rapporte quelque chose. Pour régler : `partager` et `blocPartage` dans `index.html`.

@@ -181,6 +181,12 @@
   #sac .ingr img{width:14px;height:14px;image-rendering:pixelated;} #sac .ingr .manque{color:#ff9a7a;}
   #sac .obj.epi{background:rgba(255,210,125,.06);border-radius:8px;}
   #sac .obj button.epingle{padding:6px 8px;color:#8d9ab4;} #sac .obj button.epingle[aria-pressed="true"]{color:#ffd27d;border-color:rgba(255,210,125,.55);}
+  #sac .partage{display:flex;flex-direction:column;gap:4px;margin:8px 0 6px;}
+  #sac .pl{display:grid;grid-template-columns:20px minmax(46px,auto) 36px 28px 1fr 28px 36px;align-items:center;gap:6px;font-size:12.5px;}
+  #sac .pl.tete{color:var(--texte2);font-size:11px;} #sac .pl b{text-align:center;font-variant-numeric:tabular-nums;}
+  #sac .pl img{width:18px;height:18px;image-rendering:pixelated;} #sac .pl input{width:100%;accent-color:#ffd27d;margin:0;}
+  #sac .pl button{padding:4px 0;border-radius:7px;font-size:15px;line-height:1;background:#1c2230;border:1px solid var(--trait);color:var(--texte);cursor:pointer;}
+  #sac .pl button:disabled{opacity:.35;cursor:default;}
   #sac .servi-a{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;}
   #hudtxt .guide{color:#ffd27d;font-size:12.5px;line-height:1.35;}
   #hudtxt .guide small{display:block;font-size:10.5px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#8d9ab4;margin-bottom:1px;}
@@ -3751,6 +3757,28 @@ function deposerCoffre(r) {
   say(n + ' au coffre', 2); majSac();
   return true;
 }
+// Répartir une ressource entre le sac et le coffre : v, ce qui reste au sac ; le reste au coffre.
+function partager(r, v) {
+  if (!P.camp || !auCamp()) { say('le coffre est au campement', 2.2); majSac(); return false; }
+  const tot = auSac(r) + (P.coffre[r] || 0), n = Math.max(0, Math.min(tot, Math.round(v))), d = n - auSac(r);
+  if (!d) return false;
+  metSac(r, n); P.coffre[r] = tot - n;
+  const mot = r === 'baies' ? (Math.abs(d) > 1 ? 'baies' : 'baie') : (Math.abs(d) > 1 && PLURIEL[r] ? PLURIEL[r] : RES[r] || r);
+  say(d > 0 ? '+' + d + ' ' + mot + ' · repris au coffre' : -d + ' ' + mot + ' au coffre', 1.4);
+  majSac(); return true;
+}
+function blocPartage(proche) {
+  const L = COFFRE_R.filter(r => auSac(r) + (P.coffre[r] || 0) > 0);
+  if (!L.length) return '';
+  const dis = proche ? '' : ' disabled';
+  return `<div class="partage"><div class="pl tete"><span></span><span></span><b>Coffre</b><span></span><span></span><span></span><b>Sac</b></div>`
+    + L.map(r => { const s = auSac(r), c = P.coffre[r] || 0, u = icone(r), n = r === 'baies' ? 'Baies' : NOM_APT[r] || RES[r];
+      return `<div class="pl">${u ? `<img src="${u}" alt="">` : '<span></span>'}<span>${ESC(n)}</span><b data-pc="${r}">${c}</b>`
+        + `<button data-pas="${r}:-1"${dis || !s ? ' disabled' : ''} aria-label="Un de moins au sac">‹</button>`
+        + `<input type="range" min="0" max="${s + c}" step="1" value="${s}" data-partage="${r}"${dis} aria-label="${ESC(n)} gardés au sac">`
+        + `<button data-pas="${r}:1"${dis || !c ? ' disabled' : ''} aria-label="Un de plus au sac">›</button><b data-ps="${r}">${s}</b></div>`; }).join('')
+    + `</div>`;
+}
 function reprendreCoffre(r) {
   if (!P.camp) { say('aucun campement', 2); return false; }
   if (!auCamp()) { say('le coffre est au campement', 2.2); return false; }
@@ -5158,8 +5186,9 @@ function pageCampement() {
         ? ESC(COFFRE_R.filter(r => P.coffre[r]).map(r => (RES[r] || 'baies') + ' ' + P.coffre[r]).join(' · '))
         : 'vide · ce qu\'on y dépose ne repart plus en expédition'}`
       + `${proche ? '' : ' · il faut être au campement'}</div></div>`
-    + `<button data-coffre="deposer"${proche && sacTotal() ? '' : ' disabled'}>Déposer</button>`
-    + `<button data-coffre="reprendre"${proche && coffreTotal() ? '' : ' disabled'}>Reprendre</button></div>`
+    + `<button data-coffre="deposer"${proche && sacTotal() ? '' : ' disabled'}>Tout déposer</button>`
+    + `<button data-coffre="reprendre"${proche && coffreTotal() ? '' : ' disabled'}>Tout reprendre</button></div>`
+    + blocPartage(proche)
     + (() => {
         // qui tient le campement, et ce qu'elles ont fait pendant la dernière absence
         const gens = P.compagnes.filter(c => c.mode === 'camp');
@@ -5453,7 +5482,7 @@ function majSac() {
   if (!sacOuvert) return;
   const el = document.getElementById('sac');
   const actif = document.activeElement;
-  if (actif && actif.tagName === 'SELECT' && el.contains(actif)) { sacEnAttente = true; return; }
+  if (actif && (actif.tagName === 'SELECT' || (actif.tagName === 'INPUT' && actif.dataset.partage)) && el.contains(actif)) { sacEnAttente = true; return; }
   // Le panneau est réécrit en entier : on garde la saisie d'un code et la position des listes.
   const champ = document.getElementById('svcode');
   const saisie = champ ? champ.value : '', enSaisie = !!champ && document.activeElement === champ;
@@ -5538,6 +5567,7 @@ function clicSac(b) {
     majSac();
   }
   else if (d.rejoindre) { rejoindreJoueur(d.rejoindre); majSac(); }
+  else if (d.pas) { const [r, k] = d.pas.split(':'); partager(r, auSac(r) + +k); }
   else if (d.coffre) {
     if (d.coffre === 'deposer') deposerCoffre();
     else if (d.coffre === 'reprendre') reprendreCoffre();
@@ -6524,7 +6554,14 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
   document.getElementById('batt').addEventListener(ev, e => { e.preventDefault(); lacheQ = true; });
 document.getElementById('bsac').onclick = () => ouvrirSac();
+document.getElementById('sac').addEventListener('input', e => {       // le curseur glisse : les chiffres suivent
+  const r = e.target && e.target.dataset && e.target.dataset.partage; if (!r) return;
+  const v = +e.target.value, q = s => e.target.parentNode.querySelector(s);
+  q('[data-ps]').textContent = v; q('[data-pc]').textContent = +e.target.max - v;
+});
 document.getElementById('sac').addEventListener('change', e => {
+  const pr = e.target && e.target.dataset && e.target.dataset.partage;
+  if (pr) { const v = +e.target.value; e.target.blur(); partager(pr, v); return; }
   const o = e.target && e.target.dataset && e.target.dataset.ordre;
   if (o) {
     const c = compagneDe(e.target.dataset.cid), v = e.target.value;
@@ -7591,7 +7628,8 @@ function lacherParoi(b) {
 }
 // Au sol : la pesanteur, et le corps qui se remet à plat après une chute.
 function chute(b, dt) {
-  const gs = sol(b.x, b.y);
+  if (b.surDalle && !(b.tache && b.tache.dalle && plaT(b.x | 0, b.y | 0) === b.surDalle)) descendreDalle(b);
+  const gs = b.surDalle || sol(b.x, b.y);
   if (b.z > gs + .05 || b.vz > 0) { b.vz -= 22 * dt; b.z += b.vz * dt; if (b.z <= gs && b.vz <= 0) { b.z = gs; b.vz = 0; } }
   else { b.z += (gs - b.z) * Math.min(1, dt * 9); b.vz = 0; }
   if (b.tang) { b.tang *= Math.max(0, 1 - dt * 5); if (Math.abs(b.tang) < .02) b.tang = 0; }
@@ -9831,17 +9869,20 @@ function etatCompagne(b, dEau) {
 // ramène plus. Seul le sifflet la rappelle.
 const RAYON_RECOLTE = 10, DUREE_RECOLTE = 3.2;
 function chercherTache(b) {
-  const r = recolteB(b), m = metierDe(b.sp.id);
-  const tc = chercherTacheTr(b, { [r]: coefApt(b.sp.id, r) });
-  if (tc || r === m) { b.rienT = 0; return tc; }
+  const r = recolteB(b), tc = chercherTacheTr(b, { [r]: coefApt(b.sp.id, r) });
+  if (tc) { b.rienT = 0; return tc; }
   if (!b.rienT) b.rienT = b.t;
   if (b.t - b.rienT < 20) return null;                 // elle explore encore un peu
-  const t2 = chercherTacheTr(b, { [m]: coefApt(b.sp.id, m) });
-  if (t2 && b.comp && !(b.ditRien > b.t)) { b.ditRien = b.t + 120; say(b.comp.nom + ' ne trouve pas ' + LE_APT[r] + ' ici · elle prend ' + LE_APT[m], 2.4); }
-  return t2;
+  const L = APT_RES.filter(k => k !== r && k !== 'os' && noteApt(b.sp.id, k)).sort((u, v) => noteApt(b.sp.id, v) - noteApt(b.sp.id, u));
+  for (const k of L) {
+    const t2 = chercherTacheTr(b, { [k]: coefApt(b.sp.id, k) }); if (!t2) continue;
+    if (b.comp && !(b.ditRien > b.t)) { b.ditRien = b.t + 120; say(b.comp.nom + ' ne trouve pas ' + LE_APT[r] + ' ici · elle prend ' + LE_APT[k], 2.4); }
+    return t2;
+  }
+  return null;
 }
 function chercherTacheTr(b, tr) {
-  const R = RAYON_RECOLTE, px = b.x | 0, py = b.y | 0, hb = hAt(b.x | 0, b.y | 0);
+  const bondit = BONDIT[b.sp.id], R = RAYON_RECOLTE, px = b.x | 0, py = b.y | 0, hb = hAt(b.x | 0, b.y | 0);
   const A = ancre(b), hors = (x, y) => A && (x - A.x) ** 2 + (y - A.y) ** 2 > A.r * A.r;
   const prises = new Set();
   for (const c of P.compagnes) if (c.b && c.b !== b && c.b.tache) prises.add(c.b.tache.cle);
@@ -9860,12 +9901,13 @@ function chercherTacheTr(b, tr) {
     const x = px + dx, y = py + dy;
     if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) continue;
     const i = y * WS + x, k = Flo[i]; if (!k || hors(x + .5, y + .5)) continue;
-    const e = ESP[k - 1]; if (e.dalle || !tr[e.res]) continue;
-    if (Hgt[i] <= SEA || Eau[i] || PlT[i] || Math.abs(Hgt[i] - hb) > 8) continue;   // elle grimpe
+    const e = ESP[k - 1]; if ((e.dalle && !bondit) || !tr[e.res]) continue;
+    const dalle = PlT[i] && bondit ? PlT[i] : 0;   // le cerf de verre : ce qui pousse là-haut (druses, mousse céleste)
+    if (!dalle && (Hgt[i] <= SEA || Eau[i] || PlT[i] || Math.abs(Hgt[i] - hb) > 8)) continue;   // elle grimpe
     const d = ((x + .5 - b.x) ** 2 + (y + .5 - b.y) ** 2) / (tr[e.res] * tr[e.res]); if (d >= bd) continue;
     const cle = 'p' + i; if (prises.has(cle) || (evite && evite.get(cle) > t)) continue;
     if (maturite(i, e) < .9) continue;
-    bd = d; best = { k: 'plante', i, e, x: x + .5, y: y + .5, cle, t0: b.t, w: 0 };
+    bd = d; best = { k: 'plante', i, e, x: x + .5, y: y + .5, cle, t0: b.t, w: 0, dalle };
   }
   return best;
 }
@@ -9896,6 +9938,25 @@ function explorer(b) {
   return [e[0], e[1], false];
 }
 // Rend [x, y, au travail] : où aller, et si elle y est.
+// LE BOND DE LUMIÈRE. Seul le cerf de verre atteint les îles volantes : il se brise en éclats de
+// lumière, reparaît sur la dalle à côté de la druse, la détache, et redescend de même là d'où il était
+// parti. Il ne marche pas là-haut : tout autre ouvrage, ou poussé hors de la dalle, et il redescend.
+const BONDIT = { cerf: 1 };
+function monterDalle(b, tc) {
+  b.retour = [b.x, b.y];
+  burst(b.x, b.y, b.z + .6, 16, '#bfe8ff');
+  const a = Math.atan2(tc.y - b.y, tc.x - b.x), x = tc.x - Math.cos(a) * .45, y = tc.y - Math.sin(a) * .45;
+  const ok = plaT(x | 0, y | 0) === tc.dalle;
+  b.x = ok ? x : tc.x; b.y = ok ? y : tc.y; b.z = b.surDalle = tc.dalle; b.vz = 0; b.dirT = a;
+  burst(b.x, b.y, b.z + .6, 16, '#bfe8ff'); SON.jouer('lien', {}, b.x, b.y, b.z + .5);
+}
+function descendreDalle(b) {
+  burst(b.x, b.y, b.z + .6, 14, '#bfe8ff');
+  const r = b.retour; b.surDalle = 0; b.retour = null;
+  if (r && hAt(r[0] | 0, r[1] | 0) > SEA && !plaT(r[0] | 0, r[1] | 0)) { b.x = r[0]; b.y = r[1]; }
+  b.z = sol(b.x, b.y); b.vz = 0;
+  burst(b.x, b.y, b.z + .6, 14, '#bfe8ff');
+}
 function majRecolte(b, dt) {
   let tc = b.tache;
   if (tc) {
@@ -9914,6 +9975,11 @@ function majRecolte(b, dt) {
     }
     if (!tc) return explorer(b);
     b.explore = null;
+  }
+  if (tc.dalle && !b.surDalle) {                       // le cerf de verre se charge de lumière, puis bondit
+    if (!tc.bondT) tc.bondT = b.t + .6;
+    if (b.t < tc.bondT) { b.bob += dt * 12; return [b.x, b.y, true]; }
+    monterDalle(b, tc);
   }
   if (b.mur || (b.x - tc.x) ** 2 + (b.y - tc.y) ** 2 > .72) { tc.w = 0; return [tc.x, tc.y, false]; }
   tc.w += dt; b.bob += dt * 5;                         // au pied : elle travaille, penchée
