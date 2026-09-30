@@ -498,3 +498,11 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 - **Plus loin, plus forte** : deux traceurs à la 3e exploration ; un mercenaire dès la 5e, deux dès la 7e ; une sentinelle qui avance en porte-bouclier dès la 8e ; un tireur d'élite dès la 12e ; un mortier dès la 15e ; de 2 à 8 automates. Leurs coups valent 60 % de ceux de l'espèce à la 3e exploration, 100 % à la 10e, jusqu'à 120 % au-delà de la 20e (en plus du danger de la profondeur) ; leur blindage monte de 5 % par exploration, et le premier sorti, qui mène, est blindé d'un tiers de plus.
 - **Butin** : celui de chaque automate, rien de plus.
 - **Bêta** : l'onglet Bêta a un bouton **Faire venir** (l'escouade de votre exploration, au moins celle de la 3e) et dit dans combien de minutes viendra la prochaine.
+
+## 31. Les corps : plus personne ne traverse personne
+
+- **Chaque bête a un corps** : un disque au sol d'un peu plus du tiers de sa taille (un petit est plus petit), sur sa hauteur. Deux bêtes ne se traversent plus : un pas qui entrerait dans l'autre en est ramené le long d'elle — on glisse autour ; face à face, chacune s'écarte d'un côté. L'une au-dessus de l'autre (une falaise, un saut) ne se heurtent pas.
+- **Le joueur aussi** : il bute sur toute bête comme sur un mur, compagnes comprises (il glisse le long d'elle si l'on marche de biais), et les bêtes s'arrêtent contre lui. Seule la monture qu'on chevauche ne compte pas ; à cheval, le corps du joueur est celui de la monture.
+- **Deux corps mêlés** (une naissance, la sortie d'un portail, un coup qui projette) se démêlent doucement, à 1,6 case par seconde ; celui qui ne peut pas reculer (paroi, eau) laisse l'autre faire le chemin, et le joueur ne recule que si la bête ne le peut pas.
+- Les attaques, elles, portent avant le contact : un bond, une morsure, un coup d'arme atteignent leur cible comme avant.
+- Pour régler : `rayonCorps`, `hautCorps` et le bloc « LES CORPS » dans `index.html`.

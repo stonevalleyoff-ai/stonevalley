@@ -6394,6 +6394,7 @@ document.getElementById('sac').addEventListener('click', e => {
 // ---------- mise à jour ----------
 function update(dt) {
   t += dt;
+  grilleCorps();                                     // où sont les corps, pour ce tour (voir LES CORPS)
   ang += (angT - ang) * Math.min(1, dt * 9);
   elev += (elevT - elev) * Math.min(1, dt * 7);
   zoom += (zoomT - zoom) * Math.min(1, dt * 10);
@@ -6478,7 +6479,10 @@ function update(dt) {
     const step = (axis === 'x' ? P.vx : P.vy) * dt;
     if (!step) return;
     const nx = P.x + (axis === 'x' ? step : 0), ny = P.y + (axis === 'y' ? step : 0);
-    if (!blockedAt(nx, ny, P.z)) { P.x = nx; P.y = ny; return; }   // la flore se règle après, en glissant (repousserFlore)
+    if (!blockedAt(nx, ny, P.z)) {                    // la flore se règle après, en glissant (repousserFlore)
+      if (!corpsBarre(nx, ny)) { P.x = nx; P.y = ny; return; }
+      if (axis === 'x') P.vx = 0; else P.vy = 0; return;   // une bête : un obstacle, on glisse le long d'elle sur l'autre axe
+    }
     // obstacle : si c'est une caisse posée à notre niveau, on tente de la pousser
     const cx = Math.floor(nx + (axis === 'x' ? Math.sign(step) * R : 0));
     const cy = Math.floor(ny + (axis === 'y' ? Math.sign(step) * R : 0));
@@ -6574,6 +6578,7 @@ function update(dt) {
   majEcosysteme(dt);
   majEscouade(dt);                                   // l'escouade des automates, et son portail
   majCompagnes(dt);
+  demeler(dt);                                       // deux corps mêlés se démêlent
   // --- nourrir : la confiance vient en mangeant, et au bout on est suivi ---
   if (nourrir) {
     nourrir = false;
@@ -7434,6 +7439,7 @@ function toucheBete(b, x, y, z) {
 // la bête doit avoir la place de se cabrer. Une paroi qui descend se prend au bord même.
 // Une paroi abordée de biais, à moins de 20° de sa face, ne se grimpe pas : la bête la longe.
 function pasBete(b, nx, ny, grimpe, glisse) {
+  if (!glisse && aCorps(b)) { const q = heurtCorps(b, nx, ny); if (!q) return 2; nx = q[0]; ny = q[1]; }   // les autres corps d'abord (voir LES CORPS)
   const x0 = b.x, y0 = b.y, sx = nx - x0, sy = ny - y0, ls = Math.hypot(sx, sy);
   if (ls < 1e-9) return 1;
   const rho = .3 * b.sp.sz, avance = grimpe ? rho + .02 : 0;
@@ -7847,6 +7853,91 @@ function escHud() {
   const E = Escouade; if (!E) return '';
   const n = vivantsEscouade(E).length + E.file.length - E.membres.length;
   return ` · <span style="color:#ff8a6a">ESCOUADE <b>${n}</b></span>`;
+}
+// ============================================================
+//  LES CORPS
+//  Les bêtes ne se traversent plus, et ne vous traversent plus. Chacune a un corps : un disque au
+//  sol (un peu plus du tiers de sa taille, un petit plus petit) sur sa hauteur. Un pas qui entrerait
+//  dans un autre corps en est ramené le long de lui : on glisse autour ; face à face, on s'écarte
+//  d'un côté. Deux corps mêlés (une naissance, un portail, un coup qui projette) se démêlent
+//  doucement. Le joueur est un corps aussi, pour les bêtes comme pour lui : il bute sur elles comme
+//  sur un mur, compagnes comprises. Seule la monture qu'on chevauche ne compte pas.
+// ============================================================
+const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
+var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
+const rayonCorps = b => .38 * b.sp.sz * (b.ech || 1);
+const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
+const aCorps = b => !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
+function grilleCorps() {
+  corpsGrille.clear();
+  for (const b of beasts) if (aCorps(b)) {
+    const k = ((b.x / CORPS_CASE) | 0) * 1000 + ((b.y / CORPS_CASE) | 0), L = corpsGrille.get(k);
+    if (L) L.push(b); else corpsGrille.set(k, [b]);
+  }
+}
+function corpsPres(x, y, f) {
+  const ci = (x / CORPS_CASE) | 0, cj = (y / CORPS_CASE) | 0;
+  for (let i = ci - 1; i <= ci + 1; i++) for (let j = cj - 1; j <= cj + 1; j++) { const L = corpsGrille.get(i * 1000 + j); if (L) for (const o of L) f(o); }
+}
+// Deux corps sur la même tranche de hauteur ? (l'un au-dessus de l'autre ne se heurtent pas)
+const memeHauteur = (za, ha, zb, hb) => za < zb + hb - .1 && zb < za + ha - .1;
+// Le pas d'une bête, ramené hors des corps où il entrerait. null : rien à faire, il reste.
+function heurtCorps(b, nx, ny) {
+  const rb = rayonCorps(b), hb = hautCorps(b), L0 = Math.hypot(nx - b.x, ny - b.y);
+  let sx = nx - b.x, sy = ny - b.y, touche = false;
+  const voir = o => {
+    if (o === b) return;
+    const joueur = o === P, ro = joueur ? rayonJoueur() : rayonCorps(o);
+    if (!memeHauteur(b.z, hb, o.z, joueur ? CORPS_JOUEUR_H : hautCorps(o))) return;
+    const rs = rb + ro, ex = o.x - (b.x + sx), ey = o.y - (b.y + sy);
+    if (ex * ex + ey * ey >= rs * rs) return;
+    const d0 = Math.hypot(o.x - b.x, o.y - b.y) || 1e-6, ux = (o.x - b.x) / d0, uy = (o.y - b.y) / d0;
+    const vers = sx * ux + sy * uy;
+    if (vers <= 0) return;                                  // il s'en écarte : libre
+    touche = true;
+    sx -= vers * ux; sy -= vers * uy;                       // on retire ce qui entre dans l'autre
+    if (Math.hypot(sx, sy) < .3 * L0) { const c = b.cote || 1; sx -= uy * c * .5 * L0; sy += ux * c * .5 * L0; }   // face à face : un pas de côté
+  };
+  corpsPres(b.x, b.y, voir);
+  if (P.pv > 0 && b !== P.monture) voir(P);
+  if (!touche) return [nx, ny];
+  if (Math.abs(sx) < 1e-5 && Math.abs(sy) < 1e-5) return null;
+  return [b.x + sx, b.y + sy];
+}
+// Le joueur entrerait-il dans un corps en allant là ? (s'en écarter reste permis)
+function corpsBarre(nx, ny) {
+  const r = rayonJoueur(); let barre = false;
+  corpsPres(nx, ny, o => {
+    if (barre || o === P.monture || !memeHauteur(P.z, CORPS_JOUEUR_H, o.z, hautCorps(o))) return;
+    const rs = r + rayonCorps(o), d1 = (o.x - nx) ** 2 + (o.y - ny) ** 2;
+    if (d1 < rs * rs && d1 < (o.x - P.x) ** 2 + (o.y - P.y) ** 2) barre = true;
+  });
+  return barre;
+}
+// Là où deux corps se mêlent, on les démêle un peu à chaque image — la bête qui ne peut reculer
+// (une paroi, l'eau) ne bouge pas, l'autre fait tout le chemin. Le joueur ne se démêle que s'il
+// ne peut pas pousser la bête.
+function libreBete(b, x, y) { const h = hAt(x | 0, y | 0), h0 = hAt(b.x | 0, b.y | 0); return h > SEA && Math.abs(h - h0) <= 1 && x > 2 && y > 2 && x < WS - 3 && y < WS - 3; }
+function demeler(dt) {
+  const pas = DEMELE_VIT * dt, vu = new Set();
+  const ecarter = (a, o, ra, ro, joueur) => {
+    const dx = a.x - o.x, dy = a.y - o.y, d = Math.hypot(dx, dy), rs = ra + ro;
+    if (d >= rs) return;
+    const ux = d > 1e-4 ? dx / d : Math.cos((a.bob || 1) * 7), uy = d > 1e-4 ? dy / d : Math.sin((a.bob || 1) * 7);
+    const m = Math.min(pas, (rs - d) / 2);
+    const aOk = libreBete(a, a.x + ux * m, a.y + uy * m);
+    const oOk = joueur ? !blockedAt(o.x - ux * m, o.y - uy * m, o.z) : libreBete(o, o.x - ux * m, o.y - uy * m);
+    const ka = aOk ? (joueur || !oOk ? 2 : 1) : 0, ko = oOk ? (joueur ? (aOk ? 0 : 2) : aOk ? 1 : 2) : 0;   // le joueur ne recule que si la bête ne peut pas
+    a.x += ux * m * ka; a.y += uy * m * ka; o.x -= ux * m * ko; o.y -= uy * m * ko;
+  };
+  for (const [, L] of corpsGrille) for (const a of L) {
+    if (!aCorps(a) || (a.x - P.x) ** 2 + (a.y - P.y) ** 2 > 3600) continue;
+    const ra = rayonCorps(a), ha = hautCorps(a);
+    vu.add(a);
+    corpsPres(a.x, a.y, o => { if (!vu.has(o) && aCorps(o) && memeHauteur(a.z, ha, o.z, hautCorps(o))) ecarter(a, o, ra, rayonCorps(o), false); });
+    if (P.pv > 0 && memeHauteur(a.z, ha, P.z, CORPS_JOUEUR_H)) ecarter(a, P, ra, rayonJoueur(), true);
+  }
 }
 // Deux jetons d'attaque, aux prédateurs les plus proches. Recompté à chaque tour.
 function distribuerJetons() {
@@ -15002,6 +15093,7 @@ globalThis.__DOUX = { get Fourmi(){return Fourmi}, set Fourmi(v){Fourmi=v}, ogAc
   ogloGraine, boireNectar, peuplerDoux, osDoux, guideDe, NIV_RAMPANTS, NIV_AUTOMATES, nivEspece, ROCHE, get especesIle(){return especesIle} };
 globalThis.__VISEE = { ligneDeVue, voitCible, posteDeTir, TIRS, majTirs, emitTirs, tirer, lober, exploser, toucheObus, rayonsVisee, finesse, gardeRequise,
   bestiaireGraine, tireursGraine, betesRaresGraine, NIV_LOIN, capEsp };
+globalThis.__CORPS = { pas: (b, dt) => { const n = Math.max(1, Math.ceil(Math.hypot(b.vx, b.vy) * dt / .35)); for (let k = 0; k < n; k++) pasBete(b, b.x + b.vx * dt / n, b.y + b.vy * dt / n, false); }, rayonCorps, hautCorps, aCorps, grilleCorps, heurtCorps, corpsBarre, demeler, get corpsGrille(){return corpsGrille} };
 globalThis.__ESCOUADE = { get Escouade(){return Escouade}, set Escouade(v){Escouade=v}, get escAttente(){return escAttente}, set escAttente(v){escAttente=v},
   NIV_ESCOUADE, compoEscouade, frappeEscouade, blindeEscouade, lieuPortail, lancerEscouade, sortirMembre, majEscouade, escDecor, escHud, vivantsEscouade };
 globalThis.__COURSIER = { coursier, majCoursier, coursierBones, pattesCoursier, monter, descendre, majRodeo, coursierAuContact, nomBete, icone,
