@@ -457,7 +457,7 @@ Façon Animal Crossing. La **canne à pêche** se fabrique à l'établi (12 bois
 
 ## 28. La cuisine
 
-Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu'à quatre ingrédients), et **il en sort toujours un plat**. L'onglet **Cuisine** du sac (touche 9, sac ouvert) montre la marmite, le plat servi, les plats du sac, le livre de recettes et le garde-manger.
+Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu'à quatre ingrédients), et **il en sort toujours un plat**. L'onglet **Cuisine** du sac (touche 9, sac ouvert) montre à gauche la marmite, le plat servi et les plats du sac ; à droite, deux sous-onglets : **Ingrédients** (le garde-manger) et **Recettes** (le livre).
 
 - **Où** : au feu du campement (onglet Campement, « Cuisiner »), ou partout avec la **marmite** (établi : 16 pierre, 10 bois, 6 fibres). Depuis une case du bord, elle se pose devant vous avec son petit feu ; ACTION près d'elle : CUISINER. Elle reste sur son île ; la reposer ailleurs la déplace.
 - **Les ingrédients** :

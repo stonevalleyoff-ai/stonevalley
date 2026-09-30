@@ -5517,6 +5517,7 @@ function clicSac(b) {
   else if (d.choix !== undefined) { choixSac = choixSac === d.choix ? null : d.choix; majSac(); montrerFiche(); }
   else if (d.recette) { choixEtabli = d.recette; majSac(); montrerFiche(); }
   else if (d.filtre) { filtreEtabli = d.filtre; majSac(); }
+  else if (d.souscuisine) { sousCuisine = d.souscuisine; majSac(); }
   else if (d.voir) { filtreEtabli = d.voir; choixEtabli = null; choisirOnglet('etabli'); }
   else if (d.voirsac) { choixSac = d.voirsac; choisirOnglet('sac'); }
   else if (d.rac !== undefined && choixSac && P.objets[choixSac]) { assignerRaccourci(choixSac, +d.rac); casesSig = ''; majSac(); }
@@ -11786,6 +11787,7 @@ DESSINS.marmite = d => { d.rect(3, 6, 12, 12, [80, 76, 74]); d.rect(2, 5, 13, 6,
 DESSINS.ongletCuisine = DESSINS.marmite;
 const icIngr = id => INGR[id].src === 'poisson' ? 'poisson_' + id : INGR[id].src === 'baie' ? 'baies' : INGR[id].src === 'nectar' ? 'nectar' : 'ingr_' + id;
 // ---------- l'onglet Cuisine ----------
+let sousCuisine = 'ingr';                           // l'onglet Cuisine a deux sous-onglets : les ingrédients, les recettes
 function pageCuisine() {
   const feu = presDuFeu();
   const pot = [0, 1, 2, 3].map(k => { const id = marmiteSel[k];
@@ -11798,8 +11800,11 @@ function pageCuisine() {
     + `<div class="col"><h3>La marmite</h3><div class="rangee">${pot}</div>`
     + `<p class="note" style="margin:6px 2px">${feu ? 'Le feu est là. Jusqu\'à quatre ingrédients : il en sort toujours un plat.' : 'Il faut un feu : celui du campement, ou votre marmite posée (établi).'}</p>`
     + `<button class="btn principal" data-cuire="1"${feu && marmiteSel.length ? '' : ' disabled'}>Cuisiner</button>`
-    + blocServi() + blocPlats() + blocRecettes() + `</div>`
-    + `<div class="col"><h3 style="margin-top:0">Garde-manger</h3>${garde || '<div class="vide-texte">Rien à cuisiner. Une bête abattue laisse sa viande ; une plante cueillie mûre, parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille ; et la pêche.</div>'}</div>`
+    + blocServi() + blocPlats() + `</div>`
+    + `<div class="col"><div class="filtres" role="group" aria-label="Ingrédients ou recettes" style="margin-top:0">`
+    + [['ingr', 'Ingrédients'], ['rec', 'Recettes · ' + Object.keys(P.recettes).length]].map(([id, n]) =>
+      `<button class="${sousCuisine === id ? 'on' : ''}" data-souscuisine="${id}" aria-pressed="${sousCuisine === id}">${n}</button>`).join('') + `</div>`
+    + (sousCuisine === 'rec' ? blocRecettes() : `<h3>Garde-manger</h3>${garde || '<div class="vide-texte">Rien à cuisiner. Une bête abattue laisse sa viande ; une plante cueillie mûre, parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille ; et la pêche.</div>'}`) + `</div>`
     + `</div>`;
 }
 function blocServi() {
