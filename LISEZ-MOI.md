@@ -541,3 +541,44 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 - **Les populations de l'île et les chiffres du moteur** ne s'affichent plus qu'avec les mesures (Réglages, ou l'onglet Bêta).
 - **Le biome rare** n'a plus sa ligne dans le HUD ; sa découverte reste annoncée une fois.
 - **Chaque récolte montre l'icône de ce qu'on gagne** : « +3 bois », « +2 éclats », « +1 figue de cactus », « +1 cuissot de brouteur », les baies, les flèches, le nectar, les poissons — dans l'avis, devant le nombre. La récolte dit aussi ce qu'on a désormais au sac (« 45 au sac »).
+
+
+## 34. Les compagnes : la récolte au choix, les aptitudes
+
+Chaque compagne en **Récolte** reçoit une cible, quelle que soit son espèce : Bois, Pierre, Fibre, Baies, Éclats, Ferraille ou Chasse (fiche de la compagne, onglet Compagnes, liste « Récolte »). Par défaut : son métier, sa meilleure note. L'espèce dit **combien** elle en rapporte.
+
+- **Les notes** (1 à 5, en points ●●●○○ dans les listes) : une récolte rend le pied × **0,2 / 0,35 / 0,55 / 1 / 1,5**. La note 4 fait autant que vous, la 5 moitié plus. Les baies : 1 à 3 par buisson selon la note. La chasse : les os d'une prise suivent la note.
+- **Les ingrédients trouvés en récolte** (produit d'une plante, viande d'une prise) : la chance suit la note de la récolte en cours, ×0,3 / 0,45 / 0,65 / 1 / 1,25 de la vôtre (`CHANCE_APT`). Avant, c'était ×0,6 pour toutes.
+- **Ce qu'elles rapportent s'affiche comme pour vous** : une carte d'avis sous le HUD, le **nom de la compagne en titre**, puis chaque gain avec son icône (« Givre · +5 pierres · +1 noix de palme · +2 baies », « au coffre » si elle travaille pour le campement). Les gains d'une même compagne se cumulent quatre secondes dans sa carte ; la ligne rose du HUD a disparu.
+- **La chasse** n'est proposée qu'aux espèces qui chassent déjà (traqueur, spectre, varan, salamandre, félin, traceur). Une chasseuse mise à autre chose ne court plus le gibier pour le travail, mais chasse encore quand elle a faim.
+- **Rien de sa cible dans son rayon** : elle explore vingt secondes, puis fait son métier et le dit (une fois toutes les deux minutes).
+- **La défense** : dégâts d'une compagne = 0,06 + 0,045 × note (défense) ; 0,10 + 0,05 × note (+0,05 pour une chasseuse) quand elle attaque. La robustesse de l'espèce ne change pas. La note est affichée à côté de « Défense » dans la liste Rôle.
+- **Au campement en votre absence** : 4 de sa récolte par minute × le coefficient de sa note (1,5 os par minute pour la chasse).
+- **Équilibre** : meilleure note de matière + défense = 6 à 8 ; la chasse compte à part. Le moissonneur, rare, est le seul généraliste fort, et nul en défense.
+- Pour régler : `APT` et `COEF_APT` (section « les aptitudes des compagnes » d'`index.html`).
+
+| Espèce | Bois | Pierre | Fibre | Baies | Éclats | Ferr. | Chasse | Déf. |
+|---|---|---|---|---|---|---|---|---|
+| Brouteur | 1 | 1 | 4 | 3 | 1 | 1 | — | 2 |
+| Glaneur | 1 | 1 | 3 | 5 | 2 | 1 | — | 1 |
+| Bossu | 4 | 4 | 2 | 1 | 2 | 2 | — | 3 |
+| Crapaud-buffle | 1 | 1 | 4 | 3 | 1 | 1 | — | 3 |
+| Vesseron | 3 | 1 | 4 | 2 | 1 | 1 | — | 2 |
+| Cerf de verre | 2 | 2 | 3 | 2 | 5 | 1 | — | 2 |
+| Lentigrade | 2 | 2 | 4 | 2 | 2 | 1 | — | 4 |
+| Cotonnier | 1 | 1 | 5 | 2 | 1 | 1 | — | 1 |
+| Carillonneur | 5 | 1 | 2 | 2 | 2 | 1 | — | 2 |
+| Oglodon | 2 | 5 | 1 | 3 | 3 | 2 | — | 3 |
+| Bramard | 2 | 2 | 4 | 2 | 1 | 1 | — | 4 |
+| Coursiers | 2 | 1 | 2 | 2 | 1 | 1 | — | 2 |
+| Traqueur | 1 | 1 | 1 | 2 | 1 | 1 | 4 | 4 |
+| Spectre | 1 | 1 | 1 | 1 | 2 | 1 | 4 | 5 |
+| Varan | 1 | 2 | 1 | 1 | 1 | 1 | 4 | 4 |
+| Salamandre | 2 | 1 | 1 | 1 | 2 | 2 | 4 | 4 |
+| Félin de brume | 1 | 1 | 1 | 2 | 2 | 1 | 5 | 4 |
+| Moissonneur | 5 | 5 | 5 | 2 | 3 | 4 | — | 1 |
+| Traceur | 1 | 2 | 1 | 1 | 2 | 4 | 5 | 3 |
+| Mercenaire | 1 | 1 | 1 | 1 | 1 | 3 | — | 5 |
+| Sentinelle | 1 | 2 | 1 | 1 | 1 | 3 | — | 5 |
+| Tireur d'élite | 1 | 1 | 1 | 1 | 1 | 2 | — | 5 |
+| Mortier | 1 | 3 | 1 | 1 | 1 | 3 | — | 5 |

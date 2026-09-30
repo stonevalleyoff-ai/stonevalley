@@ -3372,14 +3372,10 @@ function travailAbsence(liste, depuis) {
     if (!r.aucamp || r.ko) continue;
     r.faim = Math.min(r.faim, .2); r.soif = Math.min(r.soif, .2); r.nrj = 1;   // le feu les a tenues
     if (r.role !== 'recolte') continue;
-    const tr = (specById[r.esp] || {}).travail || {}, cles = Object.keys(tr);
-    if (!cles.length) continue;
-    const poids = cles.reduce((a2, k) => a2 + tr[k], 0), fort = Math.max(...cles.map(k => tr[k]));
+    const k = recolteDe(r), cf = coefApt(r.esp, k);
+    if (!specById[r.esp] || !cf) continue;
     let tot = 0;
-    for (const k of cles) {
-      const n = Math.floor(min * (k === 'os' ? 1.5 : 4) * fort * tr[k] / poids);
-      if (n > 0) { gain[k] = (gain[k] || 0) + n; tot += n; }
-    }
+    { const n = Math.floor(min * (k === 'os' ? 1.5 : 4) * cf); if (n > 0) { gain[k] = (gain[k] || 0) + n; tot += n; } }
     if (tot) qui.push(r.nom || specById[r.esp].n);
   }
   for (const k in gain) P.coffre[k] = (P.coffre[k] || 0) + gain[k];
@@ -5301,7 +5297,9 @@ function ficheCompagne(c) {
   const opt = (l, v, dis) => l.map(o => `<option value="${o.id}"${o.id === v ? ' selected' : ''}${dis && dis(o) ? ' disabled' : ''}>`
     + `${o.n}</option>`).join('');
   const ordres = `<div class="ordres">`
-    + `<label>Rôle<select data-ordre="role" data-cid="${id}">${opt(ROLES, c.role)}</select></label>`
+    + `<label>Rôle<select data-ordre="role" data-cid="${id}">${ROLES.map(o => `<option value="${o.id}"${o.id === c.role ? ' selected' : ''}>${o.n}${o.id === 'defense' ? ' · ' + points(noteDef(c.esp)) : ''}</option>`).join('')}</select></label>`
+    + (c.role === 'recolte' ? `<label>Récolte<select data-ordre="recolte" data-cid="${id}">` + APT_RES.filter(k => noteApt(c.esp, k)).map(k =>
+      `<option value="${k}"${k === recolteDe(c) ? ' selected' : ''}>${NOM_APT[k]} · ${points(noteApt(c.esp, k))}</option>`).join('') + `</select></label>` : '')
     + `<label>Comportement<select data-ordre="mode" data-cid="${id}">${opt(MODES, c.mode || 'joueur', o => o.id === 'camp' && !P.camp)}</select></label></div>`;
   const confirme = confirmeLibere.id === id && maintenantSac() < confirmeLibere.jusqua;
   const faim = valeurComp(c, 'faim');
@@ -5320,7 +5318,7 @@ function ficheCompagne(c) {
         : jauge('faim', 'Faim', 'faim') + jauge('soif', 'Soif', 'soif') + jauge('nrj', 'Énergie', 'nrj')}</div>`
     + `<h3>Ordres</h3>${ordres}`
     + `<p class="note" style="margin:6px 0 0">${ESC(c.nom)} ${ESC(ORDRES_DIT[c.role + ':' + (c.mode || 'joueur')] || '')}`
-    + `${c.role === 'recolte' && Object.keys(sp.travail || {}).length ? ' — elle ' + ESC(sp.metier) : ''}.</p>`
+    + `${c.role === 'recolte' ? ' — ' + (recolteDe(c) === 'os' ? 'elle chasse, et rapporte les os' : 'elle récolte ' + LE_APT[recolteDe(c)]) : ''}.</p>`
     + (P.camp ? '' : `<p class="note" style="margin:4px 0 0">« Au campement » se choisit une fois le campement posé.</p>`)
     + (!c.dehors && !c.aucamp && !c.ko && enJeu() >= EN_JEU_MAX
       ? `<p class="note manque">Six compagnes sont déjà en jeu : rentrez-en une dans le sac pour sortir ${ESC(c.nom)}.</p>` : '')
@@ -5769,6 +5767,34 @@ const BRAMARDS = [
 ];
 SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces());   // et les Nomades du Seuil (nomades.js)   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
+// ---------- les aptitudes des compagnes ----------
+// On choisit ce que récolte chaque compagne, quelle que soit son espèce ; l'espèce dit combien elle en
+// rapporte. Une note de 1 à 5 par récolte, et une en défense ; 0 : la chasse, pour qui ne chasse pas.
+// Une récolte rend le pied × COEF_APT[note] : 4 fait autant que vous, 5 moitié plus.
+const APT_RES = ['bois', 'pierre', 'fibre', 'baies', 'eclat', 'ferraille', 'os'];
+const NOM_APT = { bois: 'Bois', pierre: 'Pierre', fibre: 'Fibre', baies: 'Baies', eclat: 'Éclats', ferraille: 'Ferraille', os: 'Chasse' };
+const LE_APT = { bois: 'le bois', pierre: 'la pierre', fibre: 'la fibre', baies: 'les baies', eclat: 'les éclats', ferraille: 'la ferraille', os: 'le gibier' };
+const COEF_APT = [0, .2, .35, .55, 1, 1.5];
+const CHANCE_APT = [0, .3, .45, .65, 1, 1.25];   // la chance d'un ingrédient (produit d'une plante, viande d'une prise) : 4 comme vous
+const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
+  brouteur: [1, 1, 4, 3, 1, 1, 0, 2],     glaneur: [1, 1, 3, 5, 2, 1, 0, 1],      bosseu: [4, 4, 2, 1, 2, 2, 0, 3],
+  crapaud: [1, 1, 4, 3, 1, 1, 0, 3],      vesseron: [3, 1, 4, 2, 1, 1, 0, 2],     cerf: [2, 2, 3, 2, 5, 1, 0, 2],
+  lentigrade: [2, 2, 4, 2, 2, 1, 0, 4],   cotonnier: [1, 1, 5, 2, 1, 1, 0, 1],    carillonneur: [5, 1, 2, 2, 2, 1, 0, 2],
+  oglodon: [2, 5, 1, 3, 3, 2, 0, 3],      bramard: [2, 2, 4, 2, 1, 1, 0, 4],
+  coursier: [2, 1, 2, 2, 1, 1, 0, 2],     coursier_o: [2, 1, 2, 2, 1, 1, 0, 2],   coursier_r: [2, 1, 2, 2, 1, 1, 0, 2], coursier_a: [2, 1, 2, 2, 1, 1, 0, 2],
+  traqueur: [1, 1, 1, 2, 1, 1, 4, 4],     spectre: [1, 1, 1, 1, 2, 1, 4, 5],      varan: [1, 2, 1, 1, 1, 1, 4, 4],
+  salamandre: [2, 1, 1, 1, 2, 2, 4, 4],   felin: [1, 1, 1, 2, 2, 1, 5, 4],
+  moissonneur: [5, 5, 5, 2, 3, 4, 0, 1],  traceur: [1, 2, 1, 1, 2, 4, 5, 3],      mercenaire: [1, 1, 1, 1, 1, 3, 0, 5],
+  sentinelle: [1, 2, 1, 1, 1, 3, 0, 5],   tireur: [1, 1, 1, 1, 1, 2, 0, 5],       mortier: [1, 3, 1, 1, 1, 3, 0, 5],
+};
+const aptDe = esp => APT[esp] || [1, 1, 1, 1, 1, 1, 0, 2];
+const noteApt = (esp, res) => aptDe(esp)[APT_RES.indexOf(res)] || 0;
+const coefApt = (esp, res) => COEF_APT[noteApt(esp, res)];
+const noteDef = esp => aptDe(esp)[7];
+const points = n => '●'.repeat(n) + '○'.repeat(5 - n);
+function metierDe(esp) { const a = aptDe(esp); let k = 0; for (let i = 1; i < 7; i++) if (a[i] > a[k]) k = i; return APT_RES[k]; }
+const recolteDe = c => c && c.recolte && noteApt(c.esp, c.recolte) ? c.recolte : metierDe(c ? c.esp : '');
+const recolteB = b => b.comp ? recolteDe(b.comp) : metierDe(b.sp.id);
 const automate = sp => !!sp && sp.fam === 'automate';
 const coursier = sp => !!sp && sp.fam === 'coursier';
 const tellurien = sp => !!sp && sp.fam === 'tellurien';
@@ -7681,11 +7707,11 @@ const COMBAT = {
 // Ce qui pèse dans un coup ou dans la faim : la taille, sauf chez qui est gros sans être lourd (le
 // cotonnier, une boule de duvet).
 const masse = sp => sp.masse ?? sp.sz;
-const degCompagne = (b, c) => .10 + masse(b.sp) * .12 + (b.sp.riposte || 0) * .10 + (b.sp.chasse ? .10 : 0);
+const degCompagne = (b, c) => b.tame ? .10 + .05 * noteDef(b.sp.id) + (b.sp.chasse ? .05 : 0) : .10 + masse(b.sp) * .12 + (b.sp.riposte || 0) * .10 + (b.sp.chasse ? .10 : 0);
 const JETONS = 2;                                   // prédateurs admis à la fois au contact du joueur
 let dernierAvis = -99;
 // Un coup de défense vaut selon la taille ; le bossu, fait pour ça, frappe plus fort.
-const degDefense = (b, c) => (.06 + masse(b.sp) * .10) * (1 + (b.sp.riposte || 0) * .7) * (c && c.sp && c.sp.chasse ? .75 : 1);
+const degDefense = (b, c) => (b.tame ? .06 + .045 * noteDef(b.sp.id) : (.06 + masse(b.sp) * .10) * (1 + (b.sp.riposte || 0) * .7)) * (c && c.sp && c.sp.chasse ? .75 : 1);
 
 // Le joueur à terre : il se relève au départ, un peu plus léger. Les chasseurs le perdent.
 function terrasse() {
@@ -7746,7 +7772,8 @@ function porterCoup(b, c, deg) {
     // ce qu'une compagne abat, elle le rapporte : des os pour le sac
     if (b.comp) {
       if (automate(c.sp)) { rapporter(b.comp, 'eclat', c.sp.coeur || 1); rapporter(b.comp, 'pierre', 2); rapporter(b.comp, 'ferraille', 2); }   // son cœur d'éclat
-      else { rapporter(b.comp, 'os', 1 + (Math.random() * 2 | 0)); const vi = viandeDe(c.sp); if (vi && Math.random() < .6) gagnerDenree(vi.id, 1); }   // et parfois sa viande
+      else { const vi = viandeDe(c.sp), ex = vi && Math.random() < .6 * CHANCE_APT[noteApt(b.sp.id, 'os')] ? vi.id : null; if (ex) gagnerDenree(ex, 1);
+        rapporter(b.comp, 'os', Math.max(1, Math.round((1 + (Math.random() * 2 | 0)) * (coefApt(b.sp.id, 'os') || 1))), ex); }   // et parfois sa viande
       majSac();
     }
     // Le chasseur mange ce qu'il tue, qu'il en ait fait sa cible ou non — sinon une prise
@@ -8345,7 +8372,8 @@ function impactTir(f, nx, ny, nz) {
         mourirBete(o, 'tir');
         if (sien) {
           if (automate(o.sp)) { rapporter(sien, 'eclat', o.sp.coeur || 1); rapporter(sien, 'pierre', 2); rapporter(sien, 'ferraille', 2); }
-          else { rapporter(sien, 'os', 1 + (Math.random() * 2 | 0)); const vi = viandeDe(o.sp); if (vi && Math.random() < .6) gagnerDenree(vi.id, 1); }
+          else { const vi = viandeDe(o.sp), ex = vi && Math.random() < .6 * CHANCE_APT[noteApt(sien.esp, 'os')] ? vi.id : null; if (ex) gagnerDenree(ex, 1);
+            rapporter(sien, 'os', Math.max(1, Math.round((1 + (Math.random() * 2 | 0)) * (coefApt(sien.esp, 'os') || 1))), ex); }
           majSac();
         }
       }
@@ -8525,7 +8553,7 @@ function cibleAutomate(b, actif) {
       if (a && a !== b && (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < vue2) return a;
       return null;
     }
-    if (sp.chasse && sp.chasse.length) return prendreProie(b, 18);
+    if (sp.chasse && sp.chasse.length && recolteB(b) === 'os') return prendreProie(b, 18);
     return null;
   }
   // le mortier n'a pas besoin de vous voir : il sait où vous êtes, et tire par-dessus
@@ -8589,7 +8617,7 @@ function majAutomate(b, dt) {
   else if (b.tame && b.rappel > 0) etat = 'rappel';
   else if (cible) etat = 'viser';
   else if (b.tame) {
-    if (b.role === 'recolte' && sp.travail && (sp.travail.fibre || sp.travail.bois)) etat = 'récolter';
+    if (b.role === 'recolte' && recolteB(b) !== 'os') etat = 'récolter';
     else if (b.role === 'recolte') etat = 'errer';     // un traceur sans gibier en vue rôde autour de son ancre
     else if (b.mode === 'camp' && campIci()) etat = 'garder';
     else if (b.mode === 'autonome') etat = 'patrouiller';
@@ -9699,14 +9727,14 @@ function lieuCamp(c) {
 }
 const giteDe = b => b.mode === 'camp' && campIci() && b.comp ? lieuCamp(b.comp) : [b.x, b.y];
 // Ce qu'une compagne rapporte : au sac, ou au coffre si elle travaille pour le campement.
-function rapporter(c, res, n) {
+function rapporter(c, res, n, ex) {
   if (!n) return;
   if (res === 'baies' && c && specById[c.esp] && specById[c.esp].nectar) { res = 'nectar'; n = Math.max(1, Math.round(n * .5)); }   // l'oglodon en fait du nectar
   const coffre = !!(c && c.mode === 'camp' && campIci());
   if (coffre) P.coffre[res] = (P.coffre[res] || 0) + n;
   else if (res === 'baies') P.baies += n;
   else P.sac[res] = (P.sac[res] || 0) + n;
-  annonceCompagne(c, res, n, coffre);
+  annonceCompagne(c, res, n, coffre, ex);
 }
 function ramenerAuCamp(b) {
   const g = lieuCamp(b.comp), q = placePres(g[0], g[1], P.camp.z, 3);
@@ -9781,7 +9809,7 @@ function etatCompagne(b, dEau) {
   // À bout de forces, elle se pose : au feu si elle est du campement, sinon où elle est.
   if (b.nrj < .12 || (b.etat === 'repos' && b.nrj < .6)) { if (b.etat !== 'repos') b.gite = giteDe(b); return 'repos'; }
   if (b.role === 'recolte') {
-    if (sp.travail.os && b.faim > .3 && souffle && b.t >= (b.jeune || 0) && prendreProie(b, 18)) {
+    if (recolteB(b) === 'os' && b.faim > .3 && souffle && b.t >= (b.jeune || 0) && prendreProie(b, 18)) {
       if (b.etat !== 'chasser') b.chasseT = b.t;
       if (b.t - b.chasseT > 15) { b.jeune = b.t + 25; b.cible = null; return 'récolter'; }
       return 'chasser';
@@ -9803,7 +9831,17 @@ function etatCompagne(b, dEau) {
 // ramène plus. Seul le sifflet la rappelle.
 const RAYON_RECOLTE = 10, DUREE_RECOLTE = 3.2;
 function chercherTache(b) {
-  const tr = b.sp.travail, R = RAYON_RECOLTE, px = b.x | 0, py = b.y | 0, hb = hAt(b.x | 0, b.y | 0);
+  const r = recolteB(b), m = metierDe(b.sp.id);
+  const tc = chercherTacheTr(b, { [r]: coefApt(b.sp.id, r) });
+  if (tc || r === m) { b.rienT = 0; return tc; }
+  if (!b.rienT) b.rienT = b.t;
+  if (b.t - b.rienT < 20) return null;                 // elle explore encore un peu
+  const t2 = chercherTacheTr(b, { [m]: coefApt(b.sp.id, m) });
+  if (t2 && b.comp && !(b.ditRien > b.t)) { b.ditRien = b.t + 120; say(b.comp.nom + ' ne trouve pas ' + LE_APT[r] + ' ici · elle prend ' + LE_APT[m], 2.4); }
+  return t2;
+}
+function chercherTacheTr(b, tr) {
+  const R = RAYON_RECOLTE, px = b.x | 0, py = b.y | 0, hb = hAt(b.x | 0, b.y | 0);
   const A = ancre(b), hors = (x, y) => A && (x - A.x) ** 2 + (y - A.y) ** 2 > A.r * A.r;
   const prises = new Set();
   for (const c of P.compagnes) if (c.b && c.b !== b && c.b.tache) prises.add(c.b.tache.cle);
@@ -9883,15 +9921,16 @@ function majRecolte(b, dt) {
   if (tc.w < DUREE_RECOLTE * (b.nrj < .25 ? 1.6 : 1)) return [tc.x, tc.y, true];
   if (tc.k === 'plante') {
     const m = maturite(tc.i, tc.e);
-    const n = Math.max(1, Math.round(tc.e.rend * m * .6 * (b.sp.travail[tc.e.res] || 1)));
+    const n = Math.max(1, Math.round(tc.e.rend * m * (coefApt(b.sp.id, tc.e.res) || .2)));
     couperPied(tc.i);
-    { const q = produitDe(tc.e.id); if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1] * .6) gagnerDenree(q.id, 1); }   // son produit, parfois
+    let ex = null;
+    { const q = produitDe(tc.e.id); if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1] * CHANCE_APT[noteApt(b.sp.id, tc.e.res)]) { gagnerDenree(q.id, 1); ex = q.id; } }   // son produit, parfois
     gerbe(tc.x, tc.y, solFlore(tc.i % WS, (tc.i / WS) | 0) + tc.e.h * .5, 8, tc.e, tc.e.teintes ? teinteDruse(tc.i % WS, (tc.i / WS) | 0) : null);
-    rapporter(b.comp, tc.e.res, n);                     // au sac, ou au coffre pour le campement
+    rapporter(b.comp, tc.e.res, n, ex);                     // au sac, ou au coffre pour le campement
   } else {
     cueillirBaie(tc.br);
     burst(tc.x, tc.y, tc.br.z + .4, 8, '#e07898');
-    rapporter(b.comp, 'baies', 1);
+    rapporter(b.comp, 'baies', Math.max(1, Math.floor(1.5 * coefApt(b.sp.id, 'baies') + Math.random())));
   }
   b.tache = null; b.cherche = b.t + .3;
   majSac();
@@ -9900,8 +9939,17 @@ function majRecolte(b, dt) {
 // Ce que rapportent les compagnes s'affiche sous le HUD, cumulé : pas au centre de l'écran,
 // où une récolte toutes les trois secondes couvrirait les avertissements de combat.
 const avisComp = { nom: '', res: '', n: 0, t: -9 };
-function annonceCompagne(c, res, n, coffre) {
+const gainsComp = new Map();
+function annonceCompagne(c, res, n, coffre, ex) {
   if (!c) return;
+  let g = gainsComp.get(c.id);
+  if (!g || t - g.t > 4) gainsComp.set(c.id, g = { L: new Map() });
+  g.t = t; g.coffre = !!coffre;
+  const add = (k, q) => g.L.set(k, (g.L.get(k) || 0) + q);
+  add(res, n); if (ex && INGR[ex]) add('i:' + ex, 1);
+  const mot = (k, q) => k.startsWith('i:') ? INGR[k.slice(2)].n.toLowerCase()
+    : k === 'baies' ? (q > 1 ? 'baies' : 'baie') : (q > 1 && PLURIEL[k] ? PLURIEL[k] : RES[k] || k);
+  say(c.nom + ' · ' + [...g.L].map(([k, q]) => '+' + q + ' ' + mot(k, q)).join(' · ') + (g.coffre ? ' · au coffre' : ''), 2.4);
   if (avisComp.nom === c.nom && avisComp.res === res && t - avisComp.t < 4) avisComp.n += n;
   else { avisComp.nom = c.nom; avisComp.res = res; avisComp.n = n; }
   avisComp.t = t; avisComp.coffre = !!coffre;
@@ -9981,6 +10029,7 @@ function majCompagnes(dt) {
 function changerOrdre(c, cle, val) {
   if (cle === 'role' && !ROLES.some(r => r.id === val)) return false;
   if (cle === 'mode' && !MODES.some(m => m.id === val)) return false;
+  if (cle === 'recolte' && !noteApt(c.esp, val)) return false;
   if (cle === 'mode' && val === 'camp' && !P.camp) { say('posez d\'abord un campement', 2); majSac(); return false; }
   if (c[cle] === val) return false;
   c[cle] = val;
@@ -12794,7 +12843,6 @@ function drawHud() {
   const html = `<div class="rang">${main.join('')}</div>`
     + (etats.length ? `<div class="rang etats">${etats.join('<i>·</i>')}</div>` : '')
     + ligneEpingles() + expl + ligneGuide()
-    + (t - avisComp.t < 3.5 ? `<div class="note rose">${ESC(texteAvisComp())}</div>` : '')
     + tech;
   if (html !== hudDernier) { const el = document.getElementById('hudtxt'); if (el) el.innerHTML = html; hudDernier = html; }
 }
@@ -14622,7 +14670,7 @@ function photo() {
     liens: P.liens,
     compagnes: P.compagnes.map(c => {
       const b = c.dehors && c.b, r3 = v => Math.round(Math.max(0, v) * 1000) / 1000;
-      const d = { id: c.id, esp: c.esp, nom: c.nom, role: c.role, mode: c.mode || 'joueur', dehors: !!b,
+      const d = { id: c.id, esp: c.esp, nom: c.nom, role: c.role, mode: c.mode || 'joueur', recolte: c.recolte || null, dehors: !!b,
         pv: r3(b ? b.pv : c.pv), faim: r3(b ? b.faim : c.faim), soif: r3(b ? b.soif : c.soif), nrj: r3(b ? b.nrj : c.nrj) };
       if (c.ko) d.ko = 1;
       if (c.aucamp) d.aucamp = 1;
@@ -14756,7 +14804,7 @@ function appliquer(d, vivantes) {
     if (!r || typeof r !== 'object' || !specById[r.esp]) continue;
     liste.push({ id: Number.isInteger(r.id) && r.id > 0 && r.id < 1e6 ? r.id : 0, esp: r.esp,
       nom: typeof r.nom === 'string' && r.nom.trim() ? r.nom.trim().slice(0, 24) : null,
-      ...ordresDe(r), dehors: !!r.dehors, ko: r.ko ? 1 : 0, aucamp: r.aucamp ? 1 : 0,
+      ...ordresDe(r), recolte: typeof r.recolte === 'string' && noteApt(r.esp, r.recolte) ? r.recolte : null, dehors: !!r.dehors, ko: r.ko ? 1 : 0, aucamp: r.aucamp ? 1 : 0,
       pv: nb(r.pv, .05, 1, 1), faim: nb(r.faim, 0, 1.2, .2), soif: nb(r.soif, 0, 1.2, .2), nrj: nb(r.nrj, 0, 1, 1),
       pos: place(r.pos), variante: varianteSure(r.variante) });
   }
@@ -14784,7 +14832,7 @@ function installerCompagnes(liste, vivantes) {
     let id = r.id;
     if (!id || ids.has(id)) id = prochainId++;
     ids.add(id);
-    const c = { id, esp: r.esp, nom: r.nom || tirerNom(), role: r.role, mode: r.mode || 'joueur', dehors: false, b: null,
+    const c = { id, esp: r.esp, nom: r.nom || tirerNom(), role: r.role, mode: r.mode || 'joueur', recolte: r.recolte, dehors: false, b: null,
       pv: r.pv, faim: r.faim, soif: r.soif, nrj: r.nrj, ko: r.ko, aucamp: r.aucamp ? 1 : 0, variante: r.variante || null };
     P.compagnes.push(c);
     const v = r.id ? enPlace.get(r.id) : null;
