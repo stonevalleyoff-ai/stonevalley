@@ -319,10 +319,10 @@ Les deux se portent dans le dos, se voient en main chez les autres joueurs, et l
 
 ## 20. L'onglet Bêta (les outils de test)
 
-Dans le sac, le dernier onglet (**touche 8**, sac ouvert) réunit tout ce qui sert à tester. Les outils qui donnent quelque chose passent d'eux-mêmes en **mode essai** : rien de ce qu'on y gagne ne part dans la sauvegarde, et « Arrêter l'essai » rend le vrai sac.
+Dans le sac, l'onglet Bêta (**touche 8**, sac ouvert) réunit tout ce qui sert à tester. Les outils qui donnent quelque chose passent d'eux-mêmes en **mode essai** : rien de ce qu'on y gagne ne part dans la sauvegarde, et « Arrêter l'essai » rend le vrai sac.
 
 - **Ressources** : le mode essai (ressources illimitées : rien ne se paie, flèches et mana compris — la pierre de foyer aussi) et « Tout fabriquer ».
-- **Remplir le sac** : +200 de chaque ressource, 50 baies, 64 flèches.
+- **Remplir le sac** : +200 de chaque ressource, 50 baies, 64 flèches, trois de chaque viande, produit de plante et poisson (pour essayer la cuisine), et 5 baumes de relève.
 - **Armes d'en bas** : le rayon de sentinelle et le fusil d'arpenteur, rangés et en main.
 - **Le personnage** : soins complets (santé, endurance, trois vies) et **Invincible** (plus rien ne blesse : coups, tirs, brûlures, chute).
 - **Le monde** : midi, minuit, changer le temps qu'il fait (pas sous terre).
@@ -421,11 +421,80 @@ Un peuple qui voyage d'île en île par les seuils. Le jeu tient maintenant en t
 
 ## 26. Le bramard
 
-Un grand herbivore des prairies, en **troupeau de quatre à six** : garrot haut, dos en pente, longue face portée bas sous un **bouclier d'os en croissant** (deux crochets chez les mâles), une crinière de longues mèches claires de la nuque au milieu du dos, des fanons de poil aux chevilles, une longue queue à touffe. Tiré à part du bestiaire (les îles d'avant ne changent pas) : environ **deux îles sur cinq dès la première exploration**, sur les prairies. Il ne change pas le nombre des autres troupeaux.
+Un grand herbivore des plaines d'altitude, en **troupeau de quatre à six** : garrot haut, dos en pente, longue face portée bas sous un **bouclier d'os en croissant** (deux crochets chez les mâles), une crinière de longues mèches claires de la nuque au milieu du dos, des fanons de poil aux chevilles, une longue queue à touffe. Tiré à part du bestiaire (les îles d'avant ne changent pas) : environ **deux îles sur cinq dès la première exploration**. Il ne change pas le nombre des autres troupeaux.
+
+- **Les plaines d'altitude, et rien d'autre** : il ne vit que sur l'herbe des hauteurs — prairie et lande au-dessus des six dixièmes des terres de l'île (dix cubes au moins). Il naît sur le plat (trois cases sur trois au même niveau), y paît, et y revient toujours ; il boit quatre fois moins que les autres (l'herbe des hauteurs l'abreuve), et ne descend donc presque jamais.
+- **Un troupeau épars** : plus de tas. La meneuse (la plus vieille des femelles) va au pas d'un coin de la plaine à l'autre, s'arrête longuement pour paître, et attend qui traîne à plus de douze cases. Chacun des autres se choisit une place à trois ou neuf cases d'elle, à trois cases et demie au moins des autres, y broute vingt à quarante-cinq secondes, puis en prend une autre ; collé à un voisin, il s'écarte. Buté contre une marche, il change d'idée au bout de quatre secondes.
 
 - **Calme** : il ne fuit pas, broute (la tête au sol, il rumine), marche lourdement une patte après l'autre, le corps qui roule. On peut passer au milieu du troupeau, même en courant.
 - **Frappé** : tout le troupeau fait front — la colère gagne les adultes à dix cases — et charge.
 - **Le rut** : un jour et demi toutes les six journées (décalé selon l'île ; « le brame monte des plaines · les bramards sont en rut »). Les mâles **brament** (tête levée, mâchoire ouverte, un souffle de vapeur), **grattent le sol** de l'antérieur, et le bord de leur bouclier **rougeoie comme une braise**. Ils chargent qui approche à moins de **six cases et demie** — **quatre** si l'on reste calme (voir section 21) — puis, la charge portée, vous laissent dix secondes : ils vous ont chassé. Ils se **défient entre eux**, front contre front. Les femelles mettent bas davantage ; les petits suivent leur mère.
 - **Chiffres** : charge 14 % de vie (avant la montée du danger), puis 4,5 s de pause ; robuste (trois fois plus dur à abattre). Lié (35 % de base), il perd sa crinière en broutant : de la fibre.
 
-Pour régler : `COMBAT.bramard`, `RUT_CYCLE` et `RUT_DUREE`, `bramardGraine`, et le bloc « LE BRAMARD » dans `index.html`.
+Pour régler : `COMBAT.bramard`, `RUT_CYCLE` et `RUT_DUREE`, `bramardGraine`, `plainesHautes` (le seuil d'altitude), `paitreBramard` (le troupeau), et le bloc « LE BRAMARD » dans `index.html`.
+
+## 27. La pêche
+
+Façon Animal Crossing. La **canne à pêche** se fabrique à l'établi (12 bois, 16 fibres) et se range dans une case du bord : un appui la prend en main (ou la range). Canne en main, le bouton ACTION est à la pêche.
+
+- **Les ombres** : des silhouettes sombres nagent dans les rivières, les lacs et l'océan autour de vous. Leur taille dit déjà un peu qui est là (petite, grande, longue, plate, énorme).
+- **Lancer** (ACTION) : le bouchon tombe à trois ou quatre pas devant vous. Tombé sur une ombre, il la fait fuir. Une ombre proche le remarque, s'approche et le touche une à quatre fois : le bouchon tressaille. Puis il plonge d'un coup, avec un plouf : c'est le moment de **ferrer** (ACTION). Trop tôt, le poisson s'enfuit ; trop tard (moins d'une seconde, moins encore pour un poisson rare), il s'échappe. ACTION sans touche ramène la ligne, et marcher aussi.
+- **La prise** : le poisson brandi au-dessus de la tête, sa taille en centimètres, et un mot sur lui.
+
+| Poisson | Où | Quand | Ombre |
+|---|---|---|---|
+| Gardon de schiste | rivières, lacs | toujours | petite |
+| Truite d'ardoise | rivières | à l'aube et au crépuscule | moyenne |
+| Carpe des brumes | lacs | toujours, deux fois plus sous la pluie | grande |
+| Anguille-lanterne | lacs, rivières | la nuit | longue |
+| Sardine de nacre | océan | le jour | petite |
+| Raie-horloge | océan | la nuit | plate |
+| Lune-de-fond | océan | seulement par orage (rare) | énorme |
+
+- **Les poissons** vont au sac (onglet Sac, « Poissons ») : un appui en mange un, de 12 à 45 % de vie selon sa taille. **G** donne à une bête qui chasse (ou mange de tout) le poisson le plus commun qu'on ait, plutôt qu'une baie : il rassasie plus, et sa confiance vient deux fois plus vite.
+- **Le carnet de pêche** (onglet Journal) : chaque espèce, où et quand la trouver, combien de fois on l'a pêchée, et son record. Les autres restent « ? ? ? » avec leur coin d'eau.
+- Frapper (X) ou monter en selle range la canne. Pas de pêche au Centre des automates.
+
+## 28. La cuisine
+
+Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu'à quatre ingrédients), et **il en sort toujours un plat**. L'onglet **Cuisine** du sac (touche 9, sac ouvert) montre la marmite, le garde-manger et les plats.
+
+- **Où** : au feu du campement (onglet Campement, « Cuisiner »), ou partout avec la **marmite** (établi : 16 pierre, 10 bois, 6 fibres). Depuis une case du bord, elle se pose devant vous avec son petit feu ; ACTION près d'elle : CUISINER. Elle reste sur son île ; la reposer ailleurs la déplace.
+- **Les ingrédients** :
+  - **la viande** : chaque bête abattue laisse la sienne (deux pour les grandes), plus ou moins rare, du cuissot de brouteur (commun) au blanc d'aurore (légendaire). Une compagne qui chasse la rapporte parfois. Les automates n'en ont pas ;
+  - **les produits des plantes** : une plante mûre qu'on abat donne parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille (glands, figue de cactus, racine de roseau, clavaire lumineuse, pétale de braise…), d'autant plus rarement qu'il est précieux. Les compagnes qui récoltent en rapportent aussi ;
+  - **les poissons**, **les baies** et **le nectar**.
+- **Le plat** : sa sorte vient des familles réunies (ragoût, soupe, brochette, tourte, compote, confiture, infusion, sirop, pain, galette, poêlée, salade, terre et mer…), son nom de l'ingrédient le plus précieux, ses **étoiles** (1 à 5) de la rareté et de la variété.
+- **Ce qu'il fait** : de la vie (bien plus que cru), le souffle plein s'il y a un fruit, une fleur ou une douceur, et parfois un **effet de quelques minutes**, celui des ingrédients qui le portent. Deux effets à égalité se contrarient.
+
+| Effet | Ce qu'il fait | Il vient de… |
+|---|---|---|
+| vision de nuit | on voit loin la nuit, sans lanterne | chair de spectre, anguille-lanterne, clavaire lumineuse, fruit de verre |
+| insensible aux braises | les braises et la morsure de la salamandre ne brûlent plus | chair de braise, pétale de braise |
+| pas vif | +15 % de vitesse | les coursiers, la truite, le genévrier |
+| coups puissants | +25 % de dégâts | traqueur, bossu, varan, cœur de chardon |
+| peau dure | −20 % de dégâts reçus | lentigrade, oglodon, raie-horloge, edelweiss, sapin |
+| grand souffle | la course essouffle deux fois moins | nectar, sève, figue, cerf, carillonneur, mousse céleste, Josué, lune-de-fond |
+
+- **Six plats remarquables** se découvrent en cherchant ; le carnet donne un indice pour chacun (Soupe de lune, Tarte d'ambre, Festin des Horlogers, Gelée-lanterne, Bouillon de braise, Pain des premiers jours).
+- **Manger** : dans l'onglet Cuisine ou le sac. Le sac garde aussi le « garde-manger » : un appui mange cru (moitié moins de vie ; la viande, jamais).
+- **Les compagnes** : G donne à une compagne le plat le plus modeste qu'on ait. Elle est soignée, et n'a plus faim de quatre à douze minutes.
+- **Le carnet des recettes** (onglet Journal) : chaque plat trouvé, ses meilleures étoiles, combien de fois on l'a préparé.
+
+
+## 29. Les bêtes s'en prennent aussi aux compagnes
+
+- **Les chasseurs de l'île** : une compagne est une proie comme une autre. Un chasseur affamé qui a son espèce à son menu (un traqueur pour une brouteuse, par exemple) la prend en chasse et la mord ; le lien amortit la moitié de la morsure. Une compagne visée fuit, se retourne quand elle est acculée, et vos compagnes en **défense** accourent.
+- **En défense, on fait front** : une compagne en défense qui se sait visée ne fuit plus (tant qu'il lui reste plus d'un tiers de sa santé) ; elle affronte la bête. Les combats entre bêtes se jouent donc aussi entre elles et vous.
+- **Dans la mêlée** : une compagne qui s'interpose — plus près du prédateur que vous, de deux pas au moins — prend les coups à votre place pendant quelques secondes.
+- **Les automates** : les tireurs visent la compagne à découvert nettement plus proche d'eux que vous ; la sentinelle tire sur tout ce qui approche de l'arche, compagnes comprises ; le traceur chasse aussi la compagne qui est à son menu. Au campement et dans le répit de l'arrivée, elles sont à l'abri comme vous.
+- **À terre** : une compagne qui perd toute sa santé ne meurt pas, le lien la ramène dans le sac, **assommée**. Elle ne s'y remet plus seule : il faut un **baume de relève** (atelier, filtre Compagnes · 14 fibres, 4 os, se prépare d'avance). Dans l'onglet Compagnes, **Relever · 1 baume** la remet sur pied à 60 % de sa santé, et elle peut ressortir. Les baumes en réserve s'affichent dans le sac, à côté des flèches.
+
+## 30. L'escouade des automates
+
+- **Quand** : à partir de la 3e exploration, une fois toutes les 8 à 14 minutes passées sur une île — jamais dans les deux premières minutes après l'arrivée, jamais tant que vous êtes au campement (le compte s'y arrête), jamais sous terre ni pendant un pillage.
+- **Le portail** : un anneau de braises s'ouvre à 15–20 pas de vous, face à vous (message, son, lueur la nuit), puis les automates en sortent un à un et il se referme. Le HUD affiche **ESCOUADE n** tant qu'il en reste.
+- **Elle vous suit** : jour et nuit (le portail l'a chargée, elle ne s'éteint pas), elle vise vous — ou la compagne nettement plus proche d'elle que vous. Un automate semé (à plus de 45 pas pendant 20 s) repasse par un petit portail près de vous. Vous à l'abri du campement, elle rôde à sa lisière et attend. Elle ne repart pas : on la brise, ou l'on quitte l'île. Brisée, la suivante viendra 8 à 14 minutes plus tard.
+- **Plus loin, plus forte** : deux traceurs à la 3e exploration ; un mercenaire dès la 5e, deux dès la 7e ; une sentinelle qui avance en porte-bouclier dès la 8e ; un tireur d'élite dès la 12e ; un mortier dès la 15e ; de 2 à 8 automates. Leurs coups valent 60 % de ceux de l'espèce à la 3e exploration, 100 % à la 10e, jusqu'à 120 % au-delà de la 20e (en plus du danger de la profondeur) ; leur blindage monte de 5 % par exploration, et le premier sorti, qui mène, est blindé d'un tiers de plus.
+- **Butin** : celui de chaque automate, rien de plus.
+- **Bêta** : l'onglet Bêta a un bouton **Faire venir** (l'escouade de votre exploration, au moins celle de la 3e) et dit dans combien de minutes viendra la prochaine.

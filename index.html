@@ -665,6 +665,17 @@ const SON = (() => {
     goutte(o, t) { souffle(o, t, 'bandpass', alea(2500, 6000), 0, 6, .012, .001, .05); return .05; },
     bloop(o, t) { osc(o, t, 'sine', alea(90, 140), alea(160, 240), .12, .01, .07); souffle(o, t, 'lowpass', 400, 0, 1, .08, .005, .04); return .2; },   // la lave qui bout
     carillon(o, t) { cloche(o, t, alea(1800, 3600), [[1, .03], [2.76, .012]], alea(.8, 1.4)); return 1.4; },
+    lancer(o, t) { souffle(o, t, 'bandpass', 700, 2600, 1.2, .28, .03, .09); return .4; },
+    plop(o, t) { osc(o, t, 'sine', 520, 180, .09, .004, .12); souffle(o, t, 'lowpass', 1400, 400, .8, .12, .005, .06); return .25; },
+    tic(o, t) { osc(o, t, 'sine', 900, 600, .04, .002, .07); return .1; },
+    plouf(o, t) { souffle(o, t, 'lowpass', 1800, 300, .7, .35, .005, .22); osc(o, t, 'sine', 240, 80, .2, .004, .14); return .5; },
+    cuisson(o, t) { souffle(o, t, 'highpass', 3000, 0, .7, .9, .08, .08); for (let i = 0; i < 8; i++) souffle(o, t + Math.random() * .8, 'bandpass', alea(2500, 5000), 0, 4, .02, .001, .05); return 1; },
+    moulinet(o, t) { for (let i = 0; i < 7; i++) souffle(o, t + i * .045, 'bandpass', 3200, 0, 6, .015, .001, .05); return .4; },
+    prise(o, t, p) {                                     // une petite ritournelle : la prise
+      const N = p.rare ? [784, 988, 1175, 1568, 1976] : [659, 784, 988, 1319];
+      N.forEach((f, i) => cloche(o, t + i * .09, f, [[1, .05], [2, .015]], .7));
+      return 1;
+    },
     tinte(o, t, p) {                                     // une clochette de carillonneur, au vent : la gamme est mineure
       const N = [880, 1046.5, 1174.7, 1318.5, 1568], f = (p.f || 1) * N[Math.random() * N.length | 0], k = p.fort ? 2.4 : 1;
       cloche(o, t, f, [[1, .022 * k], [2.4, .008 * k], [3.9, .004 * k]], 1.6);
@@ -1594,6 +1605,7 @@ const bAt = (x, y) => (x < 0 || y < 0 || x >= WS || y >= WS) ? 0 : Bio[y * WS + 
 // comme lit les lignes où passe le plus d'eau. Une rivière ne creuse pas le sol : elle le
 // couvre d'un cube d'eau, ce qui laisse l'île aussi franchissable qu'avant.
 const Eau = new Uint8Array(WS * WS);
+const EauT = new Uint8Array(WS * WS);                // 1 : un lac, 2 : une rivière (pour la pêche)
 const eauAt = (x, y) => (x | 0) < 0 || (y | 0) < 0 || (x | 0) >= WS || (y | 0) >= WS ? 0 : Eau[(y | 0) * WS + (x | 0)];
 // hauteur de ce qu'on VOIT : la surface de l'eau si elle couvre le sol, sinon le sol
 const hRendu = (x, y) => {
@@ -1641,7 +1653,7 @@ function creuserLacs(gouffres) {
   return faits;
 }
 function calcEaux() {
-  Eau.fill(0);
+  Eau.fill(0); EauT.fill(0);
   const N = WS * WS;
   const niv = new Int16Array(N).fill(-1);            // niveau de la surface remplie
   const par = new Int32Array(N).fill(-1);            // par où l'eau est venue : l'arbre d'écoulement
@@ -1692,7 +1704,7 @@ function calcEaux() {
   // les lacs : là où la surface remplie dépasse le sol
   for (let i = 0; i < N; i++) {
     const p = niv[i] - Hgt[i];
-    if (Hgt[i] > SEA && Bio[i] !== 8 && p > 0 && p <= LAC_MAX) Eau[i] = Math.min(255, niv[i]);
+    if (Hgt[i] > SEA && Bio[i] !== 8 && p > 0 && p <= LAC_MAX) { Eau[i] = Math.min(255, niv[i]); EauT[i] = 1; }
   }
   // Les rivières : la pluie tombe partout et suit l'arbre du remplissage — chaque case verse
   // dans celle par laquelle l'eau est venue jusqu'à elle, donc toujours vers un exutoire.
@@ -1710,7 +1722,7 @@ function calcEaux() {
     if (acc[i] < RIV_SEUIL || Hgt[i] <= SEA || Bio[i] === 8 || Eau[i]) continue;
     const surface = Hgt[i];
     Hgt[i] = Math.max(SEA + 1, Hgt[i] - 1);
-    Eau[i] = Math.min(255, Math.max(surface, Hgt[i] + 1));
+    Eau[i] = Math.min(255, Math.max(surface, Hgt[i] + 1)); EauT[i] = 2;
   }
 }
 const vide = (x, y) => bAt(x, y) === 8;              // gouffre : on tombe au travers
@@ -1835,8 +1847,12 @@ P.guide = { e: 0, masque: false, parti: false, vu: false };   // le guide de dé
 P.biomes = [];                                   // les biomes rares déjà foulés
 P.variantes = [];                                // le carnet : [espèce:variante, fois croisée]
 P.ogConf = [];                                   // la confiance des colonies d'oglodons : [graine, 0 à 1]
+P.poissons = {}; P.carnetPeche = {};             // les poissons du sac, et le carnet de pêche : { id: { n, rec } }
+P.peche = null;                                  // la canne en main (voir LA PÊCHE)
+P.denrees = {}; P.plats = []; P.recettes = {};   // la cuisine : viandes et produits de la flore, les plats, le carnet
+P.marmite = null; P.effets = {};                 // la marmite posée { g, x, y, z }, et les effets des plats : { effet: fin }
 P.objets = {};                                   // ce qui a déjà été fabriqué
-P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.arc = null;
+P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.baumes = 0; P.arc = null;
 // Les compagnes. Un lien d'éclat est une place : chaque bête liée en occupe un, qu'elle soit
 // dehors ou rentrée dans le sac. Autant de compagnes que de liens, six au plus.
 P.liens = 0; P.compagnes = [];
@@ -1893,6 +1909,9 @@ const OBJETS = [
   // le lien : une place pour une bête apprivoisée, sans plafond — mais chacun coûte plus que le précédent
   { id:'lien',    n:"Lien d'éclat",       emp:'lien', lot:1, fil:'compagnes', get cout() { return coutLien(P.liens); },
     d:'retient une bête apprivoisée · chaque lien coûte deux fois et demie le précédent' },
+  // le baume : le lien ramène une compagne à terre, il ne la soigne pas — c'est lui qui la relève
+  { id:'baume',   n:'Baume de relève',    emp:'baume', lot:1, fil:'compagnes', cout:{fibre:14,os:4},
+    d:'remet sur pied une compagne assommée · se prépare d\'avance' },
   // armures : réduction des dégâts reçus
   { id:'tunique', n:'Tunique de fibre',   emp:'armure', red:.25, cout:{fibre:40},              d:'−25 % de dégâts' },
   { id:'cuirasse',n:"Cuirasse d'os",      emp:'armure', red:.45, cout:{os:10,fibre:32,bois:20},  d:'−45 % de dégâts' },
@@ -1915,6 +1934,10 @@ const OBJETS = [
   // lumière : sa propre place. La nuit est noire ; la lanterne en repousse le bord bien plus loin.
   { id:'lanterne', n:'Lanterne', emp:'lumiere', fil:'outil', lum:1, cout:{bois:14,fibre:10,eclat:3},
     d:'la nuit, éclaire sept pas autour de vous au lieu de quatre · les autres joueurs la voient' },
+  { id:'canne', n:'Canne à pêche', emp:'peche', fil:'outil', cout:{bois:12,fibre:16},
+    d:'depuis une case du bord : la prendre en main, puis ACTION pour lancer devant soi · ferrer quand le bouchon plonge' },
+  { id:'marmite', n:'Marmite', emp:'marmite', fil:'outil', cout:{pierre:16,bois:10,fibre:6},
+    d:'depuis une case du bord : elle se pose devant vous, avec son petit feu · on y cuisine sur toutes les îles' },
   { id:'lampe', n:"Lampe d'ambre", emp:'lumiere', fil:'outil', lum:1, cout:{nectar:8,bois:12,fibre:8},
     d:'la lumière de la lanterne, sans éclat : le nectar d\'oglodon luit toute la nuit' },
   // camp : ce qui ne se porte pas mais se pose. La pierre de foyer vient avec le campement.
@@ -1924,7 +1947,7 @@ const OBJETS = [
     d:'ramène à votre campement, de n\'importe quelle île · coûte du mana : dix éclats par exploration d\'écart, de 20 à 100' },
 ];
 // Ce qui se refait autant qu'on veut, au lieu de se fabriquer une fois pour toutes.
-const enSerie = o => o.emp === 'munition' || o.emp === 'lien';
+const enSerie = o => o.emp === 'munition' || o.emp === 'lien' || o.emp === 'baume';
 const campIci = () => !!P.camp && P.camp.graine === SEED;
 const sacPlein = o => false;                   // plus de plafond aux liens : leur prix suffit
 const objet = id => OBJETS.find(o => o.id === id);
@@ -2297,13 +2320,17 @@ function coupRecolte(nd) {
     parts.push({ x: cx, y: cy, z: cz, vx: dx / vol + (Math.random() - .5), vy: dy / vol + (Math.random() - .5),
       vz: (P.z + .8 - cz) / vol + 9 * vol * .5, life: vol, age: 0, col, tl: .09 });
   }
+  let pr = null;
   if (!e.coups) {
     ENTAME.delete(nd.i);
+    // mûre, la plante donne parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille
+    const q = produitDe(nd.sp.id);
+    if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1]) { gagnerDenree(q.id, 1); pr = q; }
     couperPied(nd.i);                                  // abattu : il repartira de zéro, ici et en face
     burst(cx, cy, nd.z + .2, 10, '#b8a88a');
   }
   say('+' + part + ' ' + RES[nd.sp.res] + (e.tn && e.tn.bonus ? ' · ' + e.tn.n.toLowerCase() : '') + ' · ' + P.sac[nd.sp.res]
-    + (e.coups ? ' · encore ' + e.coups + ' coup' + (e.coups > 1 ? 's' : '') : ''), 1.4);
+    + (e.coups ? ' · encore ' + e.coups + ' coup' + (e.coups > 1 ? 's' : '') : '') + (pr ? ' · +1 ' + pr.n.toLowerCase() : ''), pr ? 2 : 1.4);
   majSac();
 }
 // Chaque image : le geste avance ; au bon instant le coup porte ; au bout, ACTION tenue relance.
@@ -2991,10 +3018,12 @@ function butin(b) {
   }
   const os = 1 + (Math.random() * 2 | 0), fi = 1 + (Math.random() * 2 | 0);
   P.sac.os += os; P.sac.fibre += fi;
+  const vi = viandeDe(b.sp), nv = b.sp.sz >= 1.3 ? 2 : 1;          // et sa viande, à cuire
+  if (vi) gagnerDenree(vi.id, nv);
   // le cerf de verre laisse ses bois, la salamandre un cœur de braise durci
   const ec = b.sp.id === 'cerf' ? 2 + (Math.random() * 2 | 0) : b.sp.id === 'salamandre' ? 1 : 0;
   P.sac.eclat += ec;
-  say('+' + os + ' os · +' + fi + ' fibre' + (ec ? ' · +' + ec + ' éclat' + (ec > 1 ? 's' : '') : ''), 1.8); majSac();
+  say('+' + os + ' os · +' + fi + ' fibre' + (ec ? ' · +' + ec + ' éclat' + (ec > 1 ? 's' : '') : '') + (vi ? ' · +' + nv + ' ' + vi.n.toLowerCase() : ''), 1.8); majSac();
 }
 
 // ============================================================
@@ -3627,9 +3656,9 @@ const COGNE = 1.2;
 // marcher ne sème personne, courir si, un temps — et à bout de souffle on est une proie.
 const VIT_MARCHE = 3.0, VIT_COURSE = 4.2, VIT_EPUISE = 2.3;
 const ENDU_COURSE = 8, ENDU_REPRISE = .12, ENDU_REPOS = .24, ENDU_SEUIL = .35;
-const robuste = b => (b && b.sp && b.sp.dur) || 1;
-const degSubi = deg => deg * danger() * COGNE;
-const degJoueur = (deg, b) => deg / danger() / robuste(b);
+const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1);   // l'escouade est blindée
+const degSubi = deg => deg * danger() * COGNE * (effet('robuste') ? .8 : 1);
+const degJoueur = (deg, b) => deg / danger() / robuste(b) * (effet('fort') ? 1.25 : 1);
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
 function capEsp(sp) {
   if (sp.biome) return especesIle.has(sp.id) ? sp.cap : 0;   // un Tellurien : autant que son sol en nourrit
@@ -4260,6 +4289,10 @@ function fabriquer(id) {
       P.liens++; burst(P.x, P.y, P.z + .5, 12, '#e8404e'); SON.jouer('fabrique');
       say('lien d\'éclat · ' + liensLibres() + ' libre' + (liensLibres() > 1 ? 's' : '') + ' sur ' + P.liens
         + ' · le suivant : ' + coutTexte(o), 3);
+    } else if (o.emp === 'baume') {
+      P.baumes += o.lot; burst(P.x, P.y, P.z + .5, 10, '#9fd08a'); SON.jouer('fabrique');
+      const ko = P.compagnes.filter(c => c.ko).length;
+      say('baume de relève · ' + P.baumes + ' en réserve' + (ko ? ' · à donner dans l\'onglet Compagnes' : ''), 2.4);
     } else {
       P.fleches += o.lot; burst(P.x, P.y, P.z + .5, 8, '#cfd6e4'); SON.jouer('fabrique');
       say('+' + o.lot + ' flèches · ' + P.fleches, 2);
@@ -4278,6 +4311,8 @@ function fabriquer(id) {
 function equiper(id) {
   SON.jouer('equipe');
   const o = objet(id); if (!P.objets[id]) return;
+  if (id === 'canne') { prendreCanne(); majSac(); return; }
+  if (id === 'marmite') { poserMarmite(); majSac(); return; }
   P.equip[o.emp] = P.equip[o.emp] === id ? null : id; majSac();
 }
 // ---------- icônes pixel ----------
@@ -4385,6 +4420,11 @@ const DESSINS = {
     d.ligne(8, 3, 11, 1, PIX.fibre); d.net(12, 1, PIX.fibreC); d.net(12, 2, PIX.fibre);
   },
   // ----- munitions et outils -----
+  baume: d => {                                     // un pot de terre, l'onguent vert, la croix
+    d.rect(3, 6, 12, 6, PIX.boisF); d.rect(4, 7, 11, 13, PIX.cuir); d.rect(5, 8, 10, 12, PIX.cuirC);
+    d.rect(4, 4, 11, 5, PIX.fibre); d.rect(6, 3, 9, 3, PIX.fibreC); d.net(7, 2, PIX.fibreC);
+    d.rect(7, 9, 8, 12, PIX.rougeC); d.rect(6, 10, 9, 11, PIX.rougeC);
+  },
   fleches: d => {
     d.ligne(3, 12, 11, 4, PIX.boisC);
     d.rect(11, 2, 13, 2, PIX.pierreC); d.rect(13, 2, 13, 4, PIX.pierreC); d.net(12, 3, PIX.pierre);
@@ -4734,6 +4774,7 @@ const ONGLETS = [
   { id: 'sauve', n: 'Sauvegarde', ic: 'ongletSauve' },
   { id: 'reglages', n: 'Réglages', ic: 'ongletReglages' },
   { id: 'beta', n: 'Bêta', ic: 'ongletBeta' },
+  { id: 'cuisine', n: 'Cuisine', ic: 'ongletCuisine' },
 ];
 const EMPLACEMENTS = [
   { id: 'outil', n: 'Outil', fantome: 'pioche', vide: 'Aucun outil en main' },
@@ -4763,6 +4804,7 @@ function caracteristiques(o) {
   if (o.emp === 'armure') { c.push(['Dégâts reçus', '−' + Math.round(o.red * 100) + ' %']); if (o.sort) c.push(['Coût des sorts', '−' + Math.round(o.sort * 100) + ' %']); }
   if (o.emp === 'grimoire') c.push(['Coût du sort', o.mana + ' mana (' + eclats(o.mana) + ')']);
   if (o.emp === 'munition') c.push(['Par lot', o.lot], ['En réserve', P.fleches]);
+  if (o.emp === 'baume') c.push(['En réserve', P.baumes], ['Assommées', P.compagnes.filter(c => c.ko).length], ['Relève', 'à 60 %']);
   if (o.emp === 'lien') c.push(['Liens', P.liens], ['Libres', liensLibres()], ['En jeu', 'six au plus'], ['Celui-ci', 'n° ' + (P.liens + 1)],
     ['Le suivant', coutLien(P.liens + 1).eclat + ' éclat' + (coutLien(P.liens + 1).eclat > 1 ? 's' : '')]);
   if (o.emp === 'accessoire') c.push(['Touche', 'H'], ['Portée', 'toute l\'île']);
@@ -4783,7 +4825,7 @@ function avancement(o) {
 const PLURIEL = { fibre: 'fibres', bois: 'bois', pierre: 'pierres', os: 'os', eclat: 'éclats', ferraille: 'ferraille', baies: 'baies' };
 const quantite = (r, n) => `${n} ${n > 1 ? PLURIEL[r] : RES[r]}`;
 const nomEmp = emp => (EMPLACEMENTS.find(e => e.id === emp) || { n: 'Réserve' }).n.toLowerCase();
-const genreObjet = o => o.emp === 'munition' ? 'Munition' : o.emp === 'lien' ? 'Compagnes'
+const genreObjet = o => o.emp === 'munition' ? 'Munition' : o.emp === 'lien' || o.emp === 'baume' ? 'Compagnes'
   : nomEmp(o.emp).replace(/^./, c => c.toUpperCase());
 
 // ---------- une case ----------
@@ -4810,7 +4852,7 @@ function pageSac() {
           attr: ` data-choix="${o ? id : 'vide:' + e.id}"`, label: o ? `${e.n} : ${o.n}` : `${e.n} : rien` })
       + `<span>${e.n}</span></div>`;
   }).join('');
-  const reserves = [['baies', 'Baies', P.baies, P.baies], ['fleches', 'Flèches', P.fleches, P.fleches],
+  const reserves = [['baies', 'Baies', P.baies, P.baies], ['fleches', 'Flèches', P.fleches, P.fleches], ['baume', 'Baumes', P.baumes, P.baumes],
     ['lien', 'Liens', liensLibres() + '/' + P.liens, `${liensLibres()} libre${liensLibres() > 1 ? 's' : ''} sur ${P.liens}`]]
     .map(([ic, n, v, l]) =>
     `<div class="emplacement">${caseObjet(ic, { inerte: true, nb: v, label: `${n} : ${l}` })}<span>${n}</span></div>`).join('');
@@ -4832,7 +4874,12 @@ function pageSac() {
     + `<div class="col"><h3>Porté</h3><div class="equip">${equip}</div>`
     + `<h3>Cases du bord droit</h3><div class="rangee">${cases}</div>`
     + `<h3>Réserves</h3><div class="rangee">${reserves}</div>`
-    + (P.sac.nectar > 0 || essai ? `<button class="btn" data-boire="1" style="margin-top:8px">Boire du nectar · +35 % de vie · N</button>` : '') + `</div>`
+    + (P.sac.nectar > 0 || essai ? `<button class="btn" data-boire="1" style="margin-top:8px">Boire du nectar · +35 % de vie · N</button>` : '')
+    + (() => { const L = Object.keys(INGR).filter(id => INGR[id].src !== 'baie' && INGR[id].src !== 'nectar' && qteIngr(id) > 0);
+        return L.length ? `<h3>Garde-manger</h3><div class="rangee">` + L.map(id =>
+          `<div class="emplacement">${caseObjet(icIngr(id), { nb: qteIngr(id), attr: ` data-cru="${id}"`, label: INGR[id].n + (INGR[id].fam === 'viande' ? ' : à cuire' : ' : manger cru') })}<span>${ESC(INGR[id].court)}</span></div>`).join('')
+          + `</div><p class="note" style="margin:4px 2px 0">Un appui : on mange cru (la viande, jamais). Pour cuisiner : onglet Cuisine, près d'un feu.</p>` : ''; })()
+    + blocPlats() + `</div>`
     + `<div class="col"><h3>Matières</h3>${noteReserve()}<div class="rangee">${matieres}</div>`
     + `<h3>Objets</h3>${grille}${ficheSac()}</div></div>`;
 }
@@ -4915,10 +4962,11 @@ function detailRecette() {
       + `<button class="btn" data-eq="${o.id}">${porte_ ? 'Retirer' : 'Porter'}</button>`
       + `<button class="btn" data-voirsac="${o.id}">Voir dans le sac</button>`;
   } else {
-    const libelle = o.emp === 'munition' ? `Fabriquer ${o.lot} flèches` : o.emp === 'lien' ? 'Fabriquer un lien' : 'Fabriquer';
+    const libelle = o.emp === 'munition' ? `Fabriquer ${o.lot} flèches` : o.emp === 'lien' ? 'Fabriquer un lien' : o.emp === 'baume' ? 'Préparer un baume' : 'Fabriquer';
     gestes = `<button class="btn principal" data-fa="${o.id}"${pret ? '' : ' disabled'}>${libelle}</button>`
       + (pret ? (!enSerie(o) ? `<span class="note">l'objet sera porté aussitôt</span>`
-                 : o.emp === 'lien' ? `<span class="note">une place de plus pour une compagne</span>` : '')
+                 : o.emp === 'lien' ? `<span class="note">une place de plus pour une compagne</span>`
+                 : o.emp === 'baume' ? `<span class="note">à donner à une compagne assommée</span>` : '')
         : `<span class="note manque">il manque des matières</span>`)
       + (o.emp === 'lien' && P.liens ? `<button class="btn" data-onglet="compagnes">Voir les compagnes</button>` : '');
   }
@@ -4943,7 +4991,7 @@ const DITS_ETAT = { suivre: 'vous suit', 'récolter': 'travaille', repos: 'se re
 const compagneDe = id => P.compagnes.find(c => String(c.id) === String(id));
 const valeurComp = (c, k) => c.b ? c.b[k] : c[k];
 function ouEstCompagne(c) {
-  if (c.ko) return `Assommée · se remet dans le sac (${Math.round(c.pv * 100)} %)`;
+  if (c.ko) return 'Assommée · un baume de relève la remettra sur pied';
   if (c.aucamp) return c.role === 'recolte' ? 'Au campement · elle y travaille en votre absence' : 'Au campement · elle le garde';
   if (!c.dehors || !c.b) return 'Dans le sac · elle dort';
   const d = Math.round(Math.hypot(c.b.x - P.x, c.b.y - P.y)), m = c.b.mur;
@@ -5004,7 +5052,7 @@ function pageJournal() {
     return `<div class="sac-corps lignes"><div class="vide-texte">`
       + `<p style="margin:10px 0 0">Le journal est celui du campement : posez-en un pour l'ouvrir.</p>`
       + `<p style="margin:0">Il garde les graines des îles visitées, ce qu'on y trouve, et permet d'y retourner.</p>`
-      + `<button class="btn principal" data-onglet="camp">Voir le campement</button></div>${blocAtlas()}${blocCarnet()}</div>`;
+      + `<button class="btn principal" data-onglet="camp">Voir le campement</button></div>${blocAtlas()}${blocCarnet()}${blocPeche()}${blocRecettes()}</div>`;
   const j = P.journal, m = memoireJournal();
   const ici = j.visites.find(v => v.g === SEED) || ficheIle(SEED, composerIle());
   const gardees = (j.gardees || []).map(v => ficheGraine(v, true)).join('')
@@ -5021,6 +5069,8 @@ function pageJournal() {
       : `<p class="note" style="margin:2px 2px 0">Aucune autre île visitée. Le portail du campement en ouvre une au hasard.</p>`)
     + blocAtlas()
     + blocCarnet()
+    + blocPeche()
+    + blocRecettes()
     + `</div>`;
 }
 // ---------- onglet Campement ----------
@@ -5112,6 +5162,8 @@ function pageCampement() {
     + `<div class="obj"><div><div class="n">Se reposer au feu</div>`
     + `<div class="d">${proche ? 'santé et souffle refaits, compagnes alentour rassasiées' : 'il faut être au campement'}</div></div>`
     + `<button data-camp="repos"${proche ? '' : ' disabled'}>Se reposer</button></div>`
+    + `<div class="obj"><div><div class="n">Cuisiner au feu</div><div class="d">la marmite du campement : viandes, poissons, fruits, racines…</div></div>`
+    + `<button data-onglet="cuisine">Cuisiner</button></div>`
     + `<h3>Améliorer</h3>`
     + (() => {
         const suite = CAMP_NIV[nivCamp()];
@@ -5199,7 +5251,8 @@ function ficheCompagne(c) {
   const gestes = (c.dehors
       ? `<button class="btn" data-rentrer="${id}">Rentrer dans le sac</button>`
       : c.aucamp ? `<button class="btn" disabled>Restée au campement</button>`
-      : `<button class="btn principal" data-sortir="${id}"${c.ko || enJeu() >= EN_JEU_MAX ? ' disabled' : ''}>Sortir</button>`)
+      : (c.ko ? `<button class="btn principal" data-relever="${id}"${P.baumes > 0 || essai ? '' : ' disabled'}>Relever · 1 baume</button>` : '')
+      + `<button class="btn${c.ko ? '' : ' principal'}" data-sortir="${id}"${c.ko || enJeu() >= EN_JEU_MAX ? ' disabled' : ''}>Sortir</button>`)
     + (automate(sp) ? '' : `<button class="btn" data-nourrirc="${id}"${dispo('baies') > 0 && faim >= .05 ? '' : ' disabled'}>Nourrir · 1 baie</button>`)
     + `<button class="btn ${confirme ? 'alerte' : 'discret'}" data-liberer="${id}">${confirme ? 'Confirmer' : 'Libérer'}</button>`;
   return `<div class="fiche haute" id="sac-fiche">`
@@ -5216,7 +5269,9 @@ function ficheCompagne(c) {
       ? `<p class="note manque">Six compagnes sont déjà en jeu : rentrez-en une dans le sac pour sortir ${ESC(c.nom)}.</p>` : '')
     + `<div class="gestes">${gestes}</div>`
     + (confirme ? `<p class="note manque">Encore un clic : ${ESC(c.nom)} retourne à l'île, et le lien redevient libre.</p>` : '')
-    + (c.ko ? `<p class="note">À bout de forces, elle ne ressortira qu'à la moitié de sa santé.</p>` : '');
+    + (c.ko ? `<p class="note${P.baumes > 0 || essai ? '' : ' manque'}">À terre, elle ne se remettra pas seule. `
+      + (P.baumes > 0 || essai ? `Un baume la relève, à 60 % de sa santé (${essai ? '∞' : P.baumes} en réserve).`
+        : `Il faut un baume de relève : il se prépare à l'atelier (${coutTexte(objet('baume'))}).`) + `</p>` : '');
 }
 // Les jauges bougent sans cesse : on ne touche qu'à leur largeur et à leur texte.
 let jaugesT = 0;
@@ -5262,6 +5317,9 @@ function pageBeta() {
     + `<h3>Le monde</h3>`
     + ligne('L\'heure', dj ? 'sous terre, il ne fait jamais nuit' : 'il est ' + Math.floor(horloge * 24) + ' h · passe en mode essai', btn('midi', 'Midi', dj ? ' disabled' : '') + btn('minuit', 'Minuit', dj ? ' disabled' : ''))
     + ligne('Le temps qu\'il fait', dj ? 'ni pluie ni vent sous terre' : METEO[Meteo.vers].n + ' · le suivant, tout de suite · passe en mode essai', btn('meteo', 'Changer', dj ? ' disabled' : ''))
+    + ligne('Escouade d\'automates', dj ? 'pas sous terre' : Escouade ? 'une escouade est déjà là · ' + escHud().replace(/<[^>]+>/g, '').replace(' · ', '')
+        : 'un portail s\'ouvre près de vous, à la force de l\'exploration ' + Math.max(NIV_ESCOUADE, profondeur()) + ' · la prochaine, d\'elle-même, dans ' + Math.ceil(Math.max(0, escAttente) / 60) + ' min',
+        btn('escouade', 'Faire venir', dj || Escouade ? ' disabled' : ''))
     + `<h3>Centre des automates</h3>`
     + (djTest ? ligne('Descente d\'essai en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · rien de ce qu\'on trouve ici n\'est gardé', btn('quitterDj', 'Remonter'), true)
       : dj ? ligne('Vraie descente en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · on ne la quitte que par le monte-charge (ou terrassé)', '')
@@ -5287,7 +5345,9 @@ function pageBeta() {
 function outilBeta(k) {
   const essaiAvant = ['sac', 'armes', 'plein', 'invincible', 'midi', 'minuit', 'meteo'];
   if (essaiAvant.includes(k) && !essai) entrerEssai();
-  if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; say('sac rempli · essai', 1.6); }
+  if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; P.baumes += 5;
+    for (const id in INGR) if (INGR[id].src === 'denree') P.denrees[id] = (P.denrees[id] || 0) + 3; else if (INGR[id].src === 'poisson') P.poissons[id] = (P.poissons[id] || 0) + 3;
+    say('sac rempli · essai', 1.6); }
   else if (k === 'armes') { for (const id of ['laser', 'sniper']) { P.objets[id] = 1; rangerRaccourci(id); } P.equip.arme = 'sniper'; say('rayon de sentinelle et fusil d\'arpenteur · essai', 2); }
   else if (k === 'plein') { P.pv = 1; P.endu = 1; P.epuise = false; lives = 3; say('soigné · essai', 1.4); }
   else if (k === 'invincible') { P.invincible = !P.invincible; say(P.invincible ? 'invincible · essai' : 'de nouveau vulnérable', 1.6); }
@@ -5297,6 +5357,7 @@ function outilBeta(k) {
   else if (k === 'quitterDj') { djRemonter(); return; }
   else if (k === 'nmVenir') { if (!nmVenir(true) && NM.car) say('une caravane est déjà là', 1.4); }
   else if (k === 'nmPartir') { nmPartir(); }
+  else if (k === 'escouade') { if (!lancerEscouade(Math.max(NIV_ESCOUADE, profondeur()))) say('pas de sol pour un portail ici', 1.6); }
   majSac();
 }
 
@@ -5307,7 +5368,7 @@ function pageReglages() {
     ['1 à 5', 'utiliser une case : sort, sifflet, lanterne, arme, outil'], ['G', 'offrir une baie'], ['H', 'siffler : les compagnes accourent'], ['N', 'boire du nectar d\'oglodon'],
     ['Q, E', 'pivoter la vue'], ['R, F', 'incliner la vue'],
     ['V', 'isométrie ou 1re personne'], ['I ou Tab', 'ouvrir ou fermer le sac'], ['B', 'ouvrir l\'établi'],
-    ['1 à 8', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
+    ['1 à 9', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
     ['Clic droit', 'en 1re personne, prendre ou rendre la caméra'], ['Clic gauche', 'attaquer, caméra prise']];
   return `<div class="sac-corps lignes">`
     + `<h3>Aide</h3>`
@@ -5347,7 +5408,7 @@ function majSac() {
   const focusCle = focus ? ['onglet', 'recette', 'choix', 'filtre', 'comp', 'role'].map(k => focus.dataset[k] !== undefined ? `[data-${k}="${focus.dataset[k]}"]` : '').join('') : '';
   feuilleIcones();
   const page = { sac: pageSac, etabli: pageEtabli, compagnes: pageCompagnes, camp: pageCampement,
-    journal: pageJournal, sauve: pageSauve, reglages: pageReglages, beta: pageBeta }[ongletSac]();
+    journal: pageJournal, sauve: pageSauve, reglages: pageReglages, beta: pageBeta, cuisine: pageCuisine }[ongletSac]();
   let nDefil = 0;
   const titre = ONGLETS.find(o => o.id === ongletSac).n;
   const rail = ONGLETS.map((o, i) =>
@@ -5402,9 +5463,9 @@ function clicSac(b) {
   else if (d.voirsac) { choixSac = d.voirsac; choisirOnglet('sac'); }
   else if (d.rac !== undefined && choixSac && P.objets[choixSac]) { assignerRaccourci(choixSac, +d.rac); casesSig = ''; majSac(); }
   else if (d.fa) {
-    const avant = P.objets[d.fa], fl = P.fleches, li = P.liens;
+    const avant = P.objets[d.fa], fl = P.fleches, li = P.liens, bm = P.baumes;
     fabriquer(d.fa);
-    if ((P.objets[d.fa] && !avant) || P.fleches > fl || P.liens > li) { dernierFait = { id: d.fa, quand: maintenantSac() }; choixSac = P.objets[d.fa] ? d.fa : choixSac; majSac(); }
+    if ((P.objets[d.fa] && !avant) || P.fleches > fl || P.liens > li || P.baumes > bm) { dernierFait = { id: d.fa, quand: maintenantSac() }; choixSac = P.objets[d.fa] ? d.fa : choixSac; majSac(); }
   }
   else if (d.camp) {
     if (d.camp === 'poser') poserCampement();
@@ -5435,6 +5496,7 @@ function clicSac(b) {
   else if (d.comp) { choixComp = d.comp === 'libre' ? 'libre' : +d.comp; confirmeLibere.id = null; majSac(); montrerFiche(); }
   else if (d.role) { const c = compagneDe(d.cid); if (c) changerRole(c, d.role); }
   else if (d.sortir) { const c = compagneDe(d.sortir); if (c) sortirCompagne(c); majSac(); }
+  else if (d.relever) { const c = compagneDe(d.relever); if (c) releverCompagne(c); majSac(); }
   else if (d.rentrer) { const c = compagneDe(d.rentrer); if (c) rentrerCompagne(c); majSac(); }
   else if (d.nourrirc) { const c = compagneDe(d.nourrirc); if (c) nourrirCompagne(c); }
   else if (d.liberer) {
@@ -5456,6 +5518,12 @@ function clicSac(b) {
   else if (d.retour) ouvrirRetour();
   else if (d.beta) outilBeta(d.beta);
   else if (d.boire) boireNectar();
+  else if (d.manger) mangerPoisson(d.manger);
+  else if (d.cru) mangerCru(d.cru);
+  else if (d.ajouter) { ajouterMarmite(d.ajouter); majSac(); }
+  else if (d.retirer !== undefined) { marmiteSel.splice(+d.retirer, 1); majSac(); }
+  else if (d.cuire) cuire();
+  else if (d.plat !== undefined) mangerPlat(+d.plat);
   else if (d.guide) { P.guide.masque = !P.guide.masque; hudT = -9; majSac(); }
   else if (d.dens) { DENS_GLOB = DENS_GLOB < .6 ? .7 : DENS_GLOB > 1 ? .45 : 1.15; calcFlore(); majSac(); }
   else if (d.fin) ouvrirSac(false);
@@ -5634,7 +5702,7 @@ const FELINS = [
 const BRAMARDS = [
   { id:'bramard', n:'Bramard', corps:'bramard', diet:'h', sz:1.4, spd:1.7, vue:12, peur:.08, herd:1, meute:6, cap:8, mat:160,
     shell:[92,74,62], dark:[58,46,40], leg:[74,60,52], crin:[214,196,160], os:[228,216,190], oeil:[36,30,26], bio:[2], dur:3,
-    lien:.35, travail:{ fibre:1.4 }, metier:'perd sa crinière en broutant : de la fibre', grimpe:0 },
+    lien:.35, travail:{ fibre:1.4 }, metier:'perd sa crinière en broutant : de la fibre', grimpe:0, boitPeu:.25 },
 ];
 SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces());   // et les Nomades du Seuil (nomades.js)   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
@@ -5799,9 +5867,10 @@ function majFeux() {
   const L = [];
   const vacille = (r, s) => r * (1 + .035 * Math.sin(t * 9.3 + s) + .02 * Math.sin(t * 23.1 + s * 2));
   const pousse = (x, y, z, r) => { if (Number.isFinite(x) && Number.isFinite(y)) L.push([x, y, z, r, (x - P.x) ** 2 + (y - P.y) ** 2]); };
-  feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : RAYON.joueur]);
+  feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : effet('nuit') ? 6.5 : RAYON.joueur]);   // un plat de lueurs : on voit la nuit
   for (const c of campsIci()) pousse(c.x, c.y, c.z + .6, vacille(RAYON.feu, 3));
   if (PortailIle) pousse(PortailIle.x, PortailIle.y, PortailIle.z + 1.2, RAYON.arche);
+  if (Escouade && Escouade.k > 0) pousse(Escouade.x, Escouade.y, Escouade.z + 1.35, RAYON.arche * 1.6 * Escouade.k);
   for (const b of beasts) if (b.tame && !b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
   for (const j of Autres.values()) pousse(j.x, j.y, j.z + 1, j.lum ? vacille(RAYON.lanterne, 5) : RAYON.joueur);
   for (const b of betesLoin) if (!b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
@@ -5883,7 +5952,7 @@ function majBiome(dt) {
     if (P.pv <= 0) { P.brulure = 0; terrasse(); }
   }
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
-  if (biomeIci === 14 && !P.monture && P.ground && P.pv > 0) {
+  if (biomeIci === 14 && !P.monture && P.ground && P.pv > 0 && !effet('braise')) {
     P.pv = Math.max(0, P.pv - BRULURE * dt); P.dernierCoup = t;   // on ne se remet pas sur la braise
     if (t - braiseT > 3) { braiseT = t; say('les braises brûlent', 1.4); }
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .1, 1, '#ffa04c');
@@ -5963,7 +6032,8 @@ function voileNuit(g, fps) {
 }
 
 function sol(x, y) { return hAt(x | 0, y | 0); }
-function bonBiome(sp, x, y) { const h = hAt(x | 0, y | 0); return h > SEA && sp.bio.includes(bAt(x | 0, y | 0)); }
+function bonBiome(sp, x, y) { if (sp.corps === 'bramard') return plaineHaute(x, y, true);   // le bramard : les plaines d'altitude, sur le plat
+  const h = hAt(x | 0, y | 0); return h > SEA && sp.bio.includes(bAt(x | 0, y | 0)); }
 function naitre(sp, x, y, age) {
   const b = { sp, x, y, z: sol(x, y), vx: 0, vy: 0, vz: 0, dir: Math.random() * 6.28, dirT: 0,
     faim: Math.random() * .4, soif: Math.random() * .3, nrj: .6 + Math.random() * .4, pv: 1,
@@ -5979,9 +6049,13 @@ function poser(sp) {
   if (sp.meute) {                                      // une meute naît ensemble : trois ou quatre autour d'un chef
     const chef = beasts.find(o => o.sp === sp && !o.tame && !o.dead && beasts.filter(m => m.sp === sp && (m.x - o.x) ** 2 + (m.y - o.y) ** 2 < 49).length < (sp.meute > 1 ? sp.meute : 4));
     if (chef) for (let k = 0; k < 30; k++) {
-      const a = Math.random() * 6.2832, r = 1.5 + Math.random() * 3, x = chef.x + Math.cos(a) * r, y = chef.y + Math.sin(a) * r;
+      const a = Math.random() * 6.2832, r = sp.corps === 'bramard' ? 3 + Math.random() * 5 : 1.5 + Math.random() * 3, x = chef.x + Math.cos(a) * r, y = chef.y + Math.sin(a) * r;   // un troupeau de bramards naît épars
       if (x > 8 && y > 8 && x < WS - 8 && y < WS - 8 && bonBiome(sp, x, y)) return vr(naitre(sp, x, y));
     }
+  }
+  if (sp.corps === 'bramard') {                       // tiré parmi les cases de plat d'altitude : rares, on ne les cherche pas au hasard
+    const L = plainesHautes().plats; if (!L.length) return null;
+    const i = L[Math.random() * L.length | 0]; return vr(naitre(sp, i % WS + .5, (i / WS | 0) + .5));
   }
   for (let k = 0; k < 500; k++) {
     const x = 8 + Math.random() * (WS - 16), y = 8 + Math.random() * (WS - 16);
@@ -6378,10 +6452,10 @@ function update(dt) {
     SPD = Mt.essouffle ? M.marche * .8 : court ? M.course : M.marche;
   } else {
   const court = im > .06 && veutCourir && !P.epuise && !(P.recul > 0);
-  if (court) { P.endu = Math.max(0, P.endu - dt / ENDU_COURSE * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1)); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
+  if (court) { P.endu = Math.max(0, P.endu - dt / ENDU_COURSE * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * (effet('souffle') ? .5 : 1)); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
   else if (t - P.courseT > .5) P.endu = Math.min(1, P.endu + dt * (im > .06 ? ENDU_REPRISE : ENDU_REPOS));
   if (P.epuise && P.endu >= ENDU_SEUIL) P.epuise = false;
-  SPD = P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE;
+  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (effet('vif') ? 1.15 : 1);
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
@@ -6484,6 +6558,7 @@ function update(dt) {
   djMajMonde(dt);
   ogMaj(dt);                                         // la fourmilière fait son nectar
   nmMaj(dt);                                         // les Nomades du Seuil passent, parfois (nomades.js)
+  majPeche(dt);                                      // les ombres des poissons, la ligne
   if (P.invincible) { P.pv = 1; P.brulure = 0; }         // l'outil de test : rien ne blesse
   if (P.frappe > 0) P.frappe -= dt;
   majBiome(dt);
@@ -6497,6 +6572,7 @@ function update(dt) {
   if (sifflerQ) { sifflerQ = false; siffler(); }
   // --- l'écosystème vit sa vie, les compagnes avec lui ---
   majEcosysteme(dt);
+  majEscouade(dt);                                   // l'escouade des automates, et son portail
   majCompagnes(dt);
   // --- nourrir : la confiance vient en mangeant, et au bout on est suivi ---
   if (nourrir) {
@@ -6513,16 +6589,26 @@ function update(dt) {
     if (!c) say(repue && repue.comp ? repue.comp.nom + ' n\'a pas faim' : 'aucune bête à portée', 1.4);
     else if (automate(c.sp)) rallumer(c);
     else if (coursier(c.sp) && !c.tame) say('un coursier ne se lie pas aux baies : sautez sur son dos', 2);
-    else if (dispo('baies') <= 0) say('plus de baies', 1.4);
+    else if (c.tame && P.plats.length) {                  // un plat à une compagne : soignée, rassasiée pour longtemps
+      let k = 0; P.plats.forEach((p, i) => { if (p.q < P.plats[k].q) k = i; });
+      const p = P.plats.splice(k, 1)[0];
+      c.pv = Math.min(1, c.pv + .4 + .1 * p.q); c.faim = 0; c.repueT = t + 240 + 90 * p.q; c.alarm = 0;
+      burst(c.x, c.y, c.z + .5, 12, '#ffd27d'); if (sacOuvert) majSac();
+      say((c.comp ? c.comp.nom : c.sp.n) + ' mange ' + p.n.toLowerCase() + ' · rassasiée ' + Math.round((c.repueT - t) / 60) + ' min', 2.2);
+    }
+    else if (dispo('baies') <= 0 && !((c.sp.diet === 'c' || c.sp.diet === 'o') && poissonADonner())) say('plus de baies', 1.4);
     else if (!c.tame && c.sp.diet === 'c' && c.faim < .35) say(c.sp.n + " n'a pas faim", 1.6);
     else {
-      puiser('baies', 1); c.faim = Math.max(0, c.faim - .5); c.alarm = 0;
-      burst(c.x, c.y, c.z + .5, 10, '#ffd68a');
-      if (c.tame) say((c.comp ? c.comp.nom : c.sp.n) + ' mange · faim ' + Math.round(c.faim * 100) + ' %', 1.5);
+      // un poisson pour qui chasse ou mange de tout : il en raffole, et sa confiance vient deux fois plus vite
+      const pois = (c.sp.diet === 'c' || c.sp.diet === 'o') ? poissonADonner() : null;
+      if (pois) { P.poissons[pois]--; c.faim = Math.max(0, c.faim - .8); burst(c.x, c.y, c.z + .5, 10, '#9fd4f0'); }
+      else { puiser('baies', 1); c.faim = Math.max(0, c.faim - .5); burst(c.x, c.y, c.z + .5, 10, '#ffd68a'); }
+      c.alarm = 0;
+      if (c.tame) say((c.comp ? c.comp.nom : c.sp.n) + (pois ? ' mange un poisson' : ' mange') + ' · faim ' + Math.round(c.faim * 100) + ' %', 1.5);
       else {
         // La confiance vient en mangeant, plus lentement chez les espèces rares, plus vite chez
         // une bête blessée. Au bout, il faut un lien libre pour qu'elle s'y attache.
-        c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1));
+        c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1) * (pois ? 2 : 1));
         const colonie = c.sp.roche ? ' · colonie ' + Math.round(Math.min(1, confColonie() + 1 / OG_BAIES) * 100) + ' %' : '';
         if (c.sp.roche) { c.doute = Math.max(0, (c.doute || 0) - .6); gagnerColonie(1 / OG_BAIES); }
         if (c.conf >= 1) { if (!lier(c, 'baies')) say('confiance totale · il faut un lien d\'éclat libre' + colonie, 2.6); }
@@ -6959,6 +7045,7 @@ function heroBones(J) {
     }
     hip = hipF; neck = neckF;
   }
+  if (J === P && P.peche) poseCanne(B, neck);          // les deux mains sur la canne
   B.push({ a: hip, b: neck, w: 0.205, h: 0.145, c: HC.tunic });                    // buste
   if (J.automate) {
     // la plaque solaire dans le dos, l'œil-lampe, et le bras-canon qui recule au tir
@@ -7020,7 +7107,7 @@ function menaceEtProie(b, vue) {
     if (o === b || o.pv <= 0 || o.dead) continue;
     const d = (b.x - o.x) ** 2 + (b.y - o.y) ** 2;
     if (o.sp.chasse && o.sp.chasse.includes(sp.id) && !o.tame && d < dM) {
-      const vise = o.cible === b || (o.as && o.as.c === b);
+      const vise = o.cible === b || (o.as && o.as.c === b) || o.visC === b;
       const eveille = o.etat !== 'dormir' && o.etat !== 'boire' && o.etat !== 'décrocher' && o.faim > .45;
       // Une compagne ne craint que ce qui la vise : les chasseurs de l'île ne chassent pas les
       // bêtes liées, et une compagne qui fuirait tout traqueur éveillé ne défendrait personne.
@@ -7029,7 +7116,8 @@ function menaceEtProie(b, vue) {
       const faite = o === b.ignore && b.t < b.ignoreT && !vise && d > 6.25;   // une menace à laquelle elle s'est faite
       if (d < r * r && !faite) { dM = d; men = o; }
     }
-    if (sp.chasse && sp.chasse.includes(o.sp.id) && !o.tame && !o.pnjSuit && !(o.enfoui > 0) && d < vue * vue && d < dP) { dP = d; pr = o; }
+    // une compagne est une proie comme une autre pour un chasseur de l'île — pas pour une autre compagne
+    if (sp.chasse && sp.chasse.includes(o.sp.id) && (!o.tame || (o.comp && !b.tame)) && !o.pnjSuit && !(o.enfoui > 0) && d < vue * vue && d < dP) { dP = d; pr = o; }
   }
   if (!b.tame && sp.peur > .3) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2, r = rayonPeurJoueur(b, vue);
     if (d < r * r && d < dM && !(b.ignore === P && b.t < b.ignoreT && d > 6.25 && !(b.colere > 0))) { dM = d; men = P; } }
@@ -7474,7 +7562,7 @@ function porterCoup(b, c, deg) {
     P.vx = dx / d * 7; P.vy = dy / d * 7; P.vz = 4.2; P.recul = .3;
     if (b.sp && b.sp.roche && b.as) { P.vx = dx / d * 11; P.vy = dy / d * 11; P.vz = 5.4; }   // la charge de l'oglodon projette loin
     burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
-    if (b.sp.brule) { P.brulure = t + 3; say('la morsure brûle', 1.4); }   // la salamandre
+    if (b.sp.brule && !effet('braise')) { P.brulure = t + 3; say('la morsure brûle', 1.4); }   // la salamandre
     if (P.monture && b !== P.monture) { const m = P.monture; P.monture = null; P.rodeo = false; Rodeo = null; P.selle = 0; m.fuite = 3; m.menace = b; say('désarçonné', 1.4); }
     if (P.pv <= 0) terrasse();
     return true;
@@ -7501,7 +7589,7 @@ function porterCoup(b, c, deg) {
     // ce qu'une compagne abat, elle le rapporte : des os pour le sac
     if (b.comp) {
       if (automate(c.sp)) { rapporter(b.comp, 'eclat', c.sp.coeur || 1); rapporter(b.comp, 'pierre', 2); rapporter(b.comp, 'ferraille', 2); }   // son cœur d'éclat
-      else rapporter(b.comp, 'os', 1 + (Math.random() * 2 | 0));
+      else { rapporter(b.comp, 'os', 1 + (Math.random() * 2 | 0)); const vi = viandeDe(c.sp); if (vi && Math.random() < .6) gagnerDenree(vi.id, 1); }   // et parfois sa viande
       majSac();
     }
     // Le chasseur mange ce qu'il tue, qu'il en ait fait sa cible ou non — sinon une prise
@@ -7594,6 +7682,172 @@ function envieDuJoueur(b, actif, dJ, dzJ) {
   if (b.traque) return dJ < sp.vue * 1.3 && b.traqueT < 30;
   return dJ < sp.vue * (sp.nuit ? .5 : .45) && (sp.nuit || b.faim > .45);
 }
+// Dans la mêlée, une compagne qui s'interpose — plus près du chasseur que vous, de deux pas au
+// moins, et à six pas de lui au plus — prend les coups à votre place. Il la garde cinq secondes.
+function compagneEnTravers(b, dJ) {
+  const c = b.visC;
+  if (c && c.comp && !c.dead && c.pv > 0 && b.t < b.visT && beasts.includes(c)
+      && (c.x - b.x) ** 2 + (c.y - b.y) ** 2 < 64) return c;
+  b.visC = null;
+  if (dJ < 2.5) return null;
+  let best = null, bd = Math.min(36, (dJ - 2) ** 2);
+  for (const o of beasts) {
+    if (!o.comp || o.dead || o.pv <= 0 || o.mur || Math.abs(o.z - b.z) > 1.4) continue;
+    const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
+    if (d < bd) { bd = d; best = o; }
+  }
+  if (best) { b.visC = best; b.visT = b.t + 5; }
+  return best;
+}
+// Une compagne à découvert, dans le rayon donné : l'automate la garde tant qu'elle y reste. Au
+// campement, et dans le répit de l'arrivée, elle est à l'abri comme vous.
+function compagneEnVue(b, r2) {
+  if (maintenant() - arriveeLe < REPIT) return null;
+  const k = b.cibleC;
+  if (k && k.comp && !k.dead && k.pv > 0 && beasts.includes(k) && !prsCamp(k.x, k.y) && (k.x - b.x) ** 2 + (k.y - b.y) ** 2 < r2 * 1.6) return k;
+  let best = null, bd = r2;
+  for (const o of beasts) {
+    if (!o.comp || o.dead || o.pv <= 0 || Math.abs(o.z - b.z) > 4 || prsCamp(o.x, o.y)) continue;
+    const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
+    if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+// ============================================================
+//  L'ESCOUADE
+//  À partir de la troisième exploration, les automates viennent vous chercher. De loin en loin —
+//  huit à quatorze minutes passées sur une île, jamais dans les deux premières, jamais au
+//  campement —, un portail s'ouvre à quinze ou vingt pas de vous, et une escouade en sort, un
+//  automate après l'autre. Le portail l'a chargée : elle ne dort pas la nuit. Elle vise vous, et
+//  la compagne nettement plus proche d'elle que vous ; elle vous suit sur toute l'île — semé, un
+//  automate repasse par un portail près de vous — et, vous à l'abri du campement, elle rôde à sa
+//  lisière. Elle ne repart pas : on la brise, ou l'on quitte l'île.
+//  Plus on va loin, plus elle est nombreuse, mieux armée et plus dure : deux traceurs au troisième
+//  saut ; puis des mercenaires, une sentinelle qui avance en porte-bouclier, un tireur d'élite, un
+//  mortier ; huit automates au plus. Le premier sorti, le plus fort, mène : il est plus blindé.
+// ============================================================
+const NIV_ESCOUADE = 3, ESC_ATTENTE = [480, 840], ESC_REPIT = 120;
+var Escouade = null, escAttente = 0, escGraine = null;   // var : lue par le rendu dès le premier tour
+const attenteEscouade = () => ESC_ATTENTE[0] + Math.random() * (ESC_ATTENTE[1] - ESC_ATTENTE[0]);
+function compoEscouade(L) {
+  const n = Math.min(8, 1 + Math.ceil((L - 2) / 2.5)), f = [];
+  if (L >= 15) f.push('mortier');
+  if (L >= 12) f.push('tireur');
+  if (L >= 19) f.push('tireur');
+  if (L >= 8) f.push('sentinelle');
+  if (L >= 14) f.push('sentinelle');
+  if (L >= 5) f.push('mercenaire');
+  if (L >= 7) f.push('mercenaire');
+  if (L >= 11) f.push('mercenaire');
+  while (f.length < n) f.push('traceur');
+  return f.slice(0, n);
+}
+// Leurs coups : six dixièmes au troisième saut, pleins au dixième, un cinquième de plus au-delà du
+// vingtième (la profondeur les fait déjà cogner plus fort, comme toute bête). L'armure : 5 % par saut.
+const frappeEscouade = L => L < 10 ? .6 + (L - 3) * .4 / 7 : Math.min(1.2, 1 + (L - 10) * .02);
+const blindeEscouade = L => 1 + Math.max(0, L - 3) * .05;
+// Où ouvrir : du sol ferme à une marche de votre hauteur, hors du campement.
+function lieuPortail(rMin, rMax) {
+  const z0 = solJoueur();
+  for (let k = 0; k < 40; k++) {
+    const a = Math.random() * 6.2832, r = rMin + Math.random() * (rMax - rMin);
+    const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+    if (x < 6 || y < 6 || x > WS - 6 || y > WS - 6) continue;
+    const q = placePres(x, y, z0, 2);
+    if (!q || prsCamp(q[0], q[1]) || Math.abs(hAt(q[0] | 0, q[1] | 0) - z0) > 3) continue;
+    return [q[0], q[1], sol(q[0], q[1])];
+  }
+  return null;
+}
+function lancerEscouade(L) {
+  const q = lieuPortail(15, 20);
+  if (!q) return false;
+  const file = compoEscouade(L);
+  Escouade = { x: q[0], y: q[1], z: q[2], a: Math.atan2(P.y - q[1], P.x - q[0]), k: 0, t: 0, etat: 'ouvre', niv: L, file, membres: [], sauts: [] };
+  SON.jouer('portail', {}, q[0], q[1], q[2] + 1);
+  say('un portail s\'ouvre · une escouade de ' + file.length + ' automates vient pour vous', 3.2);
+  return true;
+}
+function sortirMembre(E) {
+  const sp = specById[E.file[E.membres.length]];
+  const b = naitre(sp, E.x, E.y, sp.mat * 2);
+  b.escouade = true; b.frappe = frappeEscouade(E.niv); b.blinde = blindeEscouade(E.niv) * (E.membres.length ? 1 : 1.3);
+  b.nrj = 1; b.dir = b.dirT = E.a; b.vx = Math.cos(E.a) * 2.5; b.vy = Math.sin(E.a) * 2.5;
+  beasts.push(b); E.membres.push(b);
+  burst(E.x, E.y, E.z + 1, 12, '#ff7a4a');
+}
+// Le portail aspire : des braises tirées de l'anneau vers son cœur.
+function aspirer(A, R, cz) {
+  const th = Math.random() * 6.2832, ux = -Math.sin(A.a), uy = Math.cos(A.a);
+  const x = A.x + ux * Math.cos(th) * R, y = A.y + uy * Math.cos(th) * R, z = cz + Math.sin(th) * R;
+  parts.push({ x, y, z, vx: (A.x - x) * 1.7, vy: (A.y - y) * 1.7, vz: (cz - z) * 1.7, g: 0, life: .55, age: 0,
+    col: Math.random() < .5 ? '#ff6a3c' : '#ffc070', luit: 1, tl: .07 });
+}
+const vivantsEscouade = E => E.membres.filter(m => !m.dead && beasts.includes(m));
+function majEscouade(dt) {
+  if (escGraine !== SEED) { escGraine = SEED; Escouade = null; escAttente = attenteEscouade(); }
+  const E = Escouade;
+  if (!E) {
+    if (profondeur() < NIV_ESCOUADE || djIci() || raidIci() || P.pv <= 0 || prsCamp(P.x, P.y) || maintenant() - arriveeLe < ESC_REPIT) return;
+    if ((escAttente -= dt) <= 0 && !lancerEscouade(profondeur())) escAttente = 20;
+    return;
+  }
+  if (djIci()) return;
+  E.t += dt;
+  if (E.etat === 'ouvre') { E.k = Math.min(1, E.t / 2.4); if (E.t >= 2.4) { E.etat = 'sort'; E.t = .75; } }
+  if (E.etat === 'sort' && E.t >= .75) { E.t = 0; sortirMembre(E); if (E.membres.length >= E.file.length) E.etat = 'ferme'; }
+  else if (E.etat === 'ferme') { E.k = Math.max(0, 1 - E.t / 1.6); if (E.k <= 0) E.etat = 'dehors'; }
+  if (E.k > 0 && Math.random() < dt * 40) aspirer(E, 1.25 * E.k, E.z + 1.35);
+  for (const A of E.sauts) { A.k -= dt / 1.2; if (A.k > .3 && Math.random() < dt * 20) aspirer(A, .95 * Math.sin(A.k * Math.PI), A.z + 1.05); }
+  E.sauts = E.sauts.filter(A => A.k > 0);
+  if (E.etat === 'ouvre' || E.etat === 'sort') return;
+  const vivants = vivantsEscouade(E);
+  if (!vivants.length) {
+    if (E.membres.some(m => m.dead)) { say('l\'escouade est brisée', 2.6); SON.jouer('niveau'); }
+    Escouade = null; escAttente = attenteEscouade(); return;
+  }
+  // semé : il repasse par un portail, près de vous
+  for (const m of vivants) {
+    m.loinT = Math.hypot(m.x - P.x, m.y - P.y) > 45 && !prsCamp(P.x, P.y) ? (m.loinT || 0) + dt : 0;
+    if (m.loinT < 20) continue;
+    const q = lieuPortail(14, 20);
+    if (!q) { m.loinT = 15; continue; }
+    E.sauts.push({ x: m.x, y: m.y, z: m.z, a: m.dir, k: 1 });
+    m.x = q[0]; m.y = q[1]; m.z = q[2]; m.vx = m.vy = 0; m.loinT = 0; m.poste = null;
+    E.sauts.push({ x: q[0], y: q[1], z: q[2], a: Math.atan2(P.y - q[1], P.x - q[0]), k: 1 });
+    SON.jouer('portail', { vol: .6 }, q[0], q[1], q[2] + 1);
+  }
+}
+// L'anneau : vingt braises en cercle dressé face à vous, et trois bras qui tournent vers le cœur.
+function escDecor(ex, ey, r) {
+  const E = Escouade; if (!E || djIci()) return [];
+  const L = [];
+  for (const A of E.k > 0 ? [E, ...E.sauts] : E.sauts) {
+    if ((A.x - ex) ** 2 + (A.y - ey) ** 2 > r * r) continue;
+    const R = A === E ? 1.25 * E.k * (2 - E.k) : .95 * Math.sin(Math.max(0, A.k) * Math.PI);
+    if (R < .05) continue;
+    const cz = A.z + (A === E ? 1.35 : 1.05), ux = -Math.sin(A.a), uy = Math.cos(A.a), p = .5 + .5 * Math.sin(t * 9 + A.x);
+    const pt = (th, rr) => [A.x + ux * Math.cos(th) * rr, A.y + uy * Math.cos(th) * rr, cz + Math.sin(th) * rr];
+    const cA = [255, 96 + 60 * p | 0, 50], cB = [255, 200, 120], N = 20;
+    for (let i = 0; i < N; i++) L.push({ a: pt(i / N * 6.2832 + t * .6, R), b: pt((i + 1) / N * 6.2832 + t * .6, R), w: .13, h: .13, c: i % 2 ? cA : cB, lum: 1 });
+    for (let bras = 0; bras < 3; bras++) for (let j = 1; j < 6; j++) {
+      const f0 = j / 6, f1 = (j + 1) / 6, o = -t * 4 + bras * 2.094;
+      L.push({ a: pt(o + f0 * 3, R * (1 - f0) * .92), b: pt(o + f1 * 3, R * (1 - f1) * .92), w: .07, h: .07, c: [170, 34, 44], lum: 1 });
+    }
+  }
+  return L;
+}
+function escEmit(view, out) {
+  for (const o of escDecor(P.x, P.y, 60)) {
+    const cle = view.kEnt && view.kEnt((o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2);
+    emitLimb(o.a, o.b, o.w, o.h, o.c, view, out, cle, rangSol(Math.min(o.a[2], o.b[2]), false), 1);
+  }
+}
+function escHud() {
+  const E = Escouade; if (!E) return '';
+  const n = vivantsEscouade(E).length + E.file.length - E.membres.length;
+  return ` · <span style="color:#ff8a6a">ESCOUADE <b>${n}</b></span>`;
+}
 // Deux jetons d'attaque, aux prédateurs les plus proches. Recompté à chaque tour.
 function distribuerJetons() {
   const engages = [];
@@ -7621,7 +7875,7 @@ const TIRS = [];                                     // les projectiles des auto
 const TIR_G = 9;                                     // ils tombent moins qu'une flèche
 const TIR_PAS = .35;
 const CHARGE_JOUR = .025, CHARGE_TRAVAIL = .004, CHARGE_MIN = .06;
-const eveille = b => lumiere() > .45 && b.nrj > CHARGE_MIN;   // au jour, et pas à sec
+const eveille = b => b.escouade || (lumiere() > .45 && b.nrj > CHARGE_MIN);   // au jour, et pas à sec — l'escouade, toujours
 
 // Le tir : d'un peu au-dessus de l'épaule, vers un point d'avance sur la cible, avec la chute
 // compensée et un écart qui suit la précision de l'espèce.
@@ -7672,7 +7926,7 @@ function tirer(b, c) {
   const ex = dx * ca - dy * sa, ey = dx * sa + dy * ca;
   const ox = b.x + dx / d * .35, oy = b.y + dy / d * .35, oz = b.z + .62 * sp.sz;
   TIRS.push({ x: ox, y: oy, z: oz, vx: ex / vol, vy: ey / vol, vz: (cz - oz) / vol + TIR_G * vol * .5,
-    de: b, deg: T.deg, age: 0, c: sp.oeil });
+    de: b, deg: T.deg * (b.frappe || 1), age: 0, c: sp.oeil });
   b.lastAtk = b.t; b.recul = .22; b.dirT = Math.atan2(dy, dx);
 }
 // Le mortier : un obus en cloche, de une à deux secondes et quelques de vol, vers l'endroit où la
@@ -7690,7 +7944,7 @@ function lober(b, c) {
   const cz = sol(cx, cy), ux = (cx - b.x) / d, uy = (cy - b.y) / d;
   const ox = b.x - ux * .15, oy = b.y - uy * .15, oz = b.z + .95 * sp.sz;
   TIRS.push({ x: ox, y: oy, z: oz, vx: (cx - ox) / vol, vy: (cy - oy) / vol, vz: (cz - oz) / vol + TIR_G * vol * .5,
-    de: b, deg: T.deg, age: 0, c: sp.oeil, obus: true, zone: T.zone, cx, cy, cz, vol });
+    de: b, deg: T.deg * (b.frappe || 1), age: 0, c: sp.oeil, obus: true, zone: T.zone, cx, cy, cz, vol });
   b.lastAtk = b.t; b.recul = .35; b.dirT = Math.atan2(cy - b.y, cx - b.x);
   burst(ox, oy, oz + .2, 8, '#8a8078');
 }
@@ -7849,7 +8103,7 @@ function impactTir(f, nx, ny, nz) {
         mourirBete(o, 'tir');
         if (sien) {
           if (automate(o.sp)) { rapporter(sien, 'eclat', o.sp.coeur || 1); rapporter(sien, 'pierre', 2); rapporter(sien, 'ferraille', 2); }
-          else rapporter(sien, 'os', 1 + (Math.random() * 2 | 0));
+          else { rapporter(sien, 'os', 1 + (Math.random() * 2 | 0)); const vi = viandeDe(o.sp); if (vi && Math.random() < .6) gagnerDenree(vi.id, 1); }
           majSac();
         }
       }
@@ -8008,6 +8262,8 @@ function cibleAutomate(b, actif) {
   if (!T || !actif) return null;
   const vue2 = sp.vue * sp.vue;
   const dJ2 = (P.x - b.x) ** 2 + (P.y - b.y) ** 2;
+  // l'escouade : vous, ou la compagne nettement plus proche d'elle ; vous à l'abri, personne
+  if (b.escouade) return compagneEnVue(b, Math.min(vue2, dJ2) * .5) || (P.pv > 0 && !sousAbri() ? P : null);
   // frappé par le joueur : il le lui rend, quelle que soit l'espèce
   if (!b.tame && b.colere > 0 && dJ2 < vue2 && Math.abs(P.z - b.z) < 3) return P;
   if (b.tame) {
@@ -8032,24 +8288,28 @@ function cibleAutomate(b, actif) {
   }
   // le mortier n'a pas besoin de vous voir : il sait où vous êtes, et tire par-dessus
   // sur l'île des automates, le traceur n'a plus de gibier : c'est vous qu'il vise
-  if (sp.duel || (ileMeca && sp.chasse)) return dJ2 < vue2 && Math.abs(P.z - b.z) < (T.cloche ? 8 : T.visee ? 6 : 4) && !sousAbri() ? P : null;
+  if (sp.duel || (ileMeca && sp.chasse)) {
+    const voitJ = dJ2 < vue2 && Math.abs(P.z - b.z) < (T.cloche ? 8 : T.visee ? 6 : 4) && !sousAbri();
+    // une compagne à découvert, nettement plus près de lui que vous, essuie ses tirs
+    return compagneEnVue(b, voitJ ? dJ2 * .5 : vue2 * .5) || (voitJ ? P : null);
+  }
   if (sp.garde) {
     // ce qui approche de l'arche : chasseurs et joueur, dans son rayon
     const R2 = 8 * 8;
     if (dJ2 < R2 && !sousAbri()) return P;
     let best = null, bd = R2;
-    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.tame && o.sp.chasse && o.sp.chasse.length) {
+    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && (o.comp || (!o.tame && o.sp.chasse && o.sp.chasse.length))) {
       const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd) { bd = d; best = o; }
     }
     return best;
   }
   if (sp.chasse && sp.chasse.length) {                // le traceur et son gibier
     // il garde sa proie tant qu'il la voit : hors de vue, il en cherche une autre
-    if (b.cible && (b.cible.dead || b.cible.pv <= 0 || b.cible.tame
+    if (b.cible && (b.cible.dead || b.cible.pv <= 0 || (b.cible.tame && !b.cible.comp) || !beasts.includes(b.cible)
         || (b.cible.x - b.x) ** 2 + (b.cible.y - b.y) ** 2 > vue2 * 1.3)) b.cible = null;
     if (b.cible && b.t - b.cibleT < 14) return b.cible;
     let best = null, bd = vue2;
-    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.tame && sp.chasse.includes(o.sp.id)) {
+    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && (!o.tame || o.comp) && sp.chasse.includes(o.sp.id)) {
       const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd) { bd = d; best = o; }
     }
     if (best) { b.cible = best; b.cibleT = b.t; }
@@ -8073,6 +8333,7 @@ function majAutomate(b, dt) {
   b.nrj = Math.max(0, Math.min(1, b.nrj + dt * (jour * CHARGE_JOUR - (actif && b.etat !== 'veille' ? CHARGE_TRAVAIL : 0))));
   if (b.pv <= 0) { mourirBete(b, 'brisé'); return; }
   if (actif && b.pv < 1) b.pv = Math.min(1, b.pv + dt * .012);   // au soleil, il se répare un peu
+  if (b.escouade) b.nrj = 1;                          // le portail l'a chargé
 
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
   const cible = cibleAutomate(b, actif);
@@ -8092,6 +8353,7 @@ function majAutomate(b, dt) {
     else if (b.mode === 'autonome') etat = 'patrouiller';
     else etat = 'suivre';
   }
+  else if (b.escouade) etat = 'rôder';                 // vous à l'abri : elle attend à la lisière
   else if (sp.peur > .3 && b.colere > 0) etat = 'fuir';   // frappé, le moissonneur s'écarte
   else if (sp.garde) etat = 'garder';
   else if (sp.id === 'moissonneur') etat = 'faucher';
@@ -8108,14 +8370,14 @@ function majAutomate(b, dt) {
       // le trait ne passe pas — roche ou dalle en travers : il se déplace pour dégager sa
       // visée, vers la place la plus proche d'où l'on voit la cible. La sentinelle, elle, attend.
       b.etat = 'se poster';
-      if (sp.garde) vit = 0;
+      if (sp.garde && !b.escouade) vit = 0;
       else {
         if (!b.poste || b.t > (b.posteT || 0) || (b.x - b.poste[0]) ** 2 + (b.y - b.poste[1]) ** 2 < .3) { b.poste = posteDeTir(b, cible); b.posteT = b.t + 1.2; }
         if (b.poste) { tx = b.poste[0]; ty = b.poste[1]; sprint = 1.15; }
         else { tx = cible.x; ty = cible.y; sprint = 1; }        // rien de mieux : il approche
       }
     }
-    else if (sp.garde) vit = 0;                       // la sentinelle tire de sa place
+    else if (sp.garde && !b.escouade) vit = 0;        // la sentinelle tire de sa place (en escouade, elle avance)
     else if (d > T.portee * .85) { tx = cible.x; ty = cible.y; sprint = 1.2; }
     else if (d < T.portee * .4) { tx = b.x - (cible.x - b.x); ty = b.y - (cible.y - b.y); sprint = .9; }   // il garde ses distances
     else vit = 0;
@@ -8134,6 +8396,12 @@ function majAutomate(b, dt) {
   }
   else if (etat === 'fuir') { sprint = 1.5; tx = b.x + (b.x - P.x) * 3; ty = b.y + (b.y - P.y) * 3; }
   else if (etat === 'patrouiller') { const e = explorer(b); if (e) { tx = e[0]; ty = e[1]; vit *= .6; } else vit = 0; }
+  else if (etat === 'rôder') {
+    const c = P.camp && campIci() && prsCamp(P.x, P.y) ? P.camp : null;
+    if (c) { const a = Math.atan2(b.y - c.y, b.x - c.x), r = ABRI + 3.5; tx = c.x + Math.cos(a) * r; ty = c.y + Math.sin(a) * r; vit *= .7;
+      if ((tx - b.x) ** 2 + (ty - b.y) ** 2 < 1) vit = 0; }
+    else { tx = P.x; ty = P.y; }
+  }
   else if (etat === 'garder') {
     const g = b.tame ? (b.gite = b.gite || giteDe(b)) : b.home;
     if ((b.x - g[0]) ** 2 + (b.y - g[1]) ** 2 > 1.5) { tx = g[0]; ty = g[1]; vit *= .7; } else vit = 0;
@@ -8597,8 +8865,8 @@ function majBete(b, dt) {
   // lâche le travail pour manger et ne guérit plus ; mais un joueur qui traverse un plateau pelé
   // ne la retrouvait plus qu'à bout de forces — deux fois en dix minutes pour un bossu.
   const plafond = b.tame ? .95 : 1.4;
-  b.faim = Math.min(plafond, b.faim + dt * kb * (sp.diet === 'c' ? .0065 : .013) * (1 + masse(sp) * .3));
-  b.soif = Math.min(plafond, b.soif + dt * kb * .010);
+  b.faim = Math.min(plafond, b.faim + dt * kb * (sp.diet === 'c' ? .0065 : .013) * (1 + masse(sp) * .3) * (b.repueT > t ? 0 : 1));   // un plat : rassasiée
+  b.soif = Math.min(plafond, b.soif + dt * kb * .010 * (sp.boitPeu || 1));   // le bramard boit peu : l'herbe des hauteurs l'abreuve
   const repos = b.tame
     ? ({ repos: .09, brouter: .012, boire: .012, suivre: .008, 'récolter': -.004 })[b.etat] ?? -.012
     : b.etat === 'dormir' ? .10 : (b.etat === 'affût' || b.etat === 'errer' || b.etat === 'troupeau' || b.etat === 'brouter') ? .012 : -.014;
@@ -8661,7 +8929,7 @@ function majBete(b, dt) {
   if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
   else if (b.as) etat = 'assaut';
   else if (panique) { etat = 'fuir'; men = P; dM = dJ * dJ; }
-  else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15 && (!besoin || presse)) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
+  else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15 && (!besoin || presse) && !(b.tame && (b.rappel > 0 || (b.role === 'defense' && b.pv > .3)))) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
   else if (b.decroche > 0 && b.epargne && !b.epargne.dead) etat = 'décrocher';
   else if (b.tame) {
     etat = etatCompagne(b, dEau);
@@ -8703,7 +8971,7 @@ function majBete(b, dt) {
                && !b.mur && !pr.mur && Math.abs(pr.z - b.z) < 1.4) {
       // ni d'une paroi, ni sur une bête qui y tient, ni d'un palier à l'autre : il faut monter
       b.lastAtk = b.t;
-      const prof = { deg: .45 + sp.sz * .2 - (pr.sp.riposte || 0) * .25, ramasse: .2, bond: .22,
+      const prof = { deg: (.45 + sp.sz * .2 - (pr.sp.riposte || 0) * .25) * (pr.comp ? .5 : 1), ramasse: .2, bond: .22,
         portee: 2.0, recul: .45, pause: .55 };
       if (large) porterCoup(b, pr, prof.deg); else lancerAssaut(b, pr, prof);
     }
@@ -8725,7 +8993,12 @@ function majBete(b, dt) {
   } else if (etat === 'traquer') {
     b.nrj = Math.max(0, b.nrj - dt * .04);
     const prof = COMBAT[sp.id] || COMBAT.traqueur;
-    if (b.repli > 0) {                              // après un coup : il se dégage, puis revient
+    const vc = compagneEnTravers(b, dJ);
+    if (vc) {                                       // une compagne s'interpose : c'est elle qu'il mord
+      const dC = Math.hypot(vc.x - b.x, vc.y - b.y);
+      tx = vc.x; ty = vc.y; sprint = dC > 4 ? 1.3 : 1.05;
+      if (dC < prof.portee + .4 && Math.abs(vc.z - b.z) < 1.4 && b.t >= (b.pret || 0)) lancerAssaut(b, vc, prof);
+    } else if (b.repli > 0) {                       // après un coup : il se dégage, puis revient
       b.repli -= dt; sprint = 1.15;
       tx = b.x + (b.x - P.x) * 2; ty = b.y + (b.y - P.y) * 2;
     } else if (!b.jeton && dJ < 4.6) {              // pas de place dans la mêlée : il tourne autour
@@ -9046,7 +9319,7 @@ function sortirCompagne(c, pos, discret) {
     if (!discret) say('six compagnes en jeu au plus · rentrez-en une dans le sac d\'abord', 2.6);
     return null;
   }
-  if (c.ko) { if (!discret) say(c.nom + ' se remet encore · ' + Math.round(c.pv * 100) + ' %', 2); return null; }
+  if (c.ko) { if (!discret) say(c.nom + ' est assommée · un baume de relève la remettra sur pied', 2.4); return null; }
   const q = (pos && placePres(pos[0], pos[1], hAt(pos[0] | 0, pos[1] | 0), 2)) || placePres(P.x, P.y, solJoueur(), 4);
   if (!q) { if (!discret) say('pas de sol ferme ici pour ' + c.nom, 2); return null; }
   const sp = specById[c.esp];
@@ -9067,13 +9340,22 @@ function rentrerCompagne(c, ko) {
     retirerBete(b);
   }
   c.b = null; c.dehors = false;
-  if (ko) { c.ko = 1; c.pv = .05; }                 // elle ne ressortira qu'à la moitié de sa santé
+  if (ko) { c.ko = 1; c.pv = .05; }                 // à terre : elle ne se relèvera qu'avec un baume
+}
+// Assommée, une compagne ne se remet pas seule : un baume de relève (atelier) la remet sur pied.
+function releverCompagne(c) {
+  if (!c || !c.ko) return false;
+  if (!essai && (P.baumes || 0) <= 0) { say('il faut un baume de relève · il se prépare à l\'atelier', 2.4); return false; }
+  if (!essai) P.baumes--;
+  c.ko = 0; c.pv = Math.max(c.pv, .6);
+  SON.jouer('lien'); say(c.nom + ' est remise sur pied', 2);
+  return true;
 }
 function assommer(b, cause) {
   const c = b.comp; if (!c) return;
   burst(b.x, b.y, b.z + .4, 16, '#e8404e');
   rentrerCompagne(c, true);
-  say(c.nom + ' est à bout de forces · le lien la ramène dans le sac', 3);
+  say(c.nom + ' est à terre · le lien la ramène dans le sac · un baume de relève la remettra sur pied', 3.4);
   majSac();
 }
 function libererCompagne(c) {
@@ -9119,7 +9401,7 @@ function agresseur() {
     if (!vivante(o)) continue;
     const d = (o.x - P.x) ** 2 + (o.y - P.y) ** 2;
     const contre = (o.as && (o.as.c === P || (o.as.c && o.as.c.tame))) || o.colere > 0 || o.viseJ
-      || (o.faitFrontJ || 0) > o.t;
+      || (o.faitFrontJ || 0) > o.t || (o.cible && o.cible.comp) || o.visC || o.cibleC;
     const chasseur = !!(o.sp.chasse && o.sp.chasse.length);
     const vise = contre || (chasseur && o.traque);
     if (!vise && !chasseur) continue;
@@ -9136,7 +9418,7 @@ function intrus(x, y, r) {
   for (const o of beasts) {
     if (!vivante(o)) continue;
     const hostile = (o.sp.chasse && o.sp.chasse.length && o.etat !== 'dormir' && o.etat !== 'veille')
-      || o.colere > 0 || o.viseJ || (o.as && o.as.c && (o.as.c === P || o.as.c.tame));
+      || o.colere > 0 || o.viseJ || (o.as && o.as.c && (o.as.c === P || o.as.c.tame)) || (o.cible && o.cible.comp) || o.cibleC;
     if (!hostile) continue;
     const d = (o.x - x) ** 2 + (o.y - y) ** 2;
     if (d < bd) { bd = d; best = o; }
@@ -9361,6 +9643,7 @@ function majRecolte(b, dt) {
     const m = maturite(tc.i, tc.e);
     const n = Math.max(1, Math.round(tc.e.rend * m * .6 * (b.sp.travail[tc.e.res] || 1)));
     couperPied(tc.i);
+    { const q = produitDe(tc.e.id); if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1] * .6) gagnerDenree(q.id, 1); }   // son produit, parfois
     gerbe(tc.x, tc.y, solFlore(tc.i % WS, (tc.i / WS) | 0) + tc.e.h * .5, 8, tc.e, tc.e.teintes ? teinteDruse(tc.i % WS, (tc.i / WS) | 0) : null);
     rapporter(b.comp, tc.e.res, n);                     // au sac, ou au coffre pour le campement
   } else {
@@ -9444,9 +9727,10 @@ function majCompagnes(dt) {
       c.dehors = false; c.b = null;
       // Dans le sac, elle dort et se refait : santé, énergie, et la faim comme la soif retombent
       // doucement. Sans cela, rentrée affamée, elle ressortait affamée et retombait aussitôt.
-      c.pv = Math.min(1, c.pv + dt * .012); c.nrj = Math.min(1, c.nrj + dt * .02);
+      // Assommée, elle ne se refait pas : seul un baume de relève la remet sur pied.
+      if (!c.ko) c.pv = Math.min(1, c.pv + dt * .012);
+      c.nrj = Math.min(1, c.nrj + dt * .02);
       c.faim = Math.max(.2, c.faim - dt * .01); c.soif = Math.max(.2, c.soif - dt * .01);
-      if (c.ko && c.pv >= .5) { c.ko = 0; say(c.nom + ' s\'est remise', 1.8); majSac(); }
     }
   }
 }
@@ -10578,6 +10862,639 @@ function peuplerDoux() {
     }
   }
 }
+// ============================================================
+//  LA PÊCHE
+//  Façon Animal Crossing. Des ombres nagent dans l'eau — petites, grandes, longues, plates —, et
+//  l'ombre dit déjà un peu qui est là. Canne en main, on lance la ligne devant soi ; un poisson
+//  remarque le bouchon, s'en approche, le touche une, deux, trois fois (le bouchon tressaille),
+//  puis l'emporte d'un coup : c'est là, et seulement là, qu'on ferre. Trop tôt, il s'enfuit ;
+//  trop tard, il s'échappe. Un bouchon qui tombe sur une ombre la fait fuir.
+//  Sept poissons : de rivière, de lac, de l'océan, chacun à son heure et par son temps. On les
+//  mange, on les donne aux compagnes, et le carnet de pêche garde la première prise et le record.
+// ============================================================
+const POISSONS = [
+  { id:'gardon',   n:'Gardon de schiste',  le:'un', ou:['riviere', 'lac'], quand:'toujours', taille:'petite',  cm:[12, 22],  p:1,   soin:.12,
+    c:[178, 186, 192], d:[96, 106, 120], f:[196, 120, 104], dit:'rivières et lacs · à toute heure', mot:'petit, mais têtu comme la roche' },
+  { id:'truite',   n:'Truite d\'ardoise',  le:'une', ou:['riviere'], quand:'aube', taille:'moyenne', cm:[25, 45], p:.7, soin:.2,
+    c:[104, 122, 146], d:[62, 76, 96], f:[238, 170, 84], dit:'rivières · à l\'aube et au crépuscule', mot:'elle a gardé un peu d\'aube sur ses taches' },
+  { id:'carpe',    n:'Carpe des brumes',   le:'une', ou:['lac'], quand:'toujours', taille:'grande', cm:[40, 75], p:.8, soin:.3,
+    c:[198, 186, 152], d:[142, 126, 94], f:[184, 152, 112], dit:'lacs · à toute heure, plus encore sous la pluie', mot:'elle a l\'air de rêver encore' },
+  { id:'anguille', n:'Anguille-lanterne',  le:'une', ou:['lac', 'riviere'], quand:'nuit', taille:'longue', cm:[50, 90], p:.55, soin:.25,
+    c:[76, 86, 64], d:[44, 52, 40], f:[176, 255, 200], dit:'lacs et rivières · la nuit', mot:'elle éclaire le chemin des noyés', luit:1 },
+  { id:'sardine',  n:'Sardine de nacre',   le:'une', ou:['ocean'], quand:'jour', taille:'petite', cm:[10, 18], p:1, soin:.12,
+    c:[212, 222, 234], d:[118, 140, 172], f:[242, 238, 252], dit:'océan · le jour', mot:'elle brille comme un souvenir' },
+  { id:'raie',     n:'Raie-horloge',       le:'une', ou:['ocean'], quand:'nuit', taille:'plate', cm:[60, 120], p:.45, soin:.35,
+    c:[122, 112, 98], d:[72, 64, 56], f:[214, 178, 100], dit:'océan · la nuit', mot:'on dirait qu\'elle compte les secondes' },
+  { id:'lune',     n:'Lune-de-fond',       le:'une', ou:['ocean'], quand:'orage', taille:'enorme', cm:[90, 160], p:.3, soin:.45, rare:1,
+    c:[152, 162, 192], d:[88, 96, 132], f:[232, 238, 255], dit:'océan · seulement par orage', mot:'on la dit plus vieille que les Horlogers', luit:1 },
+];
+const poissonDe = id => POISSONS.find(f => f.id === id);
+const OMBRE = { petite: [.3, .12], moyenne: [.46, .17], grande: [.66, .26], longue: [.95, .08], plate: [.62, .58], enorme: [1.15, .46] };
+let Ombres = [], ombreT = 0;
+for (const f of POISSONS) DESSINS['poisson_' + f.id] = d => dessinPoisson(d, f);
+DESSINS.canne = d => {
+  d.ligne(3, 14, 13, 2, PIX.bois); d.ligne(4, 14, 7, 10, PIX.boisF, 2);
+  d.rect(5, 10, 6, 11, PIX.pierre); d.ligne(13, 2, 14, 9, PIX.ficelle);
+  d.net(14, 10, [220, 60, 50]); d.net(14, 11, [240, 240, 236]);
+};
+function dessinPoisson(d, f) {
+  const oe = [20, 18, 18];
+  if (f.taille === 'plate') {                                      // la raie : un losange, une longue queue
+    for (let y = 3; y <= 12; y++) { const w = 6 - Math.abs(y - 7.5) * 1.1; d.rect(Math.round(8 - w), y, Math.round(8 + w), y, f.c); }
+    d.ligne(8, 12, 8, 15, f.d); d.net(6, 7, f.f); d.net(10, 7, f.f); d.net(8, 9, f.f); d.net(7, 5, oe); d.net(9, 5, oe);
+    return;
+  }
+  if (f.taille === 'longue') {                                     // l'anguille : un ruban, des points qui luisent
+    d.ligne(1, 11, 5, 8, f.c, 2); d.ligne(5, 8, 10, 10, f.c, 2); d.ligne(10, 10, 14, 6, f.c, 2);
+    for (const [x, y] of [[3, 9], [7, 9], [11, 8]]) d.net(x, y, f.f); d.net(14, 5, oe);
+    return;
+  }
+  const r = f.taille === 'petite' ? 2.7 : f.taille === 'moyenne' ? 3.3 : f.taille === 'grande' ? 3.9 : 4.4;
+  d.disque(8.5, 8, r, f.c); d.disque(7, 8, r * .85, f.c);
+  const q = Math.round(8 - r - .5);
+  d.ligne(q - 2, 8 - r * .8, q, 8, f.f); d.ligne(q - 2, 8 + r * .8, q, 8, f.f); d.ligne(q - 2, 8 - r * .8, q - 2, 8 + r * .8, f.f);   // la queue
+  d.ligne(6, Math.round(8 - r), 10, Math.round(8 - r), f.d);                                                                        // le dos
+  d.net(Math.round(8.5 + r * .55), 7, oe);
+}
+// L'eau d'une case : rivière, lac, océan — ou pas d'eau.
+function habitatEau(x, y) {
+  x |= 0; y |= 0;
+  if (x < 0 || y < 0 || x >= WS || y >= WS) return null;
+  const i = y * WS + x;
+  if (Eau[i]) return EauT[i] === 2 ? 'riviere' : 'lac';
+  return Hgt[i] <= SEA && Bio[i] === 0 ? 'ocean' : null;
+}
+function quandOk(f) {
+  const h = horloge, nuit = h < .25 || h > .84;
+  if (f.quand === 'jour') return !nuit;
+  if (f.quand === 'nuit') return nuit;
+  if (f.quand === 'aube') return (h > .2 && h < .34) || (h > .75 && h < .88);
+  if (f.quand === 'orage') return Meteo.vers === 'orage';
+  return true;
+}
+function tirerPoisson(hab) {
+  const L = POISSONS.filter(f => f.ou.includes(hab) && quandOk(f));
+  let tot = 0; const w = L.map(f => { const v = f.p * (f.id === 'carpe' && met('pluie') > .3 ? 2 : 1); tot += v; return v; });
+  let r = Math.random() * tot;
+  for (let i = 0; i < L.length; i++) if ((r -= w[i]) <= 0) return L[i];
+  return L[L.length - 1] || null;
+}
+// ---------- les ombres ----------
+function majOmbres(dt) {
+  if (djIci()) { Ombres.length = 0; return; }
+  for (let i = Ombres.length - 1; i >= 0; i--) {
+    const o = Ombres[i]; o.age += dt; o.t += dt;
+    const d2 = (o.x - P.x) ** 2 + (o.y - P.y) ** 2;
+    if (d2 > 34 * 34 || (o.etat === 'fuit' && o.t > 2.2) || (o.age > 240 && o.etat === 'nage' && d2 > 100)) { Ombres.splice(i, 1); continue; }
+    nagerOmbre(o, dt);
+  }
+  if ((ombreT -= dt) > 0) return;
+  ombreT = .7;
+  if (Ombres.length >= 7) return;
+  for (let k = 0; k < 14; k++) {
+    const a = Math.random() * 6.2832, r = 5 + Math.random() * 20, x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+    const hab = habitatEau(x, y); if (!hab) continue;
+    let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (habitatEau(x + dx, y + dy) === hab) n++;
+    if (n < 3) continue;                                             // pas dans une flaque
+    const sp = tirerPoisson(hab); if (!sp) continue;
+    const u = Math.random(), cm = Math.round(sp.cm[0] + (sp.cm[1] - sp.cm[0]) * u * u);   // les grands sont plus rares
+    Ombres.push({ sp, hab, cm, x: (x | 0) + .5, y: (y | 0) + .5, dir: Math.random() * 6.2832, tx: null, ty: null, t: 0, age: 0, etat: 'nage' });
+    return;
+  }
+}
+function nagerOmbre(o, dt) {
+  const Q = P.peche;
+  let tx = o.tx, ty = o.ty, vit = .35 + OMBRE[o.sp.taille][0] * .25;
+  if (o.etat === 'fuit') { tx = o.x + Math.cos(o.dir) * 3; ty = o.y + Math.sin(o.dir) * 3; vit = 3; }
+  else if (o.etat === 'vise' || o.etat === 'mordille' || o.etat === 'mord') {
+    const L = OMBRE[o.sp.taille][0], a = Math.atan2(o.y - Q.by, o.x - Q.bx);
+    tx = Q.bx + Math.cos(a) * (L * .5 + .12); ty = Q.by + Math.sin(a) * (L * .5 + .12); vit = o.etat === 'vise' ? .55 : .2;
+    if (o.etat !== 'vise') { o.dir = a + Math.PI; majMorsure(o, dt); }
+    else if (Math.hypot(tx - o.x, ty - o.y) < .08) { o.etat = 'mordille'; o.n = 1 + (Math.random() * 3.2 | 0); o.tn = .7 + Math.random() * 1.1; Q.etat = 'mordille'; }
+  } else if (tx == null || Math.hypot(tx - o.x, ty - o.y) < .2 || o.t > 8) {
+    o.t = 0; o.tx = null;
+    for (let k = 0; k < 8; k++) {
+      const a = Math.random() * 6.2832, r = .8 + Math.random() * 2.6, x = o.x + Math.cos(a) * r, y = o.y + Math.sin(a) * r;
+      if (habitatEau(x, y) === o.hab) { o.tx = x; o.ty = y; break; }
+    }
+    return;
+  }
+  const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
+  if (d < .02) return;
+  if (o.etat !== 'mordille' && o.etat !== 'mord') {
+    let da = Math.atan2(dy, dx) - o.dir; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832;
+    o.dir += Math.max(-dt * 3, Math.min(dt * 3, da));
+  }
+  const s = Math.min(d, vit * dt), nx = o.x + dx / d * s, ny = o.y + dy / d * s;
+  const hn = habitatEau(nx, ny);
+  // vers le bouchon, toute eau est bonne (une rivière traverse un lac) ; en nageant, il reste chez lui
+  if (o.etat === 'fuit' || (o.etat === 'vise' ? !!hn : hn === o.hab)) { o.x = nx; o.y = ny; o.bloque = 0; }
+  else {
+    o.tx = null;
+    if (o.etat === 'vise' && (o.bloque = (o.bloque || 0) + dt) > 2) { o.etat = 'nage'; o.bloque = 0; if (Q && Q.poisson === o) Q.poisson = null; }   // la rive entre eux : il renonce
+  }
+}
+// Les touches, puis la morsure : la fenêtre pour ferrer, plus courte pour les poissons rares.
+function majMorsure(o, dt) {
+  const Q = P.peche;
+  if (o.etat === 'mordille') {
+    if ((o.tn -= dt) > 0) return;
+    if (o.n-- > 0) { Q.dip = .55; SON.jouer('tic', {}, Q.bx, Q.by, Q.bz); ride(Q, 3); o.tn = .6 + Math.random() * 1.2; return; }
+    o.etat = 'mord'; o.fen = o.sp.rare ? .5 : .8; Q.etat = 'mord'; Q.t = 0;
+    SON.jouer('plouf', {}, Q.bx, Q.by, Q.bz); ride(Q, 12);
+  } else if ((o.fen -= dt) <= 0) {
+    fuirOmbre(o); Q.etat = 'flotte'; Q.poisson = null; Q.t = 0;
+    say('il s\'est échappé…', 1.6);
+  }
+}
+function fuirOmbre(o) { if (!o) return; o.etat = 'fuit'; o.t = 0; if (P.peche) o.dir = Math.atan2(o.y - P.peche.by, o.x - P.peche.bx); }
+function ride(Q, n) {
+  for (let i = 0; i < n; i++) { const a = Math.random() * 6.2832, v = .6 + Math.random() * .8;
+    parts.push({ x: Q.bx, y: Q.by, z: Q.bz + .03, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 1 + Math.random() * 1.5, life: .45, age: 0, col: '#cfe8f6' }); }
+}
+// ---------- la canne ----------
+function prendreCanne() {
+  if (P.peche) { rangerCanne(); say('canne rangée', 1); return; }
+  if (P.monture) { say('pas en selle', 1.4); return; }
+  P.peche = { etat: 'main', t: 0, dip: 0 };
+  say('canne en main · ACTION pour lancer devant vous', 2);
+}
+function rangerCanne() { if (P.peche && P.peche.poisson) fuirOmbre(P.peche.poisson); P.peche = null; }
+function actionPecheCtx() {
+  const Q = P.peche, e = Q.etat;
+  if (e === 'main' || e === 'prise') return { v: 'LANCER', o: 'canne à pêche', f: lancerLigne };
+  if (e === 'lance' || e === 'flotte') return { v: 'RAMENER', o: 'la ligne attend', f: () => ramener() };
+  if (e === 'mordille') return { v: 'FERRER', o: 'pas encore…', f: () => { fuirOmbre(Q.poisson); say('trop tôt · il s\'enfuit', 1.6); ramener(true); } };
+  return { v: 'FERRER', o: 'maintenant !', f: ferrer };
+}
+function lancerLigne() {
+  const ux = Math.cos(P.faceS), uy = Math.sin(P.faceS);
+  let c = null;
+  for (const d of [3.4, 2.8, 4, 2.2, 4.6]) { const x = P.x + ux * d, y = P.y + uy * d; if (habitatEau(x, y)) { c = [x, y]; break; } }
+  if (!c) { say('pas d\'eau devant vous', 1.4); return; }
+  const b0 = boutCanne();
+  P.peche = { etat: 'lance', t: 0, dip: 0, bx: c[0], by: c[1], bz: hRendu(c[0], c[1]), px: P.x, py: P.y, x0: b0, poisson: null };
+  SON.jouer('lancer', {}, P.x, P.y, P.z + 1);
+}
+function ramener(silence) {
+  const Q = P.peche; if (!Q) return;
+  if (Q.poisson && Q.poisson.etat !== 'fuit') fuirOmbre(Q.poisson);
+  P.peche = { etat: 'main', t: 0, dip: 0 };
+  if (!silence) SON.jouer('moulinet', {}, P.x, P.y, P.z + 1);
+}
+function ferrer() {
+  const Q = P.peche, o = Q.poisson;
+  if (!o) return ramener();
+  Ombres = Ombres.filter(x => x !== o);
+  const f = o.sp, cm = o.cm;
+  P.poissons[f.id] = (P.poissons[f.id] || 0) + 1;
+  const c = P.carnetPeche[f.id] || (P.carnetPeche[f.id] = { n: 0, rec: 0 });
+  const neuf = !c.n, record = c.n > 0 && cm > c.rec;
+  c.n++; c.rec = Math.max(c.rec, cm);
+  P.peche = { etat: 'prise', t: 0, dip: 0, prise: { f, cm } };
+  SON.jouer('prise', { rare: f.rare ? 1 : 0 });
+  burst(P.x, P.y, P.z + 1.4, 16, f.rare ? '#ffe28a' : '#d8f4ff');
+  say(`vous avez pêché ${f.le} ${f.n.toLowerCase()} ! ${cm} cm · ${f.mot}` + (neuf ? ' · noté au carnet' : record ? ' · record !' : ''), 4);
+  if (sacOuvert) majSac();
+}
+function majPeche(dt) {
+  majOmbres(dt);
+  const Q = P.peche; if (!Q) return;
+  if (P.monture || djIci()) { rangerCanne(); return; }
+  Q.t += dt; Q.dip = Math.max(0, (Q.dip || 0) - dt * 2.5);
+  if (Q.etat === 'lance') {
+    if (Q.t < .45) return;
+    Q.etat = 'flotte'; Q.t = 0; ride(Q, 8); SON.jouer('plop', {}, Q.bx, Q.by, Q.bz);
+    for (const o of Ombres) if (o.etat === 'nage' && Math.hypot(o.x - Q.bx, o.y - Q.by) < .7) fuirOmbre(o);   // tombé dessus : il file
+    return;
+  }
+  if (Q.etat === 'prise') { if (Q.t > 1.8) P.peche = { etat: 'main', t: 0, dip: 0 }; return; }
+  if (Q.etat === 'main') return;
+  if (Math.hypot(P.x - Q.px, P.y - Q.py) > .8) { ramener(); return; }       // on bouge : la ligne revient
+  if (Q.etat === 'flotte' && !Q.poisson) {
+    for (const o of Ombres) {
+      if (o.etat !== 'nage') continue;
+      const d = Math.hypot(o.x - Q.bx, o.y - Q.by), vue = 2.6 + OMBRE[o.sp.taille][0];
+      if (d < vue && Math.random() < dt * .7) { o.etat = 'vise'; Q.poisson = o; break; }
+    }
+  }
+  if (Q.poisson && Q.poisson.etat === 'fuit') Q.poisson = null;
+}
+// La canne, dans le repère du joueur : la poignée devant la poitrine, et l'angle selon le moment.
+function angleCanne(Q) {
+  const t = Q.t;
+  if (Q.etat === 'lance') return t < .18 ? .95 + t / .18 * .9 : Math.max(.38, 1.85 - (t - .18) / .27 * 1.47);
+  if (Q.etat === 'flotte') return .4 + Math.sin(t * 1.3) * .02;
+  if (Q.etat === 'mordille') return .38 - (Q.dip || 0) * .08;
+  if (Q.etat === 'mord') return .26 + Math.sin(t * 40) * .04;
+  if (Q.etat === 'prise') return .4 + Math.min(1, t * 3) * .85;
+  return .95;
+}
+const GRIP_CANNE = [.17, -.06, .40], LONG_CANNE = 1.05;
+function boutCanne() {
+  const a = angleCanne(P.peche), f = P.faceS, cf = Math.cos(f), sf = Math.sin(f);
+  const lx = GRIP_CANNE[0] + Math.cos(a) * LONG_CANNE, ly = GRIP_CANNE[1], lz = GRIP_CANNE[2] + Math.sin(a) * LONG_CANNE;
+  return [P.x + lx * cf - ly * sf, P.y + lx * sf + ly * cf, P.z + (P.selle || 0) + lz];
+}
+// Les bras du joueur prennent la canne ; la canne elle-même, dans son repère.
+function poseCanne(B, neck) {
+  const a = angleCanne(P.peche), u = [Math.cos(a), 0, Math.sin(a)], G = GRIP_CANNE;
+  const M2 = v3.add(G, v3.add(v3.mul(u, .17), [0, .05, 0]));
+  [[-1, G, POLE_D], [1, M2, POLE_G]].forEach(([sd, M, pole], i) => {
+    const sh = [neck[0], sd * .115, neck[2] - .02], k = ik2(sh, M, .125, .115, pole), o = 6 + i * 2;
+    B[o].a = sh; B[o].b = k.j; B[o + 1].a = k.j; B[o + 1].b = k.e;
+  });
+  const BOIS = [138, 90, 51], BOISF = [92, 58, 32];
+  B.push({ a: v3.add(G, v3.mul(u, -.14)), b: v3.add(G, v3.mul(u, .12)), w: .04, h: .04, c: BOISF });          // la poignée
+  B.push({ a: v3.add(G, [0, -.035, -.01]), b: v3.add(G, [.02, -.06, -.01]), w: .05, h: .05, c: [150, 156, 168] });   // le moulinet
+  B.push({ a: v3.add(G, v3.mul(u, .12)), b: v3.add(G, v3.mul(u, LONG_CANNE)), w: .018, h: .018, c: BOIS });  // le scion
+}
+// ---------- ce qu'on voit : ombres, bouchon, ligne, et le poisson brandi ----------
+function pecheDecor(ex, ey, r) {
+  const L = [];
+  if (djIci()) return L;
+  for (const o of Ombres) {
+    if ((o.x - ex) ** 2 + (o.y - ey) ** 2 > r * r) continue;
+    const [lg, lr] = OMBRE[o.sp.taille], k = .8 + .4 * (o.cm - o.sp.cm[0]) / (o.sp.cm[1] - o.sp.cm[0]);
+    const ux = Math.cos(o.dir), uy = Math.sin(o.dir), z = hRendu(o.x, o.y) + .03, C = [24, 42, 64];
+    const Lg = lg * k, W = lr * k, ond = Math.sin(t * (o.etat === 'fuit' ? 18 : 6) + o.age * 3) * .06 * Lg;
+    const pt = (f, w) => [o.x + ux * Lg * f - uy * w, o.y + uy * Lg * f + ux * w, z];
+    const seg = (f0, f1, w, w0 = 0, w1 = 0) => L.push({ a: pt(f0, w0), b: pt(f1, w1), w, h: .012, c: C });
+    if (o.sp.taille === 'longue') {                                  // un ruban qui ondule
+      for (let j = 0; j < 5; j++) seg(.5 - j / 5, .5 - (j + 1) / 5, W * (j === 4 ? .6 : 1), Math.sin(t * 5 - j * 1.3) * .07, Math.sin(t * 5 - (j + 1) * 1.3) * .07);
+      continue;
+    }
+    if (o.sp.taille === 'plate') {                                   // un losange, et sa longue queue
+      seg(-.1, .15, W); seg(.15, .35, W * .55); seg(-.3, -.1, W * .55); seg(-.3, -.75, .025, 0, ond * .6);
+      continue;
+    }
+    // une ombre en fuseau : la tête, le ventre, la queue qui bat
+    seg(.25, .5, W * .62); seg(-.1, .25, W); seg(-.3, -.1, W * .6); seg(-.3, -.5, W * .5, 0, ond);
+  }
+  const Q = P.peche;
+  if (Q && Q.etat !== 'main' && Q.etat !== 'prise') {                // le bouchon
+    const p = boutonPos(Q), bz = p[2];
+    L.push({ a: [p[0], p[1], bz - .03], b: [p[0], p[1], bz + .02], w: .08, h: .08, c: [240, 240, 236] });
+    L.push({ a: [p[0], p[1], bz + .02], b: [p[0], p[1], bz + .07], w: .07, h: .07, c: [222, 54, 44] });
+  }
+  if (Q && Q.etat === 'prise' && Q.t < 1.8) {                          // le poisson, brandi au-dessus de la tête
+    const f = Q.prise.f, s = Math.max(.5, Math.min(1.3, Q.prise.cm / 55)), h = Math.min(1, Q.t * 4);
+    // de profil face à la caméra : la direction du monde qui se projette à l'horizontale de l'écran
+    const p0 = proj(P.x, P.y, P.z), p1 = proj(P.x + 1, P.y, P.z), p2 = proj(P.x, P.y + 1, P.z);
+    let ux = p2[1] - p0[1], uy = -(p1[1] - p0[1]); const nu = Math.hypot(ux, uy) || 1; ux /= nu; uy /= nu;
+    if ((p1[0] - p0[0]) * ux + (p2[0] - p0[0]) * uy < 0) { ux = -ux; uy = -uy; }   // la tête vers la droite
+    const x = P.x, y = P.y, z = P.z + 1.1 + h * .3;
+    const at = k => [x + ux * k * s, y + uy * k * s, z];
+    if (f.taille === 'plate') {
+      L.push({ a: at(-.25), b: at(.25), w: .5 * s, h: .06 * s, c: f.c }); L.push({ a: at(-.25), b: at(-.6), w: .03, h: .03, c: f.d });
+    } else {
+      const lg = f.taille === 'longue' ? .7 : .5, ep = f.taille === 'longue' ? .07 : .16;
+      L.push({ a: at(-lg * .45), b: at(lg * .5), w: ep * .8 * s, h: ep * s, c: f.c });
+      L.push({ a: [at(-lg * .3)[0], at(-lg * .3)[1], z + ep * .45 * s], b: [at(lg * .2)[0], at(lg * .2)[1], z + ep * .5 * s], w: .02, h: .05 * s, c: f.d });
+      const q = at(-lg * .45); L.push({ a: q, b: at(-lg * .7), w: .03, h: ep * 1.1 * s, c: f.f });
+      L.push({ a: [at(lg * .38)[0], at(lg * .38)[1], z + ep * .15 * s], b: [at(lg * .42)[0], at(lg * .42)[1], z + ep * .15 * s], w: ep * .85 * s, h: .03, c: [20, 18, 18] });
+    }
+    if (f.luit) L.push({ a: at(0), b: at(.05), w: .05, h: .05, c: f.f, lum: 1 });
+  }
+  return L;
+}
+function boutonPos(Q) {
+  if (Q.etat === 'lance') {
+    const k = Math.min(1, Q.t / .45), a = Q.x0 || [P.x, P.y, P.z + 1.4];
+    return [a[0] + (Q.bx - a[0]) * k, a[1] + (Q.by - a[1]) * k, a[2] + (Q.bz - a[2]) * k + Math.sin(k * Math.PI) * .9];
+  }
+  const plonge = Q.etat === 'mord' ? .12 : 0;
+  return [Q.bx, Q.by, Q.bz + Math.sin(t * 3) * .012 - (Q.dip || 0) * .07 - plonge];
+}
+function pecheEmit(view, out) {
+  for (const o of pecheDecor(P.x, P.y, 40)) {
+    const cle = view.kEnt && view.kEnt((o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2);
+    emitLimb(o.a, o.b, o.w, o.h, o.c, view, out, cle, rangSol(Math.min(o.a[2], o.b[2]), false), o.lum ? 1 : undefined);
+  }
+  for (const R of pecheTraits()) {
+    const cle = view.kEnt && view.kEnt((R.a[0] + R.b[0]) / 2, (R.a[1] + R.b[1]) / 2);
+    emitLimb(R.a, R.b, .012, .012, R.c.map(v => v * 255), view, out, cle, rangSol((R.a[2] + R.b[2]) / 2, false), 1);
+  }
+}
+// La ligne : du scion au bouchon, un peu lâche.
+function pecheTraits() {
+  const Q = P.peche;
+  if (!Q || Q.etat === 'main' || Q.etat === 'prise') return [];
+  const a = boutCanne(), b = boutonPos(Q), tend = Q.etat === 'mord' ? .02 : .18;
+  const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2 - tend];
+  const c = [.92, .94, .96];
+  return [{ a, b: m, w: 1, c, al: .9 }, { a: m, b, w: 1, c, al: .9 }];
+}
+// ---------- manger, donner ----------
+function mangerPoisson(id) {
+  const f = poissonDe(id);
+  if (!f || !(P.poissons[id] > 0)) return;
+  if (P.pv >= 1) { say('vous n\'avez pas faim', 1.4); return; }
+  P.poissons[id]--; P.pv = Math.min(1, P.pv + f.soin);
+  SON.jouer('ramasse'); say(f.n.toLowerCase() + ' · +' + Math.round(f.soin * 100) + ' % de vie', 1.8);
+  if (sacOuvert) majSac();
+}
+// Le poisson qu'on donne à une bête : le plus commun qu'on ait.
+function poissonADonner() {
+  const L = POISSONS.filter(f => P.poissons[f.id] > 0).sort((a, b) => b.p - a.p);
+  return L.length ? L[0].id : null;
+}
+function blocPeche() {
+  const n = POISSONS.filter(f => P.carnetPeche[f.id]).length;
+  let h = `<h3>Carnet de pêche <span class="compte">${n} sur ${POISSONS.length}</span></h3>`;
+  if (!P.objets.canne) h += `<p class="note" style="margin:2px 2px 8px">Une canne à pêche se fabrique à l'établi : du bois, de la fibre.</p>`;
+  for (const f of POISSONS) {
+    const c = P.carnetPeche[f.id];
+    h += `<div class="obj" style="gap:10px">${c ? caseObjet('poisson_' + f.id, { inerte: true, label: f.n }) : '<span class="case vide"></span>'}<div style="flex:1;min-width:0"><div class="n">${c ? ESC(f.n) : '? ? ?'}</div>`
+      + `<div class="d">${ESC(f.dit)}${c ? ' · pêché ' + c.n + ' fois · record ' + c.rec + ' cm' : ''}</div></div></div>`;
+  }
+  return h;
+}
+// ============================================================
+//  LA CUISINE
+//  Un moteur, à la façon d'un Zelda : on met dans la marmite ce qu'on veut, jusqu'à quatre
+//  ingrédients, et il en sort toujours un plat. Sa sorte vient des familles réunies (viande,
+//  poisson, fruit, racine, graine, fleur, feuille, champignon, douceur) ; son nom, de l'ingrédient
+//  le plus précieux ; ses étoiles, de la rareté des ingrédients et de leur variété ; ses effets, de
+//  certains ingrédients. Chaque plat trouvé s'inscrit au carnet des recettes, et quelques plats
+//  remarquables attendent qu'on tombe sur leur mariage.
+//  On cuisine au feu du campement, ou partout ailleurs avec sa marmite posée.
+// ============================================================
+const RARETES = ['commune', 'peu commune', 'rare', 'très rare', 'légendaire'];
+const SOIN_FAM = { viande: .15, fruit: .06, racine: .07, graine: .04, fleur: .03, feuille: .04, champignon: .05, douceur: .08 };
+const NOM_FAM = { viande: 'Viandes', poisson: 'Poissons', fruit: 'Fruits', racine: 'Racines', graine: 'Graines', fleur: 'Fleurs', feuille: 'Feuilles', champignon: 'Champignons', douceur: 'Douceurs' };
+const EFFETS = { nuit: 'vision de nuit', braise: 'insensible aux braises', vif: 'pas vif', fort: 'coups puissants', robuste: 'peau dure', souffle: 'grand souffle' };
+// [espèce, nom, nom court, rareté (1 à 5), effet, couleur]
+const VIANDES = [
+  ['brouteur', 'Cuissot de brouteur', 'brouteur', 1, null, [196, 110, 104]],
+  ['bosseu', 'Bosse de bossu', 'bossu', 1, 'fort', [190, 120, 132]],
+  ['glaneur', 'Filet de glaneur', 'glaneur', 1, null, [214, 132, 98]],
+  ['traqueur', 'Chair de traqueur', 'traqueur', 2, 'fort', [176, 70, 80]],
+  ['spectre', 'Chair pâle de spectre', 'spectre', 3, 'nuit', [176, 170, 210]],
+  ['coursier', 'Blanc de coursier', 'coursier', 2, 'vif', [232, 196, 150]],
+  ['coursier_o', 'Blanc de coursier orange', 'coursier orange', 3, 'vif', [236, 170, 110]],
+  ['coursier_r', 'Blanc de coursier rouge', 'coursier rouge', 4, 'vif', [220, 110, 96]],
+  ['coursier_a', 'Blanc d\'aurore', 'aurore', 5, 'vif', [240, 180, 200]],
+  ['crapaud', 'Cuisses de crapaud-buffle', 'crapaud', 2, null, [170, 176, 120]],
+  ['varan', 'Queue de varan', 'varan', 3, 'fort', [200, 130, 84]],
+  ['vesseron', 'Chapeau de vesseron', 'vesseron', 2, null, [168, 96, 186]],
+  ['cerf', 'Venaison de verre', 'cerf de verre', 3, 'souffle', [214, 150, 170]],
+  ['salamandre', 'Chair de braise', 'salamandre', 4, 'braise', [236, 110, 60]],
+  ['lentigrade', 'Côte de lentigrade', 'lentigrade', 2, 'robuste', [170, 120, 104]],
+  ['cotonnier', 'Tendron de cotonnier', 'cotonnier', 1, null, [226, 170, 160]],
+  ['carillonneur', 'Gigot de carillonneur', 'carillonneur', 2, 'souffle', [200, 140, 110]],
+  ['oglodon', 'Chair d\'oglodon', 'oglodon', 3, 'robuste', [150, 150, 170]],
+  ['felin', 'Chair de félin de brume', 'félin', 3, 'nuit', [184, 176, 188]],
+  ['bramard', 'Bosse de bramard', 'bramard', 2, 'robuste', [178, 112, 92]],
+];
+// [plante, nom, nom court, famille, rareté, effet, couleur]
+const PRODUITS = [
+  ['mousse', 'Mousse céleste', 'mousse céleste', 'feuille', 3, 'souffle', [200, 230, 236]],
+  ['seve', 'Goutte de sève', 'sève', 'douceur', 2, 'souffle', [226, 160, 70]],
+  ['edelweiss', 'Fleur d\'edelweiss', 'edelweiss', 'fleur', 3, 'robuste', [240, 240, 226]],
+  ['pin', 'Pignons de pin', 'pignons', 'graine', 1, null, [214, 190, 150]],
+  ['chene', 'Glands', 'glands', 'graine', 1, null, [168, 124, 70]],
+  ['bouleau', 'Feuilles de bouleau', 'bouleau', 'feuille', 1, null, [150, 200, 96]],
+  ['fougere', 'Crosses de fougère', 'fougère', 'feuille', 1, null, [100, 170, 80]],
+  ['champi', 'Champignon des bois', 'champignons des bois', 'champignon', 1, null, [196, 150, 110]],
+  ['palmier', 'Noix de palme', 'noix de palme', 'fruit', 2, null, [150, 110, 70]],
+  ['roseau', 'Racine de roseau', 'roseau', 'racine', 1, null, [210, 190, 150]],
+  ['coquelicot', 'Pétales de coquelicot', 'coquelicot', 'fleur', 1, null, [220, 60, 50]],
+  ['bleuet', 'Bleuets', 'bleuet', 'fleur', 1, null, [90, 120, 220]],
+  ['ajonc', 'Fleurs d\'ajonc', 'ajonc', 'fleur', 1, null, [240, 206, 60]],
+  ['chardon', 'Cœur de chardon', 'chardon', 'racine', 2, 'fort', [150, 170, 130]],
+  ['herbe', 'Graines d\'herbe haute', 'herbe haute', 'graine', 1, null, [210, 200, 130]],
+  ['genevrier', 'Baies de genévrier', 'genévrier', 'fruit', 2, 'vif', [80, 90, 140]],
+  ['lichen', 'Lichen', 'lichen', 'feuille', 1, null, [170, 180, 150]],
+  ['sapin', 'Aiguilles de sapin', 'sapin', 'feuille', 2, 'robuste', [60, 110, 80]],
+  ['cypres', 'Cônes de cyprès', 'cyprès', 'graine', 2, null, [130, 110, 80]],
+  ['massette', 'Racine de massette', 'massette', 'racine', 1, null, [196, 170, 120]],
+  ['sphaigne', 'Sphaigne rouge', 'sphaigne', 'feuille', 2, null, [190, 70, 70]],
+  ['josue', 'Fleur de Josué', 'fleur de Josué', 'fleur', 3, 'souffle', [236, 226, 170]],
+  ['cactus', 'Figue de cactus', 'figue', 'fruit', 2, 'souffle', [200, 80, 120]],
+  ['geant', 'Lamelles de champignon géant', 'champignon géant', 'champignon', 2, null, [220, 196, 170]],
+  ['vesse', 'Vesse-de-loup', 'vesse-de-loup', 'champignon', 1, null, [230, 224, 210]],
+  ['clavaire', 'Clavaire lumineuse', 'clavaire', 'champignon', 3, 'nuit', [150, 240, 220]],
+  ['verre', 'Fruit de verre', 'fruit de verre', 'fruit', 4, 'nuit', [180, 240, 250]],
+  ['fleurbraise', 'Pétale de braise', 'pétale de braise', 'fleur', 4, 'braise', [255, 120, 50]],
+];
+const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], anguille: [3, 'nuit'], sardine: [1, null], raie: [3, 'robuste'], lune: [5, 'souffle'] };
+// Tous les ingrédients, par identifiant : les poissons gardent le leur ; viandes et produits de la
+// flore en prennent un préfixé (v_brouteur, p_chene) ; et la baie, le nectar.
+const INGR = {};
+for (const f of POISSONS) INGR[f.id] = { id: f.id, n: f.n, court: f.n.split(' ')[0].toLowerCase(), fam: 'poisson', r: POISSON_R[f.id][0], tag: POISSON_R[f.id][1], soin: f.soin, c: f.c, src: 'poisson' };
+for (const [sp, n, court, r, tag, c] of VIANDES) INGR['v_' + sp] = { id: 'v_' + sp, sp, n, court, fam: 'viande', r, tag, soin: SOIN_FAM.viande * (1 + (r - 1) * .15), c, src: 'denree' };
+for (const [fl, n, court, fam, r, tag, c] of PRODUITS) INGR['p_' + fl] = { id: 'p_' + fl, fl, n, court, fam, r, tag, soin: SOIN_FAM[fam] * (1 + (r - 1) * .15), c, src: 'denree' };
+INGR.baie = { id: 'baie', n: 'Baie', court: 'baies', fam: 'fruit', r: 1, tag: null, soin: .04, c: [214, 72, 104], src: 'baie' };
+INGR.nectar = { id: 'nectar', n: 'Nectar d\'oglodon', court: 'ambre', fam: 'douceur', r: 2, tag: 'souffle', soin: .1, c: [238, 158, 52], src: 'nectar' };
+const viandeDe = sp => INGR['v_' + sp.id] || null;
+const produitDe = fl => INGR['p_' + fl] || null;
+const qteIngr = id => { const i = INGR[id]; if (!i) return 0; return i.src === 'poisson' ? P.poissons[id] || 0 : i.src === 'baie' ? P.baies : i.src === 'nectar' ? P.sac.nectar || 0 : P.denrees[id] || 0; };
+function oterIngr(id, n = 1) {
+  const i = INGR[id];
+  if (i.src === 'poisson') P.poissons[id] = Math.max(0, (P.poissons[id] || 0) - n);
+  else if (i.src === 'baie') P.baies = Math.max(0, P.baies - n);
+  else if (i.src === 'nectar') P.sac.nectar = Math.max(0, (P.sac.nectar || 0) - n);
+  else P.denrees[id] = Math.max(0, (P.denrees[id] || 0) - n);
+}
+function gagnerDenree(id, n = 1) { if (!INGR[id]) return; P.denrees[id] = (P.denrees[id] || 0) + n; }
+const de = x => (/^[aeiouyéèêàâîôûœh]/i.test(x) ? 'd\'' : 'de ') + x;
+const etoiles = q => '★'.repeat(q) + '☆'.repeat(5 - q);
+// Les plats remarquables : un mariage précis, qu'on découvre en cherchant.
+const REMARQUABLES = [
+  { id: 'lune', n: 'Soupe de lune', indice: 'le poisson des orages, une racine, une feuille', ok: (ids, F) => ids.includes('lune') && F.has('racine') && F.has('feuille') },
+  { id: 'ambre', n: 'Tarte d\'ambre', indice: 'le nectar des oglodons, une graine, un fruit', ok: (ids, F) => ids.includes('nectar') && F.has('graine') && F.has('fruit') },
+  { id: 'horlogers', n: 'Festin des Horlogers', indice: 'la raie qui compte les secondes, une viande, un champignon', ok: (ids, F) => ids.includes('raie') && F.has('viande') && F.has('champignon') },
+  { id: 'lanterne', n: 'Gelée-lanterne', indice: 'deux lueurs : l\'une nage, l\'autre pousse', ok: ids => ids.includes('anguille') && ids.includes('p_clavaire') },
+  { id: 'braise', n: 'Bouillon de braise', indice: 'le feu de la caldeira, et une racine', ok: (ids, F) => (ids.includes('v_salamandre') || ids.includes('p_fleurbraise')) && F.has('racine') },
+  { id: 'premiers', n: 'Pain des premiers jours', indice: 'deux poignées de l\'herbe haute, et une baie', ok: ids => ids.filter(x => x === 'p_herbe').length >= 2 && ids.includes('baie') },
+];
+function preparer(ids) {
+  const L = ids.map(id => INGR[id]).filter(Boolean);
+  if (!L.length) return null;
+  const F = new Set(L.map(i => i.fam)), has = f => F.has(f), seul = (...fs) => [...F].every(f => fs.includes(f));
+  const pire = fs => L.filter(i => fs.includes(i.fam)).sort((a, b) => b.r - a.r)[0];   // le plus précieux d'une famille
+  const R = REMARQUABLES.find(r => r.ok(ids, F));
+  let cle, n;
+  if (R) { cle = 'r:' + R.id; n = R.n; }
+  else {
+    const prot = pire(['viande', 'poisson']), cat = (k, nom, main) => { cle = k + ':' + (main ? main.id : ''); n = nom; };
+    if (has('viande') && has('poisson')) cat('mt', 'Terre et mer : ' + pire(['viande']).court + ' et ' + pire(['poisson']).court, null);
+    else if (prot) {
+      const v = prot.fam === 'viande';
+      if (has('racine') || has('feuille') || has('champignon')) cat(v ? 'ragout' : 'soupe', (v ? 'Ragoût ' : 'Soupe ') + de(prot.court), prot);
+      else if (has('fruit') || has('douceur')) cat('sucre', has('douceur') && !has('fruit') ? prot.court[0].toUpperCase() + prot.court.slice(1) + ' à l\'ambre' : 'Brochette sucrée ' + de(prot.court), prot);
+      else if (has('graine')) cat('tourte', 'Tourte ' + de(prot.court), prot);
+      else if (has('fleur')) cat('fleurs', prot.court[0].toUpperCase() + prot.court.slice(1) + ' aux fleurs', prot);
+      else cat(v ? 'grillade' : 'brochette', (v ? 'Grillade ' : 'Brochette ') + de(prot.court), prot);
+    }
+    else if (seul('fruit', 'douceur')) { const m = pire(['fruit']) || pire(['douceur']); cat(has('fruit') && has('douceur') ? 'confiture' : has('fruit') ? 'compote' : 'caramel', (has('fruit') && has('douceur') ? 'Confiture ' : has('fruit') ? 'Compote ' : 'Caramel ') + de(m.court), m); }
+    else if (seul('fleur', 'douceur')) { const m = pire(['fleur']); cat(has('douceur') ? 'sirop' : 'infusion', (has('douceur') ? 'Sirop ' : 'Infusion ') + de(m.court), m); }
+    else if (seul('graine')) { const m = pire(['graine']); cat('pain', 'Pain ' + de(m.court), m); }
+    else if (seul('graine', 'fruit', 'douceur')) { const m = pire(['fruit', 'douceur']); cat('galette', 'Galette ' + de(m.court), m); }
+    else if (seul('champignon')) { const m = pire(['champignon']); cat('poelee', 'Poêlée ' + de(m.court), m); }
+    else if (seul('racine')) { const m = pire(['racine']); cat('roti', 'Rôti ' + de(m.court), m); }
+    else if (seul('feuille')) { const m = pire(['feuille']); cat('salade', 'Salade ' + de(m.court), m); }
+    else if (seul('racine', 'feuille', 'champignon', 'fleur')) cat('bois', 'Soupe des bois', null);
+    else cat('voyageur', 'Plat du voyageur', null);
+  }
+  // les étoiles : la rareté, la variété, un plat qui tient debout, un mariage remarquable
+  const score = L.reduce((s, i) => s + i.r, 0) + (F.size - 1) * 1.2 + (cle.startsWith('voyageur') ? 0 : 1) + (R ? 3 : 0);
+  const q = Math.max(R ? 4 : 1, Math.min(5, Math.round(score / 2.6)));
+  const soin = Math.min(1, L.reduce((s, i) => s + i.soin, 0) * (.8 + .15 * q) + (R && R.id === 'lune' ? 1 : 0));
+  // l'effet : celui qui revient le plus ; deux effets à égalité se contrarient
+  const cpt = {}; for (const i of L) if (i.tag) cpt[i.tag] = (cpt[i.tag] || 0) + 1;
+  const tri = Object.entries(cpt).sort((a, b) => b[1] - a[1]);
+  const tag = tri.length && (tri.length === 1 || tri[0][1] > tri[1][1]) ? tri[0][0] : null;
+  const d = tag ? Math.round(Math.min(600, 45 * cpt[tag] * (1 + .3 * (q - 1)) * (R ? 2 : 1))) : 0;
+  const souffle = has('fruit') || has('douceur') || has('fleur') ? 1 : 0;
+  const main = L.slice().sort((a, b) => b.r - a.r)[0];
+  return { c: cle, n, q, soin: Math.round(soin * 100) / 100, tag, d, so: souffle, col: main.c };
+}
+// ---------- la marmite, le feu ----------
+let marmiteSel = [];
+const MARMITE_MAX = 4, PLATS_MAX = 40;
+const marmiteIci = () => P.marmite && P.marmite.g === SEED;
+const presDuFeu = () => auCamp() || (marmiteIci() && (P.marmite.x - P.x) ** 2 + (P.marmite.y - P.y) ** 2 < 2.4 * 2.4 && !djIci());
+function poserMarmite() {
+  if (djIci()) { say('pas de feu sous terre', 1.4); return; }
+  const x = P.x + Math.cos(P.faceS) * 1.1, y = P.y + Math.sin(P.faceS) * 1.1;
+  if (habitatEau(x, y) || hAt(x | 0, y | 0) <= SEA || Math.abs(hAt(x | 0, y | 0) - P.z) > 1.2) { say('pas ici : un sol sec, devant vous', 1.6); return; }
+  P.marmite = { g: SEED, x: Math.round(x * 100) / 100, y: Math.round(y * 100) / 100, z: hAt(x | 0, y | 0) };
+  SON.jouer('ramasse'); burst(x, y, P.marmite.z + .3, 10, '#ffb46a');
+  say('la marmite est posée · ACTION près d\'elle pour cuisiner', 2.2);
+}
+function marmiteAction() {
+  if (!marmiteIci() || djIci()) return null;
+  if ((P.marmite.x - P.x) ** 2 + (P.marmite.y - P.y) ** 2 > 1.7 * 1.7) return null;
+  return { v: 'CUISINER', o: 'la marmite', f: () => ouvrirSac(true, 'cuisine') };
+}
+function ajouterMarmite(id) {
+  if (marmiteSel.length >= MARMITE_MAX) { say('quatre ingrédients au plus', 1.2); return; }
+  const deja = marmiteSel.filter(x => x === id).length;
+  if (qteIngr(id) <= deja) { say('il n\'en reste plus', 1.2); return; }
+  marmiteSel.push(id); SON.jouer('equipe');
+}
+function cuire() {
+  if (!presDuFeu()) { say('il faut un feu : celui du campement, ou votre marmite posée', 2.2); return; }
+  if (!marmiteSel.length) { say('la marmite est vide', 1.2); return; }
+  for (const id of new Set(marmiteSel)) if (qteIngr(id) < marmiteSel.filter(x => x === id).length) { marmiteSel = []; say('il manque un ingrédient', 1.4); return; }
+  const plat = preparer(marmiteSel);
+  for (const id of marmiteSel) oterIngr(id);
+  marmiteSel = [];
+  P.plats.unshift(plat); if (P.plats.length > PLATS_MAX) P.plats.length = PLATS_MAX;
+  const c = P.recettes[plat.c], neuf = !c;
+  P.recettes[plat.c] = { n: plat.n, q: Math.max(plat.q, c ? c.q : 0), f: (c ? c.f : 0) + 1 };
+  SON.jouer('cuisson'); SON.jouer('prise', { rare: plat.q >= 5 || plat.c.startsWith('r:') ? 1 : 0 });
+  const f = marmiteIci() && !auCamp() ? P.marmite : P.camp;
+  if (f) burst(f.x, f.y, f.z + .8, 6, '#f2f2f2');
+  say(`${plat.n} ${etoiles(plat.q)}` + (neuf ? ' · noté au carnet des recettes' : '') + (plat.c.startsWith('r:') && neuf ? ' · un plat remarquable !' : ''), 3.5);
+  majSac();
+}
+// Manger un plat : la vie, parfois le souffle, parfois un effet de quelques minutes.
+function mangerPlat(k) {
+  const p = P.plats[k]; if (!p) return;
+  P.plats.splice(k, 1);
+  P.pv = Math.min(1, P.pv + p.soin);
+  if (p.so) { P.endu = 1; P.epuise = false; }
+  if (p.tag) P.effets[p.tag] = Math.max(P.effets[p.tag] || 0, t) + p.d;
+  SON.jouer('ramasse');
+  say(p.n + ' · +' + Math.round(p.soin * 100) + ' % de vie' + (p.so ? ' · souffle' : '') + (p.tag ? ' · ' + EFFETS[p.tag] + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min' : ''), 2.6);
+  majSac();
+}
+// Manger cru, depuis le sac : les poissons (voir LA PÊCHE) ; les fruits, fleurs, feuilles, graines,
+// racines et champignons, à moitié de ce qu'ils valent cuisinés ; la viande, jamais.
+function mangerCru(id) {
+  const i = INGR[id]; if (!i || qteIngr(id) <= 0) return;
+  if (i.fam === 'poisson') return mangerPoisson(id);
+  if (i.fam === 'viande') { say('la viande se cuit d\'abord : au feu du campement, ou à la marmite', 2); return; }
+  if (P.pv >= 1) { say('vous n\'avez pas faim', 1.2); return; }
+  oterIngr(id); P.pv = Math.min(1, P.pv + i.soin * .5);
+  SON.jouer('ramasse'); say(i.n.toLowerCase() + ' · +' + Math.round(i.soin * 50) + ' % de vie', 1.6);
+  majSac();
+}
+const effet = k => (P.effets[k] || 0) > t;
+function effetsHud() {
+  const L = Object.keys(EFFETS).filter(effet);
+  if (!L.length) return '';
+  return ' · <span style="color:#ffd27d">' + L.map(k => { const s = Math.ceil(P.effets[k] - t); return EFFETS[k] + ' ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }).join(' · ') + '</span>';
+}
+// La marmite posée : un cercle de pierres, un petit feu, le pot et sa vapeur.
+function marmiteOs() {
+  const B = [], add = (a, b, w, h, c, lum) => B.push({ a, b, w, h, c, lum }), m = P.marmite;
+  const f = Math.sin(t * 7.3) * .5 + .5, x = m.x, y = m.y, z = m.z;
+  for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832; add([x + Math.cos(a) * .3, y + Math.sin(a) * .3, z + .02], [x + Math.cos(a) * .3, y + Math.sin(a) * .3, z + .1], .13, .13, k % 2 ? C_PIERRE : C_PIERREF); }
+  add([x - .18, y - .18, z + .06], [x + .18, y + .18, z + .06], .07, .07, C_BOISF); add([x - .18, y + .18, z + .06], [x + .18, y - .18, z + .06], .07, .07, C_BOISF);
+  add([x, y, z + .08], [x, y, z + .2 + f * .08], .14, .14, [246, 150, 52], 1);
+  add([x - .22, y, z + .1], [x - .22, y, z + .5], .03, .03, C_BOIS); add([x + .22, y, z + .1], [x + .22, y, z + .5], .03, .03, C_BOIS);
+  add([x - .24, y, z + .5], [x + .24, y, z + .5], .03, .03, C_BOIS);
+  add([x, y, z + .24], [x, y, z + .42], .26, .26, [70, 66, 64]);                          // le pot
+  add([x, y, z + .42], [x, y, z + .44], .22, .22, [110, 150, 90]);                        // ce qui mijote
+  return B;
+}
+function marmiteDecor(ex, ey, r) {
+  if (!marmiteIci() || djIci() || (P.marmite.x - ex) ** 2 + (P.marmite.y - ey) ** 2 > r * r) return [];
+  if (Math.random() < .03) parts.push({ x: P.marmite.x + (Math.random() - .5) * .1, y: P.marmite.y, z: P.marmite.z + .5, vx: (Math.random() - .5) * .2, vy: (Math.random() - .5) * .2, vz: .45, g: -.15, life: 1.4, age: 0, col: '#e8e8e8', tl: .05 });   // un filet de vapeur
+  return marmiteOs();
+}
+function marmiteEmit(view, out) {
+  for (const o of marmiteDecor(P.x, P.y, 60)) {
+    const cle = view.kEnt && view.kEnt((o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2);
+    emitLimb(o.a, o.b, o.w, o.h, o.c, view, out, cle, rangSol(Math.min(o.a[2], o.b[2]), false), o.lum ? 1 : undefined);
+  }
+}
+// ---------- les vignettes ----------
+function dessinIngr(d, i) {
+  const c = i.c, f = c.map(v => v * .7 | 0), cl = c.map(v => Math.min(255, v + 40));
+  switch (i.fam) {
+    case 'viande': d.disque(8, 8.5, 4.6, c); d.disque(6.5, 7.5, 2.4, cl); d.ligne(11, 12, 14, 15, PIX.os, 2); d.disque(14.5, 14.5, 1.2, PIX.os); d.ligne(4, 6, 7, 11, f); return;
+    case 'fruit': d.disque(8, 9.5, 4.8, c); d.net(6, 8, cl); d.net(7, 7, cl); d.ligne(8, 5, 9, 2, PIX.boisF); d.ligne(9, 3, 12, 2, PIX.fibre); return;
+    case 'racine': d.ligne(4, 4, 10, 10, c, 3); d.ligne(10, 10, 13, 14, c, 2); d.ligne(6, 6, 3, 9, f); d.ligne(4, 4, 2, 1, PIX.fibre, 2); d.ligne(4, 4, 6, 1, PIX.fibre); return;
+    case 'graine': for (const [x, y] of [[5, 6], [9, 5], [7, 9], [11, 9], [5, 11], [9, 12]]) { d.disque(x, y, 1.6, c); d.net(x - 1, y - 1, cl); } return;
+    case 'fleur': for (let k = 0; k < 5; k++) { const a = k * 1.2566; d.disque(8 + Math.cos(a) * 3, 7 + Math.sin(a) * 3, 2, c); } d.disque(8, 7, 1.5, [250, 220, 90]); d.ligne(8, 10, 8, 15, PIX.fibre); return;
+    case 'feuille': d.ligne(3, 13, 12, 3, c, 3); d.ligne(5, 13, 13, 5, c, 2); d.ligne(3, 13, 12, 4, f); d.ligne(2, 14, 4, 12, PIX.fibreF); return;
+    case 'champignon': d.rect(7, 8, 9, 14, [230, 222, 206]); d.disque(8, 7, 4.8, c); d.rect(3, 8, 13, 8, null); d.net(6, 5, cl); d.net(10, 6, cl); return;
+    default: d.disque(8, 10, 4.2, c); for (let y = 3; y <= 7; y++) d.rect(8 - ((y - 3) >> 1), y, 8 + ((y - 3) >> 1), y, c); d.net(6, 9, cl); return;
+  }
+}
+for (const id in INGR) if (INGR[id].src === 'denree') DESSINS['ingr_' + id] = d => dessinIngr(d, INGR[id]);
+DESSINS.plat = d => { d.rect(2, 9, 13, 10, [150, 120, 90]); d.rect(3, 11, 12, 12, [120, 92, 66]); d.rect(5, 13, 10, 13, [96, 72, 52]); d.disque(8, 8, 4, [196, 130, 80]); d.net(6, 7, [230, 180, 120]); d.net(9, 6, [120, 170, 90]); d.ligne(6, 4, 7, 1, [236, 236, 236]); d.ligne(10, 4, 9, 1, [236, 236, 236]); };
+DESSINS.marmite = d => { d.rect(3, 6, 12, 12, [80, 76, 74]); d.rect(2, 5, 13, 6, [110, 104, 100]); d.rect(4, 7, 11, 7, [120, 170, 100]); d.ligne(1, 5, 1, 8, [110, 104, 100]); d.ligne(14, 5, 14, 8, [110, 104, 100]);
+  d.rect(4, 13, 11, 14, [246, 150, 52]); d.net(6, 15, [255, 210, 110]); d.net(9, 15, [255, 210, 110]); d.ligne(6, 3, 7, 1, [236, 236, 236]); d.ligne(9, 3, 10, 1, [236, 236, 236]); };
+DESSINS.ongletCuisine = DESSINS.marmite;
+const icIngr = id => INGR[id].src === 'poisson' ? 'poisson_' + id : INGR[id].src === 'baie' ? 'baies' : INGR[id].src === 'nectar' ? 'nectar' : 'ingr_' + id;
+// ---------- l'onglet Cuisine ----------
+function pageCuisine() {
+  const feu = presDuFeu();
+  const pot = [0, 1, 2, 3].map(k => { const id = marmiteSel[k];
+    return `<div class="emplacement">` + (id ? caseObjet(icIngr(id), { attr: ` data-retirer="${k}"`, label: INGR[id].n + ' : retirer' }) : caseObjet('marmite', { vide: true, inerte: true, label: 'vide' })) + `<span>${id ? ESC(INGR[id].court) : '·'}</span></div>`; }).join('');
+  const dispo = Object.keys(INGR).filter(id => qteIngr(id) > 0);
+  const garde = Object.keys(NOM_FAM).map(fam => { const L = dispo.filter(id => INGR[id].fam === fam); if (!L.length) return '';
+    return `<h3>${NOM_FAM[fam]}</h3><div class="rangee">` + L.map(id => { const reste = qteIngr(id) - marmiteSel.filter(x => x === id).length;
+      return `<div class="emplacement">${caseObjet(icIngr(id), { nb: reste, attr: ` data-ajouter="${id}"`, label: INGR[id].n + ' · ' + RARETES[INGR[id].r - 1] + (INGR[id].tag ? ' · ' + EFFETS[INGR[id].tag] : '') })}<span>${ESC(INGR[id].court)}</span></div>`; }).join('') + `</div>`; }).join('');
+  return `<div class="sac-corps deux">`
+    + `<div class="col"><h3>La marmite</h3><div class="rangee">${pot}</div>`
+    + `<p class="note" style="margin:6px 2px">${feu ? 'Le feu est là. Jusqu\'à quatre ingrédients : il en sort toujours un plat.' : 'Il faut un feu : celui du campement, ou votre marmite posée (établi).'}</p>`
+    + `<button class="btn principal" data-cuire="1"${feu && marmiteSel.length ? '' : ' disabled'}>Cuisiner</button>`
+    + blocPlats() + `</div>`
+    + `<div class="col"><h3 style="margin-top:0">Garde-manger</h3>${garde || '<div class="vide-texte">Rien à cuisiner. Une bête abattue laisse sa viande ; une plante cueillie mûre, parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille ; et la pêche.</div>'}</div>`
+    + `</div>`;
+}
+function blocPlats() {
+  if (!P.plats.length) return '';
+  return `<h3>Plats <span class="compte">${P.plats.length}</span></h3>`
+    + P.plats.slice(0, 20).map((p, k) => `<div class="obj"><div style="flex:1;min-width:0"><div class="n">${ESC(p.n)} <span style="color:#ffd27d">${etoiles(p.q)}</span></div>`
+      + `<div class="d">+${Math.round(p.soin * 100)} % de vie${p.so ? ' · souffle' : ''}${p.tag ? ' · ' + EFFETS[p.tag] + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min' : ''}</div></div>`
+      + `<button data-plat="${k}">Manger</button></div>`).join('');
+}
+function blocRecettes() {
+  const L = Object.entries(P.recettes);
+  let h = `<h3>Carnet des recettes <span class="compte">${L.length} trouvée${L.length > 1 ? 's' : ''}</span></h3>`;
+  if (!L.length) h += `<p class="note" style="margin:2px 2px 8px">Aucune encore. Au feu du campement, ou à la marmite : on met ce qu'on veut, il en sort toujours un plat.</p>`;
+  for (const [cle, r] of L.slice(0, 60)) h += `<div class="obj"><div style="flex:1;min-width:0"><div class="n">${ESC(r.n)} <span style="color:#ffd27d">${etoiles(r.q)}</span></div><div class="d">${cle.startsWith('r:') ? 'plat remarquable · ' : ''}préparé ${r.f} fois</div></div></div>`;
+  for (const R of REMARQUABLES) if (!P.recettes['r:' + R.id]) h += `<div class="obj"><div style="flex:1;min-width:0"><div class="n">? ? ?</div><div class="d">un plat remarquable · ${ESC(R.indice)}</div></div></div>`;
+  return h;
+}
 function braiseProche(b) {
   let best = null, bd = 1e9;
   for (let dy = -8; dy <= 8; dy++) for (let dx = -8; dx <= 8; dx++) {
@@ -10691,6 +11608,9 @@ function emitCamp(view, out) {
   }
   djEmit(view, out);                                    // le donjon, sa trappe, et les traits des armes d'en bas
   ogEmit(view, out);                                    // la fourmilière des oglodons
+  pecheEmit(view, out);                                 // les ombres, le bouchon, la ligne
+  escEmit(view, out);                                   // le portail de l'escouade
+  marmiteEmit(view, out);                               // la marmite posée
 }
 function emitHero(view, out, J) {
   J = J || P;
@@ -10997,7 +11917,7 @@ function dessinFelin(d, sp) {
 COMBAT.bramard = { deg: .14, ramasse: .8, bond: .5, portee: 5, recul: 1, pause: 4.5 };       // il gratte le sol, puis charge
 COMBAT.joute = { deg: .04, ramasse: .7, bond: .45, portee: 3.5, recul: .9, pause: 4 };          // front contre front
 // Le bramard ne se tire pas avec le reste du bestiaire : environ deux îles sur cinq dès la première
-// exploration, sur les prairies. Les îles d'avant gardent leurs bêtes.
+// exploration, sur les plaines d'altitude (voir plainesHautes). Les îles d'avant gardent leurs bêtes.
 function bramardGraine(g) {
   if (!Number.isInteger(g)) return false;
   let n = (g ^ 0xb4a3d) >>> 0;
@@ -11063,8 +11983,102 @@ function instinctBramard(b, etat, tx, ty, vit, sprint, dt) {
       && beasts.some(o => o.sp === sp && o.male && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 25)) {
     const p = naitre(sp, b.x - Math.cos(b.dir), b.y - Math.sin(b.dir), 0); p.mere = b; p.male = Math.random() < .45; beasts.push(p); b.faim += .3;
   }
+  if (adulte && (etat === 'troupeau' || etat === 'errer' || etat === 'brouter')) { const r = paitreBramard(b, etat, tx, ty, vit); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
   if (etat === 'troupeau' || etat === 'errer') vit *= .8;                                 // il va lourdement
   return [etat, tx, ty, vit, sprint];
+}
+// ---------- les plaines d'altitude : le seul pays du bramard ----------
+// L'herbe des hauteurs, prairie et lande : au-dessus des six dixièmes des terres de l'île (dix cubes
+// au moins). Il naît sur le plat (trois cases sur trois au même niveau), y paît, et y revient toujours.
+var PlainesH = null;                                   // var : la première île se peuple avant que ce bloc soit lu
+function plainesHautes() {
+  if (PlainesH && PlainesH.g === SEED) return PlainesH;
+  const L = [];
+  for (let i = 0; i < WS * WS; i++) if (Hgt[i] > SEA && Bio[i] !== 8) L.push(Hgt[i]);
+  L.sort((a, c) => a - c);
+  const seuil = Math.max(10, L[Math.floor(L.length * .6)] || 10), M = new Uint8Array(WS * WS), plats = [];
+  for (let y = 1; y < WS - 1; y++) for (let x = 1; x < WS - 1; x++) { const i = y * WS + x; if ((Bio[i] === 2 || Bio[i] === 4) && Hgt[i] >= seuil && !Eau[i]) M[i] = 1; }
+  for (let y = 8; y < WS - 8; y++) for (let x = 8; x < WS - 8; x++) {
+    const i = y * WS + x; if (!M[i]) continue;
+    let plat = true;
+    for (let dy = -1; dy <= 1 && plat; dy++) for (let dx = -1; dx <= 1; dx++) { const j = i + dy * WS + dx; if (!M[j] || Hgt[j] !== Hgt[i]) { plat = false; break; } }
+    if (plat) { M[i] = 2; plats.push(i); }
+  }
+  return PlainesH = { g: SEED, seuil, M, plats };
+}
+const plaineHaute = (x, y, plat) => { const v = plainesHautes().M[(y | 0) * WS + (x | 0)]; return plat ? v === 2 : v > 0; };
+// Une case de sa plaine, à la même hauteur (il ne grimpe pas) : au hasard dans l'anneau, ou la plus proche.
+function lieuPlaine(b, rMin, rMax) {
+  const z = hAt(b.x | 0, b.y | 0), bon = (x, y) => plaineHaute(x, y) && Math.abs(hAt(x | 0, y | 0) - z) <= 1;
+  if (rMin > 0) for (let k = 0; k < 30; k++) {
+    const a = Math.random() * 6.2832, r = rMin + Math.random() * (rMax - rMin), x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r;
+    if (bon(x, y)) return [(x | 0) + .5, (y | 0) + .5];
+  }
+  for (let r = 1; r <= rMax; r++) for (let k = 0; k < 12; k++) {
+    const a = k / 12 * 6.2832, x = b.x + Math.cos(a) * r, y = b.y + Math.sin(a) * r;
+    if (plaineHaute(x, y)) return [(x | 0) + .5, (y | 0) + .5];
+  }
+  return null;
+}
+// Le troupeau ne se serre pas en tas : chacun broute à sa place, à trois ou neuf cases de la
+// meneuse (la plus vieille des femelles), trois cases et demie au moins de toute autre, y reste
+// un moment, puis en prend une autre. La meneuse va au pas d'un coin de la plaine à l'autre, en
+// s'arrêtant longuement pour paître, et attend qui traîne ; le troupeau glisse avec elle. Sorti
+// de sa plaine, il y retourne.
+function troupeauDe(b) {
+  if (!b._tr || b.t - b._trT > 1) { b._tr = beasts.filter(o => o.sp === b.sp && !o.tame && !o.dead && o.pv > 0 && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 900); b._trT = b.t; }
+  return b._tr;
+}
+function paitreBramard(b, etat, tx, ty, vit) {
+  const sp = b.sp, H = troupeauDe(b), z = hAt(b.x | 0, b.y | 0);
+  const atteint = (x, y) => plaineHaute(x, y) && Math.abs(hAt(x | 0, y | 0) - z) <= 1;   // sa plaine, à son niveau
+  // buté (une marche, une rive) : au bout de quatre secondes sans avancer, il change d'idée
+  if (!b._prog || b.t - b._prog[2] > 4) {
+    if (b._prog && b._pv > 0 && Math.hypot(b.x - b._prog[0], b.y - b._prog[1]) < .6) { b.dest = null; b.spot = null; }
+    b._prog = [b.x, b.y, b.t];
+  }
+  let men = null;
+  for (const o of H) if (o.age >= sp.mat && (!men || (men.male && !o.male) || (men.male === o.male && o.age > men.age))) men = o;
+  men = men || b;
+  let e = etat, x = tx, y = ty, v = vit;
+  if (b === men) {
+    // qui traîne à plus de douze cases : elle l'attend
+    const traine = H.some(o => o !== b && o.age >= sp.mat && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 > 144);
+    if (etat === 'brouter' || b.halte > b.t || traine) { e = 'brouter'; x = b.x; y = b.y; v = 0; }
+    else {
+      if (!b.dest || (b.dest[0] - b.x) ** 2 + (b.dest[1] - b.y) ** 2 < 2.5 || b.t > b.destT) {
+        if (b.dest && Math.random() < .75) { b.halte = b.t + 15 + Math.random() * 25; b.dest = null; }   // arrivée : une longue halte
+        else { b.dest = lieuPlaine(b, 8, 16) || b.home; b.destT = b.t + 40; }
+      }
+      if (b.dest) { e = 'troupeau'; x = b.dest[0]; y = b.dest[1]; v = sp.spd * .35; } else { e = 'brouter'; x = b.x; y = b.y; v = 0; }
+    }
+  } else {
+    // sa place pour paître : près de la meneuse, loin des autres et de leurs places
+    if (!b.spot || b.t > b.spotT || (b.spot[0] - men.x) ** 2 + (b.spot[1] - men.y) ** 2 > 121) {
+      b.spot = null;
+      for (let k = 0; k < 14 && !b.spot; k++) {
+        const a = Math.random() * 6.2832, r = 3 + Math.random() * 6, px = men.x + Math.cos(a) * r, py = men.y + Math.sin(a) * r;
+        if (!atteint(px, py)) continue;
+        if (H.some(o => o !== b && ((o.x - px) ** 2 + (o.y - py) ** 2 < 12.25 || (o.spot && (o.spot[0] - px) ** 2 + (o.spot[1] - py) ** 2 < 12.25)))) continue;
+        b.spot = [px, py];
+      }
+      b.spotT = b.t + 20 + Math.random() * 25;
+    }
+    const d = b.spot ? Math.hypot(b.spot[0] - b.x, b.spot[1] - b.y) : 0;
+    if (d > 1) { e = 'troupeau'; x = b.spot[0]; y = b.spot[1]; v = sp.spd * (d > 8 ? .8 : .4); }
+    else { e = 'brouter'; x = b.x; y = b.y; v = 0; }
+  }
+  // collé à un autre : il s'écarte d'un pas
+  let sx = 0, sy = 0;
+  for (const o of H) if (o !== b) {
+    const dx = b.x - o.x, dy = b.y - o.y, d2 = dx * dx + dy * dy;
+    if (d2 < 5.76 && d2 > 1e-4) { const d = Math.sqrt(d2); sx += dx / d * (2.4 - d); sy += dy / d * (2.4 - d); }
+  }
+  if ((sx || sy) && atteint(b.x + sx * 1.5, b.y + sy * 1.5)) { x = (v ? x : b.x) + sx * 3; y = (v ? y : b.y) + sy * 3; v = Math.max(v, sp.spd * .35); if (e === 'brouter') e = 'troupeau'; }
+  // hors de sa plaine : il y retourne
+  if (!plaineHaute(b.x, b.y) && !lieuPlaine(b, 0, 3)) { const q = lieuPlaine(b, 0, 16) || b.home; x = q[0]; y = q[1]; e = 'troupeau'; v = Math.max(v, sp.spd * .6); }   // une touffe d'autre chose, il la traverse
+  b._pv = v;
+  return [e, x, y, v];
 }
 // ---------- le bramard, en volumes ----------
 // Garrot haut, dos en pente, croupe ronde ; la face longue, portée bas, sous le bouclier d'os ; la
@@ -11409,7 +12423,7 @@ function drawHud() {
   const oct = ((Math.round(ang / (Math.PI / 4)) % 8) + 8) % 8;
   const html =
     `BAIES <b>${P.baies}</b>`
-    + (P.fleches || ((porte('arme') || {}).arc && !(porte('arme') || {}).fusil) ? ` · FLÈCHES <b>${P.fleches}</b>` : '') + djHud()
+    + (P.fleches || ((porte('arme') || {}).arc && !(porte('arme') || {}).fusil) ? ` · FLÈCHES <b>${P.fleches}</b>` : '') + djHud() + escHud() + effetsHud()
     + (P.arc !== null ? ` · <b>${'█'.repeat(Math.round(Math.min(1, P.arc / ARC_TEMPS) * 6)).padEnd(6, '·')}</b>` : '')
     + (djIci() ? ` · <b style="color:#ffb45a">CENTRE DES AUTOMATES · ÉTAGE ${DJ.e}/${DJ.n}${DJ.etat.test ? ' · ESSAI' : ''}</b>` : ` · <b>${hh}:${mm}</b> · ${METEO[Meteo.vers].n}`) + (essai ? ' · <b>ESSAI</b>' : '')
     + (Autres.size ? ` · <span style="color:#8fe3ff">${Autres.size} JOUEUR${Autres.size > 1 ? 'S' : ''}</span>` : '')
@@ -11442,6 +12456,7 @@ const nourrirQ = () => { nourrir = true; };
 function actionContexte() {
   if (P.rodeo && Rodeo) return { v: 'TENIR', o: 'fougue ' + Math.round(Rodeo.fougue * 100) + ' %', f: () => {} };
   if (P.monture) return { v: 'DESCENDRE', o: nomBete(P.monture), f: () => descendre(false) };
+  if (P.peche) return actionPecheCtx();                // canne en main : l'action est à la pêche
   const cr = coursierAuContact();
   if (cr) {
     if (cr.tame) return { v: 'MONTER', o: nomBete(cr), f: () => monter(cr) };
@@ -11451,7 +12466,8 @@ function actionContexte() {
   }
   const dja = djAction(); if (dja) return dja;
   const oga = ogAction(); if (oga) return oga;
-  const nma = nmAction(); if (nma) return nma;         // parler à un nomade         // la trappe, le monte-charge, l'escalier, un coffre
+  const nma = nmAction(); if (nma) return nma;         // parler à un nomade
+  const mca = marmiteAction(); if (mca) return mca;    // la marmite — puis la trappe, le monte-charge, l'escalier, un coffre
   // au coffre d'un autre : la part qui monte, et de quoi l'emporter sans attendre
   if (raidIci() && !Raid.fini && Math.hypot(P.x - coffreRaid()[0], P.y - coffreRaid()[1]) < RAID_R + .6) {
     const pc = Math.floor(Raid.part * 100 + 1e-6);
@@ -11591,6 +12607,7 @@ function coupArme(A) {
 // Avec un arc, l'appui bande la corde et le relâchement décoche : la puissance suit le temps
 // de bande. Avec toute autre arme, l'appui frappe — dans le vide s'il n'y a personne.
 function attaquerDown() {
+  if (P.peche) rangerCanne();                          // on lâche la canne pour frapper
   const a = porte('arme');
   if (!a) { say('aucune arme en main · sautez-lui dessus', 1.6); return; }
   if (a.fusil) return djTirDown(a);                    // les armes du Centre des automates
@@ -11642,6 +12659,8 @@ function utiliser(k) {
   if (o.emp === 'grimoire') { P.equip.grimoire = id; lancerSort(); }
   else if (o.emp === 'accessoire') { P.equip.accessoire = id; siffler(); }
   else if (o.emp === 'lumiere') { P.equip.lumiere = P.equip.lumiere === id ? null : id; say(o.n + (P.equip.lumiere ? ' allumée' : ' éteinte'), 1.2); }
+  else if (o.id === 'canne') prendreCanne();
+  else if (o.id === 'marmite') poserMarmite();
   else if (o.id === 'foyer') rentrerAuCampement();
   else if (o.id === 'campement') { if (!P.camp) poserCampement(); else ouvrirSac(true, 'camp'); }
   else { P.equip[o.emp] = id; say(o.n + (o.emp === 'armure' ? ' portée' : ' en main'), 1.2); }
@@ -12970,6 +13989,9 @@ void main() { o = uC; }`;
           o.w, o.h, o.c, 0, 0, hc, 0, 0, 0);
     }
     for (const o of djDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
+    for (const o of marmiteDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
+    for (const o of pecheDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
+    for (const o of escDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, 1, 0, L_FIXE, 0, 0, 0);
     for (const o of ogDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const f of TIRS) {
       const n = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / n, f.vy / n, f.vz / n];
@@ -13086,6 +14108,7 @@ void main() { o = uC; }`;
     for (const l of LASERS) if ((l.ax - ex) ** 2 + (l.ay - ey) ** 2 < r2)
       for (const [A, B] of rayonsLaser(l)) l.etat === 'on' ? traitSeul(A, B, 2.4, 1, .2, .14, .9) : traitSeul(A, B, 1, 1, .72, .45, .4);
     for (const R of djTraits()) traitSeul(R.a, R.b, R.w, R.c[0], R.c[1], R.c[2], Math.max(0, R.al));
+    for (const R of pecheTraits()) traitSeul(R.a, R.b, R.w, R.c[0], R.c[1], R.c[2], R.al);
     gl.disable(gl.BLEND); gl.depthMask(true);
     gl.bindVertexArray(null);
     facesDern = stats.triangles;
@@ -13218,7 +14241,9 @@ function photo() {
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
-    fleches: P.fleches, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
+    poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
+    denrees: Object.assign({}, P.denrees), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    fleches: P.fleches, baumes: P.baumes, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
     vies: lives,
@@ -13251,7 +14276,7 @@ function photo() {
 }
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
-const signature = () => JSON.stringify([P.sac, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baies, lives, Math.round(P.pv * 10),
+const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.plats.length, P.recettes, P.marmite, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.pillages.length, djIci() ? [DJ.e, DJ.etat.ouverts.length, DJ.etat.vaincus.length] : 0, raidIci() ? [Raid.fini, Raid.ko.length, Math.round(Raid.part * 100)] : 0, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
@@ -13293,8 +14318,25 @@ function appliquer(d, vivantes) {
   P.ogConf = (Array.isArray(d.ogConf) ? d.ogConf : []).filter(e => Array.isArray(e) && (typeof e[0] === 'number' || typeof e[0] === 'string'))
     .slice(0, 20).map(e => [e[0], nb(e[1], 0, 1, 0)]);
   nmAppliquer(d.nm);                                   // ce que les nomades savent de vous
-  P.fleches = nb(d.fleches, 0, 1e5, 0) | 0;
+  P.fleches = nb(d.fleches, 0, 1e5, 0) | 0; P.baumes = nb(d.baumes, 0, 1e4, 0) | 0;
   P.baies = nb(d.baies, 0, 1e5, 3) | 0;
+  P.poissons = {}; P.carnetPeche = {};
+  for (const f of POISSONS) {
+    const n = nb(d.poissons && d.poissons[f.id], 0, 1e4, 0) | 0; if (n) P.poissons[f.id] = n;
+    const c = d.carnetPeche && d.carnetPeche[f.id];
+    if (c && typeof c === 'object' && nb(c.n, 0, 1e6, 0) >= 1) P.carnetPeche[f.id] = { n: nb(c.n, 1, 1e6, 1) | 0, rec: nb(c.rec, 0, 999, 0) | 0 };
+  }
+  // la cuisine : les denrées connues, des plats aux champs bornés, le carnet, la marmite
+  P.denrees = {};
+  for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
+  P.plats = (Array.isArray(d.plats) ? d.plats : []).filter(p => p && typeof p.n === 'string' && typeof p.c === 'string').slice(0, PLATS_MAX)
+    .map(p => ({ c: p.c.slice(0, 40), n: p.n.slice(0, 60), q: nb(p.q, 1, 5, 1) | 0, soin: nb(p.soin, 0, 1, 0), tag: EFFETS[p.tag] ? p.tag : null,
+      d: nb(p.d, 0, 1200, 0) | 0, so: p.so ? 1 : 0, col: Array.isArray(p.col) ? p.col.slice(0, 3).map(v => nb(v, 0, 255, 128) | 0) : [196, 130, 80] }));
+  P.recettes = {};
+  if (d.recettes && typeof d.recettes === 'object') for (const [k, r] of Object.entries(d.recettes).slice(0, 300))
+    if (r && typeof r.n === 'string') P.recettes[String(k).slice(0, 40)] = { n: r.n.slice(0, 60), q: nb(r.q, 1, 5, 1) | 0, f: nb(r.f, 1, 1e6, 1) | 0 };
+  const mm = d.marmite;
+  P.marmite = mm && Number.isInteger(mm.g) && [mm.x, mm.y, mm.z].every(Number.isFinite) ? { g: mm.g, x: mm.x, y: mm.y, z: mm.z } : null;
   P.pv = nb(d.pv, .05, 1, 1);
   P.mana = nb(d.mana, 0, 100, 100);
   lives = nb(d.vies, 1, 3, 3) | 0;
@@ -13916,7 +14958,7 @@ globalThis.__ISO = { P, proj, depth, hAt, blockH, floorUnder, blockedAt, camPris
   get horloge(){return horloge}, majSac, ouvrirSac, get sacOuvert(){return sacOuvert},
   get ongletSac(){return ongletSac}, choisirOnglet, clicSac, icone, DESSINS, get choixSac(){return choixSac},
   get choixEtabli(){return choixEtabli}, get filtreEtabli(){return filtreEtabli} };
-globalThis.__COMP = { P, ROLES, coutLien, LIEN_FACTEUR, EN_JEU_MAX, enJeu, liensLibres, chanceLien, lier, apprivoiser, relacher, sortirCompagne, rentrerCompagne,
+globalThis.__COMP = { P, ROLES, coutLien, LIEN_FACTEUR, EN_JEU_MAX, enJeu, liensLibres, chanceLien, lier, apprivoiser, relacher, sortirCompagne, rentrerCompagne, releverCompagne, compagneEnTravers, compagneEnVue, menaceEtProie,
   assommer, libererCompagne, siffler, agresseur, etatCompagne, chercherTache, majRecolte, rejoindre, majCompagnes, changerRole,
   nourrirCompagne, installerCompagnes, anneauLien, populationSauvage, avisComp, texteAvisComp, placePres, majJaugesCompagnes,
   get choixComp(){return choixComp}, set choixComp(v){choixComp=v}, get sifflerQ(){return sifflerQ}, set nourrir(v){nourrir=v},
@@ -13952,10 +14994,16 @@ globalThis.__BIOMES = { RARES, AMBIANCE, HABITATS_RARES, BOUE, CHALEUR, BRULURE,
   poserBiomesRares, lueursRares, majBiome, blocAtlas, ligneBiome, famille, rareDe, Flo, ESP, TEX, TEX_HAUT, TEX_COTE, ouvrirPortail,
   get RaresIle(){return RaresIle}, get biomeIci(){return biomeIci}, set biomeIci(v){biomeIci=v},
   set raresAnnonce(v){raresAnnonce=v}, get feux(){return feux}, majFeux, get parts(){return parts} };
+globalThis.__CUISINE = { INGR, VIANDES, PRODUITS, REMARQUABLES, preparer, cuire, ajouterMarmite, get marmiteSel(){return marmiteSel}, set marmiteSel(v){marmiteSel=v},
+  presDuFeu, poserMarmite, marmiteAction, mangerPlat, mangerCru, effet, qteIngr, gagnerDenree, viandeDe, produitDe, blocRecettes, pageCuisine };
+globalThis.__PECHE = { POISSONS, get Ombres(){return Ombres}, set Ombres(v){Ombres=v}, habitatEau, quandOk, tirerPoisson, majPeche, lancerLigne,
+  ramener, ferrer, prendreCanne, rangerCanne, actionPecheCtx, boutCanne, pecheDecor, pecheTraits, mangerPoisson, poissonADonner, blocPeche, EauT };
 globalThis.__DOUX = { get Fourmi(){return Fourmi}, set Fourmi(v){Fourmi=v}, ogAction, ogPuiser, ogMaj, instinctDoux, instinctOglodon, poserFourmiliere,
   ogloGraine, boireNectar, peuplerDoux, osDoux, guideDe, NIV_RAMPANTS, NIV_AUTOMATES, nivEspece, ROCHE, get especesIle(){return especesIle} };
 globalThis.__VISEE = { ligneDeVue, voitCible, posteDeTir, TIRS, majTirs, emitTirs, tirer, lober, exploser, toucheObus, rayonsVisee, finesse, gardeRequise,
   bestiaireGraine, tireursGraine, betesRaresGraine, NIV_LOIN, capEsp };
+globalThis.__ESCOUADE = { get Escouade(){return Escouade}, set Escouade(v){Escouade=v}, get escAttente(){return escAttente}, set escAttente(v){escAttente=v},
+  NIV_ESCOUADE, compoEscouade, frappeEscouade, blindeEscouade, lieuPortail, lancerEscouade, sortirMembre, majEscouade, escDecor, escHud, vivantsEscouade };
 globalThis.__COURSIER = { coursier, majCoursier, coursierBones, pattesCoursier, monter, descendre, majRodeo, coursierAuContact, nomBete, icone,
   get Rodeo(){return Rodeo}, set actTenu(v){actTenu=v}, get actTenu(){return actTenu}, monture, AURORE, DITS_ETAT, capEsp, populationSauvage };
 globalThis.__HUD = { actionContexte, faireAction, attaquerDown, attaquerUp, frapper, agir, utiliser, assignerRaccourci, rangerRaccourci,
