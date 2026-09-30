@@ -493,6 +493,7 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 | Gelée-lanterne | 2 | longue |
 | tout le reste (grillade, brochette, compote, infusion, poêlée, rôti, salade, plat du voyageur…) | 1 | chaud |
 
+- **Le garde-manger suit la règle des matières** (viandes, produits de la flore, poissons ; baies et nectar en sont déjà) : au **retour d'expédition**, ce qu'en porte le sac passe au **cellier du coffre**, dans la même part que les matières (les cœurs perdus en coûtent autant) ; **la chute** (trois cœurs perdus sans campement planté) le vide ; il se **répartit** au campement (section 35) ; **près du feu**, la cuisine compte le cellier et y puise d'abord ; une compagne **au campement** y dépose ce qu'elle trouve. Le pillage ne touche pas le cellier. Pour régler : `P.cellier`, `sacIngr`, `metSacIngr`.
 - **Manger** : le plat servi, ou une part du sac (onglet Cuisine ou Sac). Le garde-manger se mange aussi cru : un appui (moitié moins de vie ; la viande, jamais).
 - **Les compagnes** : le plat servi se donne depuis l'onglet Cuisine ; G donne une part du plat le plus modeste du sac. Elle est soignée, et n'a plus faim de quatre à douze minutes.
 - **Le livre de recettes** (onglet Cuisine, il a quitté le Journal) : chaque plat trouvé, ses meilleures étoiles, ce qu'il donne en parts et en garde, combien de fois on l'a préparé, et les ingrédients de sa meilleure préparation avec ce qu'on en a (en rouge, ce qui manque). **Marmite** y met ces ingrédients d'un coup. Les recettes notées avant cette version n'ont pas d'ingrédients : les refaire une fois suffit.
@@ -550,11 +551,12 @@ Chaque compagne en **Récolte** reçoit une cible, quelle que soit son espèce :
 - **Les notes** (1 à 5, en points ●●●○○ dans les listes) : une récolte rend le pied × **0,2 / 0,35 / 0,55 / 1 / 1,5**. La note 4 fait autant que vous, la 5 moitié plus. Les baies : 1 à 3 par buisson selon la note. La chasse : les os d'une prise suivent la note.
 - **Les ingrédients trouvés en récolte** (produit d'une plante, viande d'une prise) : la chance suit la note de la récolte en cours, ×0,3 / 0,45 / 0,65 / 1 / 1,25 de la vôtre (`CHANCE_APT`). Avant, c'était ×0,6 pour toutes.
 - **Ce qu'elles rapportent s'affiche comme pour vous** : une carte d'avis sous le HUD, le **nom de la compagne en titre**, puis chaque gain avec son icône (« Givre · +5 pierres · +1 noix de palme · +2 baies », « au coffre » si elle travaille pour le campement). Les gains d'une même compagne se cumulent quatre secondes dans sa carte ; la ligne rose du HUD a disparu.
-- **La chasse** n'est proposée qu'aux espèces qui chassent déjà (traqueur, spectre, varan, salamandre, félin, traceur). Une chasseuse mise à autre chose ne court plus le gibier pour le travail, mais chasse encore quand elle a faim.
+- **La chasse** : les chasseuses (traqueur, spectre, varan, salamandre, félin) et **tous les automates**, chacun à sa note (tireur d'élite 4, traceur 4, mercenaire 3, sentinelle 2, mortier 2, moissonneur 1). Un automate lié chasse **tout ce qui bouge** : bêtes de toutes espèces, prédateurs et automates sauvages compris (ni les bêtes des Nomades, ni la gardienne d'un campement) ; un automate abattu rapporte ses éclats, sa pierre et sa ferraille ; le moissonneur lié lance sa faucille (tir faible, portée 5 : `tirLie`), que le moissonneur sauvage n'a pas. Une chasseuse mise à autre chose ne court plus le gibier pour le travail, mais chasse encore quand elle a faim.
 - **Rien de sa cible dans son rayon** : elle explore vingt secondes, puis prend sa récolte la mieux notée qu'elle trouve à portée, et le dit (une fois toutes les deux minutes). Elle revient à sa cible dès qu'elle en voit.
 - **Le bond de lumière** (cerf de verre seulement) : il atteint ce qui pousse sur les **îles volantes** (druses, mousse céleste). Il se charge de lumière une demi-seconde, se brise en éclats, reparaît sur la dalle à côté de la plante, la récolte, puis redescend de même là d'où il était parti. Il ne marche pas là-haut : tout autre ouvrage, ou poussé hors de la dalle, et il redescend. Pour régler : `BONDIT`, `monterDalle`, `descendreDalle`.
 - **La défense** : dégâts d'une compagne = 0,06 + 0,045 × note (défense) ; 0,10 + 0,05 × note (+0,05 pour une chasseuse) quand elle attaque. La robustesse de l'espèce ne change pas. La note est affichée à côté de « Défense » dans la liste Rôle.
-- **Au campement en votre absence** : 4 de sa récolte par minute × le coefficient de sa note (1,5 os par minute pour la chasse).
+- **Où va la récolte** : en **autonome** (toute l'île) et **avec le joueur** (12 cases autour de vous), au **sac** ; **au campement** (16 cases autour du feu), au **coffre**, tant que vous êtes sur l'île du campement. Les baies de l'oglodon deviennent du nectar (moitié), partout. Les ingrédients trouvés vont toujours au garde-manger (il n'a pas de coffre).
+- **Au campement en votre absence** : seulement celles restées dehors au départ (pas celles rentrées au sac), en Récolte, pas assommées. Au retour sur l'île : 4 de sa récolte par minute × le coefficient de sa note (1,5 os par minute pour la chasse), 90 minutes comptées au plus, une fois par départ ; les baies de l'oglodon, en nectar. Les gardiennes ne rapportent rien mais reviennent rassasiées. Pas d'ingrédients en absence.
 - **Équilibre** : meilleure note de matière + défense = 6 à 8 ; la chasse compte à part. Le moissonneur, rare, est le seul généraliste fort, et nul en défense.
 - Pour régler : `APT` et `COEF_APT` (section « les aptitudes des compagnes » d'`index.html`).
 
@@ -577,20 +579,65 @@ Chaque compagne en **Récolte** reçoit une cible, quelle que soit son espèce :
 | Varan | 1 | 2 | 1 | 1 | 1 | 1 | 4 | 4 |
 | Salamandre | 2 | 1 | 1 | 1 | 2 | 2 | 4 | 4 |
 | Félin de brume | 1 | 1 | 1 | 2 | 2 | 1 | 5 | 4 |
-| Moissonneur | 5 | 5 | 5 | 2 | 3 | 4 | — | 1 |
-| Traceur | 1 | 2 | 1 | 1 | 2 | 4 | 5 | 3 |
-| Mercenaire | 1 | 1 | 1 | 1 | 1 | 3 | — | 5 |
-| Sentinelle | 1 | 2 | 1 | 1 | 1 | 3 | — | 5 |
-| Tireur d'élite | 1 | 1 | 1 | 1 | 1 | 2 | — | 5 |
-| Mortier | 1 | 3 | 1 | 1 | 1 | 3 | — | 5 |
+| Moissonneur | 5 | 5 | 5 | 2 | 3 | 4 | 1 | 1 |
+| Traceur | 1 | 2 | 1 | 1 | 2 | 4 | 4 | 3 |
+| Mercenaire | 1 | 1 | 1 | 1 | 1 | 3 | 3 | 5 |
+| Sentinelle | 1 | 2 | 1 | 1 | 1 | 3 | 2 | 5 |
+| Tireur d'élite | 1 | 1 | 1 | 1 | 1 | 2 | 4 | 5 |
+| Mortier | 1 | 3 | 1 | 1 | 1 | 3 | 2 | 5 |
 
 
 ## 35. Le coffre : répartir sac et campement
 
-Onglet **Campement**, bloc Coffre. **Tout déposer** et **Tout reprendre** restent ; dessous, une ligne par ressource présente au sac ou au coffre (bois, pierre, fibre, os, éclats, ferraille, baies, nectar) :
+Onglet **Campement**, case **Coffre** (section 37). **Tout déposer** et **Tout reprendre** restent (garde-manger compris) ; dessous, une ligne par ressource présente au sac ou au coffre, en deux groupes : **Matières** (bois, pierre, fibre, os, éclats, ferraille, baies, nectar) et **Garde-manger** (viandes, produits, poissons, au cellier du coffre) :
 
 - **le curseur** dit combien on garde **au sac** (à droite) ; le reste va **au coffre** (à gauche). Les chiffres suivent pendant qu'on glisse ; le transfert se fait au lâcher ;
 - **‹ et ›** déplacent une unité : ‹ vers le coffre, › vers le sac ;
 - un avis confirme (« +5 bois · repris au coffre », « 3 pierres au coffre »).
 
 Seulement au campement (curseurs grisés ailleurs). Le panneau ne se réécrit pas pendant qu'on tient un curseur, même si une compagne rapporte quelque chose. Pour régler : `partager` et `blocPartage` dans `index.html`.
+
+
+## 36. Qui chasse qui
+
+| Chasseur | Proies |
+|---|---|
+| Traqueur | brouteur, glaneur, bossu, coursier, cotonnier, carillonneur, **vesseron** |
+| Spectre (nuit) | brouteur, glaneur, bossu, traqueur, coursier, coursier orange, cotonnier, carillonneur, lentigrade, **bramard** |
+| Félin de brume | brouteur, glaneur, bossu, coursier, cotonnier, carillonneur, lentigrade, crapaud, cerf, **vesseron** |
+| Varan d'ocre | glaneur, brouteur, crapaud, cotonnier |
+| Salamandre (nuit) | coursier rouge, traqueur, glaneur, brouteur, varan, cotonnier, carillonneur, **oglodon** |
+| Traceur | brouteur, glaneur, bossu, cotonnier, carillonneur, lentigrade (vous, sur l'île des automates) |
+| **Mercenaire** | les joueurs et leurs compagnes d'abord ; personne en vue : **bossu, lentigrade, crapaud, bramard** |
+| **Tireur d'élite** | les joueurs et leurs compagnes d'abord ; personne en vue : **les quatre coursiers**, aurore comprise (le seul à l'atteindre) |
+| Sentinelle, mortier, moissonneur | pas de gibier (la garde de l'arche, le siège, rien) |
+| Automate lié, mis en Chasse | tout ce qui bouge (section 34) |
+
+- En gras, les ajouts : plus aucune bête n'échappe à tout prédateur. L'oglodon riposte à chaque coup (une chance sur deux de blesser la salamandre) et encaisse (robustesse 1,8) : la chasse lui coûte cher.
+- Les prises des automates sauvages ne laissent ni viande ni os. Autour des automates d'élite (au-delà du 8ᵉ saut), le gros gibier et les coursiers se raréfient.
+- Le mercenaire et le tireur ont une liste de gibier mais ne comptent pas comme prédateurs de la faune (`predateur`) : la sentinelle ne leur tire pas dessus, et vos compagnes en défense ne les prennent pas pour des chasseurs.
+- Pour régler : le champ `chasse` de chaque espèce (SPEC).
+
+
+## 37. Le menu du campement, en cases
+
+L'onglet **Campement** se lit comme l'établi : à gauche, l'île du campement puis **une case par action** (icône et nom) ; un appui sur une case l'affiche **dans le panneau d'à côté** (dessous, sur téléphone, où la page y descend d'elle-même), avec ce qu'elle fait et son bouton.
+
+| Case | Ce que montre le panneau |
+|---|---|
+| Coffre | la réserve, Tout déposer / Tout reprendre, la répartition sac ↔ coffre (section 35) |
+| Se reposer | santé et souffle refaits, compagnes rassasiées (au campement) |
+| Cuisiner | ouvre l'onglet Cuisine |
+| Partir **!** | une île au hasard, exploration + 1 (près d'une arche) |
+| Viser une île | le journal, s'il tient des graines gardées |
+| Rentrer **!** | la pierre de foyer (irréversible seulement depuis une autre île) |
+| Améliorer **!** | le niveau suivant, son coût, ce qui manque |
+| Reprendre **!** | le campement retourne au sac |
+| Compagnes | celles qui tiennent le campement, le bilan de la dernière absence |
+| Exploration | le niveau, le danger, la barrière, l'arche de l'île, le dernier retour |
+| Pillage | gardiennes, règle, ce qu'on vous a pris |
+
+- Une case **grisée** : l'action n'est pas possible ici ; son panneau dit pourquoi.
+- **!** (en braise) : l'action ne se défait pas. Son bouton demande **un second appui** dans les cinq secondes (« Confirmer », et le panneau rappelle ce qu'on perd).
+- Trois vignettes neuves : l'arche (`portail`), le coffre (`coffre`), la boussole (`boussole`).
+- Pour régler : la liste `A` de `pageCampement`, et `detailCamp` / `faireCamp` dans `index.html`.

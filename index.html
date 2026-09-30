@@ -181,6 +181,13 @@
   #sac .ingr img{width:14px;height:14px;image-rendering:pixelated;} #sac .ingr .manque{color:#ff9a7a;}
   #sac .obj.epi{background:rgba(255,210,125,.06);border-radius:8px;}
   #sac .obj button.epingle{padding:6px 8px;color:#8d9ab4;} #sac .obj button.epingle[aria-pressed="true"]{color:#ffd27d;border-color:rgba(255,210,125,.55);}
+  #sac .tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:14px;}
+  #sac .tuile{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px 8px;border-radius:10px;
+    background:#161b27;border:1px solid var(--trait);color:var(--texte);font-size:12px;font-weight:600;cursor:pointer;text-align:center;}
+  #sac .tuile .ic{width:32px;height:32px;} #sac .tuile:hover{background:#1c2232;}
+  #sac .tuile.choisie{border-color:var(--or);box-shadow:inset 0 0 0 1px var(--or);} #sac .tuile.eteinte{opacity:.5;}
+  #sac .tuile .irr{position:absolute;top:3px;right:7px;color:var(--braise);font-size:12px;}
+  #sac .genre.irr{color:var(--braise);border-color:var(--braise);} #sac .note.irr{color:var(--braise);}
   #sac .partage{display:flex;flex-direction:column;gap:4px;margin:8px 0 6px;}
   #sac .pl{display:grid;grid-template-columns:20px minmax(46px,auto) 36px 28px 1fr 28px 36px;align-items:center;gap:6px;font-size:12.5px;}
   #sac .pl.tete{color:var(--texte2);font-size:11px;} #sac .pl b{text-align:center;font-variant-numeric:tabular-nums;}
@@ -1913,7 +1920,7 @@ P.variantes = [];                                // le carnet : [espèce:variant
 P.ogConf = [];                                   // la confiance des colonies d'oglodons : [graine, 0 à 1]
 P.poissons = {}; P.carnetPeche = {};             // les poissons du sac, et le carnet de pêche : { id: { n, rec } }
 P.peche = null;                                  // la canne en main (voir LA PÊCHE)
-P.denrees = {}; P.plats = []; P.recettes = {};   // la cuisine : viandes et produits de la flore, les plats, le carnet
+P.denrees = {}; P.cellier = {}; P.plats = []; P.recettes = {};   // la cuisine : viandes et produits de la flore, les plats, le carnet
 P.marmite = null; P.effets = {};                 // la marmite posée { g, x, y, z }, et les effets des plats : { effet: fin }
 P.objets = {};                                   // ce qui a déjà été fabriqué
 P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.baumes = 0; P.arc = null;
@@ -3381,7 +3388,9 @@ function travailAbsence(liste, depuis) {
     const k = recolteDe(r), cf = coefApt(r.esp, k);
     if (!specById[r.esp] || !cf) continue;
     let tot = 0;
-    { const n = Math.floor(min * (k === 'os' ? 1.5 : 4) * cf); if (n > 0) { gain[k] = (gain[k] || 0) + n; tot += n; } }
+    { let n = Math.floor(min * (k === 'os' ? 1.5 : 4) * cf), k2 = k;
+      if (k === 'baies' && specById[r.esp].nectar && n > 0) { k2 = 'nectar'; n = Math.max(1, Math.round(n * .5)); }   // l'oglodon en fait du nectar, comme sur place
+      if (n > 0) { gain[k2] = (gain[k2] || 0) + n; tot += n; } }
     if (tot) qui.push(r.nom || specById[r.esp].n);
   }
   for (const k in gain) P.coffre[k] = (P.coffre[k] || 0) + gain[k];
@@ -3753,6 +3762,7 @@ function deposerCoffre(r) {
     const q = auSac(k); if (q <= 0) continue;
     P.coffre[k] = (P.coffre[k] || 0) + q; metSac(k, 0); n += q;
   }
+  if (!r) for (const id of INGR_GARDE()) { const q = sacIngr(id); if (q > 0) { P.cellier[id] = (P.cellier[id] || 0) + q; metSacIngr(id, 0); n += q; } }
   if (!n) { say('rien à déposer', 1.6); return false; }
   say(n + ' au coffre', 2); majSac();
   return true;
@@ -3760,23 +3770,28 @@ function deposerCoffre(r) {
 // Répartir une ressource entre le sac et le coffre : v, ce qui reste au sac ; le reste au coffre.
 function partager(r, v) {
   if (!P.camp || !auCamp()) { say('le coffre est au campement', 2.2); majSac(); return false; }
-  const tot = auSac(r) + (P.coffre[r] || 0), n = Math.max(0, Math.min(tot, Math.round(v))), d = n - auSac(r);
+  const ing = ingrGarde(r), S = ing ? sacIngr(r) : auSac(r), C = ing ? P.cellier : P.coffre;
+  const tot = S + (C[r] || 0), n = Math.max(0, Math.min(tot, Math.round(v))), d = n - S;
   if (!d) return false;
-  metSac(r, n); P.coffre[r] = tot - n;
-  const mot = r === 'baies' ? (Math.abs(d) > 1 ? 'baies' : 'baie') : (Math.abs(d) > 1 && PLURIEL[r] ? PLURIEL[r] : RES[r] || r);
+  if (ing) metSacIngr(r, n); else metSac(r, n);
+  C[r] = tot - n; if (ing && !C[r]) delete C[r];
+  const mot = ing ? INGR[r].n.toLowerCase() : r === 'baies' ? (Math.abs(d) > 1 ? 'baies' : 'baie') : (Math.abs(d) > 1 && PLURIEL[r] ? PLURIEL[r] : RES[r] || r);
   say(d > 0 ? '+' + d + ' ' + mot + ' · repris au coffre' : -d + ' ' + mot + ' au coffre', 1.4);
   majSac(); return true;
 }
 function blocPartage(proche) {
-  const L = COFFRE_R.filter(r => auSac(r) + (P.coffre[r] || 0) > 0);
-  if (!L.length) return '';
   const dis = proche ? '' : ' disabled';
-  return `<div class="partage"><div class="pl tete"><span></span><span></span><b>Coffre</b><span></span><span></span><span></span><b>Sac</b></div>`
-    + L.map(r => { const s = auSac(r), c = P.coffre[r] || 0, u = icone(r), n = r === 'baies' ? 'Baies' : NOM_APT[r] || RES[r];
-      return `<div class="pl">${u ? `<img src="${u}" alt="">` : '<span></span>'}<span>${ESC(n)}</span><b data-pc="${r}">${c}</b>`
-        + `<button data-pas="${r}:-1"${dis || !s ? ' disabled' : ''} aria-label="Un de moins au sac">‹</button>`
-        + `<input type="range" min="0" max="${s + c}" step="1" value="${s}" data-partage="${r}"${dis} aria-label="${ESC(n)} gardés au sac">`
-        + `<button data-pas="${r}:1"${dis || !c ? ' disabled' : ''} aria-label="Un de plus au sac">›</button><b data-ps="${r}">${s}</b></div>`; }).join('')
+  const ligne = (r, s, c, u, n) => `<div class="pl">${u ? `<img src="${u}" alt="">` : '<span></span>'}<span>${ESC(n)}</span><b data-pc="${r}">${c}</b>`
+    + `<button data-pas="${r}:-1"${dis || !s ? ' disabled' : ''} aria-label="Un de moins au sac">‹</button>`
+    + `<input type="range" min="0" max="${s + c}" step="1" value="${s}" data-partage="${r}"${dis} aria-label="${ESC(n)} gardés au sac">`
+    + `<button data-pas="${r}:1"${dis || !c ? ' disabled' : ''} aria-label="Un de plus au sac">›</button><b data-ps="${r}">${s}</b></div>`;
+  const M = COFFRE_R.filter(r => auSac(r) + (P.coffre[r] || 0) > 0);
+  const G = INGR_GARDE().filter(id => sacIngr(id) + (P.cellier[id] || 0) > 0);
+  if (!M.length && !G.length) return '';
+  const tete = x => `<div class="pl tete"><span></span><span>${x}</span><b>Coffre</b><span></span><span></span><span></span><b>Sac</b></div>`;
+  return `<div class="partage">`
+    + (M.length ? tete('Matières') + M.map(r => ligne(r, auSac(r), P.coffre[r] || 0, icone(r), r === 'baies' ? 'Baies' : NOM_APT[r] || RES[r])).join('') : '')
+    + (G.length ? tete('Garde-manger') + G.map(id => ligne(id, sacIngr(id), P.cellier[id] || 0, icone(icIngr(id)), INGR[id].court)).join('') : '')
     + `</div>`;
 }
 function reprendreCoffre(r) {
@@ -3787,6 +3802,7 @@ function reprendreCoffre(r) {
     const q = P.coffre[k] || 0; if (q <= 0) continue;
     metSac(k, auSac(k) + q); P.coffre[k] = 0; n += q;
   }
+  if (!r) { for (const id in P.cellier) if (ingrGarde(id) && P.cellier[id] > 0) { metSacIngr(id, sacIngr(id) + P.cellier[id]); n += P.cellier[id]; } P.cellier = {}; }
   if (!n) { say('le coffre est vide', 1.6); return false; }
   say(n + ' repris au coffre', 2); majSac();
   return true;
@@ -3808,6 +3824,13 @@ function clotureExpedition() {
     if (g) { P.coffre[r] = (P.coffre[r] || 0) + g; b.garde[r] = g; }
     if (q - g) b.perdu[r] = q - g;
     metSac(r, 0);
+  }
+  for (const id of INGR_GARDE()) {                     // le garde-manger, à la même règle
+    const q = sacIngr(id); if (!q) continue;
+    const g = Math.floor(q * part);
+    if (g) { P.cellier[id] = (P.cellier[id] || 0) + g; b.garde['i:' + id] = g; }
+    if (q - g) b.perdu['i:' + id] = q - g;
+    metSacIngr(id, 0);
   }
   e.coeurs = 0;
   bilanExp = b;
@@ -4701,6 +4724,19 @@ const DESSINS = {
     for (let y = 2; y <= 13; y++) { const e = y < 9 ? 5 : Math.max(0, 5 - (y - 8)); d.rect(8 - e, y, 7 + e, y, PIX.os); }
     d.ligne(7, 3, 7, 12, PIX.cuir); d.ligne(8, 3, 8, 12, PIX.cuirC); d.ligne(3, 6, 12, 6, PIX.cuir);
   },
+  portail: d => {                                                    // une arche de pierre, et sa lueur
+    d.rect(4, 5, 11, 14, PIX.violet); d.rect(5, 6, 10, 14, PIX.eclatC);
+    d.rect(2, 4, 3, 14, PIX.pierre); d.rect(12, 4, 13, 14, PIX.pierre); d.ligne(3, 3, 12, 3, PIX.pierre); d.ligne(4, 2, 11, 2, PIX.pierreC);
+    d.ligne(1, 14, 14, 14, PIX.gris);
+  },
+  coffre: d => {                                                     // un coffre cerclé, sa serrure dorée
+    d.rect(2, 7, 13, 13, PIX.bois); d.rect(2, 4, 13, 6, PIX.boisC); d.ligne(2, 7, 13, 7, PIX.boisF); d.ligne(2, 13, 13, 13, PIX.boisF);
+    d.rect(4, 4, 4, 13, PIX.gris); d.rect(11, 4, 11, 13, PIX.gris); d.rect(7, 7, 8, 9, PIX.or);
+  },
+  boussole: d => {                                                   // une boussole : le nord en rouge
+    d.disque(8, 8, 6.4, PIX.cuir); d.disque(8, 8, 5.1, PIX.papier);
+    d.ligne(8, 4, 8, 7, PIX.rouge); d.ligne(8, 9, 8, 12, PIX.gris); d.net(8, 8, PIX.nuit);
+  },
   role_repos: d => {                                                 // un croissant de lune, et un z
     d.disque(7, 9, 5.4, PIX.orC); d.disque(9.8, 7, 4.6, null);
     for (const [x, y] of [[11, 1], [12, 1], [13, 1], [12, 2], [11, 3], [12, 3], [13, 3]]) d.net(x, y, PIX.papier);
@@ -4957,9 +4993,9 @@ function pageSac() {
     + `<h3>Cases du bord droit</h3><div class="rangee">${cases}</div>`
     + `<h3>Réserves</h3><div class="rangee">${reserves}</div>`
     + (P.sac.nectar > 0 || essai ? `<button class="btn" data-boire="1" style="margin-top:8px">Boire du nectar · +35 % de vie · N</button>` : '')
-    + (() => { const L = Object.keys(INGR).filter(id => INGR[id].src !== 'baie' && INGR[id].src !== 'nectar' && qteIngr(id) > 0);
+    + (() => { const L = INGR_GARDE().filter(id => sacIngr(id) > 0);
         return L.length ? `<h3>Garde-manger</h3><div class="rangee">` + L.map(id =>
-          `<div class="emplacement">${caseObjet(icIngr(id), { nb: qteIngr(id), attr: ` data-cru="${id}"`, label: INGR[id].n + (INGR[id].fam === 'viande' ? ' : à cuire' : ' : manger cru') })}<span>${ESC(INGR[id].court)}</span></div>`).join('')
+          `<div class="emplacement">${caseObjet(icIngr(id), { nb: sacIngr(id), attr: ` data-cru="${id}"`, label: INGR[id].n + (INGR[id].fam === 'viande' ? ' : à cuire' : ' : manger cru') })}<span>${ESC(INGR[id].court)}</span></div>`).join('')
           + `</div><p class="note" style="margin:4px 2px 0">Un appui : on mange cru (la viande, jamais). Pour cuisiner : onglet Cuisine, près d'un feu.</p>` : ''; })()
     + blocPlats() + `</div>`
     + `<div class="col"><h3>Matières</h3>${noteReserve()}<div class="rangee">${matieres}</div>`
@@ -5175,26 +5211,26 @@ function pageCampement() {
   const conf = maintenantSac() < confirmeCamp;
   const etat = ici ? (proche ? 'vous y êtes' : 'sur cette île, à ' + Math.round(Math.hypot(P.x - P.camp.x, P.y - P.camp.y)) + ' pas')
     : 'sur une autre île';
-  return `<div class="sac-corps lignes">`
-    + `<div class="fiche">${caseObjet('campement', { taille: 'grande', inerte: true })}`
-    + `<div class="fiche-texte"><h4>Île ${ESC(nomIle(P.camp.graine))}</h4>`
-    + `<p>${ESC(paletteCamp().n)} · ${ESC(etat)}</p>`
-    + `<span class="genre">${ici ? 'case ' + (P.camp.x | 0) + ', ' + (P.camp.y | 0) : 'île actuelle : ' + ESC(nomIle(SEED))}</span></div></div>`
-    + `<h3>Coffre</h3>`
+  // Chaque action est une case (icône et nom) ; un appui la montre dans le panneau d'à côté, avec
+  // son bouton. Ce qui ne se défait pas (partir, rentrer d'ailleurs, améliorer, reprendre) demande
+  // un second appui.
+  const corpsCoffre = ''
     + `<div class="obj"><div><div class="n">Réserve du campement${coffreTotal() ? ' · ' + coffreTotal() : ''}</div>`
     + `<div class="d">${coffreTotal()
         ? ESC(COFFRE_R.filter(r => P.coffre[r]).map(r => (RES[r] || 'baies') + ' ' + P.coffre[r]).join(' · '))
         : 'vide · ce qu\'on y dépose ne repart plus en expédition'}`
       + `${proche ? '' : ' · il faut être au campement'}</div></div>`
-    + `<button data-coffre="deposer"${proche && sacTotal() ? '' : ' disabled'}>Tout déposer</button>`
-    + `<button data-coffre="reprendre"${proche && coffreTotal() ? '' : ' disabled'}>Tout reprendre</button></div>`
+    + `<button data-coffre="deposer"${proche && sacTotal() + sacIngrTotal() ? '' : ' disabled'}>Tout déposer</button>`
+    + `<button data-coffre="reprendre"${proche && coffreTotal() + cellierTotal() ? '' : ' disabled'}>Tout reprendre</button></div>`
     + blocPartage(proche)
+;
+  const corpsComp = ''
     + (() => {
         // qui tient le campement, et ce qu'elles ont fait pendant la dernière absence
         const gens = P.compagnes.filter(c => c.mode === 'camp');
         if (!gens.length && !bilanAbsence) return '';
         const qui = gens.map(c => ESC(c.nom) + ' (' + (c.role === 'recolte' ? 'récolte' : 'garde') + ')').join(', ');
-        let h = `<h3>Compagnes du campement</h3><div class="obj"><div><div class="n">${gens.length ? qui : 'Aucune'}</div>`
+        let h = `<div class="obj"><div><div class="n">${gens.length ? qui : 'Aucune'}</div>`
           + `<div class="d">elles restent ici pendant vos expéditions : les récolteuses remplissent le coffre, les autres gardent`;
         if (bilanAbsence) {
           const g = Object.entries(bilanAbsence.gain).map(([k, n]) => n + ' ' + (k === 'baies' ? 'baies' : PLURIEL[k] || k)).join(' · ');
@@ -5202,7 +5238,8 @@ function pageCampement() {
         }
         return h + `</div></div></div>`;
       })()
-    + `<h3>Exploration</h3>`
+;
+  const corpsExpl = ''
     + `<div class="obj"><div><div class="n">Île d'exploration ${profondeur()}`
       + `${ecart() ? ' · à ' + ecart() + ' de chez vous' : ''}</div><div class="d">`
       + `campement planté à l'exploration ${nivCampement()} · les bêtes frappent et encaissent ×${danger().toFixed(2)}`
@@ -5227,42 +5264,66 @@ function pageCampement() {
           + `${bilanExp.sauts} saut${bilanExp.sauts > 1 ? 's' : ''} · ${bilanExp.coeurs} cœur${bilanExp.coeurs > 1 ? 's' : ''} perdu${bilanExp.coeurs > 1 ? 's' : ''}`
           + ` · ${g} au coffre${p ? ' · ' + p + ' laissé' + (p > 1 ? 's' : '') + ' en route' : ''}</div></div></div>`;
       })() : '')
-    + `<h3>Portail</h3>`
-    + (portailDirige() ? `<div class="obj"><div><div class="n">Viser une île gardée</div>`
-        + `<div class="d">le journal tient ${(P.journal.gardees || []).length} graine${(P.journal.gardees || []).length > 1 ? 's' : ''} · le départ se choisit au journal</div></div>`
-        + `<button data-onglet="journal">Journal</button></div>` : '')
-    + `<div class="obj"><div><div class="n">Partir vers une île au hasard</div>`
-    + `<div class="d">${proche || auPortailIle()
-        ? 'exploration ' + (profondeur() + 1) + ' · la pierre de foyer vous ramènera ici'
-        : 'approchez-vous d\'une arche : celle du campement, ou celle de l\'île'}</div></div>`
-    + `<button data-camp="portail"${proche || auPortailIle() ? '' : ' disabled'}>Partir</button></div>`
-    + `<h3>Pierre de foyer</h3>`
-    + `<div class="obj"><div><div class="n">Rentrer au campement</div>`
-    + `<div class="d">${ici ? 'vous êtes déjà sur votre île' : 'de n\'importe quelle île, la pierre vous y ramène'}</div></div>`
-    + `<button data-camp="rentrer"${ici && proche ? ' disabled' : ''}>Rentrer</button></div>`
-    + `<h3>Feu</h3>`
-    + `<div class="obj"><div><div class="n">Se reposer au feu</div>`
-    + `<div class="d">${proche ? 'santé et souffle refaits, compagnes alentour rassasiées' : 'il faut être au campement'}</div></div>`
-    + `<button data-camp="repos"${proche ? '' : ' disabled'}>Se reposer</button></div>`
-    + `<div class="obj"><div><div class="n">Cuisiner au feu</div><div class="d">la marmite du campement : viandes, poissons, fruits, racines…</div></div>`
-    + `<button data-onglet="cuisine">Cuisiner</button></div>`
-    + `<h3>Améliorer</h3>`
-    + (() => {
-        const suite = CAMP_NIV[nivCamp()];
-        if (!suite) return `<div class="obj"><div><div class="n">${ESC(paletteCamp().n)}</div>`
-          + `<div class="d">au plus haut · ${ESC(paletteCamp().d)}</div></div></div>`;
-        const cout = Object.entries(suite.cout).map(([r, n]) => `${n} ${RES[r]}`).join(' · ');
-        const payable_ = essai || Object.entries(suite.cout).every(([r, n]) => dispo(r) >= n);
-        return `<div class="obj"><div><div class="n">${ESC(suite.n)}</div>`
-          + `<div class="d">${ESC(suite.d)}<br>${ESC(cout)}${payable_ ? '' : ' · matières manquantes'}</div></div>`
-          + `<button data-camp="ameliorer"${payable_ && proche ? '' : ' disabled'}>Améliorer</button></div>`;
-      })()
-    + `<h3>Déplacer</h3>`
-    + `<div class="obj${conf ? ' porte' : ''}"><div><div class="n">Reprendre le campement</div>`
-    + `<div class="d">${conf ? 'encore un clic : l\'île ne sera plus la vôtre' : ici ? 'il retourne au sac, à poser ailleurs' : 'il faut être sur son île'}</div></div>`
-    + `<button data-camp="reprendre"${ici ? '' : ' disabled'}>${conf ? 'Confirmer' : 'Reprendre'}</button></div>`
-    + `<h3>Pillage</h3>` + pagePillage()
-    + `</div>`;
+;
+  const gens = P.compagnes.filter(c => c.mode === 'camp');
+  const suite = CAMP_NIV[nivCamp()], payable_ = !!suite && (essai || Object.entries(suite.cout).every(([r, n]) => dispo(r) >= n));
+  const note = x => `<p class="note" style="margin:10px 2px 0">${x}</p>`;
+  const arche = proche || auPortailIle();
+  const A = [
+    { id: 'coffre', n: 'Coffre', ic: 'coffre', ok: true, sous: 'Réserve du campement' + (coffreTotal() ? ' · ' + coffreTotal() : ''), corps: corpsCoffre },
+    { id: 'repos', n: 'Se reposer', ic: 'role_repos', ok: proche, sous: 'Au feu du campement',
+      corps: note(proche ? 'Santé et souffle refaits, compagnes alentour rassasiées.' : 'Il faut être au campement.'), bouton: 'Se reposer', attr: 'data-camp="repos"' },
+    { id: 'cuisine', n: 'Cuisiner', ic: 'ongletCuisine', ok: true, sous: 'La marmite du feu',
+      corps: note('Viandes, poissons, fruits, racines : jusqu\'à quatre ingrédients, il en sort toujours un plat.'), bouton: 'Ouvrir la cuisine', attr: 'data-onglet="cuisine"' },
+    { id: 'portail', n: 'Partir', ic: 'portail', ok: arche, irrev: true, sous: 'Vers l\'exploration ' + (profondeur() + 1),
+      corps: note(arche ? 'Une île au hasard. La pierre de foyer vous ramènera ici.' : 'Approchez-vous d\'une arche : celle du campement, ou celle de l\'île.'),
+      bouton: 'Partir', avert: 'Vous quittez cette île, et l\'exploration monte d\'un niveau : elle ne redescend plus.' },
+    portailDirige() ? { id: 'journal', n: 'Viser une île', ic: 'ongletJournal', ok: true, sous: 'Une île gardée au journal',
+      corps: note('Le journal tient ' + (P.journal.gardees || []).length + ' graine' + ((P.journal.gardees || []).length > 1 ? 's' : '') + ' : le départ se choisit là.'),
+      bouton: 'Ouvrir le journal', attr: 'data-onglet="journal"' } : null,
+    { id: 'rentrer', n: 'Rentrer', ic: 'foyer', ok: !(ici && proche), irrev: !ici, sous: 'La pierre de foyer',
+      corps: note(ici ? (proche ? 'Vous y êtes déjà.' : 'Vous êtes sur votre île : la pierre vous ramène au feu.') : 'De n\'importe quelle île, la pierre vous ramène au campement.'),
+      bouton: 'Rentrer', attr: 'data-camp="rentrer"', avert: 'Vous quittez cette île pour votre campement.' },
+    { id: 'ameliorer', n: 'Améliorer', ic: 'marteau', ok: payable_ && proche, irrev: !!suite,
+      sous: suite ? ESC(suite.n) : ESC(paletteCamp().n) + ' · au plus haut',
+      corps: suite ? note(ESC(suite.d) + '<br>Coût : ' + Object.entries(suite.cout).map(([r, n]) => n + ' ' + RES[r]).join(' · ')
+        + (payable_ ? '' : ' · matières manquantes') + (proche ? '' : ' · il faut être au campement')) : note(ESC(paletteCamp().d)),
+      bouton: suite ? 'Améliorer' : '', avert: 'Les matières sont dépensées.' },
+    { id: 'reprendre', n: 'Reprendre', ic: 'campement', ok: ici, irrev: true, sous: 'Déplacer le campement',
+      corps: note(ici ? 'Il retourne au sac, à poser ailleurs.' : 'Il faut être sur son île.'), bouton: 'Reprendre le campement', avert: 'L\'île ne sera plus la vôtre.' },
+    { id: 'compagnes', n: 'Compagnes', ic: 'ongletCompagnes', ok: true, sous: gens.length ? gens.length + ' au campement' : 'Aucune au campement',
+      corps: corpsComp || note('Aucune compagne ne tient le campement. « Au campement », dans ses ordres, l\'y installe.'), bouton: 'Voir les compagnes', attr: 'data-onglet="compagnes"' },
+    { id: 'exploration', n: 'Exploration', ic: 'boussole', ok: true, sous: 'Île d\'exploration ' + profondeur(), corps: corpsExpl },
+    { id: 'pillage', n: 'Pillage', ic: 'epee', ok: true, sous: 'Gardiennes, règle, ce qu\'on vous a pris', corps: pagePillage() },
+  ].filter(Boolean);
+  if (!A.some(a => a.id === choixCamp)) choixCamp = 'coffre';
+  const tuiles = A.map(a => `<button class="tuile${a.id === choixCamp ? ' choisie' : ''}${a.ok ? '' : ' eteinte'}" data-choixcamp="${a.id}" aria-pressed="${a.id === choixCamp}">`
+    + `${img(a.ic)}<span>${ESC(a.n)}</span>${a.irrev ? '<b class="irr" title="irréversible">!</b>' : ''}</button>`).join('');
+  return `<div class="sac-corps deux camp"><div class="col">`
+    + `<div class="fiche">${caseObjet('campement', { taille: 'grande', inerte: true })}`
+    + `<div class="fiche-texte"><h4>Île ${ESC(nomIle(P.camp.graine))}</h4>`
+    + `<p>${ESC(paletteCamp().n)} · ${ESC(etat)}</p>`
+    + `<span class="genre">${ici ? 'case ' + (P.camp.x | 0) + ', ' + (P.camp.y | 0) : 'île actuelle : ' + ESC(nomIle(SEED))}</span></div></div>`
+    + `<div class="tuiles">${tuiles}</div></div>`
+    + `<div class="col">${detailCamp(A.find(a => a.id === choixCamp))}</div></div>`;
+}
+// Le panneau d'une action du campement : ce qu'elle fait, et son bouton ; confirmé si elle ne se défait pas.
+let choixCamp = 'coffre', confirmeAct = { id: '', jusqua: 0 };
+function detailCamp(a) {
+  const conf = a.irrev && confirmeAct.id === a.id && maintenantSac() < confirmeAct.jusqua;
+  const b = !a.bouton ? '' : a.irrev
+    ? `<button class="btn ${conf ? 'alerte' : 'principal'}" data-campc="${a.id}"${a.ok ? '' : ' disabled'}>${conf ? 'Confirmer' : ESC(a.bouton)}</button>`
+    : `<button class="btn principal" ${a.attr}${a.ok ? '' : ' disabled'}>${ESC(a.bouton)}</button>`;
+  return `<div class="fiche haute" id="sac-fiche">${caseObjet(a.ic, { taille: 'grande', inerte: true })}`
+    + `<div class="fiche-texte"><h4>${ESC(a.n)}</h4><p>${a.sous || ''}</p>${a.irrev ? '<span class="genre irr">irréversible · confirmation</span>' : ''}</div></div>`
+    + (a.corps || '') + (b ? `<div class="gestes">${b}</div>` : '')
+    + (conf ? `<p class="note irr" style="margin:8px 2px 0">${ESC(a.avert)} Encore un appui pour confirmer.</p>` : '');
+}
+function faireCamp(id) {
+  if (id === 'portail') ouvrirPortail();
+  else if (id === 'rentrer') rentrerAuCampement();
+  else if (id === 'ameliorer') ameliorerCamp();
+  else if (id === 'reprendre') reprendreCampement();
 }
 // Le pillage, vu du campement : ses gardiennes, la règle, et ce qu'on vous a pris.
 function pagePillage() {
@@ -5488,8 +5549,8 @@ function majSac() {
   const saisie = champ ? champ.value : '', enSaisie = !!champ && document.activeElement === champ;
   const defil = {};
   if (el.querySelectorAll) el.querySelectorAll('[data-defil]').forEach(n => { defil[n.dataset.defil] = n.scrollTop; });
-  const focus = document.activeElement && document.activeElement.closest && document.activeElement.closest('#sac [data-onglet], #sac [data-recette], #sac [data-choix], #sac [data-filtre], #sac [data-comp], #sac [data-role]');
-  const focusCle = focus ? ['onglet', 'recette', 'choix', 'filtre', 'comp', 'role'].map(k => focus.dataset[k] !== undefined ? `[data-${k}="${focus.dataset[k]}"]` : '').join('') : '';
+  const focus = document.activeElement && document.activeElement.closest && document.activeElement.closest('#sac [data-onglet], #sac [data-recette], #sac [data-choix], #sac [data-filtre], #sac [data-comp], #sac [data-role], #sac [data-choixcamp]');
+  const focusCle = focus ? ['onglet', 'recette', 'choix', 'filtre', 'comp', 'role', 'choixcamp'].map(k => focus.dataset[k] !== undefined ? `[data-${k}="${focus.dataset[k]}"]` : '').join('') : '';
   feuilleIcones();
   const page = { sac: pageSac, etabli: pageEtabli, compagnes: pageCompagnes, camp: pageCampement,
     journal: pageJournal, sauve: pageSauve, reglages: pageReglages, beta: pageBeta, cuisine: pageCuisine }[ongletSac]();
@@ -5552,6 +5613,12 @@ function clicSac(b) {
     const avant = P.objets[d.fa], fl = P.fleches, li = P.liens, bm = P.baumes;
     fabriquer(d.fa);
     if ((P.objets[d.fa] && !avant) || P.fleches > fl || P.liens > li || P.baumes > bm) { dernierFait = { id: d.fa, quand: maintenantSac() }; choixSac = P.objets[d.fa] ? d.fa : choixSac; majSac(); }
+  }
+  else if (d.choixcamp) { choixCamp = d.choixcamp; confirmeAct.id = ''; majSac(); montrerFiche(); }
+  else if (d.campc) {
+    if (confirmeAct.id === d.campc && maintenantSac() < confirmeAct.jusqua) { confirmeAct.id = ''; faireCamp(d.campc); }
+    else { confirmeAct = { id: d.campc, jusqua: maintenantSac() + 5 }; setTimeout(() => { if (sacOuvert && ongletSac === 'camp') majSac(); }, 5100); }
+    majSac();
   }
   else if (d.camp) {
     if (d.camp === 'poser') poserCampement();
@@ -5661,11 +5728,11 @@ const SPEC = [
     shell:[196,140,86], dark:[142,96,52], leg:[112,76,44], oeil:[250,220,140], bio:[3,2,4],
     lien:.8, travail:{ baies:1, fibre:.6 }, metier:'cueille les baies, et un peu de fibre', grimpe:.85 },
   { id:'traqueur', n:'Traqueur', diet:'c', sz:1.0, spd:3.1, vue:24, peur:.2, herd:1, cap:20, mat:100,
-    shell:[178,94,106], dark:[116,56,70], leg:[88,60,70], oeil:[255,228,150], bio:[2,3,4], chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur'],
+    shell:[178,94,106], dark:[116,56,70], leg:[88,60,70], oeil:[255,228,150], bio:[2,3,4], chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','vesseron'],
     lien:.35, travail:{ os:1 }, metier:'chasse quand elle a faim, et rapporte les os', grimpe:.70 },
   { id:'spectre',  n:'Spectre',  diet:'c', sz:1.25,spd:3.4, vue:28, peur:0,  herd:0, cap:9,  mat:150,
     shell:[92,80,120], dark:[52,44,72], leg:[46,40,62], oeil:[180,240,255], bio:[3,5,4], nuit:1, dur:1.6,
-    chasse:['brouteur','glaneur','bosseu','traqueur','coursier','coursier_o','cotonnier','carillonneur','lentigrade'],
+    chasse:['brouteur','glaneur','bosseu','traqueur','coursier','coursier_o','cotonnier','carillonneur','lentigrade','bramard'],
     lien:.12, travail:{ os:1 }, metier:'chasse quand elle a faim, et rapporte les os', grimpe:.85 },
   // --- la famille des Automates : des humanoïdes de métal qui vivent du soleil ---
   // Ils ne mangent ni ne boivent : leur charge monte au jour et les fait tenir ; la nuit, ils
@@ -5678,9 +5745,9 @@ const SPEC = [
   { id:'moissonneur', n:'Moissonneur', fam:'automate', diet:'s', sz:.95, spd:2.2, vue:16, peur:.8, herd:0, cap:8, mat:60,
     shell:[128,140,120], dark:[74,84,68], leg:[60,66,56], oeil:[150,240,120], bio:[2,3,4], chasse:null,
     lien:0, travail:{ fibre:1.5, bois:1.5, pierre:1.5 }, metier:'fauche, abat et taille, vite et bien', grimpe:0,
-    tir:null, dur:.8 },
+    tir:null, tirLie:{ deg:.06, portee:5, cadence:1.8, vit:14, precision:.6 }, dur:.8 },
   { id:'mercenaire',  n:'Mercenaire',  fam:'automate', diet:'s', sz:1.05, spd:2.9, vue:30, peur:0, herd:0, cap:4, mat:60,
-    shell:[104,92,108], dark:[58,50,64], leg:[50,44,54], oeil:[255,70,60], bio:[2,3,4,5], chasse:[],
+    shell:[104,92,108], dark:[58,50,64], leg:[50,44,54], oeil:[255,70,60], bio:[2,3,4,5], chasse:['bosseu','lentigrade','crapaud','bramard'],
     lien:0, travail:{}, metier:'ne vise que les joueurs, de très loin', grimpe:0,
     tir:{ deg:.12, portee:11, cadence:1.5, vit:19, precision:.8 }, dur:1.15, duel:1 },
   { id:'sentinelle',  n:'Sentinelle',  fam:'automate', diet:'s', sz:1.15, spd:1.4, vue:12, peur:0, herd:0, cap:4, mat:60,
@@ -5728,14 +5795,14 @@ const SPEC = [
     lien:.2, travail:{ eclat:.6, fibre:.6 }, metier:'détache les éclats des druses', grimpe:0, bond:2 },
   { id:'salamandre', n:'Salamandre de braise', fam:'tellurien', corps:'saurien',  biome:13, diet:'o', sz:1.25, spd:2.8, vue:16, peur:.1, herd:0, cap:4, mat:140,
     shell:[58,44,46], dark:[255,122,44], leg:[70,52,52], oeil:[255,220,120], bio:[13,14], nuit:1, dur:1.6, brule:1, lueur:2.4, anneau:.6,
-    chasse:['coursier_r','traqueur','glaneur','brouteur','varan','cotonnier','carillonneur'],
+    chasse:['coursier_r','traqueur','glaneur','brouteur','varan','cotonnier','carillonneur','oglodon'],
     lien:.15, travail:{ os:1 }, metier:'chasse la nuit, et rapporte les os', grimpe:.6 },
   // --- les automates d'élite : au-delà du dixième saut, hors du tirage du bestiaire ---
   // Le tireur d'élite met en joue de très loin : un rayon rouge le trahit, puis le coup part,
   // avec une avance exacte sur qui court droit. Le mortier tire en cloche, par-dessus les murs :
   // un cercle au sol montre où l'obus tombera. Plus durs à rallumer, ils rendent plus d'éclats.
   { id:'tireur',  n:"Tireur d'élite", fam:'automate', diet:'s', sz:1.08, spd:2.1, vue:34, peur:0, herd:0, cap:2, mat:60,
-    shell:[74,70,68], dark:[34,32,34], leg:[46,44,44], oeil:[255,44,40], bio:[4,5,6], chasse:[],
+    shell:[74,70,68], dark:[34,32,34], leg:[46,44,44], oeil:[255,44,40], bio:[4,5,6], chasse:['coursier','coursier_o','coursier_r','coursier_a'],
     lien:0, travail:{}, metier:'met en joue de très loin, et ne manque presque jamais', grimpe:0,
     tir:{ deg:.18, portee:24, cadence:4.2, vit:40, precision:.99, visee:1.1, avance:1 }, dur:.9, duel:1, eclats:3, coeur:3 },
   { id:'mortier', n:'Mortier', fam:'automate', diet:'s', sz:1.3, spd:1.25, vue:26, peur:0, herd:0, cap:2, mat:60,
@@ -5775,7 +5842,7 @@ const DOUX_ESPECES = [
 const FELINS = [
   { id:'felin', n:'Félin de brume', corps:'felin', diet:'c', sz:1.05, spd:3.7, vue:22, peur:.15, herd:1, meute:1, camo:1, cap:4, mat:120,
     shell:[164,174,188], dark:[88,96,114], leg:[142,152,168], ventre:[208,214,222], oeil:[178,236,255], bio:[2,3,4],
-    chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','lentigrade','crapaud','cerf'],
+    chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','lentigrade','crapaud','cerf','vesseron'],
     lien:.2, travail:{ os:1 }, metier:'chasse à l\'affût, et rapporte les os', grimpe:.5 },
 ];
 // ============================================================
@@ -5797,6 +5864,12 @@ const BRAMARDS = [
 ];
 SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces());   // et les Nomades du Seuil (nomades.js)   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
+const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
+// Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
+// Un prédateur de la faune : une liste de gibier. Le mercenaire et le tireur en ont une aussi, mais
+// restent des automates en duel : ni la sentinelle ni vos compagnes ne les comptent parmi les chasseurs.
+const predateur = sp => !!(sp.chasse && sp.chasse.length) && !sp.duel;
+const proiesDe = sp => automate(sp) ? null : sp.chasse || [];
 // ---------- les aptitudes des compagnes ----------
 // On choisit ce que récolte chaque compagne, quelle que soit son espèce ; l'espèce dit combien elle en
 // rapporte. Une note de 1 à 5 par récolte, et une en défense ; 0 : la chasse, pour qui ne chasse pas.
@@ -5814,8 +5887,8 @@ const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
   coursier: [2, 1, 2, 2, 1, 1, 0, 2],     coursier_o: [2, 1, 2, 2, 1, 1, 0, 2],   coursier_r: [2, 1, 2, 2, 1, 1, 0, 2], coursier_a: [2, 1, 2, 2, 1, 1, 0, 2],
   traqueur: [1, 1, 1, 2, 1, 1, 4, 4],     spectre: [1, 1, 1, 1, 2, 1, 4, 5],      varan: [1, 2, 1, 1, 1, 1, 4, 4],
   salamandre: [2, 1, 1, 1, 2, 2, 4, 4],   felin: [1, 1, 1, 2, 2, 1, 5, 4],
-  moissonneur: [5, 5, 5, 2, 3, 4, 0, 1],  traceur: [1, 2, 1, 1, 2, 4, 5, 3],      mercenaire: [1, 1, 1, 1, 1, 3, 0, 5],
-  sentinelle: [1, 2, 1, 1, 1, 3, 0, 5],   tireur: [1, 1, 1, 1, 1, 2, 0, 5],       mortier: [1, 3, 1, 1, 1, 3, 0, 5],
+  moissonneur: [5, 5, 5, 2, 3, 4, 1, 1],  traceur: [1, 2, 1, 1, 2, 4, 4, 3],      mercenaire: [1, 1, 1, 1, 1, 3, 3, 5],
+  sentinelle: [1, 2, 1, 1, 1, 3, 2, 5],   tireur: [1, 1, 1, 1, 1, 2, 4, 5],       mortier: [1, 3, 1, 1, 1, 3, 2, 5],
 };
 const aptDe = esp => APT[esp] || [1, 1, 1, 1, 1, 1, 0, 2];
 const noteApt = (esp, res) => aptDe(esp)[APT_RES.indexOf(res)] || 0;
@@ -6302,6 +6375,7 @@ function respawn() {
     // Le campement au sac, loin du départ : la chute. Retour à l'exploration 1, sur une île neuve.
     if (campAuSac() && profondeur() > 1) {
       for (const r of COFFRE_R) metSac(r, 0);
+      for (const id of INGR_GARDE()) metSacIngr(id, 0);
       if (voyagerVers(tirerGraine(1, SEED), null, 'trois cœurs perdus sans campement planté · retour à l\'exploration 1', 1)) return;
     }
     loadWorld(); say('ÎLE RÉINITIALISÉE');
@@ -7810,7 +7884,7 @@ function porterCoup(b, c, deg) {
     // ce qu'une compagne abat, elle le rapporte : des os pour le sac
     if (b.comp) {
       if (automate(c.sp)) { rapporter(b.comp, 'eclat', c.sp.coeur || 1); rapporter(b.comp, 'pierre', 2); rapporter(b.comp, 'ferraille', 2); }   // son cœur d'éclat
-      else { const vi = viandeDe(c.sp), ex = vi && Math.random() < .6 * CHANCE_APT[noteApt(b.sp.id, 'os')] ? vi.id : null; if (ex) gagnerDenree(ex, 1);
+      else { const vi = viandeDe(c.sp), ex = vi && Math.random() < .6 * CHANCE_APT[noteApt(b.sp.id, 'os')] ? vi.id : null;
         rapporter(b.comp, 'os', Math.max(1, Math.round((1 + (Math.random() * 2 | 0)) * (coefApt(b.sp.id, 'os') || 1))), ex); }   // et parfois sa viande
       majSac();
     }
@@ -8204,7 +8278,7 @@ function voitCible(b, c) { const q = centreCible(c); return ligneDeVue(b.x, b.y,
 // Une place d'où le trait passe : autour de soi d'abord, puis autour de la cible — la plus
 // proche qui convienne, sur une terre à sa hauteur, ni trop près ni hors de portée.
 function posteDeTir(b, c) {
-  const T = b.sp.tir, q = centreCible(c);
+  const T = tirDe(b), q = centreCible(c);
   let best = null, bd = 1e9;
   const essai = (x, y) => {
     const h = hAt(x | 0, y | 0);
@@ -8223,7 +8297,7 @@ function posteDeTir(b, c) {
 // l'exacte, et son écart fond de moitié et plus.
 function tirer(b, c) {
   SON.jouer('tir', {}, b.x, b.y, (b.z || 0) + 1);
-  const sp = b.sp, T = sp.tir, fi = b.tame ? 0 : finesse();
+  const sp = b.sp, T = tirDe(b), fi = b.tame ? 0 : finesse();
   const cz = c === P ? P.z + .55 : c.z + (c.sp ? .3 * c.sp.sz : .55);
   let dx = c.x - b.x, dy = c.y - b.y;
   const d = Math.hypot(dx, dy) || 1, vol = d / T.vit;
@@ -8241,7 +8315,7 @@ function tirer(b, c) {
 // regarde ses pieds a le temps d'en sortir.
 function lober(b, c) {
   SON.jouer('obus', {}, b.x, b.y, (b.z || 0) + 1);
-  const sp = b.sp, T = sp.tir, fi = b.tame ? 0 : finesse();
+  const sp = b.sp, T = tirDe(b), fi = b.tame ? 0 : finesse();
   const d = Math.hypot(c.x - b.x, c.y - b.y) || 1;
   const vol = Math.max(1.3, Math.min(2.3, .9 + d * .065));
   const av = (T.avance || .75) + (1 - (T.avance || .75)) * fi, prec = T.precision + (1 - T.precision) * .6 * fi;
@@ -8410,7 +8484,7 @@ function impactTir(f, nx, ny, nz) {
         mourirBete(o, 'tir');
         if (sien) {
           if (automate(o.sp)) { rapporter(sien, 'eclat', o.sp.coeur || 1); rapporter(sien, 'pierre', 2); rapporter(sien, 'ferraille', 2); }
-          else { const vi = viandeDe(o.sp), ex = vi && Math.random() < .6 * CHANCE_APT[noteApt(sien.esp, 'os')] ? vi.id : null; if (ex) gagnerDenree(ex, 1);
+          else { const vi = viandeDe(o.sp), ex = vi && Math.random() < .6 * CHANCE_APT[noteApt(sien.esp, 'os')] ? vi.id : null;
             rapporter(sien, 'os', Math.max(1, Math.round((1 + (Math.random() * 2 | 0)) * (coefApt(sien.esp, 'os') || 1))), ex); }
           majSac();
         }
@@ -8566,7 +8640,7 @@ function placeAutomate(sp) {
 
 // Ce que voit un automate : selon l'espèce, le gibier, le joueur, ou ce qui menace.
 function cibleAutomate(b, actif) {
-  const sp = b.sp, T = sp.tir;
+  const sp = b.sp, T = tirDe(b);
   if (!T || !actif) return null;
   const vue2 = sp.vue * sp.vue;
   const dJ2 = (P.x - b.x) ** 2 + (P.y - b.y) ** 2;
@@ -8591,7 +8665,7 @@ function cibleAutomate(b, actif) {
       if (a && a !== b && (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < vue2) return a;
       return null;
     }
-    if (sp.chasse && sp.chasse.length && recolteB(b) === 'os') return prendreProie(b, 18);
+    if (recolteB(b) === 'os') return prendreProie(b, 18);
     return null;
   }
   // le mortier n'a pas besoin de vous voir : il sait où vous êtes, et tire par-dessus
@@ -8599,14 +8673,15 @@ function cibleAutomate(b, actif) {
   if (sp.duel || (ileMeca && sp.chasse)) {
     const voitJ = dJ2 < vue2 && Math.abs(P.z - b.z) < (T.cloche ? 8 : T.visee ? 6 : 4) && !sousAbri();
     // une compagne à découvert, nettement plus près de lui que vous, essuie ses tirs
-    return compagneEnVue(b, voitJ ? dJ2 * .5 : vue2 * .5) || (voitJ ? P : null);
+    const q = compagneEnVue(b, voitJ ? dJ2 * .5 : vue2 * .5) || (voitJ ? P : null);
+    if (q || ileMeca || !sp.chasse || !sp.chasse.length) return q;   // personne en vue : son gibier, plus bas
   }
   if (sp.garde) {
     // ce qui approche de l'arche : chasseurs et joueur, dans son rayon
     const R2 = 8 * 8;
     if (dJ2 < R2 && !sousAbri()) return P;
     let best = null, bd = R2;
-    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && (o.comp || (!o.tame && o.sp.chasse && o.sp.chasse.length))) {
+    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && (o.comp || (!o.tame && predateur(o.sp)))) {
       const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd) { bd = d; best = o; }
     }
     return best;
@@ -8646,7 +8721,7 @@ function majAutomate(b, dt) {
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
   const cible = cibleAutomate(b, actif);
   b.cibleC = cible && cible.tame ? cible : null;
-  const cloche = !!(sp.tir && sp.tir.cloche);
+  const cloche = !!(tirDe(b) && tirDe(b).cloche);
   if (cible === P && !b.viseJ && !b.tame && t - dernierAvis > 6 && (cloche || voitCible(b, P))) {
     dernierAvis = t; say(cloche ? 'un mortier vous a repéré · regardez le sol' : (sp.garde ? 'la ' : 'un ') + sp.n.toLowerCase() + ' vous met en joue', 2);
   }
@@ -8671,7 +8746,7 @@ function majAutomate(b, dt) {
 
   if (etat === 'veille') { vit = 0; b.vx *= .8; b.vy *= .8; }
   else if (etat === 'viser') {
-    const T = sp.tir, d = Math.hypot(cible.x - b.x, cible.y - b.y);
+    const T = tirDe(b), d = Math.hypot(cible.x - b.x, cible.y - b.y);
     b.dirT = Math.atan2(cible.y - b.y, cible.x - b.x);
     const vue = cloche || voitCible(b, cible);          // l'obus passe par-dessus : pas besoin de voir
     if (!vue) {
@@ -9710,7 +9785,7 @@ function agresseur() {
     const d = (o.x - P.x) ** 2 + (o.y - P.y) ** 2;
     const contre = (o.as && (o.as.c === P || (o.as.c && o.as.c.tame))) || o.colere > 0 || o.viseJ
       || (o.faitFrontJ || 0) > o.t || (o.cible && o.cible.comp) || o.visC || o.cibleC;
-    const chasseur = !!(o.sp.chasse && o.sp.chasse.length);
+    const chasseur = predateur(o.sp);
     const vise = contre || (chasseur && o.traque);
     if (!vise && !chasseur) continue;
     if (d > (vise ? 196 : 25)) continue;
@@ -9725,7 +9800,7 @@ function intrus(x, y, r) {
   let best = null, bd = r * r;
   for (const o of beasts) {
     if (!vivante(o)) continue;
-    const hostile = (o.sp.chasse && o.sp.chasse.length && o.etat !== 'dormir' && o.etat !== 'veille')
+    const hostile = (predateur(o.sp) && o.etat !== 'dormir' && o.etat !== 'veille')
       || o.colere > 0 || o.viseJ || (o.as && o.as.c && (o.as.c === P || o.as.c.tame)) || (o.cible && o.cible.comp) || o.cibleC;
     if (!hostile) continue;
     const d = (o.x - x) ** 2 + (o.y - y) ** 2;
@@ -9739,7 +9814,7 @@ function chasseurEnVue(b) {
   if (vivante(c) && (c.x - b.x) ** 2 + (c.y - b.y) ** 2 < (v * 1.5) ** 2) return c;
   let best = null, bd = v * v;
   for (const o of beasts) {
-    if (!vivante(o) || !(o.sp.chasse && o.sp.chasse.length) || o.etat === 'veille') continue;
+    if (!vivante(o) || !predateur(o.sp) || o.etat === 'veille') continue;
     const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
     if (d < bd) { bd = d; best = o; }
   }
@@ -9772,6 +9847,7 @@ function rapporter(c, res, n, ex) {
   if (coffre) P.coffre[res] = (P.coffre[res] || 0) + n;
   else if (res === 'baies') P.baies += n;
   else P.sac[res] = (P.sac[res] || 0) + n;
+  if (ex && INGR[ex]) { if (coffre && ingrGarde(ex)) P.cellier[ex] = (P.cellier[ex] || 0) + 1; else gagnerDenree(ex, 1); }
   annonceCompagne(c, res, n, coffre, ex);
 }
 function ramenerAuCamp(b) {
@@ -9811,9 +9887,9 @@ function prendreProie(b, rayon) {
   // elle chasse autour de son ancre : près de vous, près du campement, ou autour d'elle si elle est libre
   const A = ancre(b), ox = A ? A.x : b.x, oy = A ? A.y : b.y;
   if (c && !c.dead && c.pv > 0 && !c.tame && (c.x - ox) ** 2 + (c.y - oy) ** 2 < (rayon + 6) ** 2) return c;
-  let best = null, bd = b.sp.vue * b.sp.vue;
+  let best = null, bd = b.sp.vue * b.sp.vue; const L = proiesDe(b.sp);
   for (const o of beasts) {
-    if (o.dead || o.pv <= 0 || o.tame || !b.sp.chasse.includes(o.sp.id)) continue;
+    if (o.dead || o.pv <= 0 || o.tame || o.sp.pnj || o.gardeCamp || (L && !L.includes(o.sp.id))) continue;
     if ((o.x - ox) ** 2 + (o.y - oy) ** 2 > rayon * rayon) continue;
     const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
     if (d < bd) { bd = d; best = o; }
@@ -9990,7 +10066,7 @@ function majRecolte(b, dt) {
     const n = Math.max(1, Math.round(tc.e.rend * m * (coefApt(b.sp.id, tc.e.res) || .2)));
     couperPied(tc.i);
     let ex = null;
-    { const q = produitDe(tc.e.id); if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1] * CHANCE_APT[noteApt(b.sp.id, tc.e.res)]) { gagnerDenree(q.id, 1); ex = q.id; } }   // son produit, parfois
+    { const q = produitDe(tc.e.id); if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1] * CHANCE_APT[noteApt(b.sp.id, tc.e.res)]) ex = q.id; }   // son produit, parfois
     gerbe(tc.x, tc.y, solFlore(tc.i % WS, (tc.i / WS) | 0) + tc.e.h * .5, 8, tc.e, tc.e.teintes ? teinteDruse(tc.i % WS, (tc.i / WS) | 0) : null);
     rapporter(b.comp, tc.e.res, n, ex);                     // au sac, ou au coffre pour le campement
   } else {
@@ -11646,13 +11722,25 @@ INGR.baie = { id: 'baie', n: 'Baie', court: 'baies', fam: 'fruit', r: 1, tag: nu
 INGR.nectar = { id: 'nectar', n: 'Nectar d\'oglodon', court: 'ambre', fam: 'douceur', r: 2, tag: 'souffle', soin: .1, c: [238, 158, 52], src: 'nectar' };
 const viandeDe = sp => INGR['v_' + sp.id] || null;
 const produitDe = fl => INGR['p_' + fl] || null;
-const qteIngr = id => { const i = INGR[id]; if (!i) return 0; return i.src === 'poisson' ? P.poissons[id] || 0 : i.src === 'baie' ? P.baies : i.src === 'nectar' ? P.sac.nectar || 0 : P.denrees[id] || 0; };
+// ---------- le garde-manger du coffre ----------
+// Viandes, produits de la flore et poissons suivent la règle des matières : au retour d'expédition,
+// ceux du sac passent au cellier du coffre (ce que les cœurs perdus en laissent), la chute sans
+// campement les perd, on les répartit au campement, et près du feu la cuisine puise au cellier d'abord.
+const ingrGarde = id => !!INGR[id] && (INGR[id].src === 'denree' || INGR[id].src === 'poisson');
+const INGR_GARDE = () => Object.keys(INGR).filter(ingrGarde);
+const sacIngr = id => INGR[id].src === 'poisson' ? P.poissons[id] || 0 : P.denrees[id] || 0;
+function metSacIngr(id, v) { const n = Math.max(0, v | 0), o = INGR[id].src === 'poisson' ? P.poissons : P.denrees; if (n) o[id] = n; else delete o[id]; }
+const cellierTotal = () => Object.values(P.cellier).reduce((s, n) => s + n, 0);
+const sacIngrTotal = () => INGR_GARDE().reduce((s, id) => s + sacIngr(id), 0);
+const qteIngr = id => { const i = INGR[id]; if (!i) return 0;
+  if (i.src === 'baie') return dispo('baies'); if (i.src === 'nectar') return dispo('nectar');
+  return sacIngr(id) + (reserveCommune() ? P.cellier[id] || 0 : 0); };
 function oterIngr(id, n = 1) {
   const i = INGR[id];
-  if (i.src === 'poisson') P.poissons[id] = Math.max(0, (P.poissons[id] || 0) - n);
-  else if (i.src === 'baie') P.baies = Math.max(0, P.baies - n);
-  else if (i.src === 'nectar') P.sac.nectar = Math.max(0, (P.sac.nectar || 0) - n);
-  else P.denrees[id] = Math.max(0, (P.denrees[id] || 0) - n);
+  if (i.src === 'baie') return puiser('baies', n);
+  if (i.src === 'nectar') return puiser('nectar', n);
+  if (reserveCommune()) { const c = Math.min(n, P.cellier[id] || 0); if (c) { P.cellier[id] -= c; if (!P.cellier[id]) delete P.cellier[id]; n -= c; } }
+  if (n > 0) metSacIngr(id, sacIngr(id) - n);
 }
 function gagnerDenree(id, n = 1) { if (!INGR[id]) return; P.denrees[id] = (P.denrees[id] || 0) + n; }
 const de = x => (/^[aeiouyéèêàâîôûœh]/i.test(x) ? 'd\'' : 'de ') + x;
@@ -11847,7 +11935,8 @@ function mangerCru(id) {
   if (i.fam === 'poisson') return mangerPoisson(id);
   if (i.fam === 'viande') { say('la viande se cuit d\'abord : au feu du campement, ou à la marmite', 2); return; }
   if (P.pv >= 1) { say('vous n\'avez pas faim', 1.2); return; }
-  oterIngr(id); P.pv = Math.min(1, P.pv + i.soin * .5);
+  if (sacIngr(id) > 0) metSacIngr(id, sacIngr(id) - 1); else oterIngr(id);
+  P.pv = Math.min(1, P.pv + i.soin * .5);
   SON.jouer('ramasse'); say(i.n.toLowerCase() + ' · +' + Math.round(i.soin * 50) + ' % de vie', 1.6);
   majSac();
 }
@@ -11919,7 +12008,7 @@ function pageCuisine() {
     + `<div class="col"><div class="filtres" role="group" aria-label="Ingrédients ou recettes" style="margin-top:0">`
     + [['ingr', 'Ingrédients'], ['rec', 'Recettes · ' + Object.keys(P.recettes).length]].map(([id, n]) =>
       `<button class="${sousCuisine === id ? 'on' : ''}" data-souscuisine="${id}" aria-pressed="${sousCuisine === id}">${n}</button>`).join('') + `</div>`
-    + (sousCuisine === 'rec' ? blocRecettes() : `<h3>Garde-manger</h3>${garde || '<div class="vide-texte">Rien à cuisiner. Une bête abattue laisse sa viande ; une plante cueillie mûre, parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille ; et la pêche.</div>'}`) + `</div>`
+    + (sousCuisine === 'rec' ? blocRecettes() : `<h3>Garde-manger</h3>${reserveCommune() && cellierTotal() ? `<p class="note reserve">Près du campement : le garde-manger compte aussi le coffre (${cellierTotal()}), d'abord lui, puis le sac.</p>` : ''}${garde || '<div class="vide-texte">Rien à cuisiner. Une bête abattue laisse sa viande ; une plante cueillie mûre, parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille ; et la pêche.</div>'}`) + `</div>`
     + `</div>`;
 }
 function blocServi() {
@@ -14714,7 +14803,7 @@ function photo() {
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
-    denrees: Object.assign({}, P.denrees), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -14748,7 +14837,7 @@ function photo() {
 }
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
-const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.plats.map(p => p.parts).join(), P.recettes, P.marmite, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.baies, lives, Math.round(P.pv * 10),
+const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.cellier, P.plats.map(p => p.parts).join(), P.recettes, P.marmite, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.pillages.length, djIci() ? [DJ.e, DJ.etat.ouverts.length, DJ.etat.vaincus.length] : 0, raidIci() ? [Raid.fini, Raid.ko.length, Math.round(Raid.part * 100)] : 0, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
@@ -14799,7 +14888,8 @@ function appliquer(d, vivantes) {
     if (c && typeof c === 'object' && nb(c.n, 0, 1e6, 0) >= 1) P.carnetPeche[f.id] = { n: nb(c.n, 1, 1e6, 1) | 0, rec: nb(c.rec, 0, 999, 0) | 0 };
   }
   // la cuisine : les denrées connues, des plats aux champs bornés, le carnet, la marmite
-  P.denrees = {};
+  P.denrees = {}; P.cellier = {};
+  for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
   P.plats = (Array.isArray(d.plats) ? d.plats : []).filter(p => p && typeof p.n === 'string' && typeof p.c === 'string').slice(0, PLATS_MAX)
     .map(p => ({ c: p.c.slice(0, 40), n: p.n.slice(0, 60), q: nb(p.q, 1, 5, 1) | 0, soin: nb(p.soin, 0, 1, 0), tag: EFFETS[p.tag] ? p.tag : null,
