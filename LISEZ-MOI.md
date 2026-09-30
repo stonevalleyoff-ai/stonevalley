@@ -506,3 +506,20 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 - **Deux corps mêlés** (une naissance, la sortie d'un portail, un coup qui projette) se démêlent doucement, à 1,6 case par seconde ; celui qui ne peut pas reculer (paroi, eau) laisse l'autre faire le chemin, et le joueur ne recule que si la bête ne le peut pas.
 - Les attaques, elles, portent avant le contact : un bond, une morsure, un coup d'arme atteignent leur cible comme avant.
 - Pour régler : `rayonCorps`, `hautCorps` et le bloc « LES CORPS » dans `index.html`.
+
+## 32. Les avis
+
+- Ce que le jeu vous dit (un portail qui s'ouvre, une confiance qui monte, un objet fabriqué…) s'affiche dans une **carte sombre** à bord doré, lisible sur tous les fonds, **juste au-dessus du personnage** — dessous sur un écran bas (téléphone couché), où le haut est pris par le HUD.
+- **Police Nunito** (arrondie, très lisible ; SIL Open Font License), incluse dans la page : elle marche hors ligne. Plus de capitales espacées : la phrase s'écrit normalement.
+- **Titre et détails** : la première phrase, jusqu'au premier « · », en titre doré ; chaque suite sur sa ligne, plus petite et plus claire.
+- **Deux cartes au plus** : la plus récente en bas, la précédente au-dessus, pâlie et réduite à son titre. Le même avis ne se répète pas, il se prolonge ; un avis qui ne change que d'un nombre (« confiance 40 % » puis « 60 % ») remplace le précédent.
+- **La durée tient compte de la longueur** : 1,2 s plus 0,045 s par caractère, jamais moins que ce que le jeu demande, 7 s au plus.
+- Pour régler : `.avis` (le style) et `say` dans `index.html`.
+
+## 33. Le HUD, en carte ; la récolte, avec son icône
+
+- **Le HUD du coin** devient une carte sombre, comme les avis (police Nunito) : les trois jauges (vie et cœurs, mana et éclats, souffle — ou la monture), puis ce qu'on a sous la main avec leurs icônes (baies, flèches, baumes) et l'heure avec le temps qu'il fait ; dessous, ce qui se passe (escouade, plats, chaleur du rayon, arc bandé, ESSAI, autres joueurs) ; sous un filet, l'exploration, le danger et la distance à la maison (en rouge au-delà de la barrière), avec « Barrière franchie » et « Campement au sac » en étiquettes ; sous un autre filet, l'étape du guide.
+- **Une flèche au coin** (‹ / ›) replie la carte : elle ne garde que les trois jauges. Le choix se garde dans le navigateur. Sans choix, elle est dépliée — sauf sur téléphone une fois le guide terminé. Sur téléphone, la carte est plus serrée et ne passe plus sous la fiche de la cible.
+- **Les populations de l'île et les chiffres du moteur** ne s'affichent plus qu'avec les mesures (Réglages, ou l'onglet Bêta).
+- **Le biome rare** n'a plus sa ligne dans le HUD ; sa découverte reste annoncée une fois.
+- **Chaque récolte montre l'icône de ce qu'on gagne** : « +3 bois », « +2 éclats », « +1 figue de cactus », « +1 cuissot de brouteur », les baies, les flèches, le nectar, les poissons — dans l'avis, devant le nombre. La récolte dit aussi ce qu'on a désormais au sac (« 45 au sac »).
