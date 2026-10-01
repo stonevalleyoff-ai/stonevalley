@@ -629,6 +629,10 @@ const SON = (() => {
       souffle(o, t, 'bandpass', 2600, 1200, 2, d, .05, .05);
       return d + .2;
     },
+    vapeur(o, t) {                                       // un jet de vapeur qui siffle
+      souffle(o, t, 'highpass', 2400, 1800, .8, .7, .01, .09); souffle(o, t, 'bandpass', 900, 600, 1.2, .5, .02, .05);
+      return .8;
+    },
     pasLourd(o, t) {                                     // un pied de fer qui retombe
       osc(o, t, 'sine', 90, 42, .22, .003, .22); souffle(o, t, 'lowpass', 600, 150, .9, .18, .003, .12); osc(o, t + .02, 'square', 420, 300, .04, .002, .02);
       return .35;
@@ -5977,7 +5981,7 @@ SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces(
 // --- la Tisseuse de fer : le gardien des îles 10, 15, 20… (voir LA TISSEUSE DE FER) ---
 const BOSSES = [
   { id:'tisseuse', n:'Tisseuse de fer', fam:'automate', boss:1, corps:'tisseuse', diet:'s', sz:1, spd:2.1, vue:30, peur:0, herd:0, cap:0, mat:9999,
-    shell:[96,88,78], dark:[64,66,74], leg:[64,66,74], oeil:[255,90,60], bio:[], dur:4, coeur:4, chasse:[], lien:0, travail:{},
+    shell:[96,88,78], dark:[64,66,74], leg:[64,66,74], oeil:[255,90,60], bio:[], dur:10, coeur:4, chasse:[], lien:0, travail:{},
     metier:'garde l\'arche des îles lointaines', grimpe:0, tir:null },
 ];
 SPEC.push(...VOLANTS, ...BOSSES);                     // à la fin : les indices des autres ne bougent pas
@@ -7611,6 +7615,8 @@ const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) ||
 //  Terrassée, elle s'effondre (les pattes cèdent, des étincelles, l'explosion), laisse sa
 //  carcasse, et l'arche apparaît.
 // ============================================================
+// les points du corps qui touchent le sol en premier : [avant, côté, profondeur sous le centre]
+const CORPS_TISS = [[1.35, 0, .45], [.6, .55, .42], [.6, -.55, .42], [0, 0, .5], [-.9, .75, .55], [-.9, -.75, .55], [-1.2, 0, .5], [-1.95, 0, .35], [-1.6, .5, .45], [-1.6, -.5, .45]];
 const TISSEUSE = { haut: 1.75, bas: .5, reach: 5, pas: 1.15, vit: 2.1, vitRage: 2.9 };
 const TOILES = [];
 let PortailCache = null;
@@ -7631,7 +7637,8 @@ function poserTisseuse() {
   }
   if (!best) best = [A.x + 8, A.y];
   const b = naitre(specById.tisseuse, best[0], best[1]);
-  b.pv = 1; b.etat = 'sommeil'; b.antre = best; b.age = 1e6; b.ech = 1; b.dir = b.dirT = Math.atan2(A.y - best[1], A.x - best[0]) + Math.PI;
+  b.pv = 1; b.etat = 'sommeil'; b.antre = best; b.age = 1e6; b.ech = 1;
+  b.blinde = 1 + Math.max(0, profondeur() - 10) * .06;   // plus loin, plus coriace b.dir = b.dirT = Math.atan2(A.y - best[1], A.x - best[0]) + Math.PI;
   beasts.push(b);
   PortailCache = PortailIle; PortailIle = null;             // l'arche attend sa mort
   return b;
@@ -7703,14 +7710,19 @@ function marcheTiss(b, vx, vy, dt, haut, lev = 0) {
       p.sw = 1e-3; p.from = [p.x, p.y, p.z]; p.dur = Math.max(.2, .42 - v * .05) * (1 + Math.random() * .12);
     }
   }
-  // le corps : sur ses pieds posés, incliné comme eux
-  const P8 = b.pieds, moy = P8.reduce((s, p) => s + p.z, 0) / 8;
-  let sous = -99; for (let j = 0; j < 6; j++) sous = Math.max(sous, hAt((b.x + Math.cos(j) * 1.1) | 0, (b.y + Math.sin(j) * 1.1) | 0));
-  const zc = Math.max(moy + TISSEUSE.bas + (TISSEUSE.haut - TISSEUSE.bas) * haut, sous + .9 * haut + .45) - (enVol ? .05 : 0) + Math.sin(b.t * 2.2) * .03 * haut;
-  b.zc = (b.zc ?? zc) + (zc - (b.zc ?? zc)) * Math.min(1, dt * 4);
+  // le corps : il épouse le relief qu'il couvre (tête, thorax, abdomen, flancs) autant que ses
+  // pieds, et aucun de ces points ne passe sous le sol, même pendant qu'il s'incline
+  const P8 = b.pieds, moy = P8.reduce((q, p) => q + p.z, 0) / 8;
+  const S = CORPS_TISS.map(([lx, ly, dessous]) => { const w = mondeTiss(b, lx, ly); return [lx, ly, dessous, hAt(w[0] | 0, w[1] | 0)]; });
+  const hm = (f) => Math.max(...S.filter(f).map(q => q[3]));
+  const hF = hm(q => q[0] > .5), hR = hm(q => q[0] < -.9), hL = hm(q => q[1] > .4), hD = hm(q => q[1] < -.4);
   const av = (P8[0].z + P8[1].z) / 2, ar = (P8[6].z + P8[7].z) / 2, ga = (P8[0].z + P8[2].z + P8[4].z + P8[6].z) / 4, dr = (P8[1].z + P8[3].z + P8[5].z + P8[7].z) / 4;
-  const tg = Math.max(-.4, Math.min(.4, Math.atan2(av - ar, 4.6))) - lev * .35, rl = Math.max(-.35, Math.min(.35, Math.atan2(ga - dr, 4.8)));
-  b.tg = (b.tg || 0) + (tg - (b.tg || 0)) * Math.min(1, dt * 4); b.rl = (b.rl || 0) + (rl - (b.rl || 0)) * Math.min(1, dt * 4);
+  const tg = Math.max(-.45, Math.min(.45, .65 * Math.atan2(hF - hR, 3.1) + .35 * Math.atan2(av - ar, 4.6))) - lev * .35;
+  const rl = Math.max(-.38, Math.min(.38, .65 * Math.atan2(hL - hD, 1.9) + .35 * Math.atan2(ga - dr, 4.8)));
+  b.tg = (b.tg || 0) + (tg - (b.tg || 0)) * Math.min(1, dt * 3.5); b.rl = (b.rl || 0) + (rl - (b.rl || 0)) * Math.min(1, dt * 3.5);
+  const plancher = (g, r) => Math.max(...S.map(([lx, ly, dessous, h]) => h + .18 + dessous - lx * Math.sin(g) - ly * Math.sin(r)));
+  const zc = Math.max(moy + TISSEUSE.bas + (TISSEUSE.haut - TISSEUSE.bas) * haut, plancher(tg, rl) + (haut - 1) * .5) - (enVol ? .05 : 0) + Math.sin(b.t * 2.2) * .03 * haut;
+  b.zc = Math.max((b.zc ?? zc) + (zc - (b.zc ?? zc)) * Math.min(1, dt * 4), plancher(b.tg, b.rl) - (1 - haut) * .3);   // jamais sous le sol
   b.z = hAt(b.x | 0, b.y | 0); b.tang = 0;
 }
 function atterrirPied(b, p) {
@@ -7721,6 +7733,7 @@ function atterrirPied(b, p) {
   if (d < 30) SON.jouer('pasLourd', {}, p.x, p.y, p.z);
   if (d < 16) { P.secousse = t; P.secousseK = Math.max(.15, 1 - d / 16) * .6; }
   if (d < .75 && Math.abs(P.z - p.z) < 1 && P.pv > 0) { porterCoup(b, P, .1); P.vx += (P.x - p.x) * 8; P.vy += (P.y - p.y) * 8; say('écrasé', 1.2); }
+  for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && (o.x - p.x) ** 2 + (o.y - p.y) ** 2 < .7 && Math.abs(o.z - p.z) < 1) { porterCoup(b, o, .25); o.vx += (o.x - p.x) * 6; o.vy += (o.y - p.y) * 6; }
   if (b.phase === 3 && Math.random() < .3) burst(p.x, p.y, p.z + .2, 4, '#ff7a4a');
 }
 // Ses armes : origines dans le monde (la tourelle, la lentille, la filière)
@@ -7732,7 +7745,7 @@ function mortierTiss(b) {
   const cz = sol(cx, cy), d = Math.hypot(cx - o[0], cy - o[1]), vol = Math.max(1.4, Math.min(2.4, 1 + d * .06));
   TIRS.push({ x: o[0], y: o[1], z: o[2], vx: (cx - o[0]) / vol, vy: (cy - o[1]) / vol, vz: (cz - o[2]) / vol + TIR_G * vol * .5,
     de: b, deg: .13, age: 0, c: [80, 74, 68], obus: true, zone: 1.7, cx, cy, cz, vol });
-  SON.jouer('obus', {}, o[0], o[1], o[2]); burst(o[0], o[1], o[2] + .2, 10, '#8a8078'); b.mortT = t;
+  SON.jouer('obus', {}, o[0], o[1], o[2]); burst(o[0], o[1], o[2] + .2, 10, '#8a8078'); b.mortT = t; vapeurTiss(b, o[0], o[1], o[2], 5, 1.3);
 }
 function sniperTiss(b) {
   const o = pointTiss(b, 1.75, 0, -.2), q = b.vise, d = Math.hypot(q[0] - o[0], q[1] - o[1], q[2] - o[2]) || 1, V = 42, vol = d / V;
@@ -7760,8 +7773,22 @@ function majToiles(dt) {                                  // appelée chaque ima
     }
   }
 }
+// La vapeur : deux cheminées sur l'abdomen, qui soufflent plus fort en rage, après une salve, et
+// quand on la blesse ; un jet aux jointures quand un coup porte ; et la carcasse fume longtemps.
+function vapeurTiss(b, x, y, z, n, f = 1) {
+  for (let k = 0; k < n; k++) parts.push({ x: x + (Math.random() - .5) * .15, y: y + (Math.random() - .5) * .15, z,
+    vx: (Math.random() - .5) * .5 * f + Math.min(1.2, Meteo.vent || 0) * .35, vy: (Math.random() - .5) * .5 * f, vz: (1.2 + Math.random() * 1.4) * f,
+    g: -1.1, life: 1.3 + Math.random() * 1.1, age: 0, col: Math.random() < .5 ? '#e8ecef' : '#cfd5da', tl: .12 + Math.random() * .1 });
+}
+function souffleTiss(b, dt) {
+  const rage = b.phase === 3, k = b.dead ? Math.max(0, 1 - (b.t - (b.mortT || b.t)) / 25) * 2 : rage ? 6 : 2.2;
+  for (const s of [1, -1]) if (Math.random() < dt * k) { const c = pointTiss(b, -.62, s * .32, 1.4); vapeurTiss(b, c[0], c[1], c[2], 1 + (rage ? 1 : 0)); }
+  if (b.hit > .2 && !b.jetT) { b.jetT = 1; const p = b.pieds[Math.random() * 8 | 0]; vapeurTiss(b, (p.x + b.x) / 2, (p.y + b.y) / 2, b.zc + .6, 6, 1.6); SON.jouer('vapeur', {}, b.x, b.y, b.zc); }
+  if (!(b.hit > .2)) b.jetT = 0;
+}
 function majTisseuse(b, dt) {
   b.t += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
+  if (b.pieds) souffleTiss(b, dt);
   if (!b.pieds) initTisseuse(b);
   if (b.dead) return mortTisseuse(b, dt);
   const dJ = Math.hypot(P.x - b.x, P.y - b.y), vu = P.pv > 0 && !sousAbri() && Math.abs(P.z - b.z) < 12;
@@ -7814,6 +7841,7 @@ function majTisseuse(b, dt) {
         SON.jouer('pilon', {}, f[0], f[1], z); P.secousse = t; P.secousseK = 1;
         const dP = Math.hypot(P.x - f[0], P.y - f[1]);
         if (dP < 3.4 && P.z < sol(P.x, P.y) + .35 && P.pv > 0) { porterCoup(b, P, .12); P.vx += (P.x - f[0]) / (dP || 1) * 7; P.vy += (P.y - f[1]) / (dP || 1) * 7; }   // en l'air, on y échappe
+        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && Math.hypot(o.x - f[0], o.y - f[1]) < 3.4) { porterCoup(b, o, .35); o.vx += (o.x - f[0]) * 3; o.vy += (o.y - f[1]) * 3; o.etourdi = Math.max(o.etourdi || 0, 1.2); }
         b.act = null; cd.cabrer = 4;
       }
     }
@@ -7845,7 +7873,7 @@ function mortTisseuse(b, dt) {
   b.rl = (b.rl || 0) + (.22 - (b.rl || 0)) * Math.min(1, dt * 2); b.tg = (b.tg || 0) + (-.12 - (b.tg || 0)) * Math.min(1, dt * 2);
   if (k < 2.2 && Math.random() < dt * 14) { const p = b.pieds[Math.random() * 8 | 0]; burst((p.x + b.x) / 2, (p.y + b.y) / 2, b.zc + .3, 5, Math.random() < .5 ? '#ffd27d' : '#ff7a4a'); }
   if (k >= 1.6 && !b.boom) {
-    b.boom = 1; P.secousse = t; P.secousseK = 1; SON.jouer('effondre', {}, b.x, b.y, b.zc);
+    b.boom = 1; P.secousse = t; P.secousseK = 1; SON.jouer('effondre', {}, b.x, b.y, b.zc); vapeurTiss(b, b.x, b.y, b.zc + .8, 30, 2);
     for (let j = 0; j < 46; j++) parts.push({ x: b.x, y: b.y, z: b.zc + .3, vx: (Math.random() - .5) * 9, vy: (Math.random() - .5) * 9, vz: Math.random() * 6, g: 9, life: .7 + Math.random() * .6, age: 0, col: j % 3 ? '#ffb070' : '#6a625a', luit: j % 3 ? 1 : 0, tl: .1 });
   }
   if (k >= 2.4 && !b.fini) {
@@ -7886,6 +7914,22 @@ function osTisseuse(f) {
   add(tb([-.25, 0, .15]), tb([-1.75, 0, .42]), 1.55, 1.15, fer);                                 // l'abdomen
   for (const x of [-.55, -1.0, -1.45]) add(tb([x + .15, 0, .78]), tb([x - .15, 0, .8]), 1.3, .1, plaque);   // ses plaques
   add(tb([-.2, 0, .1]), tb([-.3, 0, .12]), .6, .5, sombre);                                       // le pédicelle
+  for (const x of [-.6, -1.05, -1.5]) add(tb([x + .04, 0, .27]), tb([x - .04, 0, .29]), 1.64, 1.22, cuivre);   // les cerclages de l'abdomen
+  for (const x of [-.55, -1.0, -1.45]) for (const y of [-.45, -.15, .15, .45]) add(tb([x, y, .86]), tb([x + .03, y, .86]), .05, .05, cuivre);   // les rivets
+  for (const sd of [1, -1]) {
+    add(tb([-.05, sd * .42, .3]), tb([-.6, sd * .66, .48]), .07, .07, cuivre); add(tb([-.6, sd * .66, .48]), tb([-1.25, sd * .7, .46]), .07, .07, cuivre);   // les tuyaux
+    const ch = tb([-.62, sd * .32, .82]), ch2 = tb([-.58, sd * .34, 1.32]);
+    add(ch, ch2, .15, .15, sombre); add(ch2, [ch2[0], ch2[1], ch2[2] + .06], .2, .2, fer);                  // les cheminées
+    const pul = .6 + .4 * Math.sin(t * (rage ? 9 : 3.5) + sd);                                              // le cœur, par les évents
+    add(tb([-.85, sd * .79, .22]), tb([-1.15, sd * .79, .22]), .03, .07, mort ? [70, 40, 30] : [255, Math.round(120 + 80 * pul), 50], !mort);
+    add(tb([-1.25, sd * .76, .1]), tb([-1.5, sd * .74, .1]), .03, .06, mort ? [70, 40, 30] : [255, Math.round(110 + 80 * pul), 40], !mort);
+    const ou = f.etat === 'combat' && !mort ? (Math.sin(t * (rage ? 7 : 3)) * .5 + .5) * .12 : 0;            // les chélicères : elles s'ouvrent et claquent
+    add(tb([1.12, sd * .14, -.12]), tb([1.42, sd * (.1 + ou), -.42]), .09, .09, sombre);
+    add(tb([1.42, sd * (.1 + ou), -.42]), tb([1.48, sd * (.05 + ou * .5), -.56]), .05, .05, cuivre);
+    add(tb([1.0, sd * .3, -.1]), tb([1.32, sd * .46, -.3]), .07, .07, fer); add(tb([1.32, sd * .46, -.3]), tb([1.5, sd * .4, -.52]), .06, .06, fer);   // les pédipalpes
+  }
+  add(tb([.85, 0, .4]), tb([.66, 0, .78]), .04, .04, sombre);                                         // l'antenne
+  add(tb([.65, 0, .79]), tb([.66, 0, .81]), .06, .06, (t * 2 | 0) % 2 && !mort ? [255, 70, 50] : [90, 40, 36], (t * 2 | 0) % 2 && !mort);
   // les yeux : deux grands, six petits ; ils s'allument un à un à l'éveil
   const yeux = [[1.18, .2, .2, .12], [1.18, -.2, .2, .12], [1.12, .36, .3, .07], [1.12, -.36, .3, .07], [1.05, .12, .36, .06], [1.05, -.12, .36, .06], [.98, .3, .38, .05], [.98, -.3, .38, .05]];
   yeux.forEach(([x, y, z, r], i) => { const on = !mort && eveil > i / 9; add(tb([x - .02, y, z]), tb([x + .03, y, z]), r, r, on ? oeil : [70, 40, 36], on); });
@@ -7921,8 +7965,10 @@ function osTisseuse(f) {
     const K = [H[0] + u[0] * a * ca2 + n[0] * a * sa2, H[1] + u[1] * a * ca2 + n[1] * a * sa2, H[2] + u[2] * a * ca2 + n[2] * a * sa2];
     const Akk = [H[0] + u[0] * d, H[1] + u[1] * d, H[2] + u[2] * d];
     add(H, K, .2, .2, fer); add(K, Akk, .15, .15, fer); add(Akk, Fp, .09, .09, sombre);
+    const pis = [H[0] + (K[0] - H[0]) * .55, H[1] + (K[1] - H[1]) * .55, H[2] + (K[2] - H[2]) * .55 + .12];
+    add([H[0], H[1], H[2] + .1], pis, .06, .06, cuivre);                                                // le vérin
+    for (const q of [-.5, 0, .5]) { const a = Math.atan2(Fp[1] - H[1], Fp[0] - H[0]) + q; add(Fp, [Fp[0] + Math.cos(a) * .17, Fp[1] + Math.sin(a) * .17, Fp[2] + .01], .045, .04, cuivre); }   // trois griffes
     add([K[0] - .07, K[1], K[2]], [K[0] + .07, K[1], K[2]], .24, .24, jt, rage);                  // le genou
-    add([Fp[0], Fp[1], Fp[2]], [Fp[0] + .14 * Math.sign(Fp[0] - H[0] || 1), Fp[1], Fp[2]], .12, .06, cuivre);   // la griffe
   }
   // les toiles au sol
   for (const w of TOILES) {
@@ -8457,7 +8503,7 @@ function porterCoup(b, c, deg) {
     if (P.pv <= 0) terrasse();
     return true;
   }
-  c.pv -= deg / robuste(c); c.hit = .25; c.alarm = 1;
+  c.pv -= deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1); c.hit = .25; c.alarm = 1;   // sur la Tisseuse, crocs et griffes glissent
   // le bossu rend parfois le coup qu'il reçoit d'un chasseur
   if (b.sp.chasse && c.sp.riposte > .3 && Math.random() < c.sp.riposte * .5) { b.pv -= .12; b.hit = .2; }
   // repoussée et un instant étourdie : la bête laisse une vraie fenêtre pour fuir — et lâche sa paroi
