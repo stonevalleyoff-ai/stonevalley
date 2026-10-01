@@ -695,3 +695,25 @@ Une colonie de **cinq** niche sur les **dalles des îles de nuage**, un peu plus
 - **Son ombre** reste au sol même haute, pâle, pour qu'on la suive des yeux. Sa voix : un « kirr » grinçant qui retombe, trois « kik » à l'alerte.
 - **La colonie grandit** au nid quand elle est rassasiée, jusqu'à son plafond.
 - Pour régler : `VOLANTS` (la fiche), `VOL` (vitesses), `majVolant` et `volerVers` (le comportement et le vol), `osSterne` (le corps), dans la section LA STERNE DES NUES d'`index.html`.
+
+
+## 40. Le vesseron farceur
+
+**Sa nuance** : chaque vesseron a la sienne, du rose framboise au bleu nuit en passant par le violet et le mauve brun, plus ou moins clair (`TEINTES_MYCO`, `couleurChapeau`). Les lamelles et le dôme suivent ; une compagne garde la sienne (sauvegardée).
+
+**La nuit, son chapeau luit**, à sa nuance, plus clair, avec une lente respiration ; il éclaire autour de lui (une des trois lueurs telluriennes les plus proches). Il **s'éteint d'un coup** (un tiers de seconde) quand il **se cache** (cacher, tapi, détaler) ou **a peur** (fuite, acculé, alarme), et **se rallume doucement** (un peu plus d'une seconde) quand il ressort : quand il se penche pour lancer et rit, on le voit se rallumer à demi. Le jour, rien. Pour régler : `capLum` dans le corps du myconide, la lumière dans `lueursRares`.
+
+**Sa farce** (sauvage, quand vous êtes à moins d'une douzaine de cases) :
+
+| État | Ce qu'il fait |
+|---|---|
+| cacher | il glousse et file derrière ce qui le dépasse (champignon géant, arbre, souche), du côté opposé à vous, chacun son abri |
+| tapi | accroupi derrière, il vous guette |
+| ajuster | il se penche hors de l'abri, le bras armé haut derrière, la boule de spores au poing |
+| rire | il lance (le bras fouette), puis rit en sautillant, le chapeau secoué d'un côté à l'autre, les yeux plissés ; les voisins s'y mettent |
+
+- Une fois sur deux il reste à son abri, une fois sur deux il en change. À trois cases de lui, il **détale en riant** vers un abri plus loin. Frappé, il crache son nuage (comme avant) et file. Blessé (moins de 30 %), il ne joue plus : il fuit.
+- **La boule** part en cloche, un peu devant vous si vous courez, à la couleur de son chapeau, avec une traînée de spores. Elle éclate en nuage vert : touché en plein, un petit coup ; dans le nuage, **empoisonné** quatre secondes (cumulables jusqu'à dix : la vie baisse doucement, sans jamais tuer ; étiquette « empoisonné » au HUD) et un peu engourdi.
+- **Lié**, en défense, il fait le même tour à la menace : à plus de deux cases et demie, il s'arrête et lance une boule toutes les 2,4 s (plus précises, plus fortes) ; de près, le nuage, comme avant.
+- Ses sons : un « hihihi » qui retombe, à sa hauteur de voix ; le « pff » du lancer ; le « pouf » du nuage.
+- Pour régler : section LE VESSERON FARCEUR d'`index.html` (`farceVesseron`, `abriVesseron`, `lancerSpore`, `eclaterSpore`) ; le poison dans `update` (`P.poison`).

@@ -49,6 +49,7 @@
   #hudtxt .sep{height:1px;background:rgba(190,205,230,.14);margin:7px 0 6px;}
   #hudtxt .expl{color:#8fe3ff;font-size:12.5px;line-height:1.4;} #hudtxt .expl.loin{color:#ff9a7a;}
   #hudtxt .etiq{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:800;letter-spacing:.3px;background:rgba(255,210,125,.14);color:#ffd27d;}
+  #hudtxt .etiq.poison{background:rgba(184,224,122,.16);color:#b8e07a;}
   #hudtxt .etiq.rouge{background:rgba(255,120,100,.16);color:#ff9a7a;} #hudtxt .etiq.bleu{background:rgba(143,227,255,.14);color:#8fe3ff;}
   #hudtxt .note{color:#8d9ab4;font-size:11.5px;line-height:1.4;} #hudtxt .note.rose{color:#e8a0a8;margin-top:5px;}
   /* Les avis : une carte sombre au milieu de l'écran, lisible sur tous les fonds. Police Nunito
@@ -617,6 +618,23 @@ const SON = (() => {
   // ---------- les recettes ----------
   // Chacune pose ses sons à partir de t et rend sa durée.
   const RECETTES = {
+    rire(o, t, p) {                                      // « hihihi » : des petits « hi » qui retombent, le dernier étiré
+      const f0 = p.f || 900, n = p.n || 5;
+      for (let i = 0; i < n; i++) {
+        const t0 = t + i * (.075 + Math.random() * .02), f = f0 * (1 - i * .035) * (1 + (Math.random() - .5) * .06), d = i === n - 1 ? .16 : .055;
+        const F = filtre(o, 'bandpass', f * 2.2, 3), O = osc(F, t0, 'triangle', f * 1.08, f * .9, d, .004, .11);
+        const L = ctx.createOscillator(), LG = ctx.createGain(); L.frequency.value = 26; LG.gain.value = f * .03; L.connect(LG); LG.connect(O.frequency); L.start(t0); L.stop(t0 + d + .05);
+      }
+      return n * .09 + .2;
+    },
+    crachat(o, t) {                                      // le lancer : un « pff » bref
+      souffle(o, t, 'bandpass', 1600, 900, 1.4, .1, .004, .07); osc(o, t, 'sine', 520, 260, .07, .002, .05);
+      return .2;
+    },
+    pouf(o, t) {                                         // la boule éclate en nuage
+      souffle(o, t, 'lowpass', 1400, 300, .9, .4, .006, .14); osc(o, t, 'sine', 240, 120, .14, .004, .04);
+      return .5;
+    },
     battement(o, t, p) {                                 // des ailes qui battent : de courtes bouffées d'air
       const n = p.n || 4;
       for (let i = 0; i < n; i++) souffle(o, t + i * .085, 'bandpass', alea(480, 720), 280, 1.1, .055, .008, .09);
@@ -5141,7 +5159,8 @@ const DITS_VOL = { 'perché': 'se repose au nid', planer: 'plane en cercles', 'p
   plonger: 'plonge', remonter: 'remonte de l\'eau', rentrer: 'rentre au nid', poser: 'se pose', manger: 'mange son poisson',
   'décoller': 'prend son envol', fuir: 'fuit à tire-d\'aile', dormir: 'dort, la tête sous l\'aile',
   'épaule': 'sur votre épaule', suivre: 'vous rejoint', cueillir: 'vole à la récolte', picorer: 'détache sa récolte', 'défendre': 'harcèle l\'ennemi' };
-const DITS_ETAT = { suivre: 'vous suit', 'récolter': 'travaille', repos: 'se repose', rappel: 'accourt',
+const DITS_ETAT = { cacher: 'file se cacher', tapi: 'se tapit, et vous guette', ajuster: 'prépare un mauvais tour', rire: 'rit de vous',
+  suivre: 'vous suit', 'récolter': 'travaille', repos: 'se repose', rappel: 'accourt',
   'défendre': 'se bat pour vous', garder: 'garde le campement', patrouiller: 'patrouille', viser: 'met en joue', veille: 'en veille',
   boire: 'boit', brouter: 'broute', chasser: 'chasse', assaut: 'se bat', fuir: 'fuit', 'acculé': 'fait front',
   'décrocher': 'se dégage', errer: 'flâne', troupeau: 'flâne', curieux: 'vous observe', 'pas de loup': 'avance à pas de loup', 'affût': 'est à l\'affût', bondir: 'bondit', dormir: 'dort', 'quête': 'rôde', traquer: 'traque',
@@ -6162,7 +6181,9 @@ function lueursRares(pousse) {
   // et les trois Telluriens les plus proches, à part — leur pierre natale luit, la salamandre tout
   // entière : un champ de braises ne doit pas les éteindre
   const Lb = [];
-  for (const b of beasts) if (!b.dead && b.sp.lueur) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < 144) Lb.push([b.x, b.y, b.z + .45 * b.sp.sz, b.sp.lueur, d]); }
+  for (const b of beasts) if (!b.dead && b.sp.lueur) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < 144) Lb.push(b.capLum > .05
+    ? [b.x, b.y, b.z + .62 * b.sp.sz, b.sp.lueur + 1.4 * b.capLum, d]                // le chapeau du vesseron, la nuit
+    : [b.x, b.y, b.z + .45 * b.sp.sz, b.sp.lueur, d]); }
   Lb.sort((a, b) => a[4] - b[4]);
   for (let j = 0; j < Math.min(3, Lb.length); j++) pousse(Lb[j][0], Lb[j][1], Lb[j][2], Lb[j][3]);
 }
@@ -6199,6 +6220,10 @@ function majBiome(dt) {
     if (P.pv <= 0) { P.brulure = 0; terrasse(); }
   }
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
+  if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
+    P.pv = Math.max(.05, P.pv - dt * .014);
+    if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
+  }
   if (biomeIci === 14 && !P.monture && P.ground && P.pv > 0 && !effet('braise')) {
     P.pv = Math.max(0, P.pv - BRULURE * dt); P.dernierCoup = t;   // on ne se remet pas sur la braise
     if (t - braiseT > 3) { braiseT = t; say('les braises brûlent', 1.4); }
@@ -8510,11 +8535,15 @@ function majTirs(dt) {
     for (let i = 0; i < n && !fini; i++) {
       f.vz -= TIR_G * h;
       const nx = f.x + f.vx * h, ny = f.y + f.vy * h, nz = f.z + f.vz * h;
-      fini = f.obus ? toucheObus(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
+      fini = f.obus ? toucheObus(f, nx, ny, nz) : f.spore ? toucheSpore(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
       if (!fini && f.age > .05 && floreTouche(nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8b89a'); }   // arrêté par un arbre, une pierre
       f.x = nx; f.y = ny; f.z = nz;
     }
     if (f.obus && (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3.5)) { exploser(f); TIRS.splice(k, 1); continue; }
+    if (f.spore) {                                      // la boule de spores : sa traînée, puis le nuage
+      if (Math.random() < dt * 30) parts.push({ x: f.x, y: f.y, z: f.z, vx: 0, vy: 0, vz: .2, g: -.05, life: .45, age: 0, col: '#c4e486', luit: 1, tl: .05 });
+      if (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3) { eclaterSpore(f); TIRS.splice(k, 1); continue; }
+    }
     if (fini || f.z < -6 || f.x < 1 || f.y < 1 || f.x >= WS - 1 || f.y >= WS - 1
         || (f.z < sol(f.x, f.y) - .05)) TIRS.splice(k, 1);
   }
@@ -8559,6 +8588,9 @@ function emitTirs(view, out) {
   for (const f of TIRS) {
     const v = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / v, f.vy / v, f.vz / v];
     const cle = cleA(f.x, f.y), rang = rangSol(f.z, false);
+    if (f.spore) {                                      // une boule ronde, à la couleur du chapeau, qui luit
+      emitLimb([f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, view, out, cle, rang, 1); continue;
+    }
     if (f.obus) {
       emitLimb([f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], view, out, cle, rang);
       // le cercle au sol, en douze traits, qui bat de plus en plus vite
@@ -10749,29 +10781,62 @@ function osTellurien(f) {
     return B;
   }
   if (sp.corps === 'myconide') {
-    const bouge = Math.min(1, v / .5), R = repere(f);
-    let roule = 0, hop = 0;                                                            // il penche vers le pied qui porte
+    const bouge = Math.min(1, v / .5), R = repere(f), E = f.etat;
+    const dtl = Math.min(.1, Math.max(0, t - (f._myT ?? t))); f._myT = t;
+    const lis = (k, c, w) => { const a = f[k] ?? c; return f[k] = a + (c - a) * Math.min(1, dtl * w); };
+    const cote = (f.farce && f.farce.cote) || 1;
+    const tapi = lis('_tapi', E === 'tapi' && !f.dead ? 1 : 0, 6);                  // tapi derrière son abri
+    const aj = lis('_aj', E === 'ajuster' && !f.dead ? 1 : 0, 9);                   // il se penche hors de l'abri, le bras armé
+    const rit = lis('_rit', E === 'rire' && !f.dead ? 1 : 0, 10);                   // il rit, secoué
+    const lance = f.lanceT != null && t - f.lanceT < .3 ? 1 - (t - f.lanceT) / .3 : 0;   // le bras qui fouette
+    let roule = cote * aj * .1, hop = rit * Math.abs(Math.sin(t * 15)) * .035;    // il penche vers le pied qui porte
     for (const ft of f.feet || []) if (ft.step > 0) { const l = Math.sin((1 - ft.step) * Math.PI); roule -= ft.s * l * .05; hop += l * .025; }
     const nuage = f.nuageT != null && t - f.nuageT < .6 ? 1 - (t - f.nuageT) / .6 : 0;   // il se gonfle et crache
-    const bz = .15 + hop - dk * .1;
+    const bz = .15 + hop - dk * .1 - tapi * .05;
     for (const ft of f.feet || []) {                                                   // deux pieds, posés tour à tour
       const s = ft.s, H = [0, s * .06, bz], Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.myconide.haut, [.02, s * .08, -.03]), .17);
       const G = genou(H, Pd, .09, .08, [1, 0, .2]);
       add(H, G, .08, .08, sp.leg); add(G, Pd, .07, .07, sp.leg); add(Pd, [Pd[0] + .05, Pd[1], Pd[2]], .08, .04, sp.leg);
     }
-    const haut = [roule * .4, roule, bz + .30];
+    const haut = [roule * .4, roule, bz + .30 - tapi * .03];
     add([0, 0, bz - .02], haut, .20, .20, sp.leg);                                    // le pied, qui est son corps
-    const cz = bz + .34, cr = .23 * (1 + nuage * .25), cx = haut[0], cy = haut[1] + roule;
-    add([cx - cr, cy, cz], [cx + cr, cy, cz], cr * 2, .13, sp.shell);                 // le chapeau
-    add([cx - cr * .8, cy, cz - .07], [cx + cr * .8, cy, cz - .07], cr * 1.7, .02, sp.dark);   // les lamelles
-    add([cx - cr * .45, cy, cz + .08], [cx + cr * .45, cy, cz + .08], cr * 1.1, .06, sp.shell);   // le dôme
+    // le chapeau, à sa nuance : posé en travers, il bascule d'un côté à l'autre quand il rit
+    // la nuit, le chapeau luit — et s'éteint d'un coup quand il se cache ou a peur (il se rallume doucement)
+    const farce = E === 'ajuster' || E === 'rire';
+    const peur = !farce && (E === 'fuir' || E === 'acculé' || (f.alarm || 0) > .3);
+    const eteint = f.dead || E === 'cacher' || E === 'tapi' || peur || (f.farce && f.farce.m === 'filer');
+    const allume = lumiere() < .4 && !eteint ? 1 : 0;
+    const lum = lis('_lum', allume, allume > (f._lum ?? 0) ? .7 : 6);
+    f.capLum = lum * (.86 + .14 * Math.sin(t * 1.7 + (f.capT || 0) * 9));      // une respiration
+    const mixC = (a, b, k) => a.map((x, j) => Math.round(x + (b[j] - x) * k)), L = f.capLum;
+    const cap0 = couleurChapeau(f);
+    const cap = mixC(cap0, cap0.map(x => Math.min(255, x * 1.25 + 70)), L);
+    const lam = mixC(cap0.map(x => Math.round(x * .6)), cap0.map(x => Math.min(255, x * .9 + 50)), L);
+    const dome = mixC(cap0.map(x => Math.min(255, Math.round(x * 1.08))), cap0.map(x => Math.min(255, x * 1.1 + 110)), L);
+    const n0 = B.length;
+    const tilt = rit * Math.sin(t * 22) * .04 + aj * .035 * cote;
+    const cz = bz + .34 - tapi * .03, cr = .23 * (1 + nuage * .25), cx = haut[0], cy = haut[1] + roule;
+    const zc = y => cz + y / cr * tilt;
+    add([cx, cy - cr, zc(-cr)], [cx, cy + cr, zc(cr)], cr * 2, .13, cap);
+    add([cx, cy - cr * .8, zc(-cr * .8) - .07], [cx, cy + cr * .8, zc(cr * .8) - .07], cr * 1.7, .02, lam);   // les lamelles
+    add([cx, cy - cr * .45, zc(-cr * .45) + .08], [cx, cy + cr * .45, zc(cr * .45) + .08], cr * 1.1, .06, dome);   // le dôme
     for (const [x, y] of [[-.10, .08], [.08, -.09], [.02, .12], [-.06, -.10]])
-      add([cx + x, cy + y, cz + .07], [cx + x + .03, cy + y, cz + .075], .045, .025, [236, 228, 214]);   // les taches
+      add([cx + x, cy + y, zc(y) + .07], [cx + x + .03, cy + y, zc(y) + .075], .045, .025, mixC([236, 228, 214], [248, 255, 236], L));   // les taches
+    if (L > .3) for (let j = n0; j < B.length; j++) B[j].luit = 1;                  // le chapeau, ses lamelles, ses taches : ils luisent
     add([cx, cy, cz + .115], [cx + .02, cy, cz + .15], .05, .05, sp.pierre);          // la pierre natale
     for (const s of [-1, 1]) {
-      add([.09, s * .04 + roule * .8, bz + .22], [.10, s * .04 + roule * .8, bz + .23], .035, .035, sp.oeil);
-      const bras = Math.sin(ph + (s > 0 ? 0 : Math.PI)) * .06 * bouge;                 // de petits bras qui battent
-      add([.02, s * .09 + roule * .6, bz + .18], [.05 + bras, s * .15 + roule * .6, bz + .10 + (f.alarm || 0) * .08], .04, .04, sp.leg);
+      const ez = bz + .22 - tapi * .03;
+      add([.09, s * .04 + roule * .8, ez], [.10, s * .04 + roule * .8, ez], .035, rit > .3 ? .012 : .035, sp.oeil);   // les yeux, plissés de rire
+      const ep = [.02, s * .09 + roule * .6, bz + .18];
+      let main;
+      if (s === cote && (aj > .05 || lance > 0)) {                                    // le bras qui lance : armé haut derrière, puis il fouette
+        const arme = [-.06, s * .13 + roule * .6, bz + .36], fouet = [.17, s * .11 + roule * .6, bz + .24];
+        const repos = [.05, s * .15 + roule * .6, bz + .10];
+        main = lance > 0 ? fouet.map((q, j) => q + (arme[j] - q) * lance) : repos.map((q, j) => q + (arme[j] - q) * aj);
+      } else if (rit > .05) main = [.07, s * .06 + roule * .6, bz + .11 + Math.sin(t * 15 + s) * .02];   // les mains sur le ventre
+      else { const bras = Math.sin(ph + (s > 0 ? 0 : Math.PI)) * .06 * bouge; main = [.05 + bras, s * .15 + roule * .6, bz + .10 + (f.alarm || 0) * .08]; }
+      add(ep, main, .04, .04, sp.leg);
+      if (s === cote && aj > .3 && !(lance > 0)) add(main, [main[0] + .03, main[1], main[2] + .03], .075, .075, dome);   // la boule, au poing
     }
     return B;
   }
@@ -10823,8 +10888,121 @@ function osTellurien(f) {
 //  - Le crapaud qui fuit dans sa tourbière s'y enfouit : les chasseurs perdent sa trace.
 //  - Le vesseron menacé, frappé — ou qui vous défend — crache un nuage de spores : les chasseurs
 //    pris dedans restent sonnés et renoncent, le joueur s'y engourdit.
+// ============================================================
+//  LE VESSERON FARCEUR
+//  Il vous a vu : il glousse et file se cacher derrière ce qui le dépasse (un champignon géant,
+//  un arbre, une souche), du côté opposé à vous. Tapi, il vous guette ; puis il se penche hors de
+//  son abri, arme son petit bras, vous lance une boule de spores en cloche — et rit, en sautillant,
+//  le chapeau secoué. Une fois sur deux il reste là, une fois sur deux il change d'abri. Approchez à
+//  trois cases : il détale en riant vers un abri plus loin. Frappé, il crache son nuage et file.
+//  Les rires gagnent les voisins. La boule éclate en un nuage vert : touché en plein, un coup ;
+//  dedans, empoisonné quelques secondes (la vie baisse, un peu ; le poison ne tue pas) et engourdi.
+//  Lié, il sait le même tour : en défense, il reste à distance et lance ses boules sur la menace.
+// ============================================================
+const TEINTES_MYCO = [[204, 82, 152], [152, 74, 172], [112, 80, 194], [84, 104, 182], [150, 96, 124], [180, 116, 180]];
+function couleurChapeau(f) {                              // chaque individu, sa nuance de chapeau
+  if (f.capC) return f.capC;
+  let c0 = f.comp && Number.isFinite(f.comp.capT) ? f.comp.capT : Number.isFinite(f.capT) ? f.capT : Math.random();
+  f.capT = c0; if (f.comp && !Number.isFinite(f.comp.capT)) f.comp.capT = c0;
+  const n = TEINTES_MYCO.length - 1, x = c0 * n, i = Math.min(n - 1, x | 0), k = x - i, A = TEINTES_MYCO[i], B = TEINTES_MYCO[i + 1];
+  const l = .86 + ((c0 * 7.31) % 1) * .26;               // et sa lumière : plus pâle, plus sombre
+  return f.capC = A.map((v, j) => Math.max(0, Math.min(255, Math.round((v + (B[j] - v) * k) * l))));
+}
+function rireVesseron(b, k) {
+  b.rireT = t; SON.jouer('rire', { f: 820 + ((b.capT || .5) * 380), n: k > .8 ? 6 : 4 }, b.x, b.y, b.z + .6);
+  for (const o of beasts) if (o !== b && o.sp === b.sp && !o.dead && !o.tame && Math.random() < .55
+    && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 64 && !(o.rireA > t)) o.rireA = t + .35 + Math.random() * .6;   // les voisins s'y mettent
+}
+// Un abri : une plante haute à portée, et le point derrière elle, par rapport à vous.
+function abriVesseron(b, dmin = 5) {
+  let best = null, bs = 1e9;
+  for (let k = 0; k < 44; k++) {
+    const a = Math.random() * 6.2832, r = 1 + Math.random() * 7;
+    const x = (b.x + Math.cos(a) * r) | 0, y = (b.y + Math.sin(a) * r) | 0;
+    if (x < 2 || y < 2 || x >= WS - 2 || y >= WS - 2) continue;
+    const i = y * WS + x, q = Flo[i]; if (!q || PlT[i]) continue;
+    const e = ESP[q - 1]; if (e.h < .8) continue;          // assez haut pour le cacher
+    const dx = x + .5 - P.x, dy = y + .5 - P.y, d = Math.hypot(dx, dy) || 1;
+    const cx = x + .5 + dx / d * .85, cy = y + .5 + dy / d * .85, dj = Math.hypot(cx - P.x, cy - P.y);
+    if (dj < dmin || dj > 13 || !libreBete(b, cx, cy)) continue;
+    if (beasts.some(o => o !== b && o.farce && o.farce.C && Math.hypot(o.farce.C[0] - cx, o.farce.C[1] - cy) < 1.5)) continue;
+    const s = Math.hypot(cx - b.x, cy - b.y); if (s < bs) { bs = s; best = [cx, cy]; }
+  }
+  if (best) return best;
+  const a = Math.atan2(b.y - P.y, b.x - P.x) + (Math.random() - .5), R = Math.max(dmin + 1, 7);   // pas d'abri : il recule
+  const x = P.x + Math.cos(a) * R, y = P.y + Math.sin(a) * R;
+  return libreBete(b, x, y) ? [x, y] : null;
+}
+// La boule de spores, lancée en cloche vers c (vous, ou la menace d'un vesseron lié).
+function lancerSpore(b, c) {
+  const d = Math.hypot(c.x - b.x, c.y - b.y) || 1, vol = Math.max(.75, Math.min(1.5, .55 + d * .085));
+  const e = d * (b.tame ? .06 : .11) * Math.sqrt(Math.random()), ea = Math.random() * 6.2832;
+  const cx = c.x + (c.vx || 0) * vol * .55 + Math.cos(ea) * e, cy = c.y + (c.vy || 0) * vol * .55 + Math.sin(ea) * e;
+  const cz = (c === P ? P.z : c.z || 0) + .55;
+  const a = Math.atan2(cy - b.y, cx - b.x), ox = b.x + Math.cos(a) * .12, oy = b.y + Math.sin(a) * .12, oz = b.z + .62 * b.sp.sz;
+  TIRS.push({ x: ox, y: oy, z: oz, vx: (cx - ox) / vol, vy: (cy - oy) / vol, vz: (cz - oz) / vol + TIR_G * vol * .5,
+    de: b, deg: b.tame ? .1 : .035, age: 0, c: couleurChapeau(b), spore: true, vol });
+  b.lanceT = t; b.dirT = a; SON.jouer('crachat', {}, ox, oy, oz);
+}
+function toucheSpore(f, nx, ny, nz) {
+  if (nz <= sol(nx, ny)) return true;
+  const pt = plaT(nx | 0, ny | 0); if (pt && plaB(nx | 0, ny | 0) <= nz && nz <= pt) return true;
+  if (!f.de.comp) return (nx - P.x) ** 2 + (ny - P.y) ** 2 < .3 && nz > P.z - .1 && nz < P.z + 1.4;
+  for (const o of beasts) if (o !== f.de && !o.tame && !o.dead && o.pv > 0 && toucheBete(o, nx, ny, nz)) return true;
+  return false;
+}
+function eclaterSpore(f) {                               // le nuage vert, et le poison
+  const x = f.x, y = f.y, z = Math.max(f.z, sol(x, y)), c = f.c, col = `rgb(${c[0]},${c[1]},${c[2]})`;
+  for (let k = 0; k < 20; k++) parts.push({ x, y, z: z + .15, vx: (Math.random() - .5) * 2.2, vy: (Math.random() - .5) * 2.2, vz: Math.random() * 1.3,
+    g: -.1, life: .9 + Math.random() * .9, age: 0, col: k % 3 ? '#c4e486' : col, luit: 1, tl: .075 });
+  SON.jouer('pouf', {}, x, y, z);
+  const de = f.de;
+  if (!de.comp) {
+    const d2 = (P.x - x) ** 2 + (P.y - y) ** 2;
+    if (d2 < 1.3 && z > P.z - .5 && z < P.z + 1.8 && P.pv > 0) {
+      if (d2 < .3) porterCoup(de, P, f.deg);
+      P.poison = Math.min(t + 10, Math.max(P.poison || 0, t) + 4); P.spores = Math.max(P.spores || 0, t + 1.2);
+      say('empoisonné · des spores plein le nez', 1.6);
+    }
+  } else for (const o of beasts) if (!o.dead && o.pv > 0 && !o.tame && o !== de && (o.x - x) ** 2 + (o.y - y) ** 2 < 1.4) {
+    porterCoup(de, o, f.deg); o.etourdi = Math.max(o.etourdi || 0, .9);
+    if (o.pv <= 0) mourirBete(o, 'tir');
+  }
+}
+// La farce, sauvage : rend [état, x, y, allure] tant qu'elle dure, null sinon (la vie ordinaire).
+function farceVesseron(b, dt) {
+  const sp = b.sp, dJ = Math.hypot(P.x - b.x, P.y - b.y), F = b.farce || (b.farce = { m: null });
+  if (b.rireA && t > b.rireA) { b.rireA = 0; rireVesseron(b, .5); }
+  const jeu = P.pv > 0 && !sousAbri() && Math.abs(P.z - b.z) < 4 && b.pv > .3 && !(b.etourdi > 0) && !b.as;
+  if (!jeu || dJ > (F.m ? 16 : 12.5)) { F.m = null; F.C = null; return null; }
+  if (b.hit > 0 && b.t > (b.sporeT || 0)) { nuageSpores(b, true); F.m = 'filer'; F.C = abriVesseron(b, 7); F.lim = b.t + 8; }
+  if (!F.m) { F.m = 'cacher'; F.C = abriVesseron(b); F.lim = b.t + 8; rireVesseron(b, .6); }   // vu : il glousse, et file
+  if (dJ < 3.2 && F.m !== 'filer') { F.m = 'filer'; F.C = abriVesseron(b, 7); F.lim = b.t + 8; rireVesseron(b, 1); }
+  b.dirT = Math.atan2(P.y - b.y, P.x - b.x);
+  if (F.m === 'cacher' || F.m === 'filer') {
+    if (!F.C || Math.hypot(F.C[0] - b.x, F.C[1] - b.y) < .45 || b.t > F.lim) { F.m = 'tapi'; F.T = b.t + .8 + Math.random() * 1.6; }
+    else return [b.etat = 'cacher', F.C[0], F.C[1], sp.spd * (F.m === 'filer' ? 2.1 : 1.5)];
+  }
+  if (F.m === 'tapi') {
+    if (b.t > F.T) {
+      if (dJ > 3.6 && dJ < 12) { F.m = 'ajuster'; F.T = b.t + .6; F.cote = Math.random() < .5 ? -1 : 1; }
+      else { F.m = 'cacher'; F.C = abriVesseron(b); F.lim = b.t + 8; }
+    }
+    return [b.etat = 'tapi', b.x, b.y, 0];
+  }
+  if (F.m === 'ajuster') {
+    if (b.t > F.T) { lancerSpore(b, P); F.m = 'rire'; F.T = b.t + 1.15; rireVesseron(b, 1); }
+    return [b.etat = 'ajuster', b.x, b.y, 0];
+  }
+  if (F.m === 'rire' && b.t > F.T) {
+    if (Math.random() < .5) { F.m = 'tapi'; F.T = b.t + 1.4 + Math.random() * 2.2; }
+    else { F.m = 'cacher'; F.C = abriVesseron(b); F.lim = b.t + 8; }
+  }
+  return [b.etat = F.m === 'rire' ? 'rire' : F.m, b.x, b.y, 0];
+}
 function instinctTellurien(b, etat, tx, ty, vit, men, dM, dt) {
   const sp = b.sp, sauvage = !b.tame;
+  if (sauvage && sp.corps === 'myconide') { const r = farceVesseron(b, dt); if (r) return r; }   // le farceur (voir LE VESSERON FARCEUR)
   if (sauvage && sp.corps === 'saurien' && !sp.nuit && etat === 'errer' && lumiere() > .6 && (b.t + b.bob * 7) % 26 < 17) {
     etat = b.etat = 'lézarder'; b.dirT = SUN_AZ; vit = 0;
   }
@@ -10845,6 +11023,11 @@ function instinctTellurien(b, etat, tx, ty, vit, men, dM, dt) {
   if (sp.corps === 'myconide' && b.t > (b.sporeT || 0)) {
     const menace = sauvage && men && dM < 9 && (etat === 'fuir' || etat === 'acculé');
     const defend = !sauvage && etat === 'défendre' && b.cibleD && (b.x - b.cibleD.x) ** 2 + (b.y - b.cibleD.y) ** 2 < 5;
+    const dD = !sauvage && etat === 'défendre' && b.cibleD && !b.cibleD.dead ? Math.hypot(b.x - b.cibleD.x, b.y - b.cibleD.y) : 0;
+    if (dD > 2.4 && dD < 8) {                          // à distance : il s'arrête et lance ses boules
+      vit = 0; b.dirT = Math.atan2(b.cibleD.y - b.y, b.cibleD.x - b.x);
+      if (b.t > (b.lancerT || 0)) { lancerSpore(b, b.cibleD); b.lancerT = b.t + 2.4; }
+    }
     if (menace || defend || (sauvage && b.hit > 0)) nuageSpores(b, sauvage);
   }
   if (sauvage && !b.mur && (etat === 'errer' || etat === 'troupeau' || etat === 'brouter' || etat === 'quête')
@@ -12146,7 +12329,7 @@ function emitFoe(f, view, out) {
   const { U, put } = posBete(f);
   const flash = f.hit > 0 && (t * 16 | 0) % 2;
   const cle = view.kEnt && view.kEnt(f.x, f.y), rang = rangSol(f.z, false);
-  for (const b of foeBones(f)) emitLimb(put(b.a), put(b.b), b.w, b.h, flash ? [255, 220, 210] : b.c, view, out, cle, rang, undefined, undefined, undefined, U);
+  for (const b of foeBones(f)) emitLimb(put(b.a), put(b.b), b.w, b.h, flash ? [255, 220, 210] : b.c, view, out, cle, rang, b.luit ? 1 : undefined, undefined, undefined, U);
 }
 // ---------- le campement, en volumes ----------
 // Les mêmes boîtes que les bêtes et le héros : une seule description sert aux quatre rendus.
@@ -13541,6 +13724,7 @@ function drawHud() {
   const etats = [sans(escHud()), sans(effetsHud()), sans(djHud()),
     P.arc !== null ? `<b>${'█'.repeat(Math.round(Math.min(1, P.arc / ARC_TEMPS) * 6)).padEnd(6, '·')}</b>` : '',
     essai || (djIci() && DJ.etat.test) ? '<span class="etiq">ESSAI</span>' : '',
+    P.poison > t ? '<span class="etiq poison">empoisonné</span>' : '',
     Autres.size ? `<span class="etiq bleu">${Autres.size} joueur${Autres.size > 1 ? 's' : ''}</span>` : ''].filter(Boolean);
   // 3. où l'on en est : l'exploration, le danger, la distance à la maison
   let expl = '';
@@ -15091,14 +15275,14 @@ void main() { o = uC; }`;
         const an = anneauLien(b);
         panneau(an.x, an.y, an.z, an.r, an.r, 232 / 255, 62 / 255, 78 / 255, an.a, 6);
       }
-      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, 0, 0, hb, 0, 0, 0, U);
+      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, 0, o.luit ? L_FIXE : hb, 0, 0, 0, U);
     }
     for (const b of betesLoin) {
       const kz = b.sp.sz, { U, put } = posBete(b);
       if (!iso && !boiteVue(b.x - 2, b.x + 2, b.y - 2, b.y + 2, b.z - .4, b.z + 2.2, .05)) continue;
       if (iso || tierce) ombre(b.x, b.y, b.z, kz, U[2] * U[2] * (1 - (b.camo || 0) * .9));
       const hb = L_FIXE + 256 * horizAt(b.x, b.y), fl = b.hit > 0 && (t * 16 | 0) % 2;
-      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, 0, 0, hb, 0, 0, 0, U);
+      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, 0, o.luit ? L_FIXE : hb, 0, 0, 0, U);
     }
     for (const j of Autres.values()) {
       if (!iso && !boiteVue(j.x - 1, j.x + 1, j.y - 1, j.y + 1, j.z - .4, j.z + 2, .05)) continue;
@@ -15124,6 +15308,7 @@ void main() { o = uC; }`;
     for (const o of ogDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const f of TIRS) {
       const n = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / n, f.vy / n, f.vz / n];
+      if (f.spore) { boite(TD, [f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.obus) { boite(TD, [f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], 0, 0, L_FIXE, 0, 0, 0); continue; }
       boite(TD, [f.x - u[0] * .3, f.y - u[1] * .3, f.z - u[2] * .3], [f.x, f.y, f.z], .07, .07, f.c, 0, 0, L_FIXE, 0, 0, 0);
     }
@@ -15393,7 +15578,7 @@ function photo() {
     liens: P.liens,
     compagnes: P.compagnes.map(c => {
       const b = c.dehors && c.b, r3 = v => Math.round(Math.max(0, v) * 1000) / 1000;
-      const d = { id: c.id, esp: c.esp, nom: c.nom, role: c.role, mode: c.mode || 'joueur', recolte: c.recolte || null, dehors: !!b,
+      const d = { id: c.id, esp: c.esp, nom: c.nom, role: c.role, mode: c.mode || 'joueur', recolte: c.recolte || null, capT: Number.isFinite(c.capT) ? c.capT : null, dehors: !!b,
         pv: r3(b ? b.pv : c.pv), faim: r3(b ? b.faim : c.faim), soif: r3(b ? b.soif : c.soif), nrj: r3(b ? b.nrj : c.nrj) };
       if (c.ko) d.ko = 1;
       if (c.aucamp) d.aucamp = 1;
@@ -15528,7 +15713,7 @@ function appliquer(d, vivantes) {
     if (!r || typeof r !== 'object' || !specById[r.esp]) continue;
     liste.push({ id: Number.isInteger(r.id) && r.id > 0 && r.id < 1e6 ? r.id : 0, esp: r.esp,
       nom: typeof r.nom === 'string' && r.nom.trim() ? r.nom.trim().slice(0, 24) : null,
-      ...ordresDe(r), recolte: typeof r.recolte === 'string' && noteApt(r.esp, r.recolte) ? r.recolte : null, dehors: !!r.dehors, ko: r.ko ? 1 : 0, aucamp: r.aucamp ? 1 : 0,
+      ...ordresDe(r), recolte: typeof r.recolte === 'string' && noteApt(r.esp, r.recolte) ? r.recolte : null, capT: Number.isFinite(r.capT) ? r.capT : null, dehors: !!r.dehors, ko: r.ko ? 1 : 0, aucamp: r.aucamp ? 1 : 0,
       pv: nb(r.pv, .05, 1, 1), faim: nb(r.faim, 0, 1.2, .2), soif: nb(r.soif, 0, 1.2, .2), nrj: nb(r.nrj, 0, 1, 1),
       pos: place(r.pos), variante: varianteSure(r.variante) });
   }
@@ -15556,7 +15741,7 @@ function installerCompagnes(liste, vivantes) {
     let id = r.id;
     if (!id || ids.has(id)) id = prochainId++;
     ids.add(id);
-    const c = { id, esp: r.esp, nom: r.nom || tirerNom(), role: r.role, mode: r.mode || 'joueur', recolte: r.recolte, dehors: false, b: null,
+    const c = { id, esp: r.esp, nom: r.nom || tirerNom(), role: r.role, mode: r.mode || 'joueur', recolte: r.recolte, capT: r.capT, dehors: false, b: null,
       pv: r.pv, faim: r.faim, soif: r.soif, nrj: r.nrj, ko: r.ko, aucamp: r.aucamp ? 1 : 0, variante: r.variante || null };
     P.compagnes.push(c);
     const v = r.id ? enPlace.get(r.id) : null;
