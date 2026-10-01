@@ -585,6 +585,9 @@ Chaque compagne en **Récolte** reçoit une cible, quelle que soit son espèce :
 | Sentinelle | 1 | 2 | 1 | 1 | 1 | 3 | 2 | 5 |
 | Tireur d'élite | 1 | 1 | 1 | 1 | 1 | 2 | 4 | 5 |
 | Mortier | 1 | 3 | 1 | 1 | 1 | 3 | 2 | 5 |
+| Sterne des nues | 1 | 1 | 2 | 2 | 4 | 1 | — | 2 |
+
+- **La pêche** est une récolte à part (`PECHE_APT`) : la sterne seule, à 5. Le poisson va au sac, ou au cellier du coffre ; ses coefficients sont ceux des autres notes.
 
 
 ## 35. Le coffre : répartir sac et campement
@@ -609,7 +612,7 @@ Seulement au campement (curseurs grisés ailleurs). Le panneau ne se réécrit p
 | Salamandre (nuit) | coursier rouge, traqueur, glaneur, brouteur, varan, cotonnier, carillonneur, **oglodon** |
 | Traceur | brouteur, glaneur, bossu, cotonnier, carillonneur, lentigrade (vous, sur l'île des automates) |
 | **Mercenaire** | les joueurs et leurs compagnes d'abord ; personne en vue : **bossu, lentigrade, crapaud, bramard** |
-| **Tireur d'élite** | les joueurs et leurs compagnes d'abord ; personne en vue : **les quatre coursiers**, aurore comprise (le seul à l'atteindre) |
+| **Tireur d'élite** | les joueurs et leurs compagnes d'abord ; personne en vue : **les quatre coursiers**, aurore comprise (le seul à l'atteindre), et **la sterne des nues** en vol |
 | Sentinelle, mortier, moissonneur | pas de gibier (la garde de l'arche, le siège, rien) |
 | Automate lié, mis en Chasse | tout ce qui bouge (section 34) |
 
@@ -641,3 +644,54 @@ L'onglet **Campement** se lit comme l'établi : à gauche, l'île du campement p
 - **!** (en braise) : l'action ne se défait pas. Son bouton demande **un second appui** dans les cinq secondes (« Confirmer », et le panneau rappelle ce qu'on perd).
 - Trois vignettes neuves : l'arche (`portail`), le coffre (`coffre`), la boussole (`boussole`).
 - Pour régler : la liste `A` de `pageCampement`, et `detailCamp` / `faireCamp` dans `index.html`.
+
+
+## 38. Les buissons à baies
+
+Les baies ne sont plus un système à part : ce sont des **plantes de la flore**, cueillies à **ACTION** (geste « cueille », verbe CUEILLIR), comme le reste.
+
+| Buisson | Biome | Baies (rend) | Repousse | Son fruit (ingrédient) |
+|---|---|---|---|---|
+| Groseillier | prairie | 3 | 120 s | Grappe de groseilles (rareté 1) |
+| Roncier | bois | 3 | 120 s | Mûres de ronce (1 · pas vif) |
+| Airelle | tourbière | 3 | 130 s | Airelles (2 · peau dure) |
+| Mûrier de sylve | sylve fongique | 4 | 140 s | Mûres de sylve (3 · vision de nuit ; il luit la nuit) |
+
+- **Où** : aux mêmes cases qu'avant (même tirage par île, mêmes buissons pour tous les joueurs), désormais de vrais pieds de la flore (la pose des buissons dans `loadWorld`, `BUISSON_BIO`).
+- **Mûr**, un buisson porte ses baies, à la couleur de l'espèce ; cueilli, il repart de zéro et les rend en mûrissant. Le fruit nommé tombe parfois, comme les produits des autres plantes.
+- **Les baies sont une matière du sac** (`P.sac.baies`) : coffre, curseurs, retour d'expédition, tout comme le reste. Plus de ramassage en marchant dessus, plus de « −2 baies » à la mort. `P.baies` reste un raccourci (le donjon s'en sert).
+- **Les compagnes** cueillent les buissons comme toute plante (le glaneur, 5 aux baies, en tête) ; l'oglodon de la fourmilière y fait toujours son nectar.
+- **Rien ne change à l'usage** : G nourrit et apprivoise, l'ingrédient « baie » en cuisine, le chiffre du HUD.
+- Les anciennes sauvegardes gardent leurs baies (elles passent au sac).
+
+
+## 39. La sterne des nues, le premier volant
+
+Une colonie de **cinq** niche sur les **dalles des îles de nuage**, un peu plus d'une île sur deux (`sterneGraine`, tirée à part : les îles d'avant gardent leurs bêtes). Corps fuselé blanc, manteau gris perle, calotte noire, bec orange, queue fourchue à deux filets ; des ailes longues et étroites en trois segments (bras, avant-bras, main aux rémiges sombres).
+
+**Sa journée**
+
+| État | Ce qu'on voit |
+|---|---|
+| au nid | la tête balaie, elle lisse ses plumes, étire une aile ; la nuit elle dort la tête sous l'aile |
+| décoller | elle se ramasse, puis bondit à grands battements (bruit d'ailes) |
+| planer | des cercles au-dessus de la colonie, ailes tendues en léger dièdre qui frémit, inclinée dans les virages, avec de courtes reprises de battements |
+| pêcher | affamée, un vol battu jusqu'à l'eau la plus proche (mer, lac ou rivière) |
+| guetter | le surplace : ailes hautes et rapides, queue ouverte, tête basse |
+| plonger | le piqué, ailes repliées en arrière ; la gerbe et le « plouf » ; six fois sur dix, un poisson |
+| rentrer, se poser | le poisson en travers du bec ; elle freine ailes hautes, queue ouverte, pattes tendues, puis le mange au nid |
+
+- **Le battement** passe du bras à la pointe avec un temps de retard (l'onde de l'aile) ; 4 à 9 battements par seconde selon qu'elle croise, monte ou fait du surplace. Tout le corps tourne autour de son axe dans les virages (`roll`), le nez plonge au piqué et se lève au freinage (`tang`).
+- **Farouche** : vous approchez à moins de cinq ou six cases (plus vite vous allez, plus tôt), elle décolle en criant et s'éloigne en montant ; l'alarme gagne toute la colonie. Endormie au nid, on l'approche à deux cases : c'est là qu'on l'atteint sans arc.
+- **Qui l'atteint** : aucune bête du sol ; le **tireur d'élite** la chasse ; vous, **à l'arc**, ou au nid. Touchée en vol, elle **tombe en vrille**, ailes lâches. Elle laisse un **Blanc de sterne** (rareté 2 · grand souffle).
+- **L'apprivoiser** : **un poisson** au sac, et **sans bouger** (ou presque) : posée, elle vous laisse venir à une case. G le lui tend ; cinq poissons environ, et elle se lie (il faut un lien libre). Les baies, elle n'en veut pas. Sa fiche dit ce qu'elle fait et sa confiance.
+- **Liée** (section LA STERNE LIÉE d'`index.html`) :
+  - **avec le joueur**, au repos, elle se pose **sur votre épaule** (une seule à la fois, plus petite ; la nuit elle y dort) ; les autres tournent au-dessus de vous ;
+  - **au campement**, à sa place près du feu ; **autonome**, elle vit sa vie de sterne, sans la peur ;
+  - **en récolte**, elle vole à ce qu'on lui demande, au sol comme **sur les îles de nuage** (druses : Éclats 4, mousse céleste), s'y pose et le détache ; ou elle **pêche** (Pêche 5) : surplace, piqué, et le poisson au sac — au cellier pour le campement ; à sa note, parfois deux ; affamée, elle garde sa prise ; une pause sur l'épaule entre deux pêches ;
+  - **en défense** (2), elle harcèle ce qui vous menace : des piqués, un coup de bec, puis elle remonte ;
+  - au campement **en votre absence**, elle pêche : 0,8 poisson par minute × le coefficient de sa note, au cellier ;
+  - la laisse ne la ramène que de très loin (45 cases) : elle vole droit.
+- **Son ombre** reste au sol même haute, pâle, pour qu'on la suive des yeux. Sa voix : un « kirr » grinçant qui retombe, trois « kik » à l'alerte.
+- **La colonie grandit** au nid quand elle est rassasiée, jusqu'à son plafond.
+- Pour régler : `VOLANTS` (la fiche), `VOL` (vitesses), `majVolant` et `volerVers` (le comportement et le vol), `osSterne` (le corps), dans la section LA STERNE DES NUES d'`index.html`.
