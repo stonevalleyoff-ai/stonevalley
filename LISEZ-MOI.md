@@ -717,3 +717,54 @@ Une colonie de **cinq** niche sur les **dalles des îles de nuage**, un peu plus
 - **Lié**, en défense, il fait le même tour à la menace : à plus de deux cases et demie, il s'arrête et lance une boule toutes les 2,4 s (plus précises, plus fortes) ; de près, le nuage, comme avant.
 - Ses sons : un « hihihi » qui retombe, à sa hauteur de voix ; le « pff » du lancer ; le « pouf » du nuage.
 - Pour régler : section LE VESSERON FARCEUR d'`index.html` (`farceVesseron`, `abriVesseron`, `lancerSpore`, `eclaterSpore`) ; le poison dans `update` (`P.poison`).
+
+
+## 41. Le détour : plus de bêtes bloquées contre une marche
+
+**Le constat** (mesuré sur quatre îles, 2 à 9 d'exploration, 2 min 30 de jeu chacune) : une bête sur deux environ restait un moment à piétiner contre le relief. Deux causes :
+- les bêtes qui ne grimpent pas (cotonnier, carillonneur, coursiers, automates, vesseron) **suivaient la carte de l'eau des grimpeuses** : la pente les menait au bord d'une marche de deux cubes qu'elles ne descendent pas, l'eau en vue — elles tournaient là ;
+- toutes allaient **en ligne droite** vers leur but : une marche trop haute, une falaise, un bras d'eau entre elles et lui, et elles longeaient la paroi d'un côté, puis de l'autre.
+
+**Les remèdes** (section LE DÉTOUR d'`index.html`) :
+- **Une seconde carte de l'eau, pour les marcheurs** (`CarteEauM`) : des pas d'un cube au plus. Chaque bête suit la sienne (`distEau`, `versLEau` reçoivent la bête).
+- **Le détour** (`detour`, appelé par `pasVersBete`) : une bête qui ne gagne plus sur son but depuis deux secondes, alors que la ligne droite ne passe pas à sa mesure (`ligneLibre`), cherche un chemin sur les cases autour d'elle, dix-huit de rayon (`cheminNav`, Dijkstra) : le pas qu'elle sait faire (un cube, deux pour qui bondit), la paroi si elle grimpe (elle coûte), le saut en contrebas du coursier ; jamais l'eau, le vide ni les dalles, pas de coin coupé. Elle le suit de case en case et le **tend** dès que la ligne droite passe, puis reprend sa route.
+- **Hors d'atteinte**, elle va **au plus près et s'y tient** (cinq secondes, puis elle réessaie) au lieu de piétiner.
+- Rien ne se calcule tant qu'elle avance, ni quand la voie est libre (une bousculade de troupeau n'est pas un relief) ; un calcul au plus toutes les 2,5 s par bête.
+
+**Le résultat**, mêmes îles, mêmes durées : bêtes **bloquées quinze secondes ou plus : 98 → 49** ; bloquées pour boire : de la cinquantaine à quatre. Ce qui reste est surtout le **troupeau qui se bouscule** autour de sa place (pas un relief) et quelques places de troupeau perchées sur une corniche.
+
+
+## 42. La Tisseuse de fer, gardienne des îles 10, 15, 20…
+
+Aux explorations **10, 15, 20, 25…**, une araignée automate géante dort près de l'arche, pattes repliées, yeux éteints. **L'arche n'apparaît qu'une fois la Tisseuse terrassée** (`PortailCache` la garde cachée ; `P.bossVaincus` retient les îles délivrées : elle ne revient pas).
+
+**Son éveil** : à moins de 24 cases (ou au premier coup), un grincement de servos, les huit yeux qui s'allument un à un, les pattes qui se déplient, et elle se dresse (2,4 s). Sa barre de vie s'affiche en haut (fiche de la cible), avec sa phase et ce qu'elle prépare.
+
+**Son corps sur plusieurs niveaux** : chaque patte se pose sur le sol qu'elle touche, à portée de jambe (3 cubes sous le corps, 2 au-dessus ; sinon tout près, ou elle reste où elle est). Le genou se résout à chaque image (deux os, un pôle vers le haut et le dehors) : les jambes s'arquent au-dessus du corps. Le corps se règle sur ses pieds et **tangue et roule** avec eux. Elle marche en deux quatuors alternés ; le pied décrit un arc plus haut quand il monte et retombe lourdement (poussière, éclaboussure dans l'eau, bruit sourd, secousse selon la distance ; dessous, on se fait écraser). Elle patauge, contourne les falaises plus hautes que sa jambe, ne passe pas sous les îles de nuage. Testé sur un relief de 4 cubes : pieds sur 4 niveaux à la fois, le corps incliné.
+
+**Son combat** : elle tient 9 à 18 cases, de flanc, face à vous, et change de sens de temps en temps. Une arme à la fois, toutes annoncées :
+
+| Arme | Ce qu'on voit | Comment s'en sortir |
+|---|---|---|
+| Mortier (abdomen) | la tourelle se dresse ; 3 obus en cloche (5 en rage), le cercle rouge au sol | sortir des cercles |
+| Fusil (sous la tête) | un laser rouge qui vous suit en retard, la lentille qui grossit puis clignote ; le coup part à 42 cases/s | un pas de côté au dernier moment |
+| Toile (dès la moitié de sa vie) | la filière se lève, un paquet de soie électrique ; il s'ouvre au sol en toile bleue | dedans : vitesse au tiers, des piqûres ; en sortir |
+| Cabrer (à moins de 5,5 cases) | elle lève les pattes avant… et frappe le sol : une onde | **sauter** au bon moment |
+
+Au **dernier tiers**, elle enrage : jointures rougeoyantes, plus rapide, visée en 1 s au lieu de 1,6, salves plus nourries, recharges plus courtes.
+
+**La frapper** : à l'arc, son corps ; au corps à corps, son ventre (sous elle) ou ses pattes. Robustesse 4 : elle tient longtemps.
+
+**Sa mort** : les pattes cèdent et glissent, le corps s'affaisse, des étincelles, l'explosion, la carcasse reste — **+24 ferraille, +12 éclats, +10 pierres** (en plus du butin d'automate) — et **l'arche apparaît** dans une colonne de lumière.
+
+Pour régler : section LA TISSEUSE DE FER d'`index.html` (`TISSEUSE`, `majTisseuse`, `marcheTiss`, `osTisseuse`).
+
+
+## 43. Bêta : se téléporter vers une graine, à un niveau
+
+Onglet **Bêta**, bloc **Se téléporter** : deux champs, **Graine** (un entier de 0 à 4 294 967 295 ; pré-rempli avec celle de l'île actuelle) et **Niveau** (l'exploration d'arrivée, 0 à 99 ; pré-rempli avec l'actuelle), **Au hasard** (une graine tirée) et **Y aller**.
+
+- Le voyage passe par le chemin ordinaire (`voyagerVers` avec le niveau imposé) : la copie locale est écrite avec la nouvelle graine, la page repart, et l'on arrive à ce niveau d'exploration. **La partie suit** (ce n'est pas un essai) ; le mode essai, s'il était actif, se coupe ; les compagnes du campement restent au campement, comme pour tout départ.
+- Pas depuis le souterrain (il faut remonter d'abord).
+- Le panneau ne se réécrit pas pendant qu'on tape, et la saisie est gardée tant qu'on ne voyage pas.
+- Repères : graine 0 et niveau 0, un départ ; la Tisseuse de fer garde les niveaux 10, 15, 20… (testé : graine 424242, niveau 10 → la Tisseuse est là, l'arche cachée).

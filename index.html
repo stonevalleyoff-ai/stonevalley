@@ -193,6 +193,10 @@
   #sac .pl{display:grid;grid-template-columns:20px minmax(46px,auto) 36px 28px 1fr 28px 36px;align-items:center;gap:6px;font-size:12.5px;}
   #sac .pl.tete{color:var(--texte2);font-size:11px;} #sac .pl b{text-align:center;font-variant-numeric:tabular-nums;}
   #sac .pl img{width:18px;height:18px;image-rendering:pixelated;} #sac .pl input{width:100%;accent-color:#ffd27d;margin:0;}
+  #sac .tp-champs{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin-top:8px;}
+  #sac .tp-champs label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--texte2);}
+  #sac .tp-champs input{width:9.5em;padding:6px 8px;border-radius:8px;border:1px solid var(--trait);background:#121622;color:var(--texte);font:inherit;font-size:13px;}
+  #sac .tp-champs label:nth-child(2) input{width:5em;}
   #sac .pl button{padding:4px 0;border-radius:7px;font-size:15px;line-height:1;background:#1c2230;border:1px solid var(--trait);color:var(--texte);cursor:pointer;}
   #sac .pl button:disabled{opacity:.35;cursor:default;}
   #sac .servi-a{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;}
@@ -618,6 +622,27 @@ const SON = (() => {
   // ---------- les recettes ----------
   // Chacune pose ses sons à partir de t et rend sa durée.
   const RECETTES = {
+    eveilTisseuse(o, t, p) {                             // des servos qui montent, un cri de métal qui retombe
+      if (p.mort) { osc(o, t, 'sawtooth', 220, 40, 1.4, .02, .14); souffle(o, t + .1, 'lowpass', 900, 200, .8, 1.2, .02, .2); return 1.6; }
+      const d = p.court ? .45 : 1.6, F = filtre(o, 'bandpass', 900, 4);
+      osc(F, t, 'sawtooth', 120, 520, d * .7, .05, .16); osc(o, t + d * .55, 'square', 1400, 380, d * .5, .01, .05);
+      souffle(o, t, 'bandpass', 2600, 1200, 2, d, .05, .05);
+      return d + .2;
+    },
+    pasLourd(o, t) {                                     // un pied de fer qui retombe
+      osc(o, t, 'sine', 90, 42, .22, .003, .22); souffle(o, t, 'lowpass', 600, 150, .9, .18, .003, .12); osc(o, t + .02, 'square', 420, 300, .04, .002, .02);
+      return .35;
+    },
+    toile(o, t) {                                        // la soie électrique : un crépitement
+      for (let i = 0; i < 6; i++) souffle(o, t + i * .05 + Math.random() * .03, 'highpass', 3000 + Math.random() * 2000, 1500, 1, .03, .002, .07);
+      osc(o, t, 'sawtooth', 160, 120, .4, .01, .04);
+      return .5;
+    },
+    effondre(o, t) {                                     // le choc, puis la ferraille qui roule
+      osc(o, t, 'sine', 70, 28, .9, .004, .3); souffle(o, t, 'lowpass', 1200, 120, .7, 1.4, .005, .3);
+      for (let i = 0; i < 8; i++) osc(o, t + .2 + i * .09 + Math.random() * .05, 'square', 500 + Math.random() * 900, 300, .05, .002, .03);
+      return 1.8;
+    },
     rire(o, t, p) {                                      // « hihihi » : des petits « hi » qui retombent, le dernier étiré
       const f0 = p.f || 900, n = p.n || 5;
       for (let i = 0; i < n; i++) {
@@ -1961,7 +1986,7 @@ P.variantes = [];                                // le carnet : [espèce:variant
 P.ogConf = [];                                   // la confiance des colonies d'oglodons : [graine, 0 à 1]
 P.poissons = {}; P.carnetPeche = {};             // les poissons du sac, et le carnet de pêche : { id: { n, rec } }
 P.peche = null;                                  // la canne en main (voir LA PÊCHE)
-P.denrees = {}; P.cellier = {}; P.plats = []; P.recettes = {};   // la cuisine : viandes et produits de la flore, les plats, le carnet
+P.denrees = {}; P.cellier = {}; P.bossVaincus = []; P.plats = []; P.recettes = {};   // la cuisine : viandes et produits de la flore, les plats, le carnet
 P.marmite = null; P.effets = {};                 // la marmite posée { g, x, y, z }, et les effets des plats : { effet: fin }
 P.objets = {};                                   // ce qui a déjà été fabriqué
 P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.baumes = 0; P.arc = null;
@@ -5159,7 +5184,7 @@ const DITS_VOL = { 'perché': 'se repose au nid', planer: 'plane en cercles', 'p
   plonger: 'plonge', remonter: 'remonte de l\'eau', rentrer: 'rentre au nid', poser: 'se pose', manger: 'mange son poisson',
   'décoller': 'prend son envol', fuir: 'fuit à tire-d\'aile', dormir: 'dort, la tête sous l\'aile',
   'épaule': 'sur votre épaule', suivre: 'vous rejoint', cueillir: 'vole à la récolte', picorer: 'détache sa récolte', 'défendre': 'harcèle l\'ennemi' };
-const DITS_ETAT = { cacher: 'file se cacher', tapi: 'se tapit, et vous guette', ajuster: 'prépare un mauvais tour', rire: 'rit de vous',
+const DITS_ETAT = { sommeil: 'dort, repliée', 'éveil': 's\'éveille', combat: 'combat', garde: 'garde son arche', cacher: 'file se cacher', tapi: 'se tapit, et vous guette', ajuster: 'prépare un mauvais tour', rire: 'rit de vous',
   suivre: 'vous suit', 'récolter': 'travaille', repos: 'se repose', rappel: 'accourt',
   'défendre': 'se bat pour vous', garder: 'garde le campement', patrouiller: 'patrouille', viser: 'met en joue', veille: 'en veille',
   boire: 'boit', brouter: 'broute', chasser: 'chasse', assaut: 'se bat', fuir: 'fuit', 'acculé': 'fait front',
@@ -5526,6 +5551,13 @@ function pageBeta() {
     + ligne('Escouade d\'automates', dj ? 'pas sous terre' : Escouade ? 'une escouade est déjà là · ' + escHud().replace(/<[^>]+>/g, '').replace(' · ', '')
         : 'un portail s\'ouvre près de vous, à la force de l\'exploration ' + Math.max(NIV_ESCOUADE, profondeur()) + ' · la prochaine, d\'elle-même, dans ' + Math.ceil(Math.max(0, escAttente) / 60) + ' min',
         btn('escouade', 'Faire venir', dj || Escouade ? ' disabled' : ''))
+    + `<h3>Se téléporter</h3>`
+    + `<div class="obj tp"><div style="flex:1;min-width:0"><div class="n">Vers une graine, à un niveau</div>`
+    + `<div class="d">Île actuelle : graine ${SEED} · exploration ${profondeur()}. Graine 0 et niveau 0 : un départ. La Tisseuse de fer garde les niveaux 10, 15, 20…`
+    + ` La partie suit : on arrive à ce niveau d'exploration, sauvegardé (le mode essai se coupe).</div>`
+    + `<div class="tp-champs"><label>Graine<input type="number" inputmode="numeric" min="0" step="1" data-tp="g" value="${tpGraine ?? SEED}"></label>`
+    + `<label>Niveau<input type="number" inputmode="numeric" min="0" max="99" step="1" data-tp="n" value="${tpNiv ?? profondeur()}"></label>`
+    + `<button data-beta="tpHasard" title="Une graine au hasard">Au hasard</button><button class="btn principal" data-beta="tp">Y aller</button></div></div></div>`
     + `<h3>Centre des automates</h3>`
     + (djTest ? ligne('Descente d\'essai en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · rien de ce qu\'on trouve ici n\'est gardé', btn('quitterDj', 'Remonter'), true)
       : dj ? ligne('Vraie descente en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · on ne la quitte que par le monte-charge (ou terrassé)', '')
@@ -5548,7 +5580,18 @@ function pageBeta() {
     + `</div>`;
 }
 // Les outils : chacun passe d'abord en mode essai (sauf la descente d'essai, qui a ses propres règles).
+let tpGraine = null, tpNiv = null;                     // ce qu'on a tapé dans « Se téléporter » (onglet Bêta)
 function outilBeta(k) {
+  if (k === 'tpHasard') { tpGraine = (Math.random() * 4294967296) >>> 0; majSac(); return; }
+  if (k === 'tp') {
+    const g = Number(tpGraine ?? SEED), n = Number(tpNiv ?? profondeur());
+    if (!Number.isInteger(g) || g < 0 || g > 4294967295) { say('graine : un entier de 0 à 4 294 967 295', 2.4); return; }
+    if (!Number.isInteger(n) || n < 0 || n > 99) { say('niveau : un entier de 0 à 99', 2.4); return; }
+    if (djIci()) { say('pas depuis le souterrain : remontez d\'abord', 2.4); return; }
+    ouvrirSac(false);
+    voyagerVers(g, null, 'téléporté · graine ' + g + ' · exploration ' + n, n);
+    return;
+  }
   const essaiAvant = ['sac', 'armes', 'plein', 'invincible', 'midi', 'minuit', 'meteo'];
   if (essaiAvant.includes(k) && !essai) entrerEssai();
   if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; P.baumes += 5;
@@ -5604,7 +5647,7 @@ function majSac() {
   if (!sacOuvert) return;
   const el = document.getElementById('sac');
   const actif = document.activeElement;
-  if (actif && (actif.tagName === 'SELECT' || (actif.tagName === 'INPUT' && actif.dataset.partage)) && el.contains(actif)) { sacEnAttente = true; return; }
+  if (actif && (actif.tagName === 'SELECT' || (actif.tagName === 'INPUT' && (actif.dataset.partage || actif.dataset.tp))) && el.contains(actif)) { sacEnAttente = true; return; }
   // Le panneau est réécrit en entier : on garde la saisie d'un code et la position des listes.
   const champ = document.getElementById('svcode');
   const saisie = champ ? champ.value : '', enSaisie = !!champ && document.activeElement === champ;
@@ -5931,7 +5974,13 @@ const VOLANTS = [
     chasse:[], lien:.3, travail:{}, metier:'pêche en piqué, et va aux druses des îles de nuage', grimpe:0 },
 ];
 SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces());   // et les Nomades du Seuil (nomades.js)   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
-SPEC.push(...VOLANTS);                                // à la fin : les indices des autres ne bougent pas
+// --- la Tisseuse de fer : le gardien des îles 10, 15, 20… (voir LA TISSEUSE DE FER) ---
+const BOSSES = [
+  { id:'tisseuse', n:'Tisseuse de fer', fam:'automate', boss:1, corps:'tisseuse', diet:'s', sz:1, spd:2.1, vue:30, peur:0, herd:0, cap:0, mat:9999,
+    shell:[96,88,78], dark:[64,66,74], leg:[64,66,74], oeil:[255,90,60], bio:[], dur:4, coeur:4, chasse:[], lien:0, travail:{},
+    metier:'garde l\'arche des îles lointaines', grimpe:0, tir:null },
+];
+SPEC.push(...VOLANTS, ...BOSSES);                     // à la fin : les indices des autres ne bougent pas
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -5975,7 +6024,7 @@ const tellurien = sp => !!sp && sp.fam === 'tellurien';
 const doux = sp => !!sp && sp.fam === 'doux';
 // la pierre natale prend la teinte de son biome
 for (const sp of SPEC) if (sp.biome) { const h = RARES.find(r => r.b === sp.biome).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
-for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
+for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.boss ? dessinTisseuse(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
   : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'sterne' ? dessinSterne(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;   // berries : l'index des buissons à baies (des pieds de la flore)
 const BUISSON_BIO = { 2: ESP.findIndex(e => e.id === 'groseillier'), 3: ESP.findIndex(e => e.id === 'ronce'),
@@ -6220,6 +6269,7 @@ function majBiome(dt) {
     if (P.pv <= 0) { P.brulure = 0; terrasse(); }
   }
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
+  majToiles(dt);
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
     P.pv = Math.max(.05, P.pv - dt * .014);
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
@@ -6362,6 +6412,7 @@ function loadWorld() {
   regleHerbe();
   for (const sp of SPEC) { const n = Math.round(capEsp(sp) * .75); for (let i = 0; i < n; i++) { const b = poser(sp); if (b) beasts.push(b); } }
   peuplerDoux();                                     // des mères et leurs petits
+  poserTisseuse();                                   // aux îles 10, 15, 20… : la Tisseuse, et l'arche cachée
   // Buissons à baies, dans les herbages. Leur place vient de la graine et non du hasard : deux
   // joueurs sur la même île voient les mêmes buissons, aux mêmes cases, et se les disputent.
   let gb = (SEED ^ 0xba1e5) >>> 0;
@@ -6711,6 +6762,8 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
   document.getElementById('batt').addEventListener(ev, e => { e.preventDefault(); lacheQ = true; });
 document.getElementById('bsac').onclick = () => ouvrirSac();
 document.getElementById('sac').addEventListener('input', e => {       // le curseur glisse : les chiffres suivent
+  const tp = e.target && e.target.dataset && e.target.dataset.tp;
+  if (tp) { const v = e.target.value.trim(); if (tp === 'g') tpGraine = v === '' ? null : Math.floor(Number(v)); else tpNiv = v === '' ? null : Math.floor(Number(v)); return; }
   const r = e.target && e.target.dataset && e.target.dataset.partage; if (!r) return;
   const v = +e.target.value, q = s => e.target.parentNode.querySelector(s);
   q('[data-ps]').textContent = v; q('[data-pc]').textContent = +e.target.max - v;
@@ -6833,6 +6886,7 @@ function update(dt) {
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
+  if (P.toile > t) SPD *= .3;                         // pris dans la toile de la Tisseuse
   if (!M && floreFreine(P.x, P.y, P.z)) SPD *= .72;   // les herbes hautes, les buissons, les roseaux (la monture les enjambe)
   if (P.anim && P.anim.k === 'recolte' && im > .3) { P.anim = null; annoncer('stop', 0); }               // on se remet en marche : le geste s'interrompt
   const glisse = biomeIci === 16 && P.ground && !M;     // l'huile : on accélère mal, on s'arrête plus mal encore
@@ -6960,6 +7014,7 @@ function update(dt) {
       if (d < dc) { dc = d; c = b; }
     }
     if (!c) say(repue && repue.comp ? repue.comp.nom + ' n\'a pas faim' : 'aucune bête à portée', 1.4);
+    else if (c.sp.boss) say('la Tisseuse ne se laisse pas approcher', 1.5);
     else if (automate(c.sp)) rallumer(c);
     else if (coursier(c.sp) && !c.tame) say('un coursier ne se lie pas aux baies : sautez sur son dos', 2);
     else if (c.sp.volant && !poissonADonner() && !(c.tame && P.plats.length)) say(c.sp.n + ' · elle ne prend que du poisson', 2);
@@ -7533,7 +7588,452 @@ function curieuse(b, dJ, dzJ) {
 // Ce qu'une bête qui ne grimpe pas peut franchir à pied : un cube, ou trois en descente pour un
 // coursier ; le crapaud et le cerf, deux cubes d'un bond, en montant comme en descendant.
 const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) || (!!b.sp.monture && h - hn <= 3 && hn < h);
+// ============================================================
+//  LA TISSEUSE DE FER
+//  Le gardien des îles d'exploration 10, 15, 20… : une araignée automate géante, couchée près de
+//  l'arche de l'île — et l'arche n'apparaît que lorsqu'elle est terrassée. Endormie, pattes
+//  repliées sous elle, les yeux éteints. Approchez : elle s'éveille (un grincement, les yeux qui
+//  s'allument un à un, les huit pattes qui se déplient), se dresse, et vous fait face.
+//  Huit pattes, posées chacune sur le sol qu'elle touche : une sur la corniche, l'autre en bas,
+//  le corps s'incline avec elles (tangage et roulis). Elle marche en deux quatuors alternés, le
+//  pied décrit un arc plus haut quand il monte, et retombe lourdement (poussière, secousse, bruit
+//  sourd) ; elle patauge dans l'eau peu profonde, contourne les falaises plus hautes que sa jambe,
+//  et ne passe pas sous les îles de nuage. Elle tient la distance, de flanc, toujours face à vous.
+//  Trois armes et un coup de pattes, une à la fois, toutes annoncées :
+//   - le MORTIER, sur l'abdomen : une salve d'obus en cloche, le cercle rouge au sol ;
+//   - le FUSIL, sous la tête : un laser qui vous suit avec un temps de retard, puis le coup — un
+//     pas de côté au dernier moment, et il passe ;
+//   - la TOILE (dès la moitié de sa vie) : la filière lance un paquet de soie électrique qui
+//     s'ouvre au sol en toile : dedans, vous n'avancez plus qu'au tiers, et ça pique ;
+//   - de trop près, elle se CABRE, pattes avant levées, et frappe le sol : une onde. Sautez.
+//  Au dernier tiers, elle enrage : ses jointures rougeoient, elle va plus vite, vise plus vite,
+//  et ses salves doublent presque. Sous elle, on atteint son ventre ; ses pattes se frappent aussi.
+//  Terrassée, elle s'effondre (les pattes cèdent, des étincelles, l'explosion), laisse sa
+//  carcasse, et l'arche apparaît.
+// ============================================================
+const TISSEUSE = { haut: 1.75, bas: .5, reach: 5, pas: 1.15, vit: 2.1, vitRage: 2.9 };
+const TOILES = [];
+let PortailCache = null;
+const ileBoss = () => profondeur() >= 10 && profondeur() % 5 === 0 && !djIci() && !(P.bossVaincus || []).includes(SEED);
+const PATTES_TISS = [0, 1, 2, 3].flatMap(k => [1, -1].map(s => ({ s, k, hx: [.95, .55, .12, -.3][k],
+  rx: [2.5, 1.0, -.5, -2.1][k], ry: [2.1, 2.7, 2.7, 2.2][k], g: (k + (s > 0 ? 0 : 1)) % 2 })));   // g : le quatuor (A ou B)
+// L'antre : un replat à 7–12 cases de l'arche ; l'arche, elle, se cache jusqu'à sa mort.
+function poserTisseuse() {
+  TOILES.length = 0; PortailCache = null;
+  if (!ileBoss() || !PortailIle || !specById.tisseuse) return null;
+  const A = PortailIle; let best = null, bs = 1e9;
+  for (let k = 0; k < 80; k++) {
+    const a = Math.random() * 6.2832, r = 7 + Math.random() * 5, x = A.x + Math.cos(a) * r, y = A.y + Math.sin(a) * r;
+    if (x < 10 || y < 10 || x > WS - 10 || y > WS - 10) continue;
+    let lo = 99, hi = -99; for (let j = 0; j < 9; j++) { const q = hAt((x + Math.cos(j) * 2.2) | 0, (y + Math.sin(j) * 2.2) | 0); lo = Math.min(lo, q); hi = Math.max(hi, q); }
+    if (lo <= SEA || PlT[(y | 0) * WS + (x | 0)]) continue;
+    if (hi - lo < bs) { bs = hi - lo; best = [x, y]; }
+  }
+  if (!best) best = [A.x + 8, A.y];
+  const b = naitre(specById.tisseuse, best[0], best[1]);
+  b.pv = 1; b.etat = 'sommeil'; b.antre = best; b.age = 1e6; b.ech = 1; b.dir = b.dirT = Math.atan2(A.y - best[1], A.x - best[0]) + Math.PI;
+  beasts.push(b);
+  PortailCache = PortailIle; PortailIle = null;             // l'arche attend sa mort
+  return b;
+}
+function initTisseuse(b) {
+  b.zc = hAt(b.x | 0, b.y | 0) + TISSEUSE.bas; b.cd = { mortier: 2.5, sniper: 5, toile: 8, cabrer: 3 }; b.sens = 1; b.sensT = 0;
+  b.pieds = PATTES_TISS.map(L => { const w = mondeTiss(b, L.rx * .55, L.s * L.ry * .55); return { L, x: w[0], y: w[1], z: hAt(w[0] | 0, w[1] | 0), sw: 0, from: null }; });
+}
+function mondeTiss(b, lx, ly) { const c = Math.cos(b.dir), s = Math.sin(b.dir); return [b.x + lx * c - ly * s, b.y + lx * s + ly * c]; }
+// Le corps peut-il se tenir là ? Ses pattes doivent combler le relief sous lui, pas d'eau profonde,
+// pas de dalle de nuage au-dessus.
+function terrainTiss(b, x, y) {
+  if (x < 8 || y < 8 || x > WS - 8 || y > WS - 8) return false;
+  if (hAt(x | 0, y | 0) <= SEA - 1 && !(Eau[(y | 0) * WS + (x | 0)] > 0)) return false;
+  let lo = 99, hi = -99;
+  for (let j = 0; j < 10; j++) { const a = j * .628, q = hAt((x + Math.cos(a) * 2.3) | 0, (y + Math.sin(a) * 2.3) | 0); if (q <= SEA - 3) return false; lo = Math.min(lo, q); hi = Math.max(hi, q); }
+  if (hi - lo > TISSEUSE.reach) return false;
+  const pt = plaT(x | 0, y | 0); if (pt && plaB(x | 0, y | 0) < (b.zc || 0) + 1.6) return false;
+  return true;
+}
+// Le pas : le corps glisse (vers vx, vy), les pieds suivent en deux quatuors, le corps se règle
+// sur eux. lev : pattes avant levées (0..1), pour se cabrer.
+function marcheTiss(b, vx, vy, dt, haut, lev = 0) {
+  const sp = Math.hypot(vx, vy);
+  if (sp > .01) {
+    let nx = b.x + vx * dt, ny = b.y + vy * dt;
+    if (!terrainTiss(b, nx, ny)) {                     // la falaise trop haute, l'eau profonde : on tourne
+      const a0 = Math.atan2(vy, vx); let ok = false;
+      for (const d of [.6, -.6, 1.2, -1.2, 1.9, -1.9]) { const a = a0 + d * b.sens; nx = b.x + Math.cos(a) * sp * dt; ny = b.y + Math.sin(a) * sp * dt; if (terrainTiss(b, nx, ny)) { ok = true; break; } }
+      if (!ok) { nx = b.x; ny = b.y; b.sens = -b.sens; }
+    }
+    b.vit = Math.hypot(nx - b.x, ny - b.y) / dt; b.x = nx; b.y = ny;
+  } else b.vit = 0;
+  let dd = b.dirT - b.dir; while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832;
+  b.dir += Math.max(-1.7 * dt, Math.min(1.7 * dt, dd));
+  // les pieds : deux quatuors ; quand aucun pied n'est en l'air, celui qui a le plus de retard part
+  const v = b.vit || 0, lead = .3, k0 = haut < 1 ? .55 + .45 * haut : 1;
+  const fx = vx * Math.cos(b.dir) + vy * Math.sin(b.dir), fy = -vx * Math.sin(b.dir) + vy * Math.cos(b.dir);
+  const retard = [0, 0];
+  for (const p of b.pieds) {
+    const L = p.L, w = mondeTiss(b, L.rx * k0 + fx * lead, L.s * L.ry * k0 + fy * lead);
+    // un pied ne se pose qu'à portée de jambe : à 3 cubes sous le corps au plus, 2 au-dessus ; sinon tout près
+    const zr = b.zc - TISSEUSE.haut * Math.max(.3, haut), bon = (x, y) => { const h = hAt(x | 0, y | 0); return h > zr - 3 && h < zr + 2; };
+    if (!bon(w[0], w[1])) {
+      let ok = null;
+      for (let r = .5; r <= 1.9 && !ok; r += .45) for (let j = 0; j < 8 && !ok; j++) { const x = w[0] + Math.cos(j * .785) * r, y = w[1] + Math.sin(j * .785) * r; if (bon(x, y)) ok = [x, y]; }
+      if (ok) { w[0] = ok[0]; w[1] = ok[1]; } else { w[0] = p.x; w[1] = p.y; }   // nulle part : la patte reste où elle est
+    }
+    p.tx = w[0]; p.ty = w[1]; p.tz = hAt(w[0] | 0, w[1] | 0); p.d = Math.hypot(w[0] - p.x, w[1] - p.y);
+    if (!(p.sw > 0) && !p.leve) retard[L.g] += p.d;
+  }
+  const enVol = b.pieds.some(p => p.sw > 0);
+  if (!enVol) b.quatuor = retard[0] >= retard[1] ? 0 : 1;
+  const seuil = v > .2 ? TISSEUSE.pas * .45 : TISSEUSE.pas;
+  for (const p of b.pieds) {
+    const L = p.L;
+    if (L.k === 0 && lev > 0) {                         // la patte avant levée, prête à frapper
+      const h = mondeTiss(b, 2.2, L.s * 1.2);
+      p.x += (h[0] - p.x) * Math.min(1, dt * 8); p.y += (h[1] - p.y) * Math.min(1, dt * 8); p.z += (b.zc + 1.6 * lev - p.z) * Math.min(1, dt * 8);
+      p.leve = true; p.sw = 0; continue;
+    }
+    if (p.leve) { p.leve = false; p.sw = 1e-3; p.from = [p.x, p.y, p.z]; p.dur = .16; }   // elle la rabat : le coup
+    if (p.sw > 0) {
+      p.sw += dt / p.dur;
+      const k = Math.min(1, p.sw), f = p.from, lift = .55 + Math.max(0, p.tz - f[2]) * .6 + v * .08;
+      p.x = f[0] + (p.tx - f[0]) * k; p.y = f[1] + (p.ty - f[1]) * k; p.z = f[2] + (p.tz - f[2]) * k + Math.sin(k * Math.PI) * lift;
+      if (k >= 1) { p.sw = 0; p.x = p.tx; p.y = p.ty; p.z = p.tz; atterrirPied(b, p); }
+    } else if ((!enVol && L.g === b.quatuor && p.d > seuil) || p.d > TISSEUSE.pas * 2.4) {
+      p.sw = 1e-3; p.from = [p.x, p.y, p.z]; p.dur = Math.max(.2, .42 - v * .05) * (1 + Math.random() * .12);
+    }
+  }
+  // le corps : sur ses pieds posés, incliné comme eux
+  const P8 = b.pieds, moy = P8.reduce((s, p) => s + p.z, 0) / 8;
+  let sous = -99; for (let j = 0; j < 6; j++) sous = Math.max(sous, hAt((b.x + Math.cos(j) * 1.1) | 0, (b.y + Math.sin(j) * 1.1) | 0));
+  const zc = Math.max(moy + TISSEUSE.bas + (TISSEUSE.haut - TISSEUSE.bas) * haut, sous + .9 * haut + .45) - (enVol ? .05 : 0) + Math.sin(b.t * 2.2) * .03 * haut;
+  b.zc = (b.zc ?? zc) + (zc - (b.zc ?? zc)) * Math.min(1, dt * 4);
+  const av = (P8[0].z + P8[1].z) / 2, ar = (P8[6].z + P8[7].z) / 2, ga = (P8[0].z + P8[2].z + P8[4].z + P8[6].z) / 4, dr = (P8[1].z + P8[3].z + P8[5].z + P8[7].z) / 4;
+  const tg = Math.max(-.4, Math.min(.4, Math.atan2(av - ar, 4.6))) - lev * .35, rl = Math.max(-.35, Math.min(.35, Math.atan2(ga - dr, 4.8)));
+  b.tg = (b.tg || 0) + (tg - (b.tg || 0)) * Math.min(1, dt * 4); b.rl = (b.rl || 0) + (rl - (b.rl || 0)) * Math.min(1, dt * 4);
+  b.z = hAt(b.x | 0, b.y | 0); b.tang = 0;
+}
+function atterrirPied(b, p) {
+  const d = Math.hypot(P.x - p.x, P.y - p.y);
+  const eau = Eau[(p.y | 0) * WS + (p.x | 0)] > Hgt[(p.y | 0) * WS + (p.x | 0)];
+  for (let k = 0; k < 6; k++) parts.push({ x: p.x, y: p.y, z: p.z + .05, vx: (Math.random() - .5) * 2, vy: (Math.random() - .5) * 2, vz: Math.random() * 1.2 + (eau ? 1.5 : 0),
+    g: eau ? 9 : 2, life: .5 + Math.random() * .4, age: 0, col: eau ? '#d8eefa' : '#9a8f80', tl: .07 });
+  if (d < 30) SON.jouer('pasLourd', {}, p.x, p.y, p.z);
+  if (d < 16) { P.secousse = t; P.secousseK = Math.max(.15, 1 - d / 16) * .6; }
+  if (d < .75 && Math.abs(P.z - p.z) < 1 && P.pv > 0) { porterCoup(b, P, .1); P.vx += (P.x - p.x) * 8; P.vy += (P.y - p.y) * 8; say('écrasé', 1.2); }
+  if (b.phase === 3 && Math.random() < .3) burst(p.x, p.y, p.z + .2, 4, '#ff7a4a');
+}
+// Ses armes : origines dans le monde (la tourelle, la lentille, la filière)
+function pointTiss(b, lx, ly, lz) { const w = mondeTiss(b, lx, ly); return [w[0], w[1], b.zc + lz + lx * Math.sin(b.tg || 0)]; }
+function mortierTiss(b) {
+  const o = pointTiss(b, -1.05, 0, 1.25), lead = 1 + Math.random() * .4;
+  const r = 1.2 + Math.random() * (b.phase === 3 ? 2.6 : 2), a = Math.random() * 6.2832;
+  const cx = Math.max(2, Math.min(WS - 3, P.x + (P.vx || 0) * lead + Math.cos(a) * r)), cy = Math.max(2, Math.min(WS - 3, P.y + (P.vy || 0) * lead + Math.sin(a) * r));
+  const cz = sol(cx, cy), d = Math.hypot(cx - o[0], cy - o[1]), vol = Math.max(1.4, Math.min(2.4, 1 + d * .06));
+  TIRS.push({ x: o[0], y: o[1], z: o[2], vx: (cx - o[0]) / vol, vy: (cy - o[1]) / vol, vz: (cz - o[2]) / vol + TIR_G * vol * .5,
+    de: b, deg: .13, age: 0, c: [80, 74, 68], obus: true, zone: 1.7, cx, cy, cz, vol });
+  SON.jouer('obus', {}, o[0], o[1], o[2]); burst(o[0], o[1], o[2] + .2, 10, '#8a8078'); b.mortT = t;
+}
+function sniperTiss(b) {
+  const o = pointTiss(b, 1.75, 0, -.2), q = b.vise, d = Math.hypot(q[0] - o[0], q[1] - o[1], q[2] - o[2]) || 1, V = 42, vol = d / V;
+  TIRS.push({ x: o[0], y: o[1], z: o[2], vx: (q[0] - o[0]) / vol, vy: (q[1] - o[1]) / vol, vz: (q[2] - o[2]) / vol + TIR_G * vol * .5, de: b, deg: .17, age: 0, c: [255, 96, 70] });
+  SON.jouer('tir', {}, o[0], o[1], o[2]); burst(o[0], o[1], o[2], 9, '#ffd0a0'); b.reculT = t;
+}
+function toileTiss(b) {
+  const o = pointTiss(b, -1.75, 0, .5), cx = P.x + (P.vx || 0) * .5, cy = P.y + (P.vy || 0) * .5, cz = sol(cx, cy) + .4;
+  const d = Math.hypot(cx - o[0], cy - o[1]), vol = Math.max(.7, Math.min(1.3, .5 + d * .06));
+  TIRS.push({ x: o[0], y: o[1], z: o[2], vx: (cx - o[0]) / vol, vy: (cy - o[1]) / vol, vz: (cz - o[2]) / vol + TIR_G * vol * .5, de: b, deg: 0, age: 0, c: [196, 232, 255], toile: true });
+  SON.jouer('crachat', {}, o[0], o[1], o[2]);
+}
+function poserToile(f) {                                 // la soie s'ouvre au sol, électrique
+  const z = Math.max(f.z, sol(f.x, f.y));
+  TOILES.push({ x: f.x, y: f.y, z: sol(f.x, f.y) + .04, r: 1.9, fin: t + 5.5, de: f.de, piq: 0 });
+  for (let k = 0; k < 16; k++) parts.push({ x: f.x, y: f.y, z: z + .1, vx: (Math.random() - .5) * 3, vy: (Math.random() - .5) * 3, vz: Math.random(), g: 3, life: .4, age: 0, col: '#c4e8ff', luit: 1, tl: .05 });
+  SON.jouer('toile', {}, f.x, f.y, z);
+}
+function majToiles(dt) {                                  // appelée chaque image : vous y êtes pris
+  for (let i = TOILES.length - 1; i >= 0; i--) {
+    const w = TOILES[i]; if (w.fin < t || !w.de || w.de.dead) { TOILES.splice(i, 1); continue; }
+    if ((P.x - w.x) ** 2 + (P.y - w.y) ** 2 < w.r * w.r && Math.abs(P.z - w.z) < 1.2 && P.pv > 0) {
+      P.toile = t + .12;
+      if (t > w.piq) { w.piq = t + .6; porterCoup(w.de, P, .022); if (Math.random() < .5) burst(P.x, P.y, P.z + .6, 4, '#c4e8ff'); }
+    }
+  }
+}
+function majTisseuse(b, dt) {
+  b.t += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
+  if (!b.pieds) initTisseuse(b);
+  if (b.dead) return mortTisseuse(b, dt);
+  const dJ = Math.hypot(P.x - b.x, P.y - b.y), vu = P.pv > 0 && !sousAbri() && Math.abs(P.z - b.z) < 12;
+  b.phase = b.pv > .66 ? 1 : b.pv > .33 ? 2 : 3;
+  if (b.etat === 'sommeil') {
+    if ((vu && dJ < 24) || b.hit > 0) {
+      b.etat = 'éveil'; b.eveilT = b.t; SON.jouer('eveilTisseuse', {}, b.x, b.y, b.zc);
+      say('La Tisseuse de fer s\'éveille', 3); P.secousse = t; P.secousseK = 1;
+    }
+    marcheTiss(b, 0, 0, dt, 0); return;
+  }
+  if (b.etat === 'éveil') {
+    const k = Math.min(1, (b.t - b.eveilT) / 2.4); b.dirT = Math.atan2(P.y - b.y, P.x - b.x);
+    marcheTiss(b, 0, 0, dt, k * k * (3 - 2 * k));
+    if (k >= 1) { b.etat = 'combat'; b.act = null; }
+    return;
+  }
+  // hors de vue, trop loin : elle rentre à l'antre et monte la garde
+  if (!vu || dJ > 48) {
+    b.act = null; b.etat = 'garde';
+    const ax = b.antre[0] - b.x, ay = b.antre[1] - b.y, da = Math.hypot(ax, ay);
+    marcheTiss(b, da > 1 ? ax / da * TISSEUSE.vit * .7 : 0, da > 1 ? ay / da * TISSEUSE.vit * .7 : 0, dt, 1);
+    if (da > 1) b.dirT = Math.atan2(ay, ax);
+    return;
+  }
+  b.etat = 'combat'; b.dirT = Math.atan2(P.y - b.y, P.x - b.x);
+  const rage = b.phase === 3, cd = b.cd;
+  for (const k in cd) cd[k] -= dt;
+  // ---- l'arme en cours ----
+  let vMul = 1, lev = 0;
+  const A = b.act;
+  if (A) {
+    A.T -= dt;
+    if (A.k === 'viser') {                               // le laser vous suit, en retard
+      const cible = [P.x, P.y, P.z + .9], r = Math.min(1, dt * (rage ? 4.4 : 3));
+      b.vise = b.vise ? b.vise.map((q, j) => q + (cible[j] - q) * r) : cible;
+      vMul = .25;
+      if (A.T <= 0) { sniperTiss(b); b.act = null; cd.sniper = rage ? 5.5 : 7.5; }
+    } else if (A.k === 'mortier') {
+      vMul = .45;
+      if (A.T <= 0) { mortierTiss(b); A.n--; A.T = .34; if (A.n <= 0) { b.act = null; cd.mortier = rage ? 4.5 : 6.5; } }
+    } else if (A.k === 'toile') {
+      vMul = .35;
+      if (A.T <= 0) { toileTiss(b); b.act = null; cd.toile = rage ? 7 : 9; }
+    } else if (A.k === 'cabrer') {
+      vMul = 0; lev = A.T > .18 ? Math.min(1, (.95 - A.T) / .4) : 0;
+      if (A.T <= 0) {
+        const f = pointTiss(b, 2.3, 0, 0), z = sol(f[0], f[1]);
+        for (let k = 0; k < 28; k++) { const a = k / 28 * 6.2832; parts.push({ x: f[0] + Math.cos(a) * .4, y: f[1] + Math.sin(a) * .4, z: z + .1, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7, vz: .4, g: 2, life: .45, age: 0, col: '#bfae96', tl: .08 }); }
+        SON.jouer('pilon', {}, f[0], f[1], z); P.secousse = t; P.secousseK = 1;
+        const dP = Math.hypot(P.x - f[0], P.y - f[1]);
+        if (dP < 3.4 && P.z < sol(P.x, P.y) + .35 && P.pv > 0) { porterCoup(b, P, .12); P.vx += (P.x - f[0]) / (dP || 1) * 7; P.vy += (P.y - f[1]) / (dP || 1) * 7; }   // en l'air, on y échappe
+        b.act = null; cd.cabrer = 4;
+      }
+    }
+  } else {
+    // ---- choisir : de trop près, se cabrer ; sinon le fusil, le mortier, la toile ----
+    if (dJ < 5.5 && cd.cabrer <= 0) { b.act = { k: 'cabrer', T: .95 }; SON.jouer('eveilTisseuse', { court: 1 }, b.x, b.y, b.zc); }
+    else if (cd.sniper <= 0 && dJ > 6) { b.act = { k: 'viser', T: rage ? 1.05 : 1.6 }; b.vise = null; SON.jouer('vise', { dur: rage ? 1.05 : 1.6 }, b.x, b.y, b.zc); }
+    else if (cd.mortier <= 0 && dJ > 6) b.act = { k: 'mortier', T: .25, n: rage ? 5 : 3 };
+    else if (b.phase >= 2 && cd.toile <= 0 && dJ < 17) { b.act = { k: 'toile', T: .55 }; b.toileT = t; }
+  }
+  // ---- se placer : de flanc, à bonne distance, face à vous ----
+  if (b.t > b.sensT) { b.sens = Math.random() < .5 ? 1 : -1; b.sensT = b.t + 5 + Math.random() * 5; }
+  const ux = (P.x - b.x) / (dJ || 1), uy = (P.y - b.y) / (dJ || 1);
+  let mx = -uy * b.sens, my = ux * b.sens;                // de flanc
+  if (dJ < 9) { mx = mx * .4 - ux; my = my * .4 - uy; }  // trop près : elle recule
+  else if (dJ > 18) { mx = mx * .3 + ux; my = my * .3 + uy; }   // trop loin : elle approche
+  const m = Math.hypot(mx, my) || 1, V = (rage ? TISSEUSE.vitRage : TISSEUSE.vit) * vMul;
+  marcheTiss(b, mx / m * V, my / m * V, dt, 1, lev);
+}
+function mortTisseuse(b, dt) {
+  if (b.mortT == null) {
+    b.mortT = b.t; b.act = null; TOILES.length = 0; SON.jouer('eveilTisseuse', { mort: 1 }, b.x, b.y, b.zc);
+    say('La Tisseuse de fer chancelle…', 2.5);
+  }
+  const k = b.t - b.mortT;
+  for (const p of b.pieds) { const w = mondeTiss(b, p.L.rx * (1 + Math.min(1, k) * .25), p.L.s * p.L.ry * (1 + Math.min(1, k) * .25)); p.x += (w[0] - p.x) * Math.min(1, dt * 2); p.y += (w[1] - p.y) * Math.min(1, dt * 2); p.z = hAt(p.x | 0, p.y | 0); p.sw = 0; }
+  const sol0 = hAt(b.x | 0, b.y | 0) + .35;
+  b.zc = Math.max(sol0, b.zc - dt * (k < 1.2 ? .6 : 2.2));
+  b.rl = (b.rl || 0) + (.22 - (b.rl || 0)) * Math.min(1, dt * 2); b.tg = (b.tg || 0) + (-.12 - (b.tg || 0)) * Math.min(1, dt * 2);
+  if (k < 2.2 && Math.random() < dt * 14) { const p = b.pieds[Math.random() * 8 | 0]; burst((p.x + b.x) / 2, (p.y + b.y) / 2, b.zc + .3, 5, Math.random() < .5 ? '#ffd27d' : '#ff7a4a'); }
+  if (k >= 1.6 && !b.boom) {
+    b.boom = 1; P.secousse = t; P.secousseK = 1; SON.jouer('effondre', {}, b.x, b.y, b.zc);
+    for (let j = 0; j < 46; j++) parts.push({ x: b.x, y: b.y, z: b.zc + .3, vx: (Math.random() - .5) * 9, vy: (Math.random() - .5) * 9, vz: Math.random() * 6, g: 9, life: .7 + Math.random() * .6, age: 0, col: j % 3 ? '#ffb070' : '#6a625a', luit: j % 3 ? 1 : 0, tl: .1 });
+  }
+  if (k >= 2.4 && !b.fini) {
+    b.fini = 1;
+    P.sac.ferraille = (P.sac.ferraille || 0) + 24; P.sac.eclat = (P.sac.eclat || 0) + 12; P.sac.pierre = (P.sac.pierre || 0) + 10;
+    (P.bossVaincus || (P.bossVaincus = [])).push(SEED); Sauve.sale = true;
+    if (PortailCache) {
+      PortailIle = PortailCache; PortailCache = null;
+      const q = PortailIle;
+      for (let j = 0; j < 60; j++) { const a = j / 60 * 6.2832; parts.push({ x: q.x + .5 + Math.cos(a) * 1.4, y: q.y + .5 + Math.sin(a) * 1.4, z: q.z + Math.random() * 2.6, vx: Math.cos(a) * .4, vy: Math.sin(a) * .4, vz: 1.5, g: -.5, life: 1.6, age: 0, col: '#9fd8ff', luit: 1, tl: .08 }); }
+      SON.jouer('lien', {}, q.x, q.y, q.z + 1);
+    }
+    say('La Tisseuse est terrassée · +24 ferraille · +12 éclats · +10 pierres · l\'arche apparaît', 5);
+    majSac();
+  }
+}
+// ---------- la Tisseuse, en volumes ----------
+// Le céphalothorax et l'abdomen cuirassés, la tourelle du mortier sur l'abdomen, le fusil sous la
+// tête, la filière au bout ; huit pattes en trois pièces (cuisse, jambe, tarse) jusqu'aux pieds
+// posés dans le monde : le genou, haut au-dessus du corps, se résout à chaque image (deux os, un
+// pôle vers le haut et le dehors). Le corps tangue et roule sur ses pieds. Les yeux luisent ; en
+// rage les jointures aussi. Le laser du fusil et les toiles au sol font partie de son dessin.
+function osTisseuse(f) {
+  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
+  if (!f.pieds) initTisseuse(f);
+  const zl = f.zc - f.z, cg = Math.cos(f.tg || 0), sg = Math.sin(f.tg || 0), cr = Math.cos(f.rl || 0), sr = Math.sin(f.rl || 0);
+  const tb = p => { let x = p[0], z = p[2] - zl; const x1 = x * cg - z * sg, z1 = x * sg + z * cg; const y1 = p[1] * cr - z1 * sr, z2 = p[1] * sr + z1 * cr; return [x1, y1, zl + z2]; };
+  const ca = Math.cos(f.dir), sa = Math.sin(f.dir);
+  const loc = (x, y, z) => { const dx = x - f.x, dy = y - f.y; return [dx * ca + dy * sa, -dx * sa + dy * ca, z - f.z]; };
+  const mort = f.dead > 0, rage = f.phase === 3 && !mort, eveil = f.etat === 'sommeil' ? 0 : f.etat === 'éveil' ? Math.min(1, (f.t - f.eveilT) / 2.4) : 1;
+  const fer = [64, 66, 74], plaque = [96, 88, 78], cuivre = [178, 118, 70], sombre = [40, 42, 48];
+  const oeil = mort ? [60, 30, 26] : rage ? [255, 70, 40] : [255, 90, 60];
+  const jt = rage ? [255, 96, 52] : fer;
+  // le corps
+  const rec = f.reculT != null && t - f.reculT < .2 ? (1 - (t - f.reculT) / .2) * .15 : 0;
+  add(tb([-.1 - rec, 0, 0]), tb([1.15 - rec, 0, .05]), 1.1, .72, plaque);                       // le céphalothorax
+  add(tb([.15, 0, .4]), tb([1.0, 0, .42]), .8, .14, cuivre);                                      // sa crête
+  add(tb([-.25, 0, .15]), tb([-1.75, 0, .42]), 1.55, 1.15, fer);                                 // l'abdomen
+  for (const x of [-.55, -1.0, -1.45]) add(tb([x + .15, 0, .78]), tb([x - .15, 0, .8]), 1.3, .1, plaque);   // ses plaques
+  add(tb([-.2, 0, .1]), tb([-.3, 0, .12]), .6, .5, sombre);                                       // le pédicelle
+  // les yeux : deux grands, six petits ; ils s'allument un à un à l'éveil
+  const yeux = [[1.18, .2, .2, .12], [1.18, -.2, .2, .12], [1.12, .36, .3, .07], [1.12, -.36, .3, .07], [1.05, .12, .36, .06], [1.05, -.12, .36, .06], [.98, .3, .38, .05], [.98, -.3, .38, .05]];
+  yeux.forEach(([x, y, z, r], i) => { const on = !mort && eveil > i / 9; add(tb([x - .02, y, z]), tb([x + .03, y, z]), r, r, on ? oeil : [70, 40, 36], on); });
+  // le fusil, sous la tête : il suit la visée
+  let ax = 1, ay = 0, az = 0;
+  if (f.vise && f.act && f.act.k === 'viser') { const q = loc(f.vise[0], f.vise[1], f.vise[2]), o = tb([1.0, 0, -.25]); const d = Math.hypot(q[0] - o[0], q[1] - o[1], q[2] - o[2]) || 1; ax = (q[0] - o[0]) / d; ay = (q[1] - o[1]) / d; az = (q[2] - o[2]) / d; }
+  const o = tb([.95 - rec, 0, -.25]), bout = [o[0] + ax * 1.05, o[1] + ay * 1.05, o[2] + az * 1.05];
+  add(o, bout, .13, .13, sombre); add([bout[0] - ax * .12, bout[1] - ay * .12, bout[2] - az * .12], bout, .2, .2, fer);
+  const charge = f.act && f.act.k === 'viser' ? Math.max(0, Math.min(1, 1 - Math.max(0, f.act.T) / (rage ? 1.05 : 1.6))) : 0;
+  if (!mort) add([bout[0] - ax * .03, bout[1] - ay * .03, bout[2] - az * .03], [bout[0] + ax * .02, bout[1] + ay * .02, bout[2] + az * .02], .11 + charge * .08, .11 + charge * .08, charge > 0 ? [255, 120 + 100 * charge, 90] : [140, 60, 50], charge > 0);   // la lentille
+  if (charge > 0 && f.vise) {                                        // le laser, de la lentille à vous
+    const q = loc(f.vise[0], f.vise[1], f.vise[2]);
+    add(bout, q, .025 + charge * .03, .025 + charge * .03, [255, 60 + 120 * (charge > .75 ? (t * 20 | 0) % 2 : 0), 50], true);
+  }
+  // le mortier, sur l'abdomen : il se dresse vers vous, recule au coup
+  const rm = f.mortT != null && t - f.mortT < .25 ? (1 - (t - f.mortT) / .25) * .25 : 0;
+  const mo = tb([-1.05, 0, .85]); add(tb([-.85, 0, .82]), tb([-1.25, 0, .84]), .62, .3, cuivre);   // la tourelle
+  const el = f.act && f.act.k === 'mortier' ? 1.05 : .75, dmx = Math.cos(el), dmz = Math.sin(el);
+  add([mo[0] - dmx * rm * .5, mo[1], mo[2] - dmz * rm], [mo[0] + dmx * (.75 - rm), mo[1], mo[2] + dmz * (.75 - rm)], .3, .3, sombre);
+  // la filière, au bout de l'abdomen : elle se lève pour lancer la toile
+  const lt = f.toileT != null && t - f.toileT < .9 ? Math.sin(Math.min(1, (t - f.toileT) / .9) * Math.PI) : 0;
+  add(tb([-1.7, 0, .3 + lt * .2]), tb([-1.95, 0, .28 + lt * .35]), .32, .28, plaque);
+  add(tb([-1.95, 0, .28 + lt * .35]), tb([-2.05, 0, .27 + lt * .4]), .16, .16, [196, 232, 255], lt > .1);
+  // les pattes : hanche (sur le corps), genou résolu, cheville au-dessus du pied posé
+  for (const p of f.pieds) {
+    const L = p.L, H = tb([L.hx, L.s * .42, .02]);
+    const Fp = loc(p.x, p.y, p.z), Ak = [Fp[0], Fp[1], Fp[2] + .5];
+    const a = 1.75, c = 1.85, dx = Ak[0] - H[0], dy = Ak[1] - H[1], dz = Ak[2] - H[2], d0 = Math.hypot(dx, dy, dz) || 1;
+    const d = Math.max(.3, Math.min(a + c - .02, d0)), u = [dx / d0, dy / d0, dz / d0];
+    const ca2 = (a * a + d * d - c * c) / (2 * a * d), sa2 = Math.sqrt(Math.max(0, 1 - ca2 * ca2));
+    const pl = [0, L.s * .55, 1], pu = pl[0] * u[0] + pl[1] * u[1] + pl[2] * u[2];   // le pôle : haut et dehors, sans sa part le long de u
+    let n = [pl[0] - u[0] * pu, pl[1] - u[1] * pu, pl[2] - u[2] * pu]; const nn = Math.hypot(n[0], n[1], n[2]) || 1; n = n.map(q => q / nn);
+    const K = [H[0] + u[0] * a * ca2 + n[0] * a * sa2, H[1] + u[1] * a * ca2 + n[1] * a * sa2, H[2] + u[2] * a * ca2 + n[2] * a * sa2];
+    const Akk = [H[0] + u[0] * d, H[1] + u[1] * d, H[2] + u[2] * d];
+    add(H, K, .2, .2, fer); add(K, Akk, .15, .15, fer); add(Akk, Fp, .09, .09, sombre);
+    add([K[0] - .07, K[1], K[2]], [K[0] + .07, K[1], K[2]], .24, .24, jt, rage);                  // le genou
+    add([Fp[0], Fp[1], Fp[2]], [Fp[0] + .14 * Math.sign(Fp[0] - H[0] || 1), Fp[1], Fp[2]], .12, .06, cuivre);   // la griffe
+  }
+  // les toiles au sol
+  for (const w of TOILES) {
+    const c0 = loc(w.x, w.y, w.z), fl = .7 + .3 * Math.sin(t * 30 + w.x);
+    const col = [Math.round(170 * fl), Math.round(220 * fl), 255];
+    for (let i = 0; i < 8; i++) { const a = i / 8 * 6.2832; add(c0, [c0[0] + Math.cos(a) * w.r, c0[1] + Math.sin(a) * w.r, c0[2]], .03, .02, col, true); }
+    for (const rr of [.42, .82]) for (let i = 0; i < 8; i++) { const a0 = i / 8 * 6.2832, a1 = (i + 1) / 8 * 6.2832, R = w.r * rr;
+      add([c0[0] + Math.cos(a0) * R, c0[1] + Math.sin(a0) * R, c0[2]], [c0[0] + Math.cos(a1) * R, c0[1] + Math.sin(a1) * R, c0[2]], .025, .02, col, true); }
+  }
+  return B;
+}
+function dessinTisseuse(d, sp) {                          // le pictogramme
+  d.rect(5, 6, 10, 9, sp.shell); d.rect(10, 7, 12, 9, sp.dark); d.net(11, 7, [255, 90, 60]); d.net(12, 8, [255, 90, 60]);
+  for (const [x0, y0, x1, y1] of [[6, 6, 3, 2], [8, 6, 7, 1], [9, 6, 11, 2], [11, 6, 14, 3], [6, 9, 3, 13], [8, 9, 7, 14], [9, 9, 11, 14], [11, 9, 14, 12]]) d.ligne(x0, y0, x1, y1, sp.leg);
+  d.rect(6, 5, 8, 5, sp.dark);
+}
+// ============================================================
+//  LE DÉTOUR
+//  Une bête qui ne gagne plus sur son but — une marche trop haute, une falaise, l'eau entre elle
+//  et ce qu'elle veut — cherche un chemin à sa mesure sur les cases autour d'elle (dix-huit de
+//  rayon) : le pas qu'elle sait faire (un cube, deux pour qui bondit), la paroi si elle grimpe, le
+//  saut en contrebas du coursier ; jamais l'eau, le vide ni les dalles. Elle le suit de case en
+//  case, en le tendant dès que la ligne droite passe, puis reprend sa route. Si son but est hors
+//  d'atteinte, elle va au plus près et s'y tient, au lieu de piétiner contre la paroi. Rien ne se
+//  calcule tant qu'elle avance, ni quand la voie est libre (une bousculade n'est pas un relief).
+// ============================================================
+const NAV_R = 18, NAV_N = NAV_R * 2 + 1;
+const navCout = new Float32Array(NAV_N * NAV_N), navDe = new Int32Array(NAV_N * NAV_N);
+const NAV_DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
+function navPeut(b, x1, y1, x2, y2) {                    // un pas d'une case à sa voisine, à la mesure de la bête
+  if (x2 < 1 || y2 < 1 || x2 >= WS - 1 || y2 >= WS - 1) return false;
+  const h2 = hAt(x2, y2); if (h2 <= SEA || PlT[y2 * WS + x2]) return false;
+  const d = h2 - hAt(x1, y1);
+  if (Math.abs(d) <= Math.max(1, b.sp.bond || 0)) return true;
+  if (b.sp.monture && d < 0 && d >= -3) return true;
+  return (b.sp.grimpe || 0) > 0;
+}
+function navDiag(b, x, y, nx, ny) {                       // en diagonale : les deux côtés du coin doivent passer
+  return navPeut(b, x, y, nx, y) && navPeut(b, nx, y, nx, ny) && navPeut(b, x, y, x, ny) && navPeut(b, x, ny, nx, ny);
+}
+function ligneLibre(b, tx, ty) {                          // la ligne droite passe-t-elle, sur huit cases au plus ?
+  const D = Math.hypot(tx - b.x, ty - b.y) || 1, ux = (tx - b.x) / D, uy = (ty - b.y) / D, L = Math.min(8, D);
+  let px = b.x | 0, py = b.y | 0;
+  for (let s = .4; s <= L; s += .4) {
+    const x = (b.x + ux * s) | 0, y = (b.y + uy * s) | 0;
+    if (x === px && y === py) continue;
+    if (x !== px && y !== py ? !navDiag(b, px, py, x, y) : !navPeut(b, px, py, x, y)) return false;
+    px = x; py = y;
+  }
+  return true;
+}
+// Dijkstra sur les cases autour de la bête ; rend le chemin vers la case la plus proche du but
+// (le but lui-même s'il est à portée), et à quelle distance du but il s'arrête.
+function cheminNav(b, tx, ty) {
+  const ox = (b.x | 0) - NAV_R, oy = (b.y | 0) - NAV_R, s0 = NAV_R * NAV_N + NAV_R;
+  navCout.fill(1e9); navDe.fill(-1); navCout[s0] = 0;
+  const tas = [[0, s0]];
+  const pousse = e => { tas.push(e); let i = tas.length - 1; while (i) { const p = (i - 1) >> 1; if (tas[p][0] <= tas[i][0]) break; [tas[p], tas[i]] = [tas[i], tas[p]]; i = p; } };
+  const tire = () => { const r = tas[0], l = tas.pop(); if (tas.length) { tas[0] = l; let i = 0;
+    for (;;) { const a = 2 * i + 1, c = a + 1; let m = i; if (a < tas.length && tas[a][0] < tas[m][0]) m = a; if (c < tas.length && tas[c][0] < tas[m][0]) m = c; if (m === i) break; [tas[m], tas[i]] = [tas[i], tas[m]]; i = m; } } return r; };
+  let best = s0, bd = Math.hypot(tx - b.x, ty - b.y), bc = 0;
+  while (tas.length) {
+    const [c, k] = tire(); if (c > navCout[k]) continue;
+    const lx = k % NAV_N, ly = (k / NAV_N) | 0, x = ox + lx, y = oy + ly;
+    const dT = Math.hypot(tx - x - .5, ty - y - .5);
+    if (dT < bd - .01 || (dT < bd + .01 && c < bc)) { bd = dT; best = k; bc = c; }
+    if (dT < 1.2) break;
+    for (const [dx, dy, w] of NAV_DIRS) {
+      const nlx = lx + dx, nly = ly + dy; if (nlx < 0 || nly < 0 || nlx >= NAV_N || nly >= NAV_N) continue;
+      const nx = x + dx, ny = y + dy;
+      if (dx && dy ? !navDiag(b, x, y, nx, ny) : !navPeut(b, x, y, nx, ny)) continue;
+      const dh = Math.abs(hAt(nx, ny) - hAt(x, y)), cout = c + w + (dh > 1 ? dh * 1.5 : dh * .3);   // les parois coûtent
+      const nk = nly * NAV_N + nlx; if (cout < navCout[nk]) { navCout[nk] = cout; navDe[nk] = k; pousse([cout, nk]); }
+    }
+  }
+  if (best === s0) return null;
+  const L = []; for (let k = best; k !== s0 && k >= 0; k = navDe[k]) L.push([ox + k % NAV_N + .5, oy + ((k / NAV_N) | 0) + .5]);
+  return { pts: L.reverse(), proche: bd };
+}
+// Rend le point où aller à la place du but (une case du chemin, ou sa propre place), ou null.
+function detour(b, tx, ty) {
+  const N = b.nav || (b.nav = { tx, ty, best: 1e9, bT: b.t, pts: null, k: 0 });
+  if (Math.hypot(tx - N.tx, ty - N.ty) > 2.5) { N.best = 1e9; N.bT = b.t; N.pts = null; N.arret = false; }   // un autre but
+  N.tx = tx; N.ty = ty;
+  const D = Math.hypot(tx - b.x, ty - b.y);
+  if (N.pts) {
+    let w = N.pts[N.k];
+    while (w && Math.hypot(w[0] - b.x, w[1] - b.y) < .45) w = N.pts[++N.k];
+    if (w && N.k + 1 < N.pts.length && ligneLibre(b, N.pts[N.k + 1][0], N.pts[N.k + 1][1])) w = N.pts[++N.k];   // le chemin se tend
+    if (w && b.t < N.finT) return w;
+    N.pts = null; N.best = D; N.bT = b.t;
+  }
+  if (N.arret) { if (b.t < N.arretT) return [b.x, b.y]; N.arret = false; N.best = D; N.bT = b.t; }   // au plus près, elle se tient
+  const pres = D < 1.5 && ((tx | 0) === (b.x | 0) && (ty | 0) === (b.y | 0) || ligneLibre(b, tx, ty));   // tout près, et le pas se fait
+  if (pres || D < N.best - .3) { N.best = Math.min(N.best, D); N.bT = b.t; return null; }   // elle gagne : rien à faire
+  if (b.t - N.bT < 2) return null;                       // un peu de patience
+  N.bT = b.t;
+  if (ligneLibre(b, tx, ty) || b.t < (N.calcT || 0)) { N.best = D; return null; }   // la voie est libre : ce n'est pas le relief
+  N.calcT = b.t + 2.5;
+  const c = cheminNav(b, tx, ty);
+  if (!c) { N.arret = true; N.arretT = b.t + 5; return [b.x, b.y]; }
+  N.pts = c.pts; N.k = 0; N.finT = b.t + c.pts.length * 1.3 + 3;
+  if (c.proche > D - .5) { N.arret = true; N.arretT = N.finT + 5; }   // pas mieux qu'ici : elle ira au plus près, et s'y tiendra
+  return c.pts[0];
+}
 function pasVersBete(b, tx, ty, vit, dt) {
+  const via = b.mur ? null : detour(b, tx, ty);         // bloquée par le relief : le détour (voir LE DÉTOUR)
+  if (via) {
+    if (via[0] === b.x && via[1] === b.y) { const k = Math.max(0, 1 - dt * 6); b.vx *= k; b.vy *= k; return; }   // au plus près : elle se tient
+    tx = via[0]; ty = via[1];
+  }
   let dx = tx - b.x, dy = ty - b.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
   const h = hAt(b.x | 0, b.y | 0);
   // Une paroi ne l'arrête plus : elle la gravira (voir LES PAROIS). Restent l'eau et le vide —
@@ -7586,6 +8086,10 @@ function auBordDeLEau(x, y) {
 // poids sont entiers et petits, une file par distance suffit.
 const EAU_LOIN = 65535;
 const CarteEau = new Uint16Array(WS * WS);
+// Qui ne grimpe pas (cotonnier, carillonneur, coursiers, automates, vesseron) a sa carte à lui :
+// des pas d'un cube au plus, sans paroi. Sinon la pente de l'eau le menait au bord d'une marche
+// qu'il ne descend pas, et il piétinait là, l'eau en vue.
+const CarteEauM = new Uint16Array(WS * WS);
 const marchable = (x, y) => hAt(x, y) > SEA;          // l'eau et le vide sont sous ce niveau
 const coutPas = (h1, h2) => { const dh = Math.abs(h2 - h1); return dh <= 1 ? 1 : 1 + Math.ceil(dh * 1.6); };
 function calcCarteEau() {
@@ -7610,21 +8114,33 @@ function calcCarteEau() {
       }
     }
   }
+  // la carte des marcheurs : un parcours en largeur, un cube de marche au plus
+  const M = CarteEauM.fill(EAU_LOIN), F = [];
+  for (let i = 0; i < WS * WS; i++) if (D[i] === 0) { M[i] = 0; F.push(i); }
+  for (let q = 0; q < F.length; q++) {
+    const i = F[q], x = i % WS, y = (i / WS) | 0, h = Hgt[i];
+    for (const [dx, dy] of SIDES) {
+      const ux = x + dx, uy = y + dy; if (ux < 0 || uy < 0 || ux >= WS || uy >= WS || !marchable(ux, uy)) continue;
+      const j = uy * WS + ux; if (M[j] !== EAU_LOIN || Math.abs(Hgt[j] - h) > 1) continue;
+      M[j] = M[i] + 1; F.push(j);
+    }
+  }
 }
-const distEau = (x, y) => {
+const marcheur = b => !!b && !((b.sp.grimpe || 0) > 0);
+const distEau = (x, y, b) => {
   x |= 0; y |= 0;
-  return x < 0 || y < 0 || x >= WS || y >= WS ? EAU_LOIN : CarteEau[y * WS + x];
+  return x < 0 || y < 0 || x >= WS || y >= WS ? EAU_LOIN : (marcheur(b) ? CarteEauM : CarteEau)[y * WS + x];
 };
 // La case suivante sur le chemin de l'eau : celle par où passe le plus court chemin.
-function versLEau(x, y) {
-  const cx = x | 0, cy = y | 0, d = distEau(cx, cy);
+function versLEau(x, y, b) {
+  const cx = x | 0, cy = y | 0, d = distEau(cx, cy, b);
   if (d === EAU_LOIN || d === 0) return null;
   let mx = -1, my = -1, md = 1e9;
   const h = Hgt[cy * WS + cx];
   for (const [dx, dy] of SIDES) {
-    const nx = cx + dx, ny = cy + dy, nd = distEau(nx, ny);
+    const nx = cx + dx, ny = cy + dy, nd = distEau(nx, ny, b);
     if (nd >= d) continue;
-    const v = nd + coutPas(h, Hgt[ny * WS + nx]);
+    const v = nd + (marcheur(b) ? 1 : coutPas(h, Hgt[ny * WS + nx]));
     if (v < md) { md = v; mx = nx; my = ny; }
   }
   return mx < 0 ? null : [mx + .5, my + .5];
@@ -7795,6 +8311,7 @@ function centreBete(b) {
   return [b.x + U[0] * h, b.y + U[1] * h, b.z + U[2] * h];
 }
 function toucheBete(b, x, y, z) {
+  if (b.sp.boss) { const cx = b.x - Math.cos(b.dir) * .35, cy = b.y - Math.sin(b.dir) * .35; return (cx - x) ** 2 + (cy - y) ** 2 < 3.6 && z > (b.zc || b.z) - .7 && z < (b.zc || b.z) + 1.1; }
   const k = b.sp.sz, r = .34 + k * .30;
   if (!b.mur && !b.tang) return (b.x - x) ** 2 + (b.y - y) ** 2 < r * r && z > b.z - .15 && z < b.z + k * .95;
   const c = centreBete(b);
@@ -8235,7 +8752,7 @@ const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
 const rayonCorps = b => .38 * b.sp.sz * (b.ech || 1);
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
-const aCorps = b => !b.sp.volant && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const aCorps = b => !b.sp.volant && !b.sp.boss && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
   corpsGrille.clear();
@@ -8535,11 +9052,15 @@ function majTirs(dt) {
     for (let i = 0; i < n && !fini; i++) {
       f.vz -= TIR_G * h;
       const nx = f.x + f.vx * h, ny = f.y + f.vy * h, nz = f.z + f.vz * h;
-      fini = f.obus ? toucheObus(f, nx, ny, nz) : f.spore ? toucheSpore(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
+      fini = f.obus ? toucheObus(f, nx, ny, nz) : f.spore || f.toile ? toucheSpore(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
       if (!fini && f.age > .05 && floreTouche(nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8b89a'); }   // arrêté par un arbre, une pierre
       f.x = nx; f.y = ny; f.z = nz;
     }
     if (f.obus && (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3.5)) { exploser(f); TIRS.splice(k, 1); continue; }
+    if (f.toile) {                                      // le paquet de soie : il s'ouvre en toile
+      if (Math.random() < dt * 30) parts.push({ x: f.x, y: f.y, z: f.z, vx: 0, vy: 0, vz: 0, g: 0, life: .3, age: 0, col: '#c4e8ff', luit: 1, tl: .05 });
+      if (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3) { poserToile(f); TIRS.splice(k, 1); continue; }
+    }
     if (f.spore) {                                      // la boule de spores : sa traînée, puis le nuage
       if (Math.random() < dt * 30) parts.push({ x: f.x, y: f.y, z: f.z, vx: 0, vy: 0, vz: .2, g: -.05, life: .45, age: 0, col: '#c4e486', luit: 1, tl: .05 });
       if (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3) { eclaterSpore(f); TIRS.splice(k, 1); continue; }
@@ -8588,6 +9109,7 @@ function emitTirs(view, out) {
   for (const f of TIRS) {
     const v = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / v, f.vy / v, f.vz / v];
     const cle = cleA(f.x, f.y), rang = rangSol(f.z, false);
+    if (f.toile) { emitLimb([f.x - .1, f.y, f.z], [f.x + .1, f.y, f.z], .2, .2, f.c, view, out, cle, rang, 1); continue; }
     if (f.spore) {                                      // une boule ronde, à la couleur du chapeau, qui luit
       emitLimb([f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, view, out, cle, rang, 1); continue;
     }
@@ -9323,6 +9845,7 @@ function majBete(b, dt) {
   if (b.gardeCamp) return majGardienne(b, dt);           // une gardienne de campement pillé
   if (b.sp.pnj || b.pnjSuit) return majNomade(b, dt);    // un nomade, ou la bête de son dresseur (nomades.js)
   const sp = b.sp;
+  if (sp.boss) return majTisseuse(b, dt);              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
   if (sp.volant) return majVolant(b, dt);              // la sterne : la vie en l'air (voir LA STERNE DES NUES)
@@ -9394,7 +9917,7 @@ function majBete(b, dt) {
   // sait où aller : sinon la bête reste en quête d'eau, ne broute jamais, et meurt de faim.
   // Le trajet se prévoit : plus la rive est loin à pied, plus tôt on se met en route. Une
   // bête qui a commencé à boire va jusqu'au bout. Sans eau atteignable, on n'en meurt pas.
-  const dEau = distEau(b.x, b.y);
+  const dEau = distEau(b.x, b.y, b);
   const assoiffe = dEau !== EAU_LOIN && (b.soif > Math.max(.3, .7 - dEau * .005) || (b.etat === 'boire' && b.soif > .05));
 
   // La faim et la soif finissent par l'emporter sur la peur. Assoiffée ou affamée, une bête ne fuit
@@ -9494,7 +10017,7 @@ function majBete(b, dt) {
   } else if (etat === 'boire') {
     // pendue à une paroi au-dessus d'une rive, elle ne boit pas : elle finit sa descente
     if (!b.mur && auBordDeLEau(b.x, b.y)) { b.soif = Math.max(0, b.soif - dt * .9); vit = 0; }
-    else { const w = versLEau(b.x, b.y); if (w) { tx = w[0]; ty = w[1]; } }
+    else { const w = versLEau(b.x, b.y, b); if (w) { tx = w[0]; ty = w[1]; } }
   } else if (etat === 'brouter') {
     const f = b.mur ? 0 : sp.roche ? (ROCHE.includes(bAt(b.x | 0, b.y | 0)) ? .8 : b.tame ? .5 : 0)   // l'oglodon grignote la pierre
       : sp.biome && sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? (sp.diet === 'h' ? .8 : .5) : BIOME[bAt(b.x | 0, b.y | 0)].food;
@@ -10531,6 +11054,7 @@ function osDeBase(f) {
   const sp = f.sp;
   if (sp && sp.donjon) return djOs(f);
   if (sp && sp.pnj) return nmOs(f);                   // les Nomades du Seuil (nomades.js)                 // les machines du Centre des automates
+  if (sp && sp.boss) return osTisseuse(f);
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
   if (doux(sp)) return osDoux(f);
@@ -13635,7 +14159,7 @@ function draw() {
   };
   for (const b of beasts) if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < COLS_VIS * COLS_VIS) {
     const Ub = repere(b).U;
-    omb(b.x, b.y, b.z, b.sp.sz, Ub[2] * Ub[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0); emitFoe(b, VIEW_ISO, items);
+    omb(b.x, b.y, b.z, b.sp.boss ? 3.4 : b.sp.sz, Ub[2] * Ub[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0); emitFoe(b, VIEW_ISO, items);
     if (b.tame && b.etat !== 'épaule') {                                       // passé entre la moitié arrière du corps et l'avant
       const an = anneauLien(b), p = proj(an.x, an.y, an.z), R = an.r * TW;
       const col = brume([232, 62, 78], Math.hypot(b.x - P.x, b.y - P.y));
@@ -13827,7 +14351,8 @@ function cibleContact(port) {
   let pr = null, dp = 1e9;
   // Une compagne marche dans vos pas : la plus proche, c'était souvent elle qu'on frappait.
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
-    const d = Math.hypot(b.x - P.x, b.y - P.y);
+    const d = b.sp.boss ? Math.min(Math.max(0, Math.hypot(b.x - P.x, b.y - P.y) - 1.5), ...(b.pieds || []).map(q => Math.hypot(q.x - P.x, q.y - P.y) - .15))   // son ventre, ses pattes
+      : Math.hypot(b.x - P.x, b.y - P.y);
     if (Math.abs(b.z - P.z) < 2 && d < dp) { dp = d; pr = b; }
   }
   const cl = cibleLoin(P.x, P.y, P.z, Math.min(dp, port));
@@ -13883,7 +14408,7 @@ function traineeArme(J, A) {
     parts.push({ x: q[0], y: q[1], z: q[2], vx: 0, vy: 0, vz: 0, g: 0, life: (epee ? .17 : .14) * (1 - k * .12), age: 0, col, tl: (epee ? .055 : .05) * (1 - k * .15), luit });
   }
 }
-const secousseCam = () => { const d = t - (P.secousse ?? -99); return d < .32 ? (1 - d / .32) ** 2 * .07 : 0; };
+const secousseCam = () => { const d = t - (P.secousse ?? -99); return d < .32 ? (1 - d / .32) ** 2 * .07 * (P.secousseK ?? 1) : 0; };
 // L'impact : on cherche ce qui est à portée à cet instant, on touche (l'arme mord) ou l'on frappe
 // le vide (l'élan continue). Chaque arme laisse sa marque : échardes, éclats de pierre, poussière
 // de cristal ; le marteau-pilon frappe le sol quoi qu'il arrive, en souffle de vapeur et en onde.
@@ -13891,7 +14416,7 @@ function coupArme(A) {
   const a = objet(A.arme); if (!a) return;
   const pose = poseGeste(A.g, A.coup), tip = pointeArme(P, pose, A.arme, 1);
   if (A.arme === 'marteau') {
-    P.pilon = t; P.secousse = t; SON.jouer('pilon', {}, tip[0], tip[1], tip[2]);
+    P.pilon = t; P.secousse = t; P.secousseK = 1; SON.jouer('pilon', {}, tip[0], tip[1], tip[2]);
     const sol = hAt(tip[0] | 0, tip[1] | 0);
     for (let k = 0; k < 18; k++) { const an = k / 18 * 6.2832, v = 2.2 + Math.random();
       parts.push({ x: tip[0], y: tip[1], z: Math.max(sol, tip[2] - .05) + .05, vx: Math.cos(an) * v, vy: Math.sin(an) * v, vz: .6 + Math.random() * .6, g: 5, life: .45, age: 0, col: '#b8a88a', tl: .08 }); }
@@ -14098,6 +14623,7 @@ function signalerIncident() {
 // Celle qu'on vient de frapper, tant qu'elle vit et reste en vue ; sinon la bête la plus proche.
 function cibleVue() {
   const d = P.designe;
+  for (const b of beasts) if (b.sp.boss && !b.dead && b.pv > 0 && b.etat !== 'sommeil' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 3600) return b;   // la Tisseuse éveillée : sa barre en haut
   if (d && d.o && !d.o.dead && d.o.pv > 0 && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < 400) return d.o;
   let pr = null, dp = 25;
   for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5)) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
@@ -14119,6 +14645,8 @@ function majCible() {
       info = `${nomEspeceDe(o).toLowerCase()} · ${nomRole(o.comp.role)} · ${nomMode(o.comp.mode)} · ${DITS_ETAT[o.etat] || o.etat}`; }
     else if (coursier(o.sp) && !o.tame) { nom = nomEspeceDe(o);
       info = o === P.monture && Rodeo ? `rodéo · fougue ${Math.round(Rodeo.fougue * 100)} % · tenez ACTION` : `${DITS_ETAT[o.etat] || o.etat} · souffle ${Math.round((o.endu ?? 1) * 100)} % · se monte au contact`; }
+    else if (o.sp.boss) { nom = o.sp.n; cl = 'meca';
+      info = o.etat === 'sommeil' ? 'endormie près de l\'arche' : 'phase ' + o.phase + ' / 3' + (o.phase === 3 ? ' · en rage' : '') + (o.act ? ' · ' + ({ viser: 'elle vous vise', mortier: 'salve de mortier', toile: 'elle tisse', cabrer: 'elle se cabre' })[o.act.k] : ''); }
     else if (automate(o.sp)) { nom = nomEspeceDe(o); cl = 'meca';
       info = o.etat === 'veille' ? 'en veille · un éclat le rallume' : `${o.etat} · charge ${Math.round(o.nrj * 100)} %`; }
     else if (o.sp.volant) { nom = nomEspeceDe(o); info = (DITS_VOL[o.etat] || o.etat) + (o.poisson ? ' · un poisson au bec' : '')
@@ -15265,10 +15793,10 @@ void main() { o = uC; }`;
     if (iso || tierce) heros(TD);
     for (const b of beasts) {
       if ((b.x - ex) ** 2 + (b.y - ey) ** 2 >= r2) continue;
-      const kz = b.sp ? b.sp.sz : 1, e = 1.3 * kz + .3;
-      if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + 1.8 * kz + .4, .05)) continue;
+      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : 1.3 * kz + .3;
+      if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + (b.sp.boss ? 7 : 1.8 * kz + .4), .05)) continue;
       const { U, put } = posBete(b);
-      if (iso || tierce) ombre(b.x, b.y, b.z, kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol
+      if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol
       const flash = b.hit > 0 && (t * 16 | 0) % 2;
       const hb = L_FIXE + 256 * horizAt(b.x, b.y);
       if (b.tame && b.etat !== 'épaule') {                                   // le lien se voit : un anneau rouge qui bat
@@ -15280,7 +15808,7 @@ void main() { o = uC; }`;
     for (const b of betesLoin) {
       const kz = b.sp.sz, { U, put } = posBete(b);
       if (!iso && !boiteVue(b.x - 2, b.x + 2, b.y - 2, b.y + 2, b.z - .4, b.z + 2.2, .05)) continue;
-      if (iso || tierce) ombre(b.x, b.y, b.z, kz, U[2] * U[2] * (1 - (b.camo || 0) * .9));
+      if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9));
       const hb = L_FIXE + 256 * horizAt(b.x, b.y), fl = b.hit > 0 && (t * 16 | 0) % 2;
       for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, 0, o.luit ? L_FIXE : hb, 0, 0, 0, U);
     }
@@ -15308,6 +15836,7 @@ void main() { o = uC; }`;
     for (const o of ogDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const f of TIRS) {
       const n = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / n, f.vy / n, f.vz / n];
+      if (f.toile) { boite(TD, [f.x - .1, f.y, f.z], [f.x + .1, f.y, f.z], .2, .2, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.spore) { boite(TD, [f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.obus) { boite(TD, [f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], 0, 0, L_FIXE, 0, 0, 0); continue; }
       boite(TD, [f.x - u[0] * .3, f.y - u[1] * .3, f.z - u[2] * .3], [f.x, f.y, f.z], .07, .07, f.c, 0, 0, L_FIXE, 0, 0, 0);
@@ -15556,7 +16085,7 @@ function photo() {
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
-    denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -15642,6 +16171,7 @@ function appliquer(d, vivantes) {
   }
   // la cuisine : les denrées connues, des plats aux champs bornés, le carnet, la marmite
   P.denrees = {}; P.cellier = {};
+  P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
   for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
   P.plats = (Array.isArray(d.plats) ? d.plats : []).filter(p => p && typeof p.n === 'string' && typeof p.c === 'string').slice(0, PLATS_MAX)
