@@ -740,7 +740,7 @@ Aux explorations **10, 15, 20, 25…**, une araignée automate géante dort prè
 
 **Son éveil** : à moins de 24 cases (ou au premier coup), un grincement de servos, les huit yeux qui s'allument un à un, les pattes qui se déplient, et elle se dresse (2,4 s). Sa barre de vie s'affiche en haut (fiche de la cible), avec sa phase et ce qu'elle prépare.
 
-**Son corps sur plusieurs niveaux** : chaque patte se pose sur le sol qu'elle touche, à portée de jambe (3 cubes sous le corps, 2 au-dessus ; sinon tout près, ou elle reste où elle est). Le genou se résout à chaque image (deux os, un pôle vers le haut et le dehors) : les jambes s'arquent au-dessus du corps. Le corps se règle sur ses pieds et **tangue et roule** avec eux. Elle marche en deux quatuors alternés ; le pied décrit un arc plus haut quand il monte et retombe lourdement (poussière, éclaboussure dans l'eau, bruit sourd, secousse selon la distance ; dessous, on se fait écraser). Elle patauge, contourne les falaises plus hautes que sa jambe, ne passe pas sous les îles de nuage. Testé sur un relief de 4 cubes : pieds sur 4 niveaux à la fois, le corps incliné.
+**Son corps sur plusieurs niveaux** : chaque patte se pose sur le sol qu'elle touche, à portée de jambe (3 cubes sous le corps, 2 au-dessus ; sinon tout près, ou elle reste où elle est). Le corps est **suspendu** entre ses pattes, à 2,75 au-dessus de ses pieds (`TISSEUSE.haut`), le ventre bien au-dessus du sol. Les jambes sont longues (cuisse 2,3, jambe 2,4) : le genou, résolu à chaque image (deux os, un pôle vers le haut et le dehors), s'arque haut au-dessus du corps. Le corps **épouse le relief qu'il couvre** (dix points : tête, thorax, abdomen, flancs ; `CORPS_TISS`) autant que ses pieds : il **tangue et roule** entre deux niveaux, et **aucun de ces points ne passe sous le sol**, même pendant qu'il s'incline (testé : 0 image sur 600 en 30 s sur des gradins de 4 cubes, tangage jusqu'à 0,45, roulis 0,37). Elle marche en deux quatuors alternés ; le pied décrit un arc plus haut quand il monte et retombe lourdement (poussière, éclaboussure dans l'eau, bruit sourd, secousse selon la distance ; dessous, on se fait écraser). Elle patauge, contourne les falaises plus hautes que sa jambe, ne passe pas sous les îles de nuage. Testé sur un relief de 4 cubes : pieds sur 4 niveaux à la fois, le corps incliné.
 
 **Son combat** : elle tient 9 à 18 cases, de flanc, face à vous, et change de sens de temps en temps. Une arme à la fois, toutes annoncées :
 
@@ -753,7 +753,11 @@ Aux explorations **10, 15, 20, 25…**, une araignée automate géante dort prè
 
 Au **dernier tiers**, elle enrage : jointures rougeoyantes, plus rapide, visée en 1 s au lieu de 1,6, salves plus nourries, recharges plus courtes.
 
-**La frapper** : à l'arc, son corps ; au corps à corps, son ventre (sous elle) ou ses pattes. Robustesse 4 : elle tient longtemps.
+**La frapper** : à l'arc, son corps ; au corps à corps, son ventre (sous elle) ou ses pattes. **Robustesse 10**, plus 6 % par exploration au-delà de 10 (`blinde`) : une cinquantaine de coups d'épée à l'exploration 10. **Crocs et griffes glissent sur le fer** : les bêtes ne lui font que la moitié de leurs dégâts ; et ses pas, son onde de cabrage, écrasent, repoussent et étourdissent celles qui l'assaillent (un spectre et un bramard seuls ne l'entament plus que de quelques pour cent par minute).
+
+**Son corps, en détail** : les cerclages de cuivre et les rivets de l'abdomen, les tuyaux le long des flancs, **deux cheminées** sur le dos, les **évents** des flancs où son cœur rougeoie (il bat plus vite en rage), les **chélicères** qui s'ouvrent et claquent au combat, les pédipalpes, l'antenne au feu clignotant, un **vérin** sur chaque cuisse, **trois griffes** à chaque pied.
+
+**La vapeur** : les cheminées soufflent en continu (trois fois plus en rage), une bouffée après chaque salve de mortier, un **jet sifflant aux jointures** quand un coup porte, un nuage à l'effondrement ; la carcasse fume encore une vingtaine de secondes (`vapeurTiss`, `souffleTiss`).
 
 **Sa mort** : les pattes cèdent et glissent, le corps s'affaisse, des étincelles, l'explosion, la carcasse reste — **+24 ferraille, +12 éclats, +10 pierres** (en plus du butin d'automate) — et **l'arche apparaît** dans une colonne de lumière.
 
@@ -768,3 +772,31 @@ Onglet **Bêta**, bloc **Se téléporter** : deux champs, **Graine** (un entier 
 - Pas depuis le souterrain (il faut remonter d'abord).
 - Le panneau ne se réécrit pas pendant qu'on tape, et la saisie est gardée tant qu'on ne voyage pas.
 - Repères : graine 0 et niveau 0, un départ ; la Tisseuse de fer garde les niveaux 10, 15, 20… (testé : graine 424242, niveau 10 → la Tisseuse est là, l'arche cachée).
+
+
+## 44. Le dragon à plumes
+
+Plus grand qu'un coursier : quatre pattes, un long cou en S de cinq anneaux, une tête à crête de plumes, cornes et mâchoire mobile, une queue de sept anneaux qui ondule et finit en panache, et de **grandes ailes de plumes** — cinq rémiges en éventail sur la main, quatre secondaires sur l'avant-bras —, qui battent lentement (environ deux fois par seconde) avec l'onde du bras à la pointe. **Quatre robes** (émeraude, pourpre, azur, ambre ; une compagne garde la sienne). Une île sur cinq environ, dès la troisième exploration (`dragonGraine`), un seul, **sur son aire au point le plus haut** de l'île.
+
+**Sa vie**
+
+| État | Ce qu'on voit |
+|---|---|
+| perché | sur son aire : la tête qui balaie, une aile qu'il étire, la queue qui ondule ; la nuit il dort, le cou replié sur le flanc |
+| planer | de larges cercles, haut (une douzaine de cubes) au-dessus de son aire, battant de loin en loin, incliné dans les virages |
+| observer | curieux, il vient tourner au-dessus de vous, puis s'en retourne |
+| chasser | affamé : il choisit un herbivore, revient à 14 cases de biais, **se cabre en surplace** (ailes hautes, la gorge qui rougeoie, la gueule qui s'ouvre), **crache une boule de feu** en cloche (le cercle au sol l'annonce), **vire sur l'aile** et remonte, recommence ; la proie à terre, il se pose à côté et la **dévore** |
+| menacer | approchez son aire : il se dresse, ailes ouvertes, gueule ouverte, et **gronde** ; restez, et c'est la guerre |
+
+- **La boule de feu** explose en gerbe (dégâts de zone) et **le sol brûle** trois secondes et demie : on y prend feu (la brûlure ordinaire ; l'effet « insensible aux braises » protège).
+- **Furieux** (frappé, ou aire violée) : il vous fait la chasse, du ciel, à coups de feu, une trentaine de secondes. Blessé (moins d'un quart), il fuit haut, puis rentre.
+- Il **vire plus large, bat plus lentement et vole plus haut** que la sterne (`volK` : un même vol, à sa mesure).
+- Aucune bête du sol ne l'atteint en vol ; le tireur d'élite le chasse ; vous, à l'arc, ou posé. Il laisse un **Filet de dragon** (rareté 4, insensible aux braises).
+
+**L'apprivoiser** : **de la viande** au sac, et sans geste brusque : posé, il vous laisse venir (il tourne la tête vers vous, curieux, au lieu de gronder). G lui tend un morceau ; quatre ou cinq morceaux (plus la viande est rare, plus ça compte), et il se lie (il faut un lien libre). Il ne prend rien en vol, ni furieux. Testé : lié en 4 morceaux.
+
+**Lié** : avec le joueur, il vous **escorte en tournant au-dessus de vous** et **se pose à vos côtés** quand vous restez immobile quelques secondes ; en **défense** (4), il fait pleuvoir le feu sur la menace (ses boules ne vous touchent pas, ni vos compagnes) ; en **chasse** (5), il abat une proie, se pose, en prélève sa part et vous **rapporte viande et os** ; au campement, il se pose près du feu.
+
+Testé en simulation, sans erreur : 90 s affamé (perché, décollage, chasse : se cabrer, cracher, virer… 18 boules de feu) ; frappé, il vous chasse (cracher, virer, revenir) et vous fait brûler ; apprivoisé à la viande ; lié, il se pose et dort près de vous la nuit.
+
+Pour régler : section LE DRAGON À PLUMES d'`index.html` (`DRAG`, `majDragon`, `attaqueDragon`, `cracheFeu`, `osDragon`, `MORPHES_DRAGON`).

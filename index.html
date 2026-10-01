@@ -622,6 +622,19 @@ const SON = (() => {
   // ---------- les recettes ----------
   // Chacune pose ses sons à partir de t et rend sa durée.
   const RECETTES = {
+    rugissement(o, t, p) {                               // le rugissement : une gorge profonde, un souffle, un sifflement de feu
+      const d = p.court ? .7 : 1.5, F = filtre(o, 'lowpass', 900, 1.5);
+      const O = osc(F, t, 'sawtooth', 85, p.court ? 150 : 60, d, .1, .28);
+      const L = ctx.createOscillator(), LG = ctx.createGain(); L.frequency.value = 19; LG.gain.value = 22; L.connect(LG); LG.connect(O.frequency); L.start(t); L.stop(t + d + .1);
+      souffle(o, t, 'bandpass', 700, 400, .9, d, .1, .12);
+      return d + .3;
+    },
+    cracheFeu(o, t) {                                    // la boule part : un souffle, un crépitement
+      souffle(o, t, 'lowpass', 1600, 300, .8, .5, .01, .3);
+      for (let i = 0; i < 7; i++) souffle(o, t + .05 + i * .05 + Math.random() * .03, 'highpass', 2500 + Math.random() * 1500, 1200, 1, .03, .002, .06);
+      osc(o, t, 'sine', 160, 70, .4, .01, .12);
+      return .7;
+    },
     eveilTisseuse(o, t, p) {                             // des servos qui montent, un cri de métal qui retombe
       if (p.mort) { osc(o, t, 'sawtooth', 220, 40, 1.4, .02, .14); souffle(o, t + .1, 'lowpass', 900, 200, .8, 1.2, .02, .2); return 1.6; }
       const d = p.court ? .45 : 1.6, F = filtre(o, 'bandpass', 900, 4);
@@ -829,6 +842,7 @@ const SON = (() => {
     tireur: { k: 'machine', f: 1600 }, mortier: { k: 'machine', f: 420 },
     lentigrade: { k: 'soupir', f: 92 }, carillonneur: { k: 'cloche', f: 1250 }, oglodon: { k: 'stridule', f: 2600 },
     sterne: { k: 'cri', f: 1750 },
+    dragon: { k: 'rugit', f: 95 },
     cotonnier: { k: 'trille', f: 5290, n: 2 },        // 3400 quand il était à sz 0,62 : grossi, il garde sa voix
   };
   function crier(b, genre) {
@@ -854,6 +868,12 @@ const SON = (() => {
         L.frequency.value = V.rauque ? 27 : 18; LG.gain.value = .08; L.connect(LG); LG.connect(G.gain);
         O.connect(F); F.connect(G); G.connect(o); O.start(t); O.stop(t + du + .05); L.start(t); L.stop(t + du + .05);
         d = du + .2; break;
+      }
+      case 'rugit': {                                     // le dragon : un grondement de gorge, qui monte à l'alerte
+        const du = genre === 'appel' ? .9 : genre === 'mort' ? 1.6 : 1.2, F = filtre(o, 'lowpass', f * 9, 1.2);
+        const O = osc(F, t, 'sawtooth', f, f * (genre === 'alerte' ? 1.6 : .8), du, .08, .22);
+        const L = ctx.createOscillator(), LG = ctx.createGain(); L.frequency.value = 23; LG.gain.value = f * .25; L.connect(LG); LG.connect(O.frequency); L.start(t); L.stop(t + du + .1);
+        d = du + .3; break;
       }
       case 'cri': {                                       // la sterne : un « kirr » grinçant qui retombe ; trois « kik » à l'alerte
         const n = genre === 'alerte' ? 3 : genre === 'douleur' ? 2 : 1, du = genre === 'alerte' ? .09 : .3;
@@ -5188,7 +5208,8 @@ const DITS_VOL = { 'perché': 'se repose au nid', planer: 'plane en cercles', 'p
   plonger: 'plonge', remonter: 'remonte de l\'eau', rentrer: 'rentre au nid', poser: 'se pose', manger: 'mange son poisson',
   'décoller': 'prend son envol', fuir: 'fuit à tire-d\'aile', dormir: 'dort, la tête sous l\'aile',
   'épaule': 'sur votre épaule', suivre: 'vous rejoint', cueillir: 'vole à la récolte', picorer: 'détache sa récolte', 'défendre': 'harcèle l\'ennemi' };
-const DITS_ETAT = { sommeil: 'dort, repliée', 'éveil': 's\'éveille', combat: 'combat', garde: 'garde son arche', cacher: 'file se cacher', tapi: 'se tapit, et vous guette', ajuster: 'prépare un mauvais tour', rire: 'rit de vous',
+const DITS_ETAT = { observer: 'tourne au-dessus de vous', attaque: 'vous fait la chasse', cracher: 'se cabre, la gorge en feu', virer: 'vire sur l\'aile',
+  descendre: 'fond sur sa proie', 'dévorer': 'dévore sa proie', menacer: 'se dresse et gronde', escorter: 'vous escorte', sommeil: 'dort, repliée', 'éveil': 's\'éveille', combat: 'combat', garde: 'garde son arche', cacher: 'file se cacher', tapi: 'se tapit, et vous guette', ajuster: 'prépare un mauvais tour', rire: 'rit de vous',
   suivre: 'vous suit', 'récolter': 'travaille', repos: 'se repose', rappel: 'accourt',
   'défendre': 'se bat pour vous', garder: 'garde le campement', patrouiller: 'patrouille', viser: 'met en joue', veille: 'en veille',
   boire: 'boit', brouter: 'broute', chasser: 'chasse', assaut: 'se bat', fuir: 'fuit', 'acculé': 'fait front',
@@ -5910,7 +5931,7 @@ const SPEC = [
   // avec une avance exacte sur qui court droit. Le mortier tire en cloche, par-dessus les murs :
   // un cercle au sol montre où l'obus tombera. Plus durs à rallumer, ils rendent plus d'éclats.
   { id:'tireur',  n:"Tireur d'élite", fam:'automate', diet:'s', sz:1.08, spd:2.1, vue:34, peur:0, herd:0, cap:2, mat:60,
-    shell:[74,70,68], dark:[34,32,34], leg:[46,44,44], oeil:[255,44,40], bio:[4,5,6], chasse:['coursier','coursier_o','coursier_r','coursier_a','sterne'],
+    shell:[74,70,68], dark:[34,32,34], leg:[46,44,44], oeil:[255,44,40], bio:[4,5,6], chasse:['coursier','coursier_o','coursier_r','coursier_a','sterne','dragon'],
     lien:0, travail:{}, metier:'met en joue de très loin, et ne manque presque jamais', grimpe:0,
     tir:{ deg:.18, portee:24, cadence:4.2, vit:40, precision:.99, visee:1.1, avance:1 }, dur:.9, duel:1, eclats:3, coeur:3 },
   { id:'mortier', n:'Mortier', fam:'automate', diet:'s', sz:1.3, spd:1.25, vue:26, peur:0, herd:0, cap:2, mat:60,
@@ -5976,6 +5997,11 @@ const VOLANTS = [
   { id:'sterne', n:'Sterne des nues', corps:'sterne', volant:1, diet:'c', sz:1.3, spd:1.6, vue:16, peur:.7, herd:1, meute:5, cap:6, mat:110,
     shell:[246,246,242], dark:[164,176,192], leg:[232,118,50], ventre:[252,252,250], oeil:[20,22,28], bec:[238,112,42], coiffe:[30,32,40], bio:[1],
     chasse:[], lien:.3, travail:{}, metier:'pêche en piqué, et va aux druses des îles de nuage', grimpe:0 },
+  // le dragon à plumes (voir LE DRAGON À PLUMES) : plus grand qu'un coursier, il niche au plus haut de l'île
+  { id:'dragon', n:'Dragon à plumes', corps:'dragon', dragon:1, diet:'c', sz:1, spd:1.4, vue:30, peur:0, herd:0, cap:1, mat:600,
+    shell:[46,120,98], dark:[34,92,84], leg:[46,120,98], oeil:[255,196,60], bio:[4, 5, 6], dur:2.6, brule:1, lien:.15, travail:{},
+    chasse:['brouteur','glaneur','bosseu','cotonnier','carillonneur','coursier','lentigrade','cerf','crapaud'],
+    volK:{ om: .62, freq: .32, marge: 1.6 }, metier:'chasse du ciel, à coups de feu', grimpe:0 },
 ];
 SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces());   // et les Nomades du Seuil (nomades.js)   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
 // --- la Tisseuse de fer : le gardien des îles 10, 15, 20… (voir LA TISSEUSE DE FER) ---
@@ -6011,7 +6037,7 @@ const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
   salamandre: [2, 1, 1, 1, 2, 2, 4, 4],   felin: [1, 1, 1, 2, 2, 1, 5, 4],
   moissonneur: [5, 5, 5, 2, 3, 4, 1, 1],  traceur: [1, 2, 1, 1, 2, 4, 4, 3],      mercenaire: [1, 1, 1, 1, 1, 3, 3, 5],
   sentinelle: [1, 2, 1, 1, 1, 3, 2, 5],   tireur: [1, 1, 1, 1, 1, 2, 4, 5],       mortier: [1, 3, 1, 1, 1, 3, 2, 5],
-  sterne: [1, 1, 2, 2, 4, 1, 0, 2],
+  sterne: [1, 1, 2, 2, 4, 1, 0, 2],     dragon: [1, 1, 1, 1, 1, 1, 5, 4],
 };
 const aptDe = esp => APT[esp] || [1, 1, 1, 1, 1, 1, 0, 2];
 const PECHE_APT = { sterne: 5 };                     // la pêche : qui sait pêcher (hors du tableau, dont la 8e case est la défense)
@@ -6029,7 +6055,7 @@ const doux = sp => !!sp && sp.fam === 'doux';
 // la pierre natale prend la teinte de son biome
 for (const sp of SPEC) if (sp.biome) { const h = RARES.find(r => r.b === sp.biome).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
 for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.boss ? dessinTisseuse(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
-  : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'sterne' ? dessinSterne(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
+  : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'dragon' ? dessinDragon(d, sp) : sp.corps === 'sterne' ? dessinSterne(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;   // berries : l'index des buissons à baies (des pieds de la flore)
 const BUISSON_BIO = { 2: ESP.findIndex(e => e.id === 'groseillier'), 3: ESP.findIndex(e => e.id === 'ronce'),
   9: ESP.findIndex(e => e.id === 'airelle'), 11: ESP.findIndex(e => e.id === 'murier') };
@@ -6273,7 +6299,7 @@ function majBiome(dt) {
     if (P.pv <= 0) { P.brulure = 0; terrasse(); }
   }
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
-  majToiles(dt);
+  majToiles(dt); majFeux(dt);
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
     P.pv = Math.max(.05, P.pv - dt * .014);
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
@@ -6373,7 +6399,8 @@ function poser(sp) {
   const q = automate(sp) ? placeAutomate(sp) : sp.roche ? placeFourmi() : null;   // l'oglodon, à la fourmilière
   const vr = b => { b.variante = tirerVariante(sp); return b; };   // une robe, une forme rares, parfois
   if (q) return vr(naitre(sp, q[0], q[1]));
-  if (sp.volant) { const v = poserVolant(sp); return v ? vr(v) : null; }   // une sterne : sur une dalle, près de sa colonie
+  if (sp.volant) { const v = poserVolant(sp); return v ? vr(v) : null; }
+  if (sp.dragon) { const v = poserDragon(sp); return v ? vr(v) : null; }   // un dragon : sur son aire, au plus haut   // une sterne : sur une dalle, près de sa colonie
   if (sp.meute) {                                      // une meute naît ensemble : trois ou quatre autour d'un chef
     const chef = beasts.find(o => o.sp === sp && !o.tame && !o.dead && beasts.filter(m => m.sp === sp && (m.x - o.x) ** 2 + (m.y - o.y) ** 2 < 49).length < (sp.meute > 1 ? sp.meute : 4));
     if (chef) for (let k = 0; k < 30; k++) {
@@ -7019,6 +7046,7 @@ function update(dt) {
     }
     if (!c) say(repue && repue.comp ? repue.comp.nom + ' n\'a pas faim' : 'aucune bête à portée', 1.4);
     else if (c.sp.boss) say('la Tisseuse ne se laisse pas approcher', 1.5);
+    else if (c.sp.dragon) nourrirDragon(c);
     else if (automate(c.sp)) rallumer(c);
     else if (coursier(c.sp) && !c.tame) say('un coursier ne se lie pas aux baies : sautez sur son dos', 2);
     else if (c.sp.volant && !poissonADonner() && !(c.tame && P.plats.length)) say(c.sp.n + ' · elle ne prend que du poisson', 2);
@@ -7593,6 +7621,387 @@ function curieuse(b, dJ, dzJ) {
 // coursier ; le crapaud et le cerf, deux cubes d'un bond, en montant comme en descendant.
 const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) || (!!b.sp.monture && h - hn <= 3 && hn < h);
 // ============================================================
+//  LE DRAGON À PLUMES
+//  Plus grand qu'un coursier : quatre pattes, un long cou en S, une queue à panache, de grandes
+//  ailes de plumes (rémiges en éventail) qui battent lentement, avec l'onde du bras à la pointe.
+//  Il niche sur le point le plus haut de l'île. Le jour il plane haut, en larges cercles, au-dessus
+//  de son aire, battant de loin en loin ; affamé, il chasse : il repère un herbivore, fond sur lui,
+//  se cabre en vol (surplace, ailes hautes, la gorge qui rougeoie, la gueule qui s'ouvre) et crache
+//  une boule de feu en cloche — le cercle au sol l'annonce —, vire et remonte, recommence ; la proie
+//  à terre, il se pose à côté et la dévore. La nuit il dort sur son aire, le cou replié sur le flanc.
+//  Curieux, il vient tourner au-dessus de vous. Approchez son aire : il se dresse, ailes ouvertes,
+//  et gronde ; insistez, ou frappez-le, et il vous fait la chasse à coups de feu. Blessé, il fuit
+//  haut. On l'apprivoise à la viande : de la viande au sac, sans geste brusque, il vous laisse venir.
+//  Lié, il vous escorte en tournant au-dessus de vous et se pose à vos côtés quand vous vous
+//  arrêtez ; en défense il fait pleuvoir le feu sur la menace ; en chasse il rapporte viande et os.
+// ============================================================
+const MORPHES_DRAGON = [
+  { corps: [46, 120, 98], ventre: [214, 170, 92], aile: [34, 92, 84], pointe: [232, 122, 48], crete: [222, 64, 48] },
+  { corps: [124, 40, 54], ventre: [226, 186, 120], aile: [74, 28, 42], pointe: [250, 196, 72], crete: [246, 170, 50] },
+  { corps: [54, 96, 164], ventre: [226, 232, 236], aile: [36, 64, 122], pointe: [240, 242, 250], crete: [96, 210, 232] },
+  { corps: [168, 112, 48], ventre: [236, 214, 160], aile: [112, 70, 34], pointe: [62, 48, 40], crete: [214, 70, 40] },
+];
+function morpheDragon(b) {
+  if (!Number.isInteger(b.morphe)) b.morphe = b.comp && Number.isInteger(b.comp.morphe) ? b.comp.morphe : (Math.random() * 4) | 0;
+  if (b.comp && !Number.isInteger(b.comp.morphe)) b.comp.morphe = b.morphe;
+  return MORPHES_DRAGON[b.morphe];
+}
+const DRAG = { plane: 5.4, bat: 6.6, fuite: 9 };
+const FEUX = [];
+function dragonGraine(g) {
+  if (!Number.isInteger(g)) return false;
+  let n = (g ^ 0xd7a60) >>> 0; n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
+  return ((n ^ (n >>> 16)) >>> 0) % 100 < 22;
+}
+// Son aire : le point le plus haut qu'on trouve, sur la terre ferme.
+function poserDragon(sp) {
+  let best = null, bh = -1;
+  for (let k = 0; k < 400; k++) {
+    const x = 12 + Math.random() * (WS - 24), y = 12 + Math.random() * (WS - 24), h = hAt(x | 0, y | 0);
+    if (h <= SEA + 1 || PlT[(y | 0) * WS + (x | 0)] || beasts.some(o => o.sp === sp && o.nid && Math.hypot(o.nid.x - x, o.nid.y - y) < 30)) continue;
+    if (h > bh) { bh = h; best = [(x | 0) + .5, (y | 0) + .5]; }
+  }
+  if (!best) return null;
+  const b = naitre(sp, best[0], best[1]);
+  b.z = hAt(best[0] | 0, best[1] | 0); b.nid = { x: best[0], y: best[1], z: b.z }; b.enVol = false; b.etat = 'perché';
+  b.perchT = 5 + Math.random() * 20; b.v = 0; b.age = 1e6; b.ech = 1; morpheDragon(b);
+  return b;
+}
+const ptDragon = (b, lx, ly, lz) => { const R = repere(b); return [b.x + R.F[0] * lx + R.L[0] * ly + R.U[0] * lz, b.y + R.F[1] * lx + R.L[1] * ly + R.U[1] * lz, b.z + R.F[2] * lx + R.L[2] * ly + R.U[2] * lz]; };
+// La boule de feu : en cloche, un peu devant ce qui court ; le cercle au sol l'annonce.
+function cracheFeu(b, c) {
+  const m = ptDragon(b, 2.25, 0, b.enVol ? 1.15 : 1.9), cz = c === P ? P.z : c.z;
+  const d = Math.hypot(c.x - m[0], c.y - m[1]), vol = Math.max(.8, Math.min(1.5, .55 + d * .05));
+  const e = b.tame ? .4 : .9 + d * .04, a = Math.random() * 6.2832;
+  const cx = c.x + (c.vx || 0) * vol * .7 + Math.cos(a) * e * Math.random(), cy = c.y + (c.vy || 0) * vol * .7 + Math.sin(a) * e * Math.random();
+  TIRS.push({ x: m[0], y: m[1], z: m[2], vx: (cx - m[0]) / vol, vy: (cy - m[1]) / vol, vz: (sol(cx, cy) - m[2]) / vol + TIR_G * vol * .5,
+    de: b, deg: b.tame ? .34 : .2, age: 0, c: [255, 160, 60], obus: true, feu: true, zone: 1.7, cx, cy, cz: sol(cx, cy), vol });
+  SON.jouer('cracheFeu', {}, m[0], m[1], m[2]); burst(m[0], m[1], m[2], 12, '#ffb040'); b.feuT = 0; b.gueuleT = t; b.tirs = (b.tirs || 0) + 1;
+}
+function allumerFeu(f) { FEUX.push({ x: f.x, y: f.y, z: sol(f.x, f.y), r: 1.5, fin: t + 3.5, de: f.de, piq: 0 }); }
+function majFeux(dt) {                                  // le sol qui brûle : des flammes, et ce qui y passe brûle
+  for (let i = FEUX.length - 1; i >= 0; i--) {
+    const w = FEUX[i]; if (w.fin < t) { FEUX.splice(i, 1); continue; }
+    const k = Math.min(1, (w.fin - t) / 1.5);
+    if (Math.random() < dt * 26 * k) { const a = Math.random() * 6.2832, r = Math.sqrt(Math.random()) * w.r;
+      parts.push({ x: w.x + Math.cos(a) * r, y: w.y + Math.sin(a) * r, z: w.z + .05, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, vz: 1 + Math.random() * 1.4,
+        g: -1.5, life: .45 + Math.random() * .4, age: 0, col: Math.random() < .6 ? '#ffb040' : '#ff5a24', luit: 1, tl: .1 }); }
+    if (Math.random() < dt * 4 * k) parts.push({ x: w.x, y: w.y, z: w.z + .5, vx: 0, vy: 0, vz: 1.2, g: -1, life: 1.4, age: 0, col: '#5a524c', tl: .16 });
+    if ((P.x - w.x) ** 2 + (P.y - w.y) ** 2 < w.r * w.r && Math.abs(P.z - w.z) < 1.2 && !effet('braise') && !(w.de.tame)) P.brulure = Math.max(P.brulure || 0, t + 1.2);
+    if (t > w.piq) { w.piq = t + .5;
+      for (const o of beasts) if (o !== w.de && !o.dead && o.pv > 0 && !(w.de.tame && o.tame) && (o.x - w.x) ** 2 + (o.y - w.y) ** 2 < w.r * w.r && Math.abs(o.z - w.z) < 1.2 && !o.sp.brule) porterCoup(w.de, o, .06); }
+  }
+}
+// Un tour d'attaque, du ciel : s'approcher à bonne distance, se cabrer en surplace (la gorge
+// rougeoie), cracher, virer et remonter ; et recommencer. Sert au sauvage (vous, sa proie) et au lié.
+function attaqueDragon(b, c, dt) {
+  if (!b.enVol) { b.etat = 'décoller'; b.decT = .45; b.suite = 'attaque'; return true; }
+  const cz = c === P ? P.z : c.z, dh = Math.hypot(c.x - b.x, c.y - b.y);
+  if (b.etat === 'cracher') {                            // le surplace, la gorge qui s'emplit
+    volerVers(b, c.x, c.y, Math.max(b.z, cz + 5.5), 0, 'sur', dt);
+    b.feuT = (b.feuT || 0) + dt;
+    if (b.feuT >= (b.tame ? .65 : .95)) { cracheFeu(b, c); b.etat = 'virer'; b.virT = 2.6 + Math.random(); b.vireA = b.dir + (Math.random() < .5 ? 1.6 : -1.6); b.cdFeu = b.t + (b.tame ? 2.4 : 3.6 + Math.random() * 1.6); }
+    return true;
+  }
+  if (b.etat === 'virer') {                               // il vire sur l'aile et reprend de la hauteur
+    b.virT -= dt; volerVers(b, b.x + Math.cos(b.vireA) * 12, b.y + Math.sin(b.vireA) * 12, cz + 10, DRAG.bat, 'bat', dt);
+    if (b.virT <= 0) b.etat = 'attaque';
+    return true;
+  }
+  b.etat = 'attaque';
+  const a = Math.atan2(b.y - c.y, b.x - c.x), R = 13;                 // revenir à quatorze cases, de biais
+  const tx = c.x + Math.cos(a + .5) * R, ty = c.y + Math.sin(a + .5) * R;
+  volerVers(b, dh > 18 || dh < 9 ? tx : c.x, dh > 18 || dh < 9 ? ty : c.y, cz + 7.5, dh > 18 ? DRAG.bat : DRAG.plane, dh > 18 ? 'bat' : 'plane', dt);
+  if (dh > 8.5 && dh < 19 && b.t > (b.cdFeu || 0) && b.z > cz + 3) { b.etat = 'cracher'; b.feuT = 0; SON.jouer('rugissement', { court: 1 }, b.x, b.y, b.z + 1); }
+  return true;
+}
+const proieDragon = (b, cx, cy, R) => { let best = null, bd = R * R;
+  for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.tame && (b.sp.chasse || []).includes(o.sp.id)) { const d = (o.x - cx) ** 2 + (o.y - cy) ** 2; if (d < bd) { bd = d; best = o; } }
+  return best; };
+function nourrirDragon(c) {                              // à la viande seulement
+  const v = INGR_GARDE().find(id => INGR[id].fam === 'viande' && sacIngr(id) > 0);
+  if (c.colere > 0 && !c.tame) { say(c.sp.n + ' est furieux : il ne prend rien', 1.8); return; }
+  if (c.enVol) { say('il faut qu\'il soit posé', 1.4); return; }
+  if (!v) { say(c.sp.n + ' ne prend que de la viande', 1.8); return; }
+  metSacIngr(v, sacIngr(v) - 1); c.faim = Math.max(0, c.faim - .35); c.etat = 'manger'; c.mangeT = 2; burst(c.x, c.y, c.z + 1.6, 10, '#ffd68a');
+  if (c.tame) { say(c.comp.nom + ' dévore ' + INGR[v].n.toLowerCase(), 1.6); return; }
+  c.conf = Math.min(1, (c.conf || 0) + .2 + .05 * (INGR[v].r || 1));
+  if (c.conf >= 1) { if (!lier(c)) { c.conf = .95; say('plus de lien libre', 1.6); } }
+  else say(c.sp.n + ' · confiance ' + Math.round(c.conf * 100) + ' %', 1.6);
+}
+function majDragon(b, dt) {
+  const sp = b.sp; b.t += dt; b.age += dt; b.ech = 1;
+  if (b.hit > 0) b.hit -= dt;
+  if (b.dead) {                                         // touché à mort : il tombe, ailes ouvertes
+    b.dead += dt; b.bat = 0;
+    if (b.solMort === undefined) {
+      b.enVol = false; b.vz = (b.vz || 0) - 14 * dt; b.z += b.vz * dt; b.roll = (b.roll || 0) + dt * 1.5; b.tang = Math.max(-.8, (b.tang || 0) - dt);
+      b.v = (b.v || 0) * (1 - Math.min(1, dt)); b.x += Math.cos(b.dir) * b.v * dt; b.y += Math.sin(b.dir) * b.v * dt;
+      const fl = Math.max(floorUnder(b.x, b.y, b.z + .05), hRendu(b.x, b.y));
+      if (b.z <= fl) { b.z = fl; b.vz = 0; b.v = 0; b.solMort = fl; b.roll = 1.3; b.tang = 0; burst(b.x, b.y, b.z + .3, 16, '#9a8f80'); P.secousse = t; P.secousseK = .5; }
+    }
+    return;
+  }
+  b.faim = Math.min(1.4, b.faim + dt * .004); b.soif = 0;
+  if (b.faim > 1) b.pv -= dt * .02; else if (b.faim < .6) b.pv = Math.min(1, b.pv + dt * .004);
+  if (b.pv <= 0) { mourirBete(b, 'faim'); return; }
+  if (!b.nid) b.nid = { x: b.x, y: b.y, z: b.z };
+  if (b.vx || b.vy) { b.x += (b.vx || 0) * dt; b.y += (b.vy || 0) * dt; b.vx *= .85; b.vy *= .85; if (Math.abs(b.vx) + Math.abs(b.vy) < .05) b.vx = b.vy = 0; }
+  if (b.tame) { if (majDragonLie(b, dt)) return; }
+  const N = b.nid, nuit = lumiere() < .36, dJ = Math.hypot(P.x - b.x, P.y - b.y), vJ = Math.hypot(P.vx || 0, P.vy || 0);
+  const viande = INGR_GARDE().some(id => INGR[id].fam === 'viande' && sacIngr(id) > 0);
+  if (!b.tame) {
+    if (b.hit > 0) b.colere = 30;                          // frappé : il vous fait la chasse
+    if (b.colere > 0) b.colere -= dt;
+    const pres = Math.hypot(P.x - N.x, P.y - N.y) < 9 && !b.enVol && Math.hypot(b.x - N.x, b.y - N.y) < 3 && !(viande && vJ < 1.3) && P.pv > 0;
+    if (pres && !(b.colere > 0)) {                        // son aire : il se dresse, gronde ; insistez, et c'est la guerre
+      if (b.etat !== 'menacer') { b.etat = 'menacer'; b.menT = 0; SON.jouer('rugissement', {}, b.x, b.y, b.z + 1.6); }
+      b.menT += dt; b.dirT = b.dir = Math.atan2(P.y - b.y, P.x - b.x);
+      if (b.menT > 2.2 && dJ < 7) b.colere = 25;
+      return;
+    }
+    if (b.etat === 'menacer') b.etat = 'perché';
+    if (b.pv < .25 && b.colere > 0 && !b.fuiT) { b.fuiT = b.t + 14; b.colere = 0; }
+    if (b.fuiT > b.t) { if (!b.enVol) { b.etat = 'décoller'; b.decT = .3; b.suite = 'fuir'; } else { const a = Math.atan2(b.y - P.y, b.x - P.x); volerVers(b, b.x + Math.cos(a) * 15, b.y + Math.sin(a) * 15, hRendu(b.x, b.y) + 16, DRAG.fuite, 'bat', dt); b.etat = 'fuir'; } return; }
+    if (b.colere > 0 && P.pv > 0 && !sousAbri() && dJ < 45) { if (b.etat !== 'décoller') attaqueDragon(b, P, dt); else { b.decT -= dt; if (b.decT <= 0) envol(b, 'attaque'); } return; }
+  }
+  if (!b.enVol) {
+    b.v = 0; b.vz = 0; b.bat = 0; b.roll = (b.roll || 0) * .8; b.tang = (b.tang || 0) * .8;
+    if (b.etat === 'décoller') { b.decT -= dt; if (b.decT <= 0) envol(b, b.suite); return; }
+    if (b.etat === 'manger') { b.mangeT -= dt; if (b.mangeT <= 0) { b.etat = 'perché'; b.perchT = 4 + Math.random() * 6; } return; }
+    if (b.etat === 'dévorer') {                             // la proie à terre : il la dévore
+      b.mangeT -= dt; b.faim = Math.max(0, b.faim - dt * .1);
+      if (b.mangeT <= 0) { b.etat = 'décoller'; b.decT = .45; b.suite = 'rentrer'; b.proie = null; }
+      return;
+    }
+    const auNid = Math.hypot(b.x - N.x, b.y - N.y) < 1.2;
+    if (nuit) { if (!auNid) { b.etat = 'décoller'; b.decT = .45; b.suite = 'rentrer'; return; } b.etat = 'dormir'; return; }
+    if (b.etat === 'dormir') b.perchT = 3 + Math.random() * 6;
+    b.etat = 'perché'; gestesPerche(b);
+    if (viande && vJ < 1.3 && dJ < 6) { b.dirT = b.dir = b.dir + Math.max(-dt, Math.min(dt, Math.atan2(P.y - b.y, P.x - b.x) - b.dir)); b.curieux = 1; return; }   // la viande : il vous laisse venir, curieux
+    b.curieux = 0;
+    b.perchT -= dt;
+    if (b.perchT <= 0) { b.etat = 'décoller'; b.decT = .45; b.suite = b.faim > .5 ? 'chasser' : 'planer'; }
+    return;
+  }
+  switch (b.etat) {
+    case 'planer': {                                     // de larges cercles, haut, au-dessus de son aire
+      if (!b.cercle) b.cercle = { r: 14 + Math.random() * 8, h: 11 + Math.random() * 5, s: Math.random() < .5 ? 1 : -1 };
+      const a = Math.atan2(b.y - N.y, b.x - N.x) + .45 * b.cercle.s;
+      volerVers(b, N.x + Math.cos(a) * b.cercle.r, N.y + Math.sin(a) * b.cercle.r, Math.max(N.z, hRendu(b.x, b.y)) + b.cercle.h + Math.sin(b.t * .25) * 2, DRAG.plane, 'plane', dt);
+      b.planeT = (b.planeT ?? 30) - dt;
+      if (nuit || b.planeT <= 0) { b.etat = 'rentrer'; b.cercle = null; }
+      else if (b.faim > .55) { b.etat = 'chasser'; b.cercle = null; }
+      else if (dJ < 28 && P.pv > 0 && !b.vuJ && Math.random() < dt * .1) { b.etat = 'observer'; b.obsT = 10 + Math.random() * 6; b.vuJ = 1; b.cercle = null; }
+      break;
+    }
+    case 'observer': {                                   // curieux : il vient tourner au-dessus de vous
+      b.obsT -= dt; cercleAutour(b, P.x, P.y, P.z + 9, 9, dt);
+      if (b.obsT <= 0 || nuit) b.etat = 'rentrer';
+      break;
+    }
+    case 'chasser': {
+      if (!b.proie || b.proie.dead) b.proie = proieDragon(b, b.x, b.y, 45);
+      const pr = b.proie;
+      if (!pr) { b.etat = 'planer'; b.planeT = 20; b.faim = Math.max(0, b.faim - .15); break; }
+      if (pr.dead || pr.pv <= 0) { b.etat = 'descendre'; break; }
+      attaqueDragon(b, pr, dt); if (b.etat === 'attaque') b.etat = 'chasser';
+      if ((b.tirs || 0) > 7) { b.proie = null; b.tirs = 0; b.etat = 'planer'; b.planeT = 25; }   // elle lui échappe : il renonce
+      break;
+    }
+    case 'cracher': case 'virer': case 'attaque': {     // un tour en cours (proie)
+      const pr = b.proie;
+      if (pr && !pr.dead) attaqueDragon(b, pr, dt); else b.etat = pr ? 'descendre' : 'rentrer';
+      if (b.etat === 'attaque') b.etat = 'chasser';
+      break;
+    }
+    case 'descendre': {                                  // la proie à terre : il se pose à côté
+      const pr = b.proie; if (!pr) { b.etat = 'rentrer'; break; }
+      const a = Math.atan2(b.y - pr.y, b.x - pr.x), x = pr.x + Math.cos(a) * 1.6, y = pr.y + Math.sin(a) * 1.6;
+      if (allerPoser(b, x, y, sol(x, y), dt, 1.5)) { b.etat = 'dévorer'; b.mangeT = 7; b.dir = b.dirT = a + Math.PI; b.tirs = 0; }
+      break;
+    }
+    case 'rentrer': {
+      volerVers(b, N.x, N.y, N.z + 6, DRAG.bat, b.z > N.z + 5 ? 'plane' : 'bat', dt);
+      if (Math.hypot(b.x - N.x, b.y - N.y) < 8) b.etat = 'poser';
+      break;
+    }
+    case 'poser': {
+      if (allerPoser(b, N.x, N.y, N.z, dt, 1.5)) { b.etat = 'perché'; b.perchT = 15 + Math.random() * 25; }
+      break;
+    }
+    case 'fuir': { b.etat = 'rentrer'; break; }
+    default: b.etat = 'planer';
+  }
+}
+// Lié : il vous escorte, se pose près de vous quand vous vous arrêtez, défend, chasse pour vous.
+function majDragonLie(b, dt) {
+  b.faim = Math.min(.95, b.faim); b.colere = 0;
+  if (b.etat === 'décoller') { b.decT -= dt; if (b.decT <= 0) envol(b, b.suite); return true; }
+  if (b.etat === 'manger' && !b.enVol) { b.mangeT -= dt; if (b.mangeT <= 0) b.etat = 'perché'; return true; }
+  const c = b.comp, nuit = lumiere() < .36;
+  if (b.role === 'defense') { const m = menaceOrdre(b); if (m && m !== P && !m.dead && m.pv > 0) return attaqueDragon(b, m, dt); }
+  if (b.role === 'recolte' && recolteDe(c) === 'os') {
+    const A = ancre(b);
+    if (b.etat === 'dévorer') {                           // il prélève sa part, et vous rapporte le reste
+      b.mangeT -= dt;
+      if (b.mangeT <= 0) { const v = viandeDe(b.proie.sp); rapporter(c, 'os', 2 + (Math.random() < .5 ? 1 : 0), v ? v.id : null); b.proie = null; b.etat = 'décoller'; b.decT = .45; b.suite = 'escorter'; b.chasseT = b.t + 25; }
+      return true;
+    }
+    if (b.proie && (b.proie.dead || b.proie.pv <= 0)) {
+      const pr = b.proie, a = Math.atan2(b.y - pr.y, b.x - pr.x), x = pr.x + Math.cos(a) * 1.6, y = pr.y + Math.sin(a) * 1.6;
+      if (!b.enVol) { b.etat = 'décoller'; b.decT = .3; b.suite = 'escorter'; return true; }
+      if (allerPoser(b, x, y, sol(x, y), dt, 1.5)) { b.etat = 'dévorer'; b.mangeT = 3; }
+      return true;
+    }
+    if (!b.proie && b.t > (b.chasseT || 0) && b.t > (b.cherche || 0)) { b.cherche = b.t + 2; b.proie = proieDragon(b, A ? A.x : b.x, A ? A.y : b.y, A ? A.r + 14 : 40); }
+    if (b.proie && !b.proie.dead) return attaqueDragon(b, b.proie, dt);
+  }
+  if (b.mode === 'joueur' || b.rappel > 0) {
+    const vJ = Math.hypot(P.vx || 0, P.vy || 0); b.calmeT = vJ < .3 ? (b.calmeT || 0) + dt : 0;
+    const a = (P.faceS ?? 0) + 2.3, x = P.x + Math.cos(a) * 2.8, y = P.y + Math.sin(a) * 2.8;
+    if (!b.enVol) {
+      if (Math.hypot(b.x - P.x, b.y - P.y) > 7) { b.etat = 'décoller'; b.decT = .45; b.suite = 'escorter'; return true; }
+      b.etat = nuit ? 'dormir' : 'perché'; if (!nuit) gestesPerche(b); b.dirT = Math.atan2(P.y - b.y, P.x - b.x); return true;
+    }
+    if (b.calmeT > 4 && libreBete(b, x, y)) { b.etat = 'poser'; if (allerPoser(b, x, y, sol(x, y), dt, 1.5)) b.etat = 'perché'; return true; }
+    b.etat = 'escorter'; cercleAutour(b, P.x, P.y, P.z + 7.5, 7, dt); return true;
+  }
+  if (b.mode === 'camp' && campIci()) {
+    const [x, y] = lieuCamp(c), z = sol(x, y);
+    if (!b.enVol) { if (Math.hypot(b.x - x, b.y - y) > 1.5) { b.etat = 'décoller'; b.decT = .45; b.suite = 'escorter'; return true; } b.etat = nuit ? 'dormir' : 'perché'; if (!nuit) gestesPerche(b); return true; }
+    b.etat = 'poser'; if (allerPoser(b, x, y, z, dt, 1.5)) b.etat = 'perché'; return true;
+  }
+  return false;                                          // autonome : sa vie de dragon, sans colère contre vous
+}
+
+// ---------- le dragon, en volumes ----------
+// Le torse (poitrail, ventre clair), un cou de cinq anneaux en S, la tête (crâne, museau, mâchoire
+// qui s'ouvre, cornes, crête de plumes), une queue de sept anneaux qui ondule et finit en panache ;
+// quatre pattes : posé, elles marchent (pas en diagonale, pieds sur le relief), en vol elles se
+// replient, au freinage elles se tendent ; deux grandes ailes (bras, avant-bras, main) et leurs
+// plumes : cinq rémiges en éventail sur la main, quatre sur l'avant-bras ; le battement passe du bras
+// à la pointe ; repliées, les plumes se couchent le long du flanc. Tout le corps roule dans les
+// virages. La gorge et la gueule rougeoient quand il va cracher.
+function osDragon(f) {
+  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
+  const dtl = Math.min(.1, Math.max(0, t - (f._osT ?? t))); f._osT = t;
+  const lisse = (k, cible, vit) => { const a = f[k] ?? cible; return f[k] = a + (cible - a) * Math.min(1, dtl * vit); };
+  const mix = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  const M = morpheDragon(f), E = f.etat, mort = f.dead > 0, vol = !!f.enVol && !mort;
+  const dort = E === 'dormir' && !mort, mange = (E === 'manger' || E === 'dévorer') && !mort, menace = E === 'menacer' && !mort;
+  const crache = E === 'cracher' && !mort, coq = lisse('_coq', E === 'décoller' ? 1 : 0, 10);
+  const pli = lisse('_pli', mort ? .3 : vol ? 0 : menace ? .35 : 1, vol ? 5 : 4);
+  const bat = lisse('_bat', mort ? 0 : f.bat || 0, 5), ph = f.ph || 0, A = (.14 + .78 * bat) * (1 - pli);
+  const fl = lisse('_fl', vol && (E === 'poser' || E === 'descendre' || E === 'escorter') && f.pres ? 1 : 0, 4);
+  const gorge = crache ? Math.min(1, (f.feuT || 0) / .9) : f.gueuleT != null && t - f.gueuleT < .4 ? 1 - (t - f.gueuleT) / .4 : 0;
+  const zc = vol ? .1 : 1.0 - coq * .3 - (dort ? .45 : 0) - (mort ? .65 : 0) + Math.sin(t * 1.6 + (f.bob || 0)) * .015;
+  // le torse
+  add([-.7, 0, zc + .02], [.65, 0, zc + .08], .78, .72, M.corps);
+  add([-.5, 0, zc - .26], [.55, 0, zc - .2], .6, .22, M.ventre);
+  add([.35, 0, zc + .14], [.85, 0, zc + .24], .62, .6, M.corps);                       // le poitrail
+  for (const x of [-.45, -.1, .25, .6]) add([x, 0, zc + .4], [x + .1, 0, zc + .5], .1, .14, M.crete);   // la crête du dos
+  // le cou : cinq anneaux, levé posé, tendu en vol, plongeant pour manger, replié la nuit
+  const yaw = mort ? .6 : lisse('_yaw', vol ? 0 : dort ? 2.4 : menace ? 0 : f.regard || 0, 2.5);
+  const eBase = lisse('_cou', vol ? .12 : dort ? -.25 : mange ? -.55 : menace ? 1.25 : crache ? .35 : 1.0, 3) - (crache ? 0 : 0);
+  let N = [.85, 0, zc + .3], dir = 0;
+  const anneaux = [];
+  for (let k = 0; k < 5; k++) {
+    const e = eBase - k * (vol ? .02 : mange ? .12 : .28) + (mange ? Math.sin(t * 9) * .06 * (k > 2) : 0);
+    const yk = yaw * (k + 1) / 5;
+    const L = .3, nx = N[0] + Math.cos(e) * Math.cos(yk) * L, ny = N[1] + Math.cos(e) * Math.sin(yk) * L, nz = N[2] + Math.sin(e) * L;
+    const n2 = [nx, ny, nz]; add(N, n2, .3 - k * .03, .3 - k * .03, k % 2 ? M.corps : M.corps); anneaux.push(n2); N = n2; dir = yk;
+  }
+  add(anneaux[1], [anneaux[3][0], anneaux[3][1], anneaux[3][2] - .12], .16, .12, gorge > 0 ? [255, Math.round(120 + 100 * gorge), 50] : M.ventre, gorge > .2);   // la gorge
+  // la tête
+  const he = vol ? -.05 : mange ? -.7 : menace ? .15 : -.25, cd = Math.cos(dir), sd = Math.sin(dir), ce = Math.cos(he), se = Math.sin(he);
+  const fw = [cd * ce, sd * ce, se], up = [-cd * se, -sd * se, ce], H0 = N;
+  const P_ = (u, w) => [H0[0] + fw[0] * u + up[0] * w, H0[1] + fw[1] * u + up[1] * w, H0[2] + fw[2] * u + up[2] * w];
+  add(P_(-.05, 0), P_(.38, .02), .3, .28, M.corps);                                    // le crâne
+  add(P_(.35, -.02), P_(.68, -.06), .2, .17, M.corps);                                 // le museau
+  const gueule = Math.max(gorge * .55, menace ? .45 + Math.sin(t * 6) * .1 : 0, mange ? Math.abs(Math.sin(t * 9)) * .35 : 0);
+  const mj = [fw[0] * Math.cos(gueule) - up[0] * Math.sin(gueule), fw[1] * Math.cos(gueule) - up[1] * Math.sin(gueule), fw[2] * Math.cos(gueule) - up[2] * Math.sin(gueule)];
+  const J0 = P_(.12, -.12); add(J0, [J0[0] + mj[0] * .52, J0[1] + mj[1] * .52, J0[2] + mj[2] * .52], .17, .07, M.ventre);   // la mâchoire
+  if (gorge > .15) add(P_(.55, -.1), P_(.72, -.1), .1 + gorge * .1, .1 + gorge * .1, [255, 210, 120], true);   // le feu dans la gueule
+  for (const s of [-1, 1]) {
+    const lat = [-sd * s, cd * s, 0];
+    add([...P_(.05, .14)].map((q, j) => q + lat[j] * .1), [...P_(-.3, .34)].map((q, j) => q + lat[j] * .16), .06, .06, [226, 214, 190]);   // les cornes
+    add([...P_(.22, .06)].map((q, j) => q + lat[j] * .145), [...P_(.26, .06)].map((q, j) => q + lat[j] * .145), .05, dort ? .01 : .05, dort ? M.corps : [255, 196, 60], !dort && !mort);   // les yeux
+  }
+  for (let k = 0; k < 3; k++) add(P_(.05 - k * .12, .16), P_(-.15 - k * .14, .42 - k * .05), .08, .03, M.crete);   // la crête de plumes
+  // la queue : sept anneaux qui ondulent, et le panache
+  let T = [-.7, 0, zc + .05];
+  for (let k = 0; k < 7; k++) {
+    const amp = (vol ? .05 : .14) * (k / 6), sway = dort ? .5 * (k / 6) : Math.sin(t * (vol ? 2.2 : 1.4) - k * .7 + (f.bob || 0)) * amp;
+    const n2 = [T[0] - .36, T[1] + sway * .6 + (dort ? .18 : 0), T[2] - (vol ? .01 : .07) + (vol ? 0 : k * .004)];
+    if (!vol && n2[2] < .12) n2[2] = .12;
+    add(T, n2, .26 - k * .03, .24 - k * .028, M.corps); T = n2;
+  }
+  for (const q of [-.5, 0, .5]) add(T, [T[0] - .55 * Math.cos(q), T[1] + .55 * Math.sin(q), T[2] + .05], .16, .03, M.crete);   // le panache
+  // les pattes : marche en diagonale posé, repliées en vol, tendues au freinage
+  const R = repere(f), ca = Math.cos(f.dir), sa = Math.sin(f.dir), vit = vol ? 0 : Math.min(1, (f.vit || 0) / 1.2);
+  f.gph = (f.gph || 0) + dtl * (f.vit || 0) * 2.6;
+  for (const [ox, s, ph0, av] of [[.5, 1, 0, 1], [.5, -1, .5, 1], [-.55, 1, .75, 0], [-.55, -1, .25, 0]]) {
+    const hip = [ox, s * .32, zc - .05];
+    let foot;
+    if (vol) foot = mix(av ? [.7, s * .22, zc - .25] : [-1.05, s * .28, zc - .2], av ? [1.0, s * .38, zc - .95] : [-.3, s * .45, zc - .95], fl);
+    else {
+      const p = (f.gph + ph0) * 6.2832, lx = (av ? .72 : -.62) + Math.sin(p) * .28 * vit, ly = s * .44, lift = Math.max(0, Math.cos(p)) * .16 * vit;
+      const wx = f.x + lx * ca - ly * sa, wy = f.y + lx * sa + ly * ca;
+      foot = [lx, ly, (mort ? 0 : sol(wx, wy) - f.z) + lift];
+      if (menace && av) foot = [.85, s * .5, .02];
+    }
+    const L1 = av ? .55 : .62, L2 = av ? .55 : .62, d0 = Math.hypot(foot[0] - hip[0], foot[1] - hip[1], foot[2] - hip[2]) || 1;
+    const d = Math.min(L1 + L2 - .01, d0), u = [(foot[0] - hip[0]) / d0, (foot[1] - hip[1]) / d0, (foot[2] - hip[2]) / d0];
+    const c1 = (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), s1 = Math.sqrt(Math.max(0, 1 - c1 * c1));
+    const pl = av ? [-1, 0, 0] : [1, 0, 0], pu = pl[0] * u[0] + pl[1] * u[1] + pl[2] * u[2];
+    let n = [pl[0] - u[0] * pu, pl[1] - u[1] * pu, pl[2] - u[2] * pu]; const nn = Math.hypot(...n) || 1; n = n.map(q => q / nn);
+    const K = [hip[0] + u[0] * L1 * c1 + n[0] * L1 * s1, hip[1] + u[1] * L1 * c1 + n[1] * L1 * s1, hip[2] + u[2] * L1 * c1 + n[2] * L1 * s1];
+    const Fd = [hip[0] + u[0] * d, hip[1] + u[1] * d, hip[2] + u[2] * d];
+    add(hip, K, av ? .2 : .26, av ? .2 : .26, M.corps); add(K, Fd, .15, .15, M.corps);
+    for (const q of [-.35, 0, .35]) add(Fd, [Fd[0] + Math.cos(q) * .18, Fd[1] + Math.sin(q) * .18 * s, Fd[2]], .05, .04, [60, 52, 48]);   // les griffes
+  }
+  // les ailes, et leurs plumes
+  for (const s of [-1, 1]) {
+    const Sh = [.35, s * .36, zc + .35];
+    const et = !vol && !mort && f.etireT > t && f.etireC === s ? Math.sin(Math.min(1, (f.etireT - t) / 1.4) * Math.PI) : 0;
+    const pw = Math.max(0, pli - et * .9);
+    let e1, e2, e3;
+    if (vol) {
+      const dih = .08 + (1 - bat) * .05 + Math.sin(t * 2.3 + s) * .02 * (1 - bat);
+      e1 = dih + A * Math.sin(ph) + fl * .45 + (crache ? .2 : 0); e2 = e1 + A * .55 * Math.sin(ph - .8); e3 = e2 + A * .5 * Math.sin(ph - 1.5);
+    } else if (menace) { e1 = 1.0 + Math.sin(t * 5) * .08; e2 = e1 + .2; e3 = e2 + .1; }
+    else { e1 = -.1; e2 = -.25; e3 = -.4; }
+    const dirW = (sx, e, ln) => { const v = [sx, s * Math.cos(e), Math.sin(e)], q = Math.hypot(...v); return [v[0] / q * ln, v[1] / q * ln, v[2] / q * ln]; };
+    const d1 = dirW(-.1, e1, .75), d2 = dirW(.22 + fl * .2, e2, 1.0), d3 = dirW(-.35 + fl * .25, e3, .7);
+    const Eo = [Sh[0] + d1[0], Sh[1] + d1[1], Sh[2] + d1[2]], Wo = [Eo[0] + d2[0], Eo[1] + d2[1], Eo[2] + d2[2]], To = [Wo[0] + d3[0], Wo[1] + d3[1], Wo[2] + d3[2]];
+    const Ef = [Sh[0] - .45, s * .5, Sh[2] - .02], Wf = [Ef[0] + .55, s * .55, Ef[2] + .12], Tf = [Wf[0] - .9, s * .52, Wf[2] + .05];
+    const El = mix(Eo, Ef, pw), Wl = mix(Wo, Wf, pw), Tl = mix(To, Tf, pw);
+    add(Sh, El, .2, .12, M.aile); add(El, Wl, .16, .1, M.aile); add(Wl, Tl, .12, .08, M.aile);
+    const arr = [-1, 0, -.12 + (vol ? A * .3 * Math.sin(ph - .4) : 0)], kf = 1 - pw * .45;
+    for (let i = 0; i < 5; i++) {                       // les rémiges : la pointe tendue, les autres en éventail vers l'arrière
+      const r0 = mix(Wl, Tl, i / 4), wsp = [(Tl[0] - Wl[0]), (Tl[1] - Wl[1]), (Tl[2] - Wl[2])], q = Math.hypot(...wsp) || 1;
+      const k2 = .9 - i * .2, dv = [wsp[0] / q * (1 - k2) + arr[0] * k2, wsp[1] / q * (1 - k2) + arr[1] * k2, wsp[2] / q * (1 - k2) + arr[2] * k2], qq = Math.hypot(...dv) || 1;
+      const ln = (1.0 + i * .1) * kf;
+      add(r0, [r0[0] + dv[0] / qq * ln, r0[1] + dv[1] / qq * ln, r0[2] + dv[2] / qq * ln], .17 * kf + .03, .03, mix(M.aile, M.pointe, .3 + i * .15));
+    }
+    for (let i = 0; i < 4; i++) {                       // les secondaires, le long de l'avant-bras
+      const r0 = mix(El, Wl, i / 3), ln = .8 * kf;
+      add(r0, [r0[0] + arr[0] * ln, r0[1] + arr[1] * ln, r0[2] + arr[2] * ln], .2 * kf + .03, .03, mix(M.aile, M.corps, .3));
+    }
+  }
+  // le roulis : tout le corps tourne autour de son axe dans les virages ; mort, il gît sur le flanc
+  const r = f.roll || 0;
+  if (Math.abs(r) > .002) { const c = Math.cos(r), sn = Math.sin(r), rot = p => [p[0], p[1] * c - (p[2] - zc) * sn, zc + p[1] * sn + (p[2] - zc) * c]; for (const o of B) { o.a = rot(o.a); o.b = rot(o.b); } }
+  return B;
+}
+function dessinDragon(d, sp) {                            // le pictogramme : ailes ouvertes, cou levé
+  const M = MORPHES_DRAGON[0];
+  d.ligne(2, 4, 7, 9, M.aile); d.ligne(1, 6, 7, 10, M.pointe); d.ligne(14, 4, 9, 9, M.aile); d.ligne(15, 6, 9, 10, M.pointe);
+  d.rect(6, 9, 10, 11, M.corps); d.ligne(10, 9, 12, 5, M.corps); d.rect(11, 4, 13, 5, M.corps); d.net(13, 5, M.crete); d.net(12, 4, [255, 196, 60]);
+  d.ligne(6, 11, 3, 13, M.corps); d.net(2, 13, M.crete); d.net(3, 14, M.crete);
+}
+// ============================================================
 //  LA TISSEUSE DE FER
 //  Le gardien des îles d'exploration 10, 15, 20… : une araignée automate géante, couchée près de
 //  l'arche de l'île — et l'arche n'apparaît que lorsqu'elle est terrassée. Endormie, pattes
@@ -7617,7 +8026,7 @@ const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) ||
 // ============================================================
 // les points du corps qui touchent le sol en premier : [avant, côté, profondeur sous le centre]
 const CORPS_TISS = [[1.35, 0, .45], [.6, .55, .42], [.6, -.55, .42], [0, 0, .5], [-.9, .75, .55], [-.9, -.75, .55], [-1.2, 0, .5], [-1.95, 0, .35], [-1.6, .5, .45], [-1.6, -.5, .45]];
-const TISSEUSE = { haut: 1.75, bas: .5, reach: 5, pas: 1.15, vit: 2.1, vitRage: 2.9 };
+const TISSEUSE = { haut: 2.75, bas: .5, reach: 5, pas: 1.15, vit: 2.1, vitRage: 2.9 };
 const TOILES = [];
 let PortailCache = null;
 const ileBoss = () => profondeur() >= 10 && profondeur() % 5 === 0 && !djIci() && !(P.bossVaincus || []).includes(SEED);
@@ -7957,7 +8366,7 @@ function osTisseuse(f) {
   for (const p of f.pieds) {
     const L = p.L, H = tb([L.hx, L.s * .42, .02]);
     const Fp = loc(p.x, p.y, p.z), Ak = [Fp[0], Fp[1], Fp[2] + .5];
-    const a = 1.75, c = 1.85, dx = Ak[0] - H[0], dy = Ak[1] - H[1], dz = Ak[2] - H[2], d0 = Math.hypot(dx, dy, dz) || 1;
+    const a = 2.3, c = 2.4, dx = Ak[0] - H[0], dy = Ak[1] - H[1], dz = Ak[2] - H[2], d0 = Math.hypot(dx, dy, dz) || 1;
     const d = Math.max(.3, Math.min(a + c - .02, d0)), u = [dx / d0, dy / d0, dz / d0];
     const ca2 = (a * a + d * d - c * c) / (2 * a * d), sa2 = Math.sqrt(Math.max(0, 1 - ca2 * ca2));
     const pl = [0, L.s * .55, 1], pu = pl[0] * u[0] + pl[1] * u[1] + pl[2] * u[2];   // le pôle : haut et dehors, sans sa part le long de u
@@ -8357,6 +8766,7 @@ function centreBete(b) {
   return [b.x + U[0] * h, b.y + U[1] * h, b.z + U[2] * h];
 }
 function toucheBete(b, x, y, z) {
+  if (b.sp.dragon) { const c = ptDragon(b, 0, 0, b.enVol ? .1 : 1); return (c[0] - x) ** 2 + (c[1] - y) ** 2 < 1.3 && Math.abs(z - c[2]) < .75; }
   if (b.sp.boss) { const cx = b.x - Math.cos(b.dir) * .35, cy = b.y - Math.sin(b.dir) * .35; return (cx - x) ** 2 + (cy - y) ** 2 < 3.6 && z > (b.zc || b.z) - .7 && z < (b.zc || b.z) + 1.1; }
   const k = b.sp.sz, r = .34 + k * .30;
   if (!b.mur && !b.tang) return (b.x - x) ** 2 + (b.y - y) ** 2 < r * r && z > b.z - .15 && z < b.z + k * .95;
@@ -8798,7 +9208,7 @@ const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
 const rayonCorps = b => .38 * b.sp.sz * (b.ech || 1);
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
-const aCorps = b => !b.sp.volant && !b.sp.boss && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const aCorps = b => !b.sp.volant && !b.sp.boss && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
   corpsGrille.clear();
@@ -9102,7 +9512,8 @@ function majTirs(dt) {
       if (!fini && f.age > .05 && floreTouche(nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8b89a'); }   // arrêté par un arbre, une pierre
       f.x = nx; f.y = ny; f.z = nz;
     }
-    if (f.obus && (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3.5)) { exploser(f); TIRS.splice(k, 1); continue; }
+    if (f.feu && Math.random() < dt * 40) parts.push({ x: f.x, y: f.y, z: f.z, vx: (Math.random() - .5) * .6, vy: (Math.random() - .5) * .6, vz: .3, g: -.6, life: .4, age: 0, col: Math.random() < .5 ? '#ffb040' : '#ff6a24', luit: 1, tl: .1 });
+    if (f.obus && (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3.5)) { exploser(f); if (f.feu) allumerFeu(f); TIRS.splice(k, 1); continue; }
     if (f.toile) {                                      // le paquet de soie : il s'ouvre en toile
       if (Math.random() < dt * 30) parts.push({ x: f.x, y: f.y, z: f.z, vx: 0, vy: 0, vz: 0, g: 0, life: .3, age: 0, col: '#c4e8ff', luit: 1, tl: .05 });
       if (fini || f.z < sol(f.x, f.y) - .05 || f.age > 3) { poserToile(f); TIRS.splice(k, 1); continue; }
@@ -9155,6 +9566,7 @@ function emitTirs(view, out) {
   for (const f of TIRS) {
     const v = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / v, f.vy / v, f.vz / v];
     const cle = cleA(f.x, f.y), rang = rangSol(f.z, false);
+    if (f.feu) { emitLimb([f.x - .16, f.y, f.z], [f.x + .16, f.y, f.z], .32, .32, [255, 170, 60], view, out, cle, rang, 1); emitLimb([f.x - .09, f.y, f.z], [f.x + .09, f.y, f.z], .2, .2, [255, 236, 170], view, out, cle, rang, 1); continue; }
     if (f.toile) { emitLimb([f.x - .1, f.y, f.z], [f.x + .1, f.y, f.z], .2, .2, f.c, view, out, cle, rang, 1); continue; }
     if (f.spore) {                                      // une boule ronde, à la couleur du chapeau, qui luit
       emitLimb([f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, view, out, cle, rang, 1); continue;
@@ -9262,7 +9674,8 @@ function bestiaireGraine(graine, niv) {
   for (const b of betesRaresGraine(graine)) if (b.niv <= niv) e.add(b.id);
   if (niv >= NIV_FELIN && felinGraine(graine)) e.add('felin');   // tiré à part : le reste du bestiaire ne bouge pas
   if (niv >= 1 && bramardGraine(graine)) e.add('bramard');
-  if (sterneGraine(graine)) e.add('sterne');                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
+  if (sterneGraine(graine)) e.add('sterne');
+  if (niv >= 3 && dragonGraine(graine)) e.add('dragon');          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
   return e;
 }
 // La sterne des nues : un peu plus d'une île sur deux, dès la première. Il lui faut des îles de nuage.
@@ -9894,6 +10307,7 @@ function majBete(b, dt) {
   if (sp.boss) return majTisseuse(b, dt);              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
+  if (sp.dragon) return majDragon(b, dt);               // le dragon à plumes (voir LE DRAGON À PLUMES)
   if (sp.volant) return majVolant(b, dt);              // la sterne : la vie en l'air (voir LA STERNE DES NUES)
   b.t += dt; b.age += dt; b.bob += dt * (3 + b.alarm * 4);
   if (b.hit > 0) b.hit -= dt;
@@ -10767,7 +11181,7 @@ function rejoindre(b) {
   b.mur = null; b.tang = 0;
   b.x = q[0]; b.y = q[1]; b.z = sol(q[0], q[1]); b.vx = b.vy = b.vz = 0; initFoeLegs(b);
   b.tache = null; b.loinT = 0; b.rappel = 0;
-  if (b.sp.volant) { b.enVol = false; b.etat = 'perché'; b.v = 0; b.pecheLie = false; }
+  if (b.sp.volant || b.sp.dragon) { b.enVol = false; b.etat = 'perché'; b.v = 0; b.pecheLie = false; b.proie = null; }
   b.gite = giteDe(b);
   burst(b.x, b.y, b.z + .5, 10, '#e8404e');
   return true;
@@ -10790,7 +11204,7 @@ function majCompagnes(dt) {
         continue;
       }
       const dJ = Math.hypot(b.x - P.x, b.y - P.y);
-      if (b.sp.volant) { if (dJ > 45 && c.mode === 'joueur') rejoindre(b); continue; }   // elle vole droit : la laisse ne la tient que de très loin
+      if (b.sp.volant || b.sp.dragon) { if (dJ > 45 && c.mode === 'joueur') rejoindre(b); continue; }   // elle vole droit : la laisse ne la tient que de très loin
       // Autonome, elle va où elle veut : la laisse ne la tient pas, sauf quand on la siffle.
       const libre = c.mode === 'autonome' && b.rappel <= 0;
       const suit = !libre && (b.etat === 'suivre' || b.etat === 'récolter' || b.etat === 'rappel'
@@ -11105,6 +11519,7 @@ function osDeBase(f) {
   if (coursier(sp)) return coursierBones(f);
   if (doux(sp)) return osDoux(f);
   if (tellurien(sp)) return osTellurien(f);
+  if (sp.corps === 'dragon') return osDragon(f);
   if (sp.corps === 'sterne') return osSterne(f);
   if (sp.corps === 'felin') return osFelin(f);
   if (sp.corps === 'bramard') return osBramard(f);
@@ -12489,6 +12904,7 @@ const VIANDES = [
   ['oglodon', 'Chair d\'oglodon', 'oglodon', 3, 'robuste', [150, 150, 170]],
   ['felin', 'Chair de félin de brume', 'félin', 3, 'nuit', [184, 176, 188]],
   ['sterne', 'Blanc de sterne', 'sterne', 2, 'souffle', [238, 228, 222]],
+  ['dragon', 'Filet de dragon', 'dragon', 4, 'braise', [204, 96, 72]],
   ['bramard', 'Bosse de bramard', 'bramard', 2, 'robuste', [178, 112, 92]],
 ];
 // [plante, nom, nom court, famille, rareté, effet, couleur]
@@ -13326,20 +13742,20 @@ function eauDePeche(b, A) {                              // A : l'ancre d'une st
 // Le pas de vol : vers (tx, ty, tz) à la vitesse vd. mode : 'plane' (planer, battements par
 // reprises), 'bat' (vol battu), 'sur' (surplace), 'pique' (piqué), 'pose' (approche du nid).
 function volerVers(b, tx, ty, tz, vd, mode, dt) {
-  const v0 = b.v || 0;
+  const v0 = b.v || 0, K = b.sp.volK || {};
   // le cap : un virage borné, plus serré en vol battu, très serré en surplace
   const dx = tx - b.x, dy = ty - b.y, dh = Math.hypot(dx, dy);
   let rot = 0;
   if (dh > .05) {
     let dd = Math.atan2(dy, dx) - b.dir; while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832;
-    const om = mode === 'sur' ? 5 : mode === 'pose' ? 3.2 : (b.bat || 0) > .5 ? 2.7 : 1.6;
+    const om = (mode === 'sur' ? 5 : mode === 'pose' ? 3.2 : (b.bat || 0) > .5 ? 2.7 : 1.6) * (K.om || 1);
     rot = Math.max(-om, Math.min(om, dd * 2.4));
     b.dir += rot * dt;
   }
   b.v = v0 + (vd - v0) * Math.min(1, dt * (mode === 'pique' ? 3 : 1.6));
   // le plancher : le relief devant, et les îles de nuage qu'on survole (en dessous, on passe)
   const la = 2.2 + b.v * .45, ax = b.x + Math.cos(b.dir) * la, ay = b.y + Math.sin(b.dir) * la;
-  let plancher = Math.max(hRendu(ax, ay), hRendu(b.x, b.y)) + (mode === 'pique' || mode === 'pose' ? .25 : 1.6);
+  let plancher = Math.max(hRendu(ax, ay), hRendu(b.x, b.y)) + (mode === 'pique' || mode === 'pose' ? .25 : 1.6 + (K.marge || 0));
   if (mode !== 'pose' && mode !== 'pique') {
     const pa = Math.max(plaT(ax | 0, ay | 0), plaT(b.x | 0, b.y | 0));
     if (pa && b.z < pa + 1.2 && b.z > pa - 3.5) plancher = Math.max(plancher, pa + 1.7);
@@ -13354,7 +13770,7 @@ function volerVers(b, tx, ty, tz, vd, mode, dt) {
   let bat = mode === 'sur' ? 1 : mode === 'pique' ? 0 : mode === 'plane' ? (b.rafale > 0 ? .7 : 0) : mode === 'pose' ? .55 : .75;
   if (b.vz > 1 && mode !== 'pique') bat = Math.max(bat, .95);
   b.bat = bat;
-  if (bat > .05) b.ph = ((b.ph || 0) + dt * (4.2 + bat * 3 + (mode === 'sur' ? 1.8 : 0)) * 6.2832) % 62.832;   // la fréquence : 4 à 9 battements par seconde
+  if (bat > .05) b.ph = ((b.ph || 0) + dt * (4.2 + bat * 3 + (mode === 'sur' ? 1.8 : 0)) * (K.freq || 1) * 6.2832) % 62.832;   // la fréquence : 4 à 9 battements par seconde
   // l'assiette : nez bas au piqué, haut en surplace et au freinage, sinon suivant la pente
   const tg = mode === 'pique' ? -1.2 : mode === 'sur' ? .5 : Math.max(-.45, Math.min(.42, b.vz / Math.max(2, b.v) * .8));
   b.tang = (b.tang || 0) + (tg - (b.tang || 0)) * Math.min(1, dt * 5);
@@ -14366,6 +14782,7 @@ function actionContexte() {
     const nom = pr.comp ? pr.comp.nom : pr.sp.n.toLowerCase();
     if (automate(pr.sp)) { if (!pr.tame && pr.etat === 'veille') return { v: 'RALLUMER', o: nom, f: nourrirQ }; }
     else if (pr.sp.volant && !pr.tame && !poissonADonner()) { /* la sterne : rien qu'un poisson */ }
+    else if (pr.sp.dragon) { if (!pr.enVol && INGR_GARDE().some(id => INGR[id].fam === 'viande' && sacIngr(id) > 0)) return { v: 'NOURRIR', o: nom, f: nourrirQ }; }
     else if (dispo('baies') > 0 && (!pr.tame || pr.faim >= .15)) return { v: 'NOURRIR', o: nom, f: nourrirQ };
   }
   const nd = noeudProche();
@@ -14695,6 +15112,7 @@ function majCible() {
       info = o.etat === 'sommeil' ? 'endormie près de l\'arche' : 'phase ' + o.phase + ' / 3' + (o.phase === 3 ? ' · en rage' : '') + (o.act ? ' · ' + ({ viser: 'elle vous vise', mortier: 'salve de mortier', toile: 'elle tisse', cabrer: 'elle se cabre' })[o.act.k] : ''); }
     else if (automate(o.sp)) { nom = nomEspeceDe(o); cl = 'meca';
       info = o.etat === 'veille' ? 'en veille · un éclat le rallume' : `${o.etat} · charge ${Math.round(o.nrj * 100)} %`; }
+    else if (o.sp.dragon) { nom = nomEspeceDe(o); info = (DITS_ETAT[o.etat] || o.etat) + (o.colere > 0 ? ' · furieux' : o.conf > 0 ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : ' · de la viande, sans geste brusque'); }
     else if (o.sp.volant) { nom = nomEspeceDe(o); info = (DITS_VOL[o.etat] || o.etat) + (o.poisson ? ' · un poisson au bec' : '')
       + (o.conf > 0 ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : ' · farouche : un poisson tendu, sans bouger'); }
     else { nom = nomEspeceDe(o);
@@ -15839,7 +16257,7 @@ void main() { o = uC; }`;
     if (iso || tierce) heros(TD);
     for (const b of beasts) {
       if ((b.x - ex) ** 2 + (b.y - ey) ** 2 >= r2) continue;
-      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : 1.3 * kz + .3;
+      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.dragon ? 4.5 : 1.3 * kz + .3;
       if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + (b.sp.boss ? 7 : 1.8 * kz + .4), .05)) continue;
       const { U, put } = posBete(b);
       if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol
@@ -15882,6 +16300,7 @@ void main() { o = uC; }`;
     for (const o of ogDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const f of TIRS) {
       const n = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / n, f.vy / n, f.vz / n];
+      if (f.feu) { boite(TD, [f.x - .16, f.y, f.z], [f.x + .16, f.y, f.z], .32, .32, [255, 170, 60], 1, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.toile) { boite(TD, [f.x - .1, f.y, f.z], [f.x + .1, f.y, f.z], .2, .2, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.spore) { boite(TD, [f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.obus) { boite(TD, [f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], 0, 0, L_FIXE, 0, 0, 0); continue; }
@@ -16153,7 +16572,7 @@ function photo() {
     liens: P.liens,
     compagnes: P.compagnes.map(c => {
       const b = c.dehors && c.b, r3 = v => Math.round(Math.max(0, v) * 1000) / 1000;
-      const d = { id: c.id, esp: c.esp, nom: c.nom, role: c.role, mode: c.mode || 'joueur', recolte: c.recolte || null, capT: Number.isFinite(c.capT) ? c.capT : null, dehors: !!b,
+      const d = { id: c.id, esp: c.esp, nom: c.nom, role: c.role, mode: c.mode || 'joueur', recolte: c.recolte || null, capT: Number.isFinite(c.capT) ? c.capT : null, morphe: Number.isInteger(c.morphe) ? c.morphe : null, dehors: !!b,
         pv: r3(b ? b.pv : c.pv), faim: r3(b ? b.faim : c.faim), soif: r3(b ? b.soif : c.soif), nrj: r3(b ? b.nrj : c.nrj) };
       if (c.ko) d.ko = 1;
       if (c.aucamp) d.aucamp = 1;
@@ -16289,7 +16708,7 @@ function appliquer(d, vivantes) {
     if (!r || typeof r !== 'object' || !specById[r.esp]) continue;
     liste.push({ id: Number.isInteger(r.id) && r.id > 0 && r.id < 1e6 ? r.id : 0, esp: r.esp,
       nom: typeof r.nom === 'string' && r.nom.trim() ? r.nom.trim().slice(0, 24) : null,
-      ...ordresDe(r), recolte: typeof r.recolte === 'string' && noteApt(r.esp, r.recolte) ? r.recolte : null, capT: Number.isFinite(r.capT) ? r.capT : null, dehors: !!r.dehors, ko: r.ko ? 1 : 0, aucamp: r.aucamp ? 1 : 0,
+      ...ordresDe(r), recolte: typeof r.recolte === 'string' && noteApt(r.esp, r.recolte) ? r.recolte : null, capT: Number.isFinite(r.capT) ? r.capT : null, morphe: Number.isInteger(r.morphe) && r.morphe >= 0 && r.morphe < 4 ? r.morphe : null, dehors: !!r.dehors, ko: r.ko ? 1 : 0, aucamp: r.aucamp ? 1 : 0,
       pv: nb(r.pv, .05, 1, 1), faim: nb(r.faim, 0, 1.2, .2), soif: nb(r.soif, 0, 1.2, .2), nrj: nb(r.nrj, 0, 1, 1),
       pos: place(r.pos), variante: varianteSure(r.variante) });
   }
@@ -16317,7 +16736,7 @@ function installerCompagnes(liste, vivantes) {
     let id = r.id;
     if (!id || ids.has(id)) id = prochainId++;
     ids.add(id);
-    const c = { id, esp: r.esp, nom: r.nom || tirerNom(), role: r.role, mode: r.mode || 'joueur', recolte: r.recolte, capT: r.capT, dehors: false, b: null,
+    const c = { id, esp: r.esp, nom: r.nom || tirerNom(), role: r.role, mode: r.mode || 'joueur', recolte: r.recolte, capT: r.capT, morphe: r.morphe, dehors: false, b: null,
       pv: r.pv, faim: r.faim, soif: r.soif, nrj: r.nrj, ko: r.ko, aucamp: r.aucamp ? 1 : 0, variante: r.variante || null };
     P.compagnes.push(c);
     const v = r.id ? enPlace.get(r.id) : null;
