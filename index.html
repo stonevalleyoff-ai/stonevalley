@@ -49,6 +49,7 @@
   #hudtxt .sep{height:1px;background:rgba(190,205,230,.14);margin:7px 0 6px;}
   #hudtxt .expl{color:#8fe3ff;font-size:12.5px;line-height:1.4;} #hudtxt .expl.loin{color:#ff9a7a;}
   #hudtxt .etiq{display:inline-block;padding:1px 7px;border-radius:9px;font-size:11px;font-weight:800;letter-spacing:.3px;background:rgba(255,210,125,.14);color:#ffd27d;}
+  #hudtxt .etiq.korlaz{background:rgba(120,140,80,.18);color:#b8c890;}
   #hudtxt .etiq.poison{background:rgba(184,224,122,.16);color:#b8e07a;}
   #hudtxt .etiq.rouge{background:rgba(255,120,100,.16);color:#ff9a7a;} #hudtxt .etiq.bleu{background:rgba(143,227,255,.14);color:#8fe3ff;}
   #hudtxt .note{color:#8d9ab4;font-size:11.5px;line-height:1.4;} #hudtxt .note.rose{color:#e8a0a8;margin-top:5px;}
@@ -465,6 +466,7 @@
 
 <script src="donjon.js"></script>
 <script src="nomades.js"></script>
+<script src="etats.js"></script>
 <script>
 'use strict';
 // Le jeu partage sa portée avec donjon.js, chargé juste avant : plus d'enveloppe (() => {…})().
@@ -622,6 +624,23 @@ const SON = (() => {
   // ---------- les recettes ----------
   // Chacune pose ses sons à partir de t et rend sa durée.
   const RECETTES = {
+    respiration(o, t) {                                  // un souffle rauque, tout près
+      souffle(o, t, 'bandpass', 500, 300, 1.2, .55, .2, .1); souffle(o, t + .75, 'bandpass', 380, 260, 1.2, .5, .12, .08);
+      return 1.4;
+    },
+    bourdon(o, t) {                                      // un bourdon grave, qui enfle
+      osc(o, t, 'sawtooth', 42, 44, 2.2, 1.1, .12); const F = filtre(o, 'lowpass', 200, 1); osc(F, t, 'square', 31, 30, 2.2, .9, .08);
+      return 2.4;
+    },
+    murmure(o, t) {                                      // des chuchotements, à peine — le Korlaz
+      for (let i = 0; i < 5; i++) { const t0 = t + i * (.12 + Math.random() * .1); souffle(o, t0, 'bandpass', 1400 + Math.random() * 1600, 900, 5, .1 + Math.random() * .12, .02, .05); }
+      osc(o, t, 'sine', 70, 60, 1.2, .3, .03);
+      return 1.4;
+    },
+    stridence(o, t) {                                    // le choc : une note qui grince et un coup sourd
+      const F = filtre(o, 'bandpass', 2200, 3); osc(F, t, 'sawtooth', 1800, 1650, .7, .01, .07); osc(o, t, 'sine', 60, 40, .5, .002, .25);
+      return .8;
+    },
     hurlement(o, t, p) {                                 // le Silencieux : un cri strident, déchiré, qui monte
       const d = p.fort ? 1.1 : .75, F = filtre(o, 'bandpass', 1900, 1.4);
       const O = osc(F, t, 'sawtooth', 520, 1500, d, .03, .2); const O2 = osc(F, t + .02, 'square', 533, 1460, d, .03, .08);
@@ -1199,6 +1218,7 @@ const BIOME = [
   // les terres de l'effroi (voir LES TERRES DE L'EFFROI)
   { n: 'ossuaire',            top: [204, 196, 178], side: [150, 140, 124],  food: .08 },
   { n: 'terres creuses',      top: [40, 42, 58],    side: [28, 28, 40],     food: .15 },
+  { n: 'roche rongée',        top: [36, 34, 42],    side: [24, 22, 30],     food: 0 },     // le Korlaz (etats.js)
 ];
 // ============================================================
 //  LES BIOMES RARES
@@ -2306,6 +2326,11 @@ const ESP = [
     bio:[20], alt:[0,1], eau:[0,99], dens:.16, grain:12, seuil:.56, bas:[40,70,100], haut:[120,230,255], luit:1 },
   { id:'racinoir', n:'Racine noire',    forme:'roseau',  res:'fibre', rend:4, pousse:130, h:1.1, larg:.14,
     bio:[20], alt:[0,1], eau:[0,99], dens:.24, grain:10, seuil:.48, bas:[24,22,30], haut:[60,56,80] },
+  // le mycélium pâle : sur la roche rongée par le Korlaz, posé par etatsIle (seuil 9 : jamais par le bruit)
+  { id:'mycelium', n:'Mycélium pâle', forme:'touffe', res:'fibre', rend:2, pousse:260, h:.25, larg:.18,
+    bio:[21], alt:[0,1], eau:[0,99], dens:0, grain:9, seuil:9, bas:[200,200,190], haut:[236,236,226], luit:1 },
+  { id:'excroissance', n:'Excroissance', forme:'cristal', res:'pierre', rend:2, pousse:300, h:.55, larg:.14,
+    bio:[21], alt:[0,1], eau:[0,99], dens:0, grain:9, seuil:9, bas:[18,16,22], haut:[88,120,52], luit:1 },   // ce que le Korlaz fait pousser sur la roche
 ];
 const FLORE = {}; for (const e of ESP) FLORE[e.id] = e;
 // Carte de peuplement, calculée une fois : sans elle il faudrait éprouver vingt et un
@@ -2518,6 +2543,7 @@ function recolter() {
 }
 // Le coup porte : la part de ce coup, le tremblement, les copeaux qui volent vers le sac.
 function coupRecolte(nd) {
+  if (typeof etatsRecolte === 'function') etatsRecolte(nd);   // la roche rongée (etats.js)
   const m = maturite(nd.i, nd.sp);
   if (!Flo[nd.i] || m < .35) return;                   // abattu entre-temps (en face, ou par une compagne)
   let e = ENTAME.get(nd.i);
@@ -6070,7 +6096,7 @@ const HORREURS = [
   { id:'millegueule', n:'Mille-gueules', corps:'millegueule', horreur:1, terre:20, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
     shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
 ];
-SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS);                     // à la fin : les indices des autres ne bougent pas
+SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []));   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -6362,6 +6388,7 @@ function majBiome(dt) {
   }
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
   majToiles(dt); majFeux(dt);
+  if (typeof majEtats === 'function') majEtats(dt);   // l'état de l'île, l'infection, les visions (etats.js)
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
     P.pv = Math.max(.05, P.pv - dt * .014);
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
@@ -6507,6 +6534,7 @@ function loadWorld() {
   for (const sp of SPEC) { const n = Math.round(capEsp(sp) * .75); for (let i = 0; i < n; i++) { const b = poser(sp); if (b) beasts.push(b); } }
   peuplerDoux();                                     // des mères et leurs petits
   poserTisseuse();                                   // aux îles 10, 15, 20… : la Tisseuse, et l'arche cachée
+  if (typeof etatsIle === 'function') etatsIle();     // l'état de l'île : le Korlaz… (etats.js)
   // Buissons à baies, dans les herbages. Leur place vient de la graine et non du hasard : deux
   // joueurs sur la même île voient les mêmes buissons, aux mêmes cases, et se les disputent.
   let gb = (SEED ^ 0xba1e5) >>> 0;
@@ -7763,7 +7791,7 @@ function majSilencieux(b, dt) {
   if (!(b.hit > .2)) b.cri = 0;
   if (!entendu && b.t > (b.proieT || 0)) {
     b.proieT = b.t + .5;
-    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.sp.horreur && !o.enVol && Math.hypot(o.vx || 0, o.vy || 0) > 1.5 && Math.hypot(o.x - b.x, o.y - b.y) < 14) { entendu = { x: o.x, y: o.y, n: .8, cible: o }; break; }
+    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.sp.horreur && !o.sp.illusion && !o.enVol && Math.hypot(o.vx || 0, o.vy || 0) > 1.5 && Math.hypot(o.x - b.x, o.y - b.y) < 14) { entendu = { x: o.x, y: o.y, n: .8, cible: o }; break; }
   }
   if (entendu) { b.son = entendu; b.sonT = b.t; }
   const S = b.son;
@@ -7865,58 +7893,131 @@ function silencieuxLie(b, dt) {
   bougerSil(b, tx, ty, vit, dt);
   if (Math.random() < dt * .3) { b.tic = (Math.random() - .5) * 1.2; b.ticT = t; }
 }
+// Le Silencieux, en volumes — le modèle fin. Un squelette sous une peau tendue : le bassin, une
+// colonne voûtée de sept vertèbres (leurs apophyses saillent dans le dos), une cage de côtes qui
+// respire (cinq paires, en arc, et le sternum), le ventre creux, les clavicules et les omoplates ;
+// un long cou de vautour, un crâne lisse et allongé, des orbites recouvertes de peau, et la face qui
+// s'ouvre en deux le long d'une couture : gencives, deux rangées de dents en aiguille, la gorge.
+// Des bras en trois pièces (bras, avant-bras, main) : quatre doigts de trois phalanges et un pouce,
+// des ongles noirs, qui se crispent, s'écartent ou pendent selon ce qu'il fait ; des jambes longues
+// (cuisse, rotule, tibia, pied à trois orteils), l'une traîne. Des lambeaux de peau pendent des
+// épaules. Les creux sont plus sombres, les arêtes plus claires.
 function osSilencieux(f) {
   const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
   const dtl = Math.min(.1, Math.max(0, t - (f._osT ?? t))); f._osT = t;
   const lisse = (k, c, v) => { const a = f[k] ?? c; return f[k] = a + (c - a) * Math.min(1, dtl * v); };
-  const E = f.etat, mort = f.dead > 0, charge = E === 'charger', hurle = E === 'hurler' || (E === 'saisir' && (f.saisirT || 0) < .6);
-  const peau = [182, 176, 168], creux = [92, 84, 82], os = [236, 232, 222], gueule = [70, 14, 20];
-  const pen = lisse('_pen', mort ? 1.4 : charge ? .95 : E === 'saisir' ? .3 : E === 'fouiller' ? .55 : E === 'hurler' ? -.15 : .18, charge ? 6 : 3);   // il se penche
-  const cr = lisse('_cr', E === 'écouter' ? .8 : 0, 4);                                  // l'écoute : la tête inclinée
+  const A3 = (p, ...q) => q.reduce((r, [v, k]) => [r[0] + v[0] * k, r[1] + v[1] * k, r[2] + v[2] * k], p.slice());
+  const N3 = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+  const X3 = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+  const ik = (O, T, L1, L2, pole) => {                    // deux os, de O vers T, le coude vers « pole »
+    const d0 = Math.hypot(T[0] - O[0], T[1] - O[1], T[2] - O[2]) || 1, d = Math.min(L1 + L2 - .005, d0), u = [(T[0] - O[0]) / d0, (T[1] - O[1]) / d0, (T[2] - O[2]) / d0];
+    const c = (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), s = Math.sqrt(Math.max(0, 1 - c * c)), pu = pole[0] * u[0] + pole[1] * u[1] + pole[2] * u[2];
+    const n = N3([pole[0] - u[0] * pu, pole[1] - u[1] * pu, pole[2] - u[2] * pu]);
+    return [A3(O, [u, L1 * c], [n, L1 * s]), A3(O, [u, d])];
+  };
+  const E = f.etat, mort = f.dead > 0, charge = E === 'charger', saisit = E === 'saisir', hurle = E === 'hurler' || (saisit && (f.saisirT || 0) < .6);
+  const peau = [184, 178, 170], arete = [208, 202, 194], creux = [118, 110, 106], os = [230, 226, 216], couture = [58, 52, 52];
+  const gencive = [124, 26, 32], gorge = [36, 8, 12], dent = [238, 234, 222], ongle = [62, 56, 56], lambeau = [92, 86, 84];
+  const pen = lisse('_pen', charge ? .95 : saisit ? .32 : E === 'fouiller' ? .6 : E === 'hurler' ? -.12 : .2, charge ? 6 : 3);
+  const ec = lisse('_cr', E === 'écouter' ? 1 : 0, 4), ouv = lisse('_ouv', hurle ? 1 : charge ? .55 : 0, 10);
   const tic = f.ticT != null && t - f.ticT < .35 ? f.tic * (1 - (t - f.ticT) / .35) : 0;
-  const v = Math.min(1, (f.vit || 0) / 4), ph = (f.gph || 0) * 6.2832;
-  // le bassin, la colonne qui se penche
-  const hz = mort ? .3 : 1.45 - Math.abs(Math.sin(ph)) * .06 * v, Hb = [0, 0, hz];
-  const cp = Math.cos(pen), spn = Math.sin(pen), Th = [Hb[0] + spn * 1.05, 0, hz + cp * 1.05];   // le haut du thorax
-  add(Hb, Th, .3, .2, peau);
-  for (const s of [-1, 1]) add([Th[0] - .05, s * .12, Th[2] - .05], [Hb[0] - .2, s * .2, hz - .55 + Math.sin(t * 1.3 + s) * .05], .07, .02, creux);   // des lambeaux qui pendent
-  for (let k = 1; k <= 4; k++) { const q = .25 + k * .15; const c = [Hb[0] + spn * 1.05 * q + .08 * cp, 0, hz + cp * 1.05 * q - .08 * spn];   // les côtes
-    add([c[0], -.17, c[2]], [c[0], .17, c[2]], .05, .04, os); }
-  // la tête : longue, lisse, sans yeux ; la bouche s'ouvre en fente verticale
-  const yaw = lisse('_yaw', 0, 4) + tic + (E === 'fouiller' ? Math.sin(t * 3) * .7 : 0);
-  const inc = cr * .6 + Math.sin(t * .9) * .05 * (E === 'errer');
-  const N = [Th[0] + spn * .25, Math.sin(inc) * .05, Th[2] + cp * .25];
-  const hd = [Math.cos(yaw) * Math.cos(pen - 1.2), Math.sin(yaw), Math.sin(1.2 - pen) * .9 + .2], hl = Math.hypot(...hd);
-  const Hd = [N[0] + hd[0] / hl * .55, N[1] + hd[1] / hl * .55 + Math.sin(inc) * .15, N[2] + hd[2] / hl * .55];
-  add(Th, N, .12, .12, creux);
-  add(N, Hd, .26, .3, peau);
-  const ouv = lisse('_ouv', hurle ? 1 : charge ? .6 : 0, 10);
-  if (ouv > .05) add([N[0] + (Hd[0] - N[0]) * .55, N[1] + (Hd[1] - N[1]) * .55, N[2] + (Hd[2] - N[2]) * .55 - .02], [Hd[0], Hd[1], Hd[2] - .05], .06 + ouv * .12, .04 + ouv * .2, gueule);
-  // les bras : très longs, trois griffes ; en avant à la charge, levés pour saisir, ballants sinon
-  for (const s of [-1, 1]) {
-    const Sh = [Th[0] - spn * .05, s * .26, Th[2] - cp * .05];
-    let Ma;
-    if (E === 'saisir') { const k = Math.min(1, (f.saisirT || 0) / .55); Ma = [Sh[0] + .9 - k * .2, s * .15, Sh[2] + 1.1 * (1 - k) - .9 * k]; }
-    else if (charge) Ma = [Sh[0] + .9 + Math.sin(ph + (s > 0 ? 0 : Math.PI)) * .5, s * .45, Sh[2] - .7];
-    else if (hurle) Ma = [Sh[0] + .1, s * 1.0, Sh[2] + .4];
-    else Ma = [Sh[0] + .15 + Math.sin(ph + (s > 0 ? Math.PI : 0)) * .25 * v, s * .34, Sh[2] - 1.45 + (E === 'écouter' ? .2 : 0)];
-    const C = [(Sh[0] + Ma[0]) / 2 - .15, (Sh[1] + Ma[1]) / 2 + s * .12, (Sh[2] + Ma[2]) / 2];
-    add(Sh, C, .1, .1, peau); add(C, Ma, .08, .08, peau);
-    for (const q of [-.35, 0, .35]) { const d = [Ma[0] - C[0], Ma[1] - C[1], Ma[2] - C[2]], l = Math.hypot(...d) || 1;
-      add(Ma, [Ma[0] + d[0] / l * .32 + Math.sin(q) * .08 * s, Ma[1] + d[1] / l * .32 + q * .1, Ma[2] + d[2] / l * .32], .035, .03, os); }
+  const v = Math.min(1, (f.vit || 0) / 4), ph = (f.gph || 0) * 6.2832, souffle = Math.sin(t * 1.7) * .012;
+  // ---- le bassin, la colonne voûtée ----
+  const hz = 1.42 - Math.abs(Math.sin(ph)) * .06 * v - (charge ? .18 : 0), Pv = [0, 0, hz];
+  add([-.06, -.16, hz - .02], [-.06, .16, hz - .02], .16, .16, creux);                     // le bassin
+  add([.03, -.13, hz + .03], [.03, .13, hz + .03], .08, .1, arete);                         // ses crêtes
+  const sp = [Pv]; let ang = pen * .55;
+  for (let k = 1; k <= 7; k++) { ang += (pen * .45 + .1) / 7 + (k > 4 ? .06 : 0); const p = sp[k - 1]; sp.push([p[0] + Math.sin(ang) * .19, 0, p[2] + Math.cos(ang) * .19]); }
+  const u = N3([sp[7][0] - sp[1][0], 0, sp[7][2] - sp[1][2]]), fw = [u[2], 0, -u[0]], lat = [0, 1, 0];   // le haut, l'avant, le côté du torse
+  for (let k = 0; k < 7; k++) {
+    add(sp[k], sp[k + 1], .11, .11, peau);                                                    // la colonne
+    add(A3(sp[k + 1], [fw, -.07]), A3(sp[k + 1], [fw, -.13], [u, -.03]), .05, .04, os);       // l'apophyse, dans le dos
   }
-  // les jambes : longues, une qui traîne ; les pieds sur le sol
+  // ---- la cage : cinq paires de côtes en arc, qui respire ; le sternum ; le ventre creux ----
+  const R = 1 + souffle * 3;
+  for (let k = 0; k < 5; k++) {
+    const V = sp[2 + k], rk = (.17 + (k < 3 ? k * .015 : (4 - k) * .02)) * R, dz = -.05 - k * .012;
+    for (const s of [-1, 1]) {
+      const p0 = A3(V, [fw, -.04]), p1 = A3(V, [lat, s * rk * .85], [fw, -.02], [u, dz * .4]), p2 = A3(V, [lat, s * rk], [fw, .09], [u, dz]), p3 = A3(V, [lat, s * rk * .45], [fw, .16], [u, dz * 1.6]);
+      add(p0, p1, .03, .035, os); add(p1, p2, .03, .035, os); add(p2, p3, .028, .03, k % 2 ? os : arete);
+    }
+  }
+  add(A3(sp[2], [fw, .17]), A3(sp[6], [fw, .15]), .07, .03, arete);                           // le sternum
+  add(A3(sp[0], [fw, .06]), A3(sp[2], [fw, .1], [u, -.04]), .2, .06, creux);                // le ventre creux
+  add(A3(sp[2], [fw, .02]), A3(sp[6], [fw, .02]), .26 * R, .2, peau);                         // la peau tendue sur la cage
+  // ---- les épaules : clavicules, omoplates ----
+  const Hs = sp[6], epaule = s => A3(Hs, [lat, s * .3], [fw, -.02], [u, -.02]);
+  for (const s of [-1, 1]) {
+    add(A3(Hs, [fw, .14]), epaule(s), .04, .04, arete);                                         // la clavicule
+    add(A3(Hs, [lat, s * .1], [fw, -.12], [u, -.04]), A3(Hs, [lat, s * .2], [fw, -.12], [u, -.24]), .12, .03, creux);   // l'omoplate
+    for (let j = 0; j < 2; j++) { const sw = Math.sin(t * 1.3 + s * 2 + j) * .04;                // les lambeaux
+      add(A3(Hs, [lat, s * (.16 + j * .08)], [fw, -.1], [u, -.05]), A3(Hs, [lat, s * (.2 + j * .1) + sw], [fw, -.14 + sw], [u, -.55 - j * .18]), .06, .015, lambeau); }
+  }
+  // ---- le cou de vautour, le crâne, la face qui s'ouvre ----
+  const yaw = lisse('_yaw', 0, 4) + tic + (E === 'fouiller' ? Math.sin(t * 3) * .7 : 0);
+  const inc = ec * .55 + Math.sin(t * .9) * .05 * (E === 'errer'), lev = hurle ? .55 : charge ? .1 : 0;
+  let C = A3(Hs, [u, .05], [fw, .04]);
+  const cd = N3([Math.cos(yaw) * (.5 + pen * .75), Math.sin(yaw) * .5 + Math.sin(inc) * .15, .85 - pen * .7 + lev * .4]);
+  for (let k = 0; k < 3; k++) { const n = A3(C, [cd, .11]); add(C, n, .115 - k * .01, .115 - k * .01, k === 1 ? arete : peau); C = n; }   // le cou, qui s'avance
+  const hf = N3([Math.cos(yaw), Math.sin(yaw), -.42 + lev * 1.25 + (charge ? .2 : 0) - ec * .15]), hs = N3(X3([0, 0, 1], hf)), hu = N3(X3(hf, hs));
+  const tilt = inc * .9;                                                                      // l'écoute : la tête penchée sur le côté
+  const hsT = N3(A3(hs, [hu, -Math.sin(tilt)])), huT = N3(A3(hu, [hs, Math.sin(tilt)]));
+  const Hd = (a, b, c) => A3(C, [hf, a], [hsT, b], [huT, c]);
+  add(Hd(-.06, 0, .02), Hd(.22, 0, .05), .23, .25, peau);                                     // le crâne, long et lisse
+  add(Hd(.1, 0, .14), Hd(.3, 0, .1), .16, .06, arete);                                        // le front qui s'allonge
+  for (const s of [-1, 1]) add(Hd(.27, s * .07, .07), Hd(.3, s * .07, .07), .05, .03, creux); // les orbites, sous la peau
+  const a = ouv * .9;                                                                          // la face : deux moitiés qui s'écartent
+  for (const s of [-1, 1]) {
+    const o = N3(A3(hf, [hsT, s * Math.sin(a)])), base = Hd(.18, s * .02, -.02);
+    const bout = A3(base, [o, .26], [huT, -.08]);
+    add(base, bout, .045, .18, peau);                                                          // la moitié de face
+    add(A3(base, [o, .03]), A3(bout, [o, -.02]), .015, .16, ouv > .08 ? gencive : couture);   // sa lèvre, ou la couture
+    if (ouv > .08) for (let k = 0; k < 6; k++) { const p = A3(base, [o, .04 + k * .036], [huT, -.12 + (k % 2) * .02]), q = A3(p, [hsT, -s * .035], [huT, .02]);
+      add(p, q, .012, .025, dent); add(A3(p, [huT, .1]), A3(q, [huT, .1]), .012, .022, dent); }   // les dents en aiguille, deux rangées
+  }
+  if (ouv > .08) add(Hd(.16, 0, -.04), Hd(.3, 0, -.06), .05 + ouv * .07, .14, gorge);          // la gorge
+  // ---- les bras : trois pièces, quatre doigts et un pouce ----
+  for (const s of [-1, 1]) {
+    const Sh = epaule(s);
+    let Ma, crisp = .5, ecart = .25;
+    if (saisit) { const k = Math.min(1, (f.saisirT || 0) / .55); Ma = A3(Sh, [fw, .95 - k * .15], [lat, -s * .12], [u, .9 * (1 - k) - .75 * k]); crisp = k > .5 ? 1 : .2; ecart = .4; }
+    else if (charge) { Ma = A3(Sh, [fw, .95 + Math.sin(ph + (s > 0 ? 0 : Math.PI)) * .45], [lat, s * .25], [u, -.55]); crisp = .1; ecart = .55; }
+    else if (hurle) { Ma = A3(Sh, [fw, .15], [lat, s * .95], [u, .35]); crisp = 0; ecart = .75; }
+    else if (E === 'fouiller') { Ma = A3(Sh, [fw, .55 + Math.sin(t * 3 + s) * .2], [lat, s * .1], [u, -.95]); crisp = .3; ecart = .45; }
+    else { Ma = A3(Sh, [fw, .12 + Math.sin(ph + (s > 0 ? Math.PI : 0)) * .22 * v], [lat, s * .1], [u, -1.28 + ec * .2]); crisp = .55 + Math.sin(t * 2 + s) * .1; ecart = .2; }
+    const [El, Wr] = ik(Sh, Ma, .62, .66, A3([0, 0, 0], [fw, -1], [lat, s * .6]));
+    add(Sh, El, .1, .1, peau); add(El, Wr, .085, .085, peau);
+    add(A3(El, [fw, -.03]), A3(El, [fw, .02]), .1, .1, arete);                                   // le coude
+    const hd = N3([Wr[0] - El[0], Wr[1] - El[1], Wr[2] - El[2]]), la = N3(X3(hd, [0, 0, 1])), pn = N3(X3(la, hd));
+    const Pa = A3(Wr, [hd, .13]);
+    add(Wr, Pa, .1, .035, creux);                                                                // la paume
+    for (let i = 0; i < 4; i++) {                                                                // quatre doigts, trois phalanges
+      const off = (i - 1.5) * .028 * s, sp0 = (i - 1.5) * ecart * .22;
+      let p = A3(Pa, [la, off]), d = N3(A3(hd, [la, sp0 * s]));
+      const L = [.15, .13, .1];
+      for (let k = 0; k < 3; k++) {
+        const c = crisp * (.5 + k * .25) + Math.sin(t * 9 + i + s) * .03;
+        d = N3(A3(d, [pn, -Math.sin(c) * .9]));
+        const q = A3(p, [d, L[k]]); add(p, q, .022, .022, k === 2 ? ongle : peau); p = q;
+      }
+    }
+    let p = A3(Wr, [hd, .05], [la, -s * .05]), d = N3(A3(hd, [la, -s * .7], [pn, -.3]));        // le pouce
+    for (let k = 0; k < 2; k++) { const q = A3(p, [d, .1]); add(p, q, .024, .024, k ? ongle : peau); p = q; d = N3(A3(d, [pn, -crisp * .5])); }
+  }
+  // ---- les jambes : cuisse, rotule, tibia, pied à trois orteils ; la droite traîne ----
   const ca = Math.cos(f.dir), sa = Math.sin(f.dir);
   for (const s of [-1, 1]) {
-    const hip = [0, s * .16, hz], p = ph + (s > 0 ? 0 : Math.PI), boite = s > 0 ? 1 : .55;   // la droite traîne
-    const lx = Math.sin(p) * (charge ? .75 : .38) * v * boite, ly = s * .2, lift = Math.max(0, Math.cos(p)) * (charge ? .4 : .18) * v * boite;
+    const hip = [-.04, s * .15, hz - .04], pp = ph + (s > 0 ? 0 : Math.PI), boite = s > 0 ? 1 : .55;
+    const lx = Math.sin(pp) * (charge ? .75 : .36) * v * boite + (charge ? .1 : 0), ly = s * .2, lift = Math.max(0, Math.cos(pp)) * (charge ? .4 : .18) * v * boite;
     const wx = f.x + lx * ca - ly * sa, wy = f.y + lx * sa + ly * ca;
-    const Fp = [lx, ly, (mort ? 0 : sol(wx, wy) - f.z) + lift];
-    const d0 = Math.hypot(Fp[0] - hip[0], Fp[1] - hip[1], Fp[2] - hip[2]) || 1, L = .78, d = Math.min(2 * L - .01, d0);
-    const u = [(Fp[0] - hip[0]) / d0, (Fp[1] - hip[1]) / d0, (Fp[2] - hip[2]) / d0], h = Math.sqrt(Math.max(0, L * L - d * d / 4));
-    const K = [hip[0] + u[0] * d / 2 + h, hip[1] + u[1] * d / 2, hip[2] + u[2] * d / 2];   // le genou, en avant
-    add(hip, K, .12, .12, peau); add(K, [hip[0] + u[0] * d, hip[1] + u[1] * d, hip[2] + u[2] * d], .09, .09, peau);
-    add(Fp, [Fp[0] + .2, Fp[1], Fp[2]], .1, .05, creux);
+    const An = [lx, ly, (mort ? 0 : sol(wx, wy) - f.z) + lift + .08];
+    const [Kn, Ank] = ik(hip, An, .78, .8, [1, s * .15, 0]);
+    add(hip, Kn, .13, .13, peau); add(Kn, Ank, .09, .09, peau);
+    add(A3(Kn, [[1, 0, 0], .04]), A3(Kn, [[1, 0, 0], .08], [[0, 0, 1], -.02]), .09, .08, arete);   // la rotule
+    add(A3(Kn, [[0, 0, 1], -.05]), A3(Ank, [[0, 0, 1], .12]), .03, .03, os);                         // l'arête du tibia
+    const Hl = A3(Ank, [[0, 0, 1], -.06], [[1, 0, 0], -.05]), Ft = A3(Ank, [[0, 0, 1], -.07], [[1, 0, 0], .18]);
+    add(Hl, Ft, .1, .05, creux);                                                                     // le pied
+    for (const q of [-.04, 0, .04]) add(Ft, A3(Ft, [[1, 0, 0], .12], [[0, 1, 0], q * 1.6], [[0, 0, 1], -.01]), .025, .025, q ? peau : ongle);   // trois orteils
   }
   if (mort) { const rot = p => [p[2] * .9 - .2, p[1], Math.max(.05, p[0] * .3 + .15)]; for (const o of B) { o.a = rot(o.a); o.b = rot(o.b); } }
   return B;
@@ -9659,7 +9760,7 @@ const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
 const rayonCorps = b => .38 * b.sp.sz * (b.ech || 1);
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
-const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
   corpsGrille.clear();
@@ -10757,7 +10858,8 @@ function majBete(b, dt) {
   if (b.sp.pnj || b.pnjSuit) return majNomade(b, dt);    // un nomade, ou la bête de son dresseur (nomades.js)
   const sp = b.sp;
   if (sp.boss) return majTisseuse(b, dt);
-  if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
+  if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi
+  if (sp.illusion) return majIllusion(b, dt);          // une vision du Korlaz (etats.js)              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
   if (sp.dragon) return majDragon(b, dt);               // le dragon à plumes (voir LE DRAGON À PLUMES)
@@ -11419,7 +11521,7 @@ function prendreProie(b, rayon) {
   if (c && !c.dead && c.pv > 0 && !c.tame && (c.x - ox) ** 2 + (c.y - oy) ** 2 < (rayon + 6) ** 2) return c;
   let best = null, bd = b.sp.vue * b.sp.vue; const L = proiesDe(b.sp);
   for (const o of beasts) {
-    if (o.dead || o.pv <= 0 || o.tame || o.sp.pnj || o.gardeCamp || (L && !L.includes(o.sp.id))) continue;
+    if (o.dead || o.pv <= 0 || o.tame || o.sp.pnj || o.gardeCamp || o.sp.illusion || (L && !L.includes(o.sp.id))) continue;
     if ((o.x - ox) ** 2 + (o.y - oy) ** 2 > rayon * rayon) continue;
     const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
     if (d < bd) { bd = d; best = o; }
@@ -11970,6 +12072,7 @@ function osDeBase(f) {
   if (sp && sp.pnj) return nmOs(f);                   // les Nomades du Seuil (nomades.js)                 // les machines du Centre des automates
   if (sp && sp.boss) return osTisseuse(f);
   if (sp && sp.horreur) return sp.corps === 'silencieux' ? osSilencieux(f) : osMille(f);
+  if (sp && sp.illusion) return osIllusion(f);
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
   if (doux(sp)) return osDoux(f);
@@ -13396,6 +13499,7 @@ const PRODUITS = [
   ['veinee', 'Mousse-veine', 'mousse-veine', 'feuille', 2, 'souffle', [80, 200, 250]],
   ['lanterneau', 'Cœur de lanterne', 'cœur de lanterne', 'douceur', 4, 'nuit', [120, 230, 255]],
   ['racinoir', 'Racine creuse', 'racine creuse', 'racine', 2, 'robuste', [60, 56, 80]],
+  ['mycelium', 'Mycélium pâle', 'mycélium', 'champignon', 4, 'nuit', [226, 224, 214]],
   ['murier', 'Mûres de sylve', 'mûres de sylve', 'fruit', 3, 'nuit', [150, 236, 214]],
   ['geant', 'Lamelles de champignon géant', 'champignon géant', 'champignon', 2, null, [220, 196, 170]],
   ['vesse', 'Vesse-de-loup', 'vesse-de-loup', 'champignon', 1, null, [230, 224, 210]],
@@ -13613,6 +13717,7 @@ function prendrePart(k) {
 }
 function mangerPlat(k) { const p = prendrePart(k); if (p) consommer(p); }
 function consommer(p) {
+  if (p.c === 'r:serum' && typeof guerirKorlaz === 'function') guerirKorlaz();   // le sérum, injecté
   P.pv = Math.min(1, P.pv + p.soin);
   if (p.so) { P.endu = 1; P.epuise = false; }
   if (p.tag) P.effets[p.tag] = Math.max(P.effets[p.tag] || 0, t) + p.d;
@@ -13716,7 +13821,7 @@ function blocPlats() {
   return `<h3>Au sac <span class="compte">${P.plats.reduce((s, p) => s + (p.parts || 1), 0)} parts</span></h3>`
     + P.plats.slice(0, 20).map((p, k) => `<div class="obj"><div style="flex:1;min-width:0"><div class="n">${ESC(p.n)} <span style="color:#ffd27d">${etoiles(p.q)}</span></div>`
       + `<div class="d">${valeurTxt(p)}${(p.parts || 1) > 1 ? ' par part' : ''}</div><div class="d">${gardeTxt(p)}</div></div>`
-      + `<button data-plat="${k}">Manger</button></div>`).join('');
+      + `<button data-plat="${k}">${p.c === 'r:serum' ? 'Injecter' : 'Manger'}</button></div>`).join('');
 }
 // Le livre : chaque plat trouvé, ses meilleures étoiles, ce qui se garde, les ingrédients de sa meilleure
 // fois (ce qu'on en a, ce qui manque). Trois épingles au plus : en tête du livre, et dans le HUD.
@@ -15172,6 +15277,7 @@ function drawHud() {
     P.arc !== null ? `<b>${'█'.repeat(Math.round(Math.min(1, P.arc / ARC_TEMPS) * 6)).padEnd(6, '·')}</b>` : '',
     essai || (djIci() && DJ.etat.test) ? '<span class="etiq">ESSAI</span>' : '',
     P.poison > t ? '<span class="etiq poison">empoisonné</span>' : '',
+    typeof etatsHud === 'function' ? etatsHud() : '',
     Autres.size ? `<span class="etiq bleu">${Autres.size} joueur${Autres.size > 1 ? 's' : ''}</span>` : ''].filter(Boolean);
   // 3. où l'on en est : l'exploration, le danger, la distance à la maison
   let expl = '';
@@ -15553,7 +15659,7 @@ function cibleVue() {
   for (const b of beasts) if (b.sp.boss && !b.dead && b.pv > 0 && b.etat !== 'sommeil' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 3600) return b;   // la Tisseuse éveillée : sa barre en haut
   if (d && d.o && !d.o.dead && d.o.pv > 0 && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < 400) return d.o;
   let pr = null, dp = 25;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5)) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5) && !b.sp.illusion) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
   return pr;
 }
 let cibleSig = '';
@@ -17015,7 +17121,7 @@ function photo() {
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
-    denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null, bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -17101,6 +17207,7 @@ function appliquer(d, vivantes) {
   }
   // la cuisine : les denrées connues, des plats aux champs bornés, le carnet, la marmite
   P.denrees = {}; P.cellier = {};
+  P.korlaz = d.korlaz && typeof d.korlaz === 'object' ? { duree: nb(d.korlaz.duree, 0, 1e7, 0), prochain: 0 } : null; P.korlazExpo = 0;   // l'infection suit le personnage
   P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
   for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
@@ -17649,6 +17756,7 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 djInit();                                             // les armes d'en bas, leurs places sur le dos, leurs vignettes
+if (typeof etatsInit === 'function') etatsInit();   // le remède du Korlaz dans les recettes (etats.js)
 loadWorld();
 arriveeLe = maintenant();                            // le répit des premières secondes
 addEventListener('pagehide', () => debrancher('parti'));
