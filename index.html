@@ -622,6 +622,28 @@ const SON = (() => {
   // ---------- les recettes ----------
   // Chacune pose ses sons à partir de t et rend sa durée.
   const RECETTES = {
+    hurlement(o, t, p) {                                 // le Silencieux : un cri strident, déchiré, qui monte
+      const d = p.fort ? 1.1 : .75, F = filtre(o, 'bandpass', 1900, 1.4);
+      const O = osc(F, t, 'sawtooth', 520, 1500, d, .03, .2); const O2 = osc(F, t + .02, 'square', 533, 1460, d, .03, .08);
+      const L = ctx.createOscillator(), LG = ctx.createGain(); L.frequency.value = 31; LG.gain.value = 140; L.connect(LG); LG.connect(O.frequency); L.start(t); L.stop(t + d + .1);
+      souffle(o, t, 'highpass', 3000, 2000, 1, d * .9, .02, .14);
+      return d + .2;
+    },
+    clics(o, t) {                                        // il écoute : des claquements secs de la langue
+      const n = 3 + (Math.random() * 4 | 0);
+      for (let i = 0; i < n; i++) { const t0 = t + i * (.07 + Math.random() * .06); souffle(o, t0, 'bandpass', 2400 + Math.random() * 800, 1800, 6, .015, .001, .2); }
+      return n * .12 + .1;
+    },
+    grondement(o, t, p) {                                // le Mille-gueules sous la terre : un roulement sourd
+      const d = p.fort ? 1 : .8; osc(o, t, 'sine', 48, 36, d, .15, p.fort ? .35 : .2); souffle(o, t, 'lowpass', 260, 120, .7, d, .1, p.fort ? .3 : .16);
+      return d + .2;
+    },
+    criMille(o, t, p) {                                  // il jaillit : un crissement, des mandibules
+      const d = p.court ? .4 : .8, F = filtre(o, 'bandpass', 2600, 2);
+      osc(F, t, 'sawtooth', 900, 2200, d * .6, .01, .14); osc(F, t + d * .4, 'sawtooth', 2100, 700, d * .6, .01, .12);
+      for (let i = 0; i < 6; i++) souffle(o, t + i * .06, 'highpass', 3500, 2000, 4, .02, .001, .1);
+      return d + .2;
+    },
     rugissement(o, t, p) {                               // le rugissement : une gorge profonde, un souffle, un sifflement de feu
       const d = p.court ? .7 : 1.5, F = filtre(o, 'lowpass', 900, 1.5);
       const O = osc(F, t, 'sawtooth', 85, p.court ? 150 : 60, d, .1, .28);
@@ -1174,6 +1196,9 @@ const BIOME = [
   { n: 'nuage',               top: [252, 253, 255], side: [238, 242, 252], food: 0 },
   // la fourmilière des oglodons : de l'argile cuite au soleil (voir LA FOURMILIÈRE)
   { n: 'fourmilière',         top: [170, 118, 84],  side: [134, 90, 62],   food: 0 },
+  // les terres de l'effroi (voir LES TERRES DE L'EFFROI)
+  { n: 'ossuaire',            top: [204, 196, 178], side: [150, 140, 124],  food: .08 },
+  { n: 'terres creuses',      top: [40, 42, 58],    side: [28, 28, 40],     food: .15 },
 ];
 // ============================================================
 //  LES BIOMES RARES
@@ -1200,7 +1225,15 @@ const RARES = [
   { b: 13, id: 'caldeira', n: 'Caldeira de cendre', rang: 'légendaire', niv: 7, chance: .04, part: .18,
     sur: [2, 3, 4, 5, 6, 7], alt: [.16, 1], eau: [2, 255], coul: '#ff9058',
     d: 'des braises volent · les plaques vives brûlent qui s\'y attarde' },
+  // les terres de l'effroi : tirées à part, après les cinq premières (les îles d'avant ne bougent pas)
+  { b: 19, id: 'ossuaire', n: 'Ossuaire', rang: 'effroi', niv: 9, chance: .10, part: .16,
+    sur: [2, 3, 4, 6], alt: [.08, .8], eau: [2, 255], coul: '#e0d8c4',
+    d: 'un brouillard pâle · ce qui y rôde n\'entend que le bruit : ne bougez plus' },
+  { b: 20, id: 'creux', n: 'Terres creuses', rang: 'effroi', niv: 11, chance: .08, part: .18,
+    sur: [2, 3, 4], alt: [0, .65], eau: [1, 255], coul: '#5ad0ff',
+    d: 'le sol tremble · seule la roche abrite de ce qui nage dessous' },
 ];
+const N_RARES_BASE = 5;
 const famille = b => b === 14 ? 13 : b;               // les braises sont de la caldeira
 const rareDe = b => RARES.find(r => r.b === famille(b)) || null;
 let RaresIle = [];                                    // ceux que genWorld a posés ici
@@ -1220,7 +1253,9 @@ function biomesGraine(g) {
   let s = hash32(g ^ 0x7a1e5) || 1;
   const tir = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
   const r = [];
-  for (let k = RARES.length - 1; k >= 0; k--) { const p = tir(); if (r.length < 2 && p < RARES[k].chance) r.push(RARES[k].b); }
+  for (let k = N_RARES_BASE - 1; k >= 0; k--) { const p = tir(); if (r.length < 2 && p < RARES[k].chance) r.push(RARES[k].b); }
+  let s2 = hash32(g ^ 0xeff801) || 1; const tir2 = () => (s2 = (Math.imul(s2, 1664525) + 1013904223) >>> 0) / 4294967296;
+  for (let k = N_RARES_BASE; k < RARES.length; k++) { const p = tir2(); if (r.length < 2 && p < RARES[k].chance) r.push(RARES[k].b); }   // l'effroi, à part
   return r;
 }
 const nivGraine = g => Math.max(ileMecaGraine(g) ? NIV_MECA : 0, biomesGraine(g).reduce((m, b) => Math.max(m, rareDe(b).niv), 0),
@@ -1737,6 +1772,8 @@ function poserBiomesRares(liste) {
     if (n) RaresIle.push(b);
   }
   // Les braises : des plaques vives, à plat, au cœur de la caldeira.
+  // Les terres creuses : des îlots de roche, refuges contre ce qui nage dessous.
+  if (RaresIle.includes(20)) for (let y = 2; y < WS - 2; y++) for (let x = 2; x < WS - 2; x++) { const i = y * WS + x; if (Bio[i] === 20 && fbm(nC, x / 7 + 3, y / 7 - 9, 2) > .6) Bio[i] = 6; }
   if (RaresIle.includes(13)) for (let y = 2; y < WS - 2; y++) for (let x = 2; x < WS - 2; x++) {
     const i = y * WS + x; if (Bio[i] !== 13) continue;
     let plat = true;
@@ -2253,6 +2290,22 @@ const ESP = [
     bio:[9], alt:[0,1], eau:[0,99], dens:0, grain:9, seuil:9, bas:[70,96,70],  haut:[120,150,100], baie:[86,96,200] },
   { id:'murier',      n:'Mûrier de sylve', forme:'buisson', res:'baies', rend:4, pousse:140, h:.70, larg:.27,
     bio:[11], alt:[0,1], eau:[0,99], dens:0, grain:9, seuil:9, bas:[60,110,110], haut:[110,190,170], baie:[150,236,214], luit:.6 },
+  // l'ossuaire
+  { id:'cotes',    n:'Arbre-côtes',     forme:'mort',    res:'bois',  rend:6, pousse:240, h:2.7, larg:.18,
+    bio:[19], alt:[0,1], eau:[0,99], dens:.30, grain:14, seuil:.42, bas:[214,206,188], haut:[238,232,218] },
+  { id:'cendrelys',n:'Lys de cendre',   forme:'fleur',   res:'fibre', rend:3, pousse:120, h:.5, larg:.14,
+    bio:[19], alt:[0,1], eau:[0,99], dens:.28, grain:9, seuil:.46, bas:[120,116,110], haut:[214,212,206] },
+  { id:'oscep',    n:'Os-cep',          forme:'champi',  res:'fibre', rend:4, pousse:130, h:.45, larg:.2,
+    bio:[19], alt:[0,1], eau:[0,99], dens:.24, grain:8, seuil:.5, bas:[226,220,204], haut:[244,240,230] },
+  { id:'deuil',    n:'Ronce de deuil',  forme:'buisson', res:'baies', rend:3, pousse:150, h:.6, larg:.26,
+    bio:[19], alt:[0,1], eau:[0,99], dens:.18, grain:11, seuil:.55, bas:[60,54,60], haut:[96,88,96], baie:[46,30,60] },
+  // les terres creuses
+  { id:'veinee',   n:'Mousse veinée',   forme:'touffe',  res:'fibre', rend:4, pousse:100, h:.3, larg:.2,
+    bio:[20], alt:[0,1], eau:[0,99], dens:.36, grain:7, seuil:.4, bas:[30,40,56], haut:[80,200,250], luit:1 },
+  { id:'lanterneau',n:'Lanterne des fosses',forme:'cristal',res:'eclat',rend:3, pousse:220, h:.8, larg:.16,
+    bio:[20], alt:[0,1], eau:[0,99], dens:.16, grain:12, seuil:.56, bas:[40,70,100], haut:[120,230,255], luit:1 },
+  { id:'racinoir', n:'Racine noire',    forme:'roseau',  res:'fibre', rend:4, pousse:130, h:1.1, larg:.14,
+    bio:[20], alt:[0,1], eau:[0,99], dens:.24, grain:10, seuil:.48, bas:[24,22,30], haut:[60,56,80] },
 ];
 const FLORE = {}; for (const e of ESP) FLORE[e.id] = e;
 // Carte de peuplement, calculée une fois : sans elle il faudrait éprouver vingt et un
@@ -5208,7 +5261,8 @@ const DITS_VOL = { 'perché': 'se repose au nid', planer: 'plane en cercles', 'p
   plonger: 'plonge', remonter: 'remonte de l\'eau', rentrer: 'rentre au nid', poser: 'se pose', manger: 'mange son poisson',
   'décoller': 'prend son envol', fuir: 'fuit à tire-d\'aile', dormir: 'dort, la tête sous l\'aile',
   'épaule': 'sur votre épaule', suivre: 'vous rejoint', cueillir: 'vole à la récolte', picorer: 'détache sa récolte', 'défendre': 'harcèle l\'ennemi' };
-const DITS_ETAT = { observer: 'tourne au-dessus de vous', attaque: 'vous fait la chasse', cracher: 'se cabre, la gorge en feu', virer: 'vire sur l\'aile',
+const DITS_ETAT = { 'écouter': 'écoute…', hurler: 'hurle', charger: 'fonce sur le bruit', fouiller: 'cherche à tâtons', saisir: 'saisit sa proie',
+  sous: 'nage sous la terre', fendre: 'la terre se fend', jaillir: 'jaillit', dresse: 'se dresse', frapper: 'frappe', plonger: 'replonge', observer: 'tourne au-dessus de vous', attaque: 'vous fait la chasse', cracher: 'se cabre, la gorge en feu', virer: 'vire sur l\'aile',
   descendre: 'fond sur sa proie', 'dévorer': 'dévore sa proie', menacer: 'se dresse et gronde', escorter: 'vous escorte', sommeil: 'dort, repliée', 'éveil': 's\'éveille', combat: 'combat', garde: 'garde son arche', cacher: 'file se cacher', tapi: 'se tapit, et vous guette', ajuster: 'prépare un mauvais tour', rire: 'rit de vous',
   suivre: 'vous suit', 'récolter': 'travaille', repos: 'se repose', rappel: 'accourt',
   'défendre': 'se bat pour vous', garder: 'garde le campement', patrouiller: 'patrouille', viser: 'met en joue', veille: 'en veille',
@@ -6010,7 +6064,13 @@ const BOSSES = [
     shell:[96,88,78], dark:[64,66,74], leg:[64,66,74], oeil:[255,90,60], bio:[], dur:10, coeur:4, chasse:[], lien:0, travail:{},
     metier:'garde l\'arche des îles lointaines', grimpe:0, tir:null },
 ];
-SPEC.push(...VOLANTS, ...BOSSES);                     // à la fin : les indices des autres ne bougent pas
+const HORREURS = [
+  { id:'silencieux', n:'Silencieux', corps:'silencieux', horreur:1, terre:19, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
+    shell:[214,208,198], dark:[150,142,136], leg:[214,208,198], oeil:[70,14,20], bio:[], dur:5, lien:0, chasse:[], travail:{}, metier:'il écoute', grimpe:0 },
+  { id:'millegueule', n:'Mille-gueules', corps:'millegueule', horreur:1, terre:20, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
+    shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
+];
+SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS);                     // à la fin : les indices des autres ne bougent pas
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -6037,7 +6097,7 @@ const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
   salamandre: [2, 1, 1, 1, 2, 2, 4, 4],   felin: [1, 1, 1, 2, 2, 1, 5, 4],
   moissonneur: [5, 5, 5, 2, 3, 4, 1, 1],  traceur: [1, 2, 1, 1, 2, 4, 4, 3],      mercenaire: [1, 1, 1, 1, 1, 3, 3, 5],
   sentinelle: [1, 2, 1, 1, 1, 3, 2, 5],   tireur: [1, 1, 1, 1, 1, 2, 4, 5],       mortier: [1, 3, 1, 1, 1, 3, 2, 5],
-  sterne: [1, 1, 2, 2, 4, 1, 0, 2],     dragon: [1, 1, 1, 1, 1, 1, 5, 4],
+  sterne: [1, 1, 2, 2, 4, 1, 0, 2],     silencieux: [1, 1, 1, 1, 1, 1, 0, 5], millegueule: [1, 1, 1, 1, 1, 1, 0, 5],     dragon: [1, 1, 1, 1, 1, 1, 5, 4],
 };
 const aptDe = esp => APT[esp] || [1, 1, 1, 1, 1, 1, 0, 2];
 const PECHE_APT = { sterne: 5 };                     // la pêche : qui sait pêcher (hors du tableau, dont la 8e case est la défense)
@@ -6054,7 +6114,7 @@ const tellurien = sp => !!sp && sp.fam === 'tellurien';
 const doux = sp => !!sp && sp.fam === 'doux';
 // la pierre natale prend la teinte de son biome
 for (const sp of SPEC) if (sp.biome) { const h = RARES.find(r => r.b === sp.biome).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
-for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.boss ? dessinTisseuse(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
+for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.corps === 'silencieux' ? dessinSilencieux(d, sp) : sp.corps === 'millegueule' ? dessinMille(d, sp) : sp.boss ? dessinTisseuse(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
   : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'dragon' ? dessinDragon(d, sp) : sp.corps === 'sterne' ? dessinSterne(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;   // berries : l'index des buissons à baies (des pieds de la flore)
 const BUISSON_BIO = { 2: ESP.findIndex(e => e.id === 'groseillier'), 3: ESP.findIndex(e => e.id === 'ronce'),
@@ -6272,6 +6332,8 @@ const AMBIANCE = {
   11: { col: '#e6d4ff', z: [.2, 1.8], v: .12, vz: .22, g: -.03, vie: 3.4, luit: 1, tl: .05, n: 6 },       // spores
   12: { col: '#d4ffff', z: [.1, 1.4], v: 0, vz: .05, g: 0, vie: .8, luit: 1, tl: .07, n: 5 },             // éclats
   13: { col: '#ffa04c', z: [0, .4], v: .3, vz: 1.1, g: -.25, vie: 2.2, luit: 1, tl: .06, n: 8 },         // braises
+  19: { col: '#ecebe6', z: [.1, 1.4], v: .25, vz: .05, g: 0, vie: 3.6, tl: .14, n: 9 },                    // le brouillard pâle
+  20: { col: '#5ad0ff', z: [0, .3], v: .1, vz: .45, g: -.05, vie: 2.6, luit: 1, tl: .05, n: 7 },            // des spores bleues qui montent
   15: { col: '#ffd878', z: [.3, 1.6], v: .9, vz: 1.2, g: 1.6, vie: .7, luit: 1, tl: .05, n: 3 },          // étincelles
 };
 function majBiome(dt) {
@@ -6400,7 +6462,8 @@ function poser(sp) {
   const vr = b => { b.variante = tirerVariante(sp); return b; };   // une robe, une forme rares, parfois
   if (q) return vr(naitre(sp, q[0], q[1]));
   if (sp.volant) { const v = poserVolant(sp); return v ? vr(v) : null; }
-  if (sp.dragon) { const v = poserDragon(sp); return v ? vr(v) : null; }   // un dragon : sur son aire, au plus haut   // une sterne : sur une dalle, près de sa colonie
+  if (sp.dragon) { const v = poserDragon(sp); return v ? vr(v) : null; }
+  if (sp.horreur) { const v = poserHorreur(sp); return v ? vr(v) : null; }   // un dragon : sur son aire, au plus haut   // une sterne : sur une dalle, près de sa colonie
   if (sp.meute) {                                      // une meute naît ensemble : trois ou quatre autour d'un chef
     const chef = beasts.find(o => o.sp === sp && !o.tame && !o.dead && beasts.filter(m => m.sp === sp && (m.x - o.x) ** 2 + (m.y - o.y) ** 2 < 49).length < (sp.meute > 1 ? sp.meute : 4));
     if (chef) for (let k = 0; k < 30; k++) {
@@ -7047,6 +7110,7 @@ function update(dt) {
     if (!c) say(repue && repue.comp ? repue.comp.nom + ' n\'a pas faim' : 'aucune bête à portée', 1.4);
     else if (c.sp.boss) say('la Tisseuse ne se laisse pas approcher', 1.5);
     else if (c.sp.dragon) nourrirDragon(c);
+    else if (c.sp.horreur) offrandeHorreur(c);
     else if (automate(c.sp)) rallumer(c);
     else if (coursier(c.sp) && !c.tame) say('un coursier ne se lie pas aux baies : sautez sur son dos', 2);
     else if (c.sp.volant && !poissonADonner() && !(c.tame && P.plats.length)) say(c.sp.n + ' · elle ne prend que du poisson', 2);
@@ -7620,6 +7684,391 @@ function curieuse(b, dJ, dzJ) {
 // Ce qu'une bête qui ne grimpe pas peut franchir à pied : un cube, ou trois en descente pour un
 // coursier ; le crapaud et le cerf, deux cubes d'un bond, en montant comme en descendant.
 const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) || (!!b.sp.monture && h - hn <= 3 && hn < h);
+// ============================================================
+//  LES TERRES DE L'EFFROI : deux biomes, deux bêtes qu'on fuit
+//  L'OSSUAIRE (exploration 9) : un sol d'os pâle, des arbres-côtes, un brouillard blanc. Y rôde le
+//  SILENCIEUX : grand, maigre, sans yeux. Il n'entend que le bruit — courir s'entend de loin, marcher
+//  de près, l'immobile pas du tout. Il écoute, la tête penchée, claque de la langue ; vous a-t-il
+//  entendu, il hurle et fonce, plus vite que vous ne courez, sur l'endroit du bruit. Qu'il vous
+//  touche, et il vous saisit : un coup qui laisse à peine debout. Pour vivre : ne plus bouger, ou
+//  s'éloigner en marchant tant qu'il est loin. Il guérit vite ; un coup reçu crie où vous êtes.
+//  LES TERRES CREUSES (exploration 11) : une mousse noire veinée de bleu, des lanternes des fosses,
+//  des îlots de roche. Dessous nage le MILLE-GUEULES : un mille-pattes géant qui sent vos pas sur la
+//  terre meuble. Le sol tremble, une traînée de terre file vers vous ; il s'arrête dessous, la terre
+//  se fend (une seconde), et il jaillit — puis se dresse, mâchoires ouvertes, frappe et replonge.
+//  On ne le blesse que dehors. La roche est le seul refuge : il ne la traverse pas, et ne frappe
+//  qu'à son bord.
+// ============================================================
+const OSSUAIRE = 19, CREUX = 20;
+const bruitJoueur = () => {                               // ce que vous faites entendre : 0, ou 0..1
+  if (P.pv <= 0) return 0;
+  const v = Math.hypot(P.vx || 0, P.vy || 0);
+  let n = v < .4 ? 0 : v < VIT_MARCHE + .3 ? .35 : 1;
+  if (P.anim && P.anim.k === 'arme') n = Math.max(n, .9);
+  if (P.arc !== null && P.arc !== undefined) n = Math.max(n, .15);
+  return n;
+};
+const solMeuble = (x, y) => { x |= 0; y |= 0; const b = bAt(x, y); return hAt(x, y) > SEA && !(Eau[y * WS + x] > Hgt[y * WS + x]) && !PlT[y * WS + x] && b !== 5 && b !== 6 && b !== 8; };
+function poserHorreur(sp) {                               // dans son biome, loin de l'arrivée
+  const L = [];
+  for (let k = 0; k < 3000 && L.length < 40; k++) { const x = 4 + Math.random() * (WS - 8), y = 4 + Math.random() * (WS - 8);
+    if (bAt(x | 0, y | 0) === sp.terre && hAt(x | 0, y | 0) > SEA && Math.hypot(x - P.x, y - P.y) > 25) L.push([x, y]); }
+  if (!L.length) return null;
+  const q = L[Math.random() * L.length | 0], b = naitre(sp, q[0], q[1]);
+  b.age = 1e6; b.ech = 1; b.home = q; b.etat = 'errer'; b.z = sol(q[0], q[1]);
+  return b;
+}
+// L'apprivoiser, difficilement : une offrande de son sol, au bon moment.
+//  - le Silencieux : un Os-cep, tendu sans le moindre bruit, à moins de trois cases sans être à
+//    portée de ses bras ; tant qu'il n'est pas à moitié apprivoisé, le geste l'effraie une fois sur
+//    deux (il hurle et fonce). Une dizaine d'offrandes ; à moitié, il connaît votre pas.
+//  - le Mille-gueules : un Cœur de lanterne (rare), tendu quand il est dehors, dressé ; il le prend
+//    et replonge sans frapper. Sept offrandes ; à moitié, il ne vous chasse plus.
+function offrandeHorreur(c) {
+  if (c.tame) { say(c.comp.nom + ' n\'a besoin de rien', 1.4); return; }
+  const sil = c.sp.corps === 'silencieux', id = sil ? 'p_oscep' : 'p_lanterneau';
+  if (!INGR[id] || sacIngr(id) <= 0) { say(sil ? 'il ne prend que l\'Os-cep — et sans un bruit' : 'il ne prend qu\'un Cœur de lanterne — quand il est dehors', 2.4); return; }
+  if (sil) {
+    if (['charger', 'hurler', 'saisir'].includes(c.etat)) { say('trop tard', 1); return; }
+    if (bruitJoueur() > 0) { say('il vous entend bouger…', 1.4); return; }
+    if (Math.hypot(P.x - c.x, P.y - c.y) < 1.3) { say('trop près de ses bras', 1.4); return; }
+  } else if (c.etat !== 'dresse' && c.etat !== 'jaillir') { say('il faut qu\'il soit dehors, dressé', 1.6); return; }
+  metSacIngr(id, sacIngr(id) - 1);
+  c.conf = Math.min(1, (c.conf || 0) + (sil ? .1 : .14));
+  burst(c.x, c.y, (sil ? c.z + 2 : (c.tete ? c.tete[2] : c.z + 2)), 10, '#ffd68a');
+  if (sil && c.conf < .5 && Math.random() < .5) {            // le geste l'a effrayé
+    c.etat = 'hurler'; c.hurT = .5; c.son = { x: P.x, y: P.y, n: 1, cible: P }; c.sonT = c.t; sonHorreur(c.x, c.y, c.z + 2, 'hurlement'); say('il a pris peur', 1.6); return;
+  }
+  c.calmeT = c.t + 8;
+  if (sil) { c.etat = 'écouter'; c.ecT = 3; } else { c.etat = 'plonger'; c.plT = 0; c.frappe = 1; c.cdT = c.t + 8; }
+  if (c.conf >= 1) { if (!lier(c)) { c.conf = .95; say('plus de lien libre', 1.6); } }
+  else say(c.sp.n + ' prend l\'offrande · confiance ' + Math.round(c.conf * 100) + ' %', 1.8);
+}
+function sonHorreur(x, y, z, nom, op) { if (Math.hypot(P.x - x, P.y - y) < 40) SON.jouer(nom, op || {}, x, y, z); }
+// ------------------------------------------------------------
+//  LE SILENCIEUX
+// ------------------------------------------------------------
+function majSilencieux(b, dt) {
+  const sp = b.sp; b.t += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
+  if (b.dead) { b.dead += dt; b.z = sol(b.x, b.y); return; }
+  if (b.t - (b.blesseT ?? -99) > 6) b.pv = Math.min(1, b.pv + dt * .012);   // il guérit vite
+  if (b.tame) return silencieuxLie(b, dt);
+  const z0 = sol(b.x, b.y);
+  // l'oreille : vous, et toute bête qui court
+  const n = bruitJoueur(), dJ = Math.hypot(P.x - b.x, P.y - b.y);
+  let entendu = null;
+  const ami = (b.conf || 0) >= .5 || b.t < (b.calmeT || 0);       // nourri souvent : votre pas, il le connaît
+  if (n > 0 && dJ < 26 * n && Math.abs(P.z - b.z) < 6) entendu = { x: P.x, y: P.y, n: ami ? Math.min(n, .3) : n, cible: P };
+  if (b.hit > .2 && !b.cri) { b.cri = 1; b.blesseT = b.t; entendu = { x: P.x, y: P.y, n: 1, cible: P }; }   // touché : il sait d'où ça vient
+  if (!(b.hit > .2)) b.cri = 0;
+  if (!entendu && b.t > (b.proieT || 0)) {
+    b.proieT = b.t + .5;
+    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.sp.horreur && !o.enVol && Math.hypot(o.vx || 0, o.vy || 0) > 1.5 && Math.hypot(o.x - b.x, o.y - b.y) < 14) { entendu = { x: o.x, y: o.y, n: .8, cible: o }; break; }
+  }
+  if (entendu) { b.son = entendu; b.sonT = b.t; }
+  const S = b.son;
+  // le contact : qui est à portée de ses bras est saisi, bruit ou pas
+  if (b.etat !== 'saisir' && b.t > (b.repuT || 0)) {
+    const prise = dJ < 1.25 && Math.abs(P.z - b.z) < 1.6 && P.pv > 0 && !ami ? P : (b.etat === 'charger' && S && S.cible !== P && S.cible && !S.cible.dead && Math.hypot(S.cible.x - b.x, S.cible.y - b.y) < 1.3 ? S.cible : null);
+    if (prise) { b.etat = 'saisir'; b.saisirT = 0; b.prise = prise; sonHorreur(b.x, b.y, b.z + 2, 'hurlement', { fort: 1 }); }
+  }
+  let tx = b.x, ty = b.y, vit = 0;
+  switch (b.etat) {
+    case 'saisir': {                                     // il soulève, et frappe au sol
+      b.saisirT += dt; vit = 0; const c = b.prise; b.dirT = Math.atan2(c.y - b.y, c.x - b.x);
+      if (b.saisirT > .55 && !b.frappe) {
+        b.frappe = 1; P.secousse = t; P.secousseK = .8;
+        if (c === P) {                                  // la première fois, il vous laisse à peine debout ; la seconde tue
+          const pv0 = P.pv, k = degSubi(1) || 1; porterCoup(b, P, pv0 > .35 ? Math.min(.5, (pv0 - .08) / k) : .5);
+          P.vx += Math.cos(b.dirT) * 9; P.vy += Math.sin(b.dirT) * 9; say('le Silencieux vous saisit', 2); }
+        else { porterCoup(b, c, 1.2); if (c.pv <= 0 && !c.dead) mourirBete(c, 'chassé'); }
+        burst(c.x, c.y, (c.z || 0) + .6, 14, '#c84040');
+      }
+      if (b.saisirT > 1.4) { b.etat = 'errer'; b.frappe = 0; b.prise = null; b.repuT = b.t + 3.5; b.son = null; }
+      break;
+    }
+    case 'charger': {                                    // il fonce sur le bruit
+      if (!S || b.t - b.sonT > 2.5) { b.etat = 'fouiller'; b.fouT = 4 + Math.random() * 2; break; }
+      tx = S.x; ty = S.y; vit = 7.2;
+      if (Math.hypot(S.x - b.x, S.y - b.y) < .7 && b.t - b.sonT > .4) { b.etat = 'fouiller'; b.fouT = 4 + Math.random() * 2; }
+      break;
+    }
+    case 'écouter': {                                    // un bruit faible : figé, la tête tournée, puis il s'approche
+      b.ecT -= dt; if (S) { b.dirT = Math.atan2(S.y - b.y, S.x - b.x); if (b.ecT < .8) { tx = S.x; ty = S.y; vit = 1.2; } }
+      if (entendu && (entendu.n > .6 || Math.hypot(entendu.x - b.x, entendu.y - b.y) < 6) && b.ecT < 1.2) { b.etat = 'hurler'; b.hurT = .65; sonHorreur(b.x, b.y, b.z + 2, 'hurlement'); }
+      else if (b.ecT <= 0) { b.etat = S && b.t - b.sonT < 3 ? 'fouiller' : 'errer'; b.fouT = 3; }
+      break;
+    }
+    case 'hurler': {                                     // il se redresse et hurle — puis il fonce
+      b.hurT -= dt; if (S) b.dirT = Math.atan2(S.y - b.y, S.x - b.x);
+      if (b.hurT <= 0) b.etat = 'charger';
+      break;
+    }
+    case 'fouiller': {                                   // à l'endroit du bruit : il tourne, tâtonne, renifle
+      b.fouT -= dt; const a = b.t * 1.3; tx = b.x + Math.cos(a) * 1.5; ty = b.y + Math.sin(a) * 1.5; vit = .9;
+      if (entendu) { b.etat = entendu.n > .6 || Math.hypot(entendu.x - b.x, entendu.y - b.y) < 6 ? 'hurler' : 'écouter'; b.hurT = .5; b.ecT = 2.4; if (b.etat === 'hurler') sonHorreur(b.x, b.y, b.z + 2, 'hurlement'); }
+      else if (b.fouT <= 0) b.etat = 'errer';
+      break;
+    }
+    default: {                                           // il rôde : quelques pas boiteux, de longs arrêts, l'oreille tendue
+      b.etat = 'errer';
+      if (entendu) { b.etat = entendu.n > .6 || Math.hypot(entendu.x - b.x, entendu.y - b.y) < 6 ? 'hurler' : 'écouter'; b.ecT = 2.4; b.hurT = .65;
+        if (b.etat === 'hurler') sonHorreur(b.x, b.y, b.z + 2, 'hurlement'); break; }
+      if (!b.pas || b.t > b.pasT) {
+        const H = b.home || [b.x, b.y], a = Math.random() * 6.2832, r = Math.random() * 10;
+        b.pas = Math.random() < .45 ? null : [H[0] + Math.cos(a) * r, H[1] + Math.sin(a) * r]; b.pasT = b.t + 3 + Math.random() * 4;
+      }
+      if (b.pas && bAt(b.pas[0] | 0, b.pas[1] | 0) === OSSUAIRE) { tx = b.pas[0]; ty = b.pas[1]; vit = .9; }
+      if (Math.random() < dt * .25) sonHorreur(b.x, b.y, b.z + 2.3, 'clics');
+    }
+  }
+  bougerSil(b, tx, ty, vit, dt);
+  // le tic : par moments, la tête se tord d'un coup
+  if (Math.random() < dt * (b.etat === 'errer' ? .6 : .2)) { b.tic = (Math.random() - .5) * 1.4; b.ticT = t; }
+}
+function bougerSil(b, tx, ty, vit, dt) {
+  // le pas : sur le sol qu'il touche ; il ne quitte guère son ossuaire (sauf à la charge)
+  if (vit > 0) {
+    const d = Math.hypot(tx - b.x, ty - b.y) || 1, sv = Math.min(vit, d / Math.max(dt, .016));
+    const nx = b.x + (tx - b.x) / d * sv * dt, ny = b.y + (ty - b.y) / d * sv * dt;
+    if (Math.abs(hAt(nx | 0, ny | 0) - hAt(b.x | 0, b.y | 0)) <= 2 && hAt(nx | 0, ny | 0) > SEA && !PlT[(ny | 0) * WS + (nx | 0)]) { b.x = nx; b.y = ny; }
+    else if (b.etat === 'charger' && !b.tame) { b.etat = 'fouiller'; b.fouT = 2; }
+    if (b.etat !== 'écouter' && b.etat !== 'hurler') b.dirT = Math.atan2(ty - b.y, tx - b.x);
+    b.vit = sv;
+  } else b.vit = 0;
+  let dd = b.dirT - b.dir; while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832;
+  b.dir += Math.max(-(b.etat === 'charger' ? 5 : 3) * dt, Math.min((b.etat === 'charger' ? 5 : 3) * dt, dd));
+  b.z = sol(b.x, b.y); b.vx = b.vy = 0;
+  b.gph = (b.gph || 0) + dt * (b.vit || 0) * (b.etat === 'charger' ? .55 : .9);
+}
+// Lié, il n'entend plus que vos ennemis : une menace, il hurle, fonce, la saisit ; sinon il vous suit
+// à quelques pas, de sa démarche boiteuse, et s'arrête pour écouter.
+function silencieuxLie(b, dt) {
+  const m = b.role === 'defense' ? menaceOrdre(b) : null;
+  let tx = b.x, ty = b.y, vit = 0;
+  if (b.etat === 'saisir') {
+    b.saisirT += dt; const c = b.prise;
+    if (c && !c.dead) b.dirT = Math.atan2(c.y - b.y, c.x - b.x);
+    if (b.saisirT > .55 && !b.frappe && c && !c.dead) { b.frappe = 1; porterCoup(b, c, 1.2); burst(c.x, c.y, (c.z || 0) + .6, 14, '#c84040'); if (c.pv <= 0 && !c.dead) mourirBete(c, 'chassé'); }
+    if (b.saisirT > 1.4) { b.etat = 'errer'; b.frappe = 0; b.prise = null; }
+  } else if (m && m !== P && !m.dead && m.pv > 0) {
+    const d = Math.hypot(m.x - b.x, m.y - b.y);
+    if (b.etat !== 'charger' && b.etat !== 'hurler') { b.etat = 'hurler'; b.hurT = .5; sonHorreur(b.x, b.y, b.z + 2, 'hurlement'); }
+    if (b.etat === 'hurler') { b.hurT -= dt; b.dirT = Math.atan2(m.y - b.y, m.x - b.x); if (b.hurT <= 0) b.etat = 'charger'; }
+    else { tx = m.x; ty = m.y; vit = 7.2; if (d < 1.3) { b.etat = 'saisir'; b.saisirT = 0; b.prise = m; sonHorreur(b.x, b.y, b.z + 2, 'hurlement', { fort: 1 }); } }
+  } else {
+    const A = ancre(b), cx = b.mode === 'joueur' ? P.x - Math.cos(P.faceS ?? 0) * 2.4 : A ? A.x : b.x, cy = b.mode === 'joueur' ? P.y - Math.sin(P.faceS ?? 0) * 2.4 : A ? A.y : b.y;
+    const d = Math.hypot(cx - b.x, cy - b.y);
+    if (d > 1.2) { tx = cx; ty = cy; vit = d > 8 ? 5 : 2.2; b.etat = d > 8 ? 'charger' : 'errer'; }
+    else { b.etat = 'écouter'; b.ecT = 1; if (Math.random() < dt * .2) sonHorreur(b.x, b.y, b.z + 2.3, 'clics'); }
+  }
+  bougerSil(b, tx, ty, vit, dt);
+  if (Math.random() < dt * .3) { b.tic = (Math.random() - .5) * 1.2; b.ticT = t; }
+}
+function osSilencieux(f) {
+  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
+  const dtl = Math.min(.1, Math.max(0, t - (f._osT ?? t))); f._osT = t;
+  const lisse = (k, c, v) => { const a = f[k] ?? c; return f[k] = a + (c - a) * Math.min(1, dtl * v); };
+  const E = f.etat, mort = f.dead > 0, charge = E === 'charger', hurle = E === 'hurler' || (E === 'saisir' && (f.saisirT || 0) < .6);
+  const peau = [182, 176, 168], creux = [92, 84, 82], os = [236, 232, 222], gueule = [70, 14, 20];
+  const pen = lisse('_pen', mort ? 1.4 : charge ? .95 : E === 'saisir' ? .3 : E === 'fouiller' ? .55 : E === 'hurler' ? -.15 : .18, charge ? 6 : 3);   // il se penche
+  const cr = lisse('_cr', E === 'écouter' ? .8 : 0, 4);                                  // l'écoute : la tête inclinée
+  const tic = f.ticT != null && t - f.ticT < .35 ? f.tic * (1 - (t - f.ticT) / .35) : 0;
+  const v = Math.min(1, (f.vit || 0) / 4), ph = (f.gph || 0) * 6.2832;
+  // le bassin, la colonne qui se penche
+  const hz = mort ? .3 : 1.45 - Math.abs(Math.sin(ph)) * .06 * v, Hb = [0, 0, hz];
+  const cp = Math.cos(pen), spn = Math.sin(pen), Th = [Hb[0] + spn * 1.05, 0, hz + cp * 1.05];   // le haut du thorax
+  add(Hb, Th, .3, .2, peau);
+  for (const s of [-1, 1]) add([Th[0] - .05, s * .12, Th[2] - .05], [Hb[0] - .2, s * .2, hz - .55 + Math.sin(t * 1.3 + s) * .05], .07, .02, creux);   // des lambeaux qui pendent
+  for (let k = 1; k <= 4; k++) { const q = .25 + k * .15; const c = [Hb[0] + spn * 1.05 * q + .08 * cp, 0, hz + cp * 1.05 * q - .08 * spn];   // les côtes
+    add([c[0], -.17, c[2]], [c[0], .17, c[2]], .05, .04, os); }
+  // la tête : longue, lisse, sans yeux ; la bouche s'ouvre en fente verticale
+  const yaw = lisse('_yaw', 0, 4) + tic + (E === 'fouiller' ? Math.sin(t * 3) * .7 : 0);
+  const inc = cr * .6 + Math.sin(t * .9) * .05 * (E === 'errer');
+  const N = [Th[0] + spn * .25, Math.sin(inc) * .05, Th[2] + cp * .25];
+  const hd = [Math.cos(yaw) * Math.cos(pen - 1.2), Math.sin(yaw), Math.sin(1.2 - pen) * .9 + .2], hl = Math.hypot(...hd);
+  const Hd = [N[0] + hd[0] / hl * .55, N[1] + hd[1] / hl * .55 + Math.sin(inc) * .15, N[2] + hd[2] / hl * .55];
+  add(Th, N, .12, .12, creux);
+  add(N, Hd, .26, .3, peau);
+  const ouv = lisse('_ouv', hurle ? 1 : charge ? .6 : 0, 10);
+  if (ouv > .05) add([N[0] + (Hd[0] - N[0]) * .55, N[1] + (Hd[1] - N[1]) * .55, N[2] + (Hd[2] - N[2]) * .55 - .02], [Hd[0], Hd[1], Hd[2] - .05], .06 + ouv * .12, .04 + ouv * .2, gueule);
+  // les bras : très longs, trois griffes ; en avant à la charge, levés pour saisir, ballants sinon
+  for (const s of [-1, 1]) {
+    const Sh = [Th[0] - spn * .05, s * .26, Th[2] - cp * .05];
+    let Ma;
+    if (E === 'saisir') { const k = Math.min(1, (f.saisirT || 0) / .55); Ma = [Sh[0] + .9 - k * .2, s * .15, Sh[2] + 1.1 * (1 - k) - .9 * k]; }
+    else if (charge) Ma = [Sh[0] + .9 + Math.sin(ph + (s > 0 ? 0 : Math.PI)) * .5, s * .45, Sh[2] - .7];
+    else if (hurle) Ma = [Sh[0] + .1, s * 1.0, Sh[2] + .4];
+    else Ma = [Sh[0] + .15 + Math.sin(ph + (s > 0 ? Math.PI : 0)) * .25 * v, s * .34, Sh[2] - 1.45 + (E === 'écouter' ? .2 : 0)];
+    const C = [(Sh[0] + Ma[0]) / 2 - .15, (Sh[1] + Ma[1]) / 2 + s * .12, (Sh[2] + Ma[2]) / 2];
+    add(Sh, C, .1, .1, peau); add(C, Ma, .08, .08, peau);
+    for (const q of [-.35, 0, .35]) { const d = [Ma[0] - C[0], Ma[1] - C[1], Ma[2] - C[2]], l = Math.hypot(...d) || 1;
+      add(Ma, [Ma[0] + d[0] / l * .32 + Math.sin(q) * .08 * s, Ma[1] + d[1] / l * .32 + q * .1, Ma[2] + d[2] / l * .32], .035, .03, os); }
+  }
+  // les jambes : longues, une qui traîne ; les pieds sur le sol
+  const ca = Math.cos(f.dir), sa = Math.sin(f.dir);
+  for (const s of [-1, 1]) {
+    const hip = [0, s * .16, hz], p = ph + (s > 0 ? 0 : Math.PI), boite = s > 0 ? 1 : .55;   // la droite traîne
+    const lx = Math.sin(p) * (charge ? .75 : .38) * v * boite, ly = s * .2, lift = Math.max(0, Math.cos(p)) * (charge ? .4 : .18) * v * boite;
+    const wx = f.x + lx * ca - ly * sa, wy = f.y + lx * sa + ly * ca;
+    const Fp = [lx, ly, (mort ? 0 : sol(wx, wy) - f.z) + lift];
+    const d0 = Math.hypot(Fp[0] - hip[0], Fp[1] - hip[1], Fp[2] - hip[2]) || 1, L = .78, d = Math.min(2 * L - .01, d0);
+    const u = [(Fp[0] - hip[0]) / d0, (Fp[1] - hip[1]) / d0, (Fp[2] - hip[2]) / d0], h = Math.sqrt(Math.max(0, L * L - d * d / 4));
+    const K = [hip[0] + u[0] * d / 2 + h, hip[1] + u[1] * d / 2, hip[2] + u[2] * d / 2];   // le genou, en avant
+    add(hip, K, .12, .12, peau); add(K, [hip[0] + u[0] * d, hip[1] + u[1] * d, hip[2] + u[2] * d], .09, .09, peau);
+    add(Fp, [Fp[0] + .2, Fp[1], Fp[2]], .1, .05, creux);
+  }
+  if (mort) { const rot = p => [p[2] * .9 - .2, p[1], Math.max(.05, p[0] * .3 + .15)]; for (const o of B) { o.a = rot(o.a); o.b = rot(o.b); } }
+  return B;
+}
+// ------------------------------------------------------------
+//  LE MILLE-GUEULES
+// ------------------------------------------------------------
+const MG_N = 15, MG_PAS = .55;
+function initMille(b) { b.seg = []; for (let k = 0; k < MG_N; k++) b.seg.push([b.x - Math.cos(b.dir) * k * MG_PAS, b.y - Math.sin(b.dir) * k * MG_PAS, sol(b.x, b.y) - 1.4]); b.tete = b.seg[0].slice(); b.etat = 'sous'; }
+function majMille(b, dt) {
+  const sp = b.sp; b.t += dt; b.ech = 1; if (b.hit > 0) { b.hit -= dt; b.blesseT = b.t; }
+  if (!b.seg) initMille(b);
+  if (b.dead) { b.dead += dt; for (const s of b.seg) s[2] = Math.max(sol(s[0], s[1]) + .15, s[2] - dt * 2); return; }
+  const T = b.tete, g = sol(T[0], T[1]);
+  if (b.etat === 'sous' && b.t - (b.blesseT ?? -99) > 8) b.pv = Math.min(1, b.pv + dt * .008);
+  if (b.pv < .3 && !b.fuite && b.etat === 'sous') { b.fuite = b.t + 20; }
+  if (b.fuite && b.t > b.fuite) b.fuite = 0;
+  const dJ = Math.hypot(P.x - T[0], P.y - T[1]), surMeuble = solMeuble(P.x, P.y), proche = P.pv > 0 && Math.abs(P.z - g) < 4 && dJ < 32 && !b.fuite;
+  const vise = () => {
+    if (b.tame) { const m = b.role === 'defense' ? menaceOrdre(b) : null; return m && m !== P && !m.dead && m.pv > 0 && solMeuble(m.x, m.y) && Math.hypot(m.x - T[0], m.y - T[1]) < 25 ? [m.x, m.y, m] : null; }
+    if (proche && (b.conf || 0) < .5 && b.t > (b.calmeT || 0)) return [P.x, P.y, P];                           // vous, sinon une bête sur sa terre
+    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.enVol && !o.sp.horreur && Math.hypot(o.x - T[0], o.y - T[1]) < 18 && solMeuble(o.x, o.y)) return [o.x, o.y, o];
+    return null; };
+  let mv = null, v = 0, zT = g - 1.4;
+  switch (b.etat) {
+    case 'sous': {                                       // il nage sous la terre, vers ce qui bouge dessus
+      const c = vise();
+      if (c) {
+        const ok = solMeuble(c[0], c[1]);
+        let cx = c[0], cy = c[1];
+        if (!ok) {                                       // sur la roche : il rôde au bord
+          const a = Math.atan2(T[1] - c[1], T[0] - c[0]) + .4; cx = c[0] + Math.cos(a) * 3.2; cy = c[1] + Math.sin(a) * 3.2;
+          b.bordT = (b.bordT || 0) + dt;
+          if (Math.hypot(c[0] - T[0], c[1] - T[1]) < 3.8 && b.t > (b.cdT || 0) && solMeuble(T[0], T[1])) { b.etat = 'fendre'; b.fenT = 0; b.cible = c[2]; b.au = [T[0], T[1]]; break; }
+          if (b.bordT > 15) { b.fuite = b.t + 12; b.bordT = 0; }
+        } else b.bordT = 0;
+        mv = [cx, cy]; v = 7.5;
+        if (ok && Math.hypot(c[0] - T[0], c[1] - T[1]) < .9 && b.t > (b.cdT || 0)) { b.etat = 'fendre'; b.fenT = 0; b.cible = c[2]; b.au = [c[0], c[1]]; }
+      } else {
+        if (!b.but || Math.hypot(b.but[0] - T[0], b.but[1] - T[1]) < 2) { const a = Math.random() * 6.2832, r = 4 + Math.random() * 12, H = b.home || [T[0], T[1]];
+          b.but = [H[0] + Math.cos(a) * r, H[1] + Math.sin(a) * r]; }
+        mv = b.but; v = b.fuite ? 6 : 2.5;
+        if (b.tame && (b.mode === 'joueur' || b.mode === 'camp')) {   // lié : il nage sous vos pas, à quelques cases
+          const A = b.mode === 'camp' && campIci() ? { x: P.camp.x + 3, y: P.camp.y } : { x: P.x - Math.cos(P.faceS ?? 0) * 3, y: P.y - Math.sin(P.faceS ?? 0) * 3 };
+          const d = Math.hypot(A.x - T[0], A.y - T[1]); mv = solMeuble(A.x, A.y) ? [A.x, A.y] : b.but; v = d > 8 ? 7.5 : d > 1.5 ? 3 : 0;
+        }
+      }
+      // la traînée : la terre qui se soulève au-dessus de sa tête, et le grondement
+      if (Math.random() < dt * (v > 3 ? 18 : 6)) parts.push({ x: T[0] + (Math.random() - .5) * .5, y: T[1] + (Math.random() - .5) * .5, z: g + .05, vx: (Math.random() - .5) * .8, vy: (Math.random() - .5) * .8, vz: .8 + Math.random(), g: 6, life: .5, age: 0, col: '#2c2a36', tl: .07 });
+      if (v > 3 && Math.random() < dt * .8) sonHorreur(T[0], T[1], g, 'grondement');
+      if (v > 3 && dJ < 10 && !b.tame) { P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, .12 * (1 - dJ / 10)); }
+      break;
+    }
+    case 'fendre': {                                     // la terre se fend : une seconde pour s'enfuir
+      b.fenT += dt; mv = b.au; v = 2; zT = g - .8;
+      for (let k = 0; k < 3; k++) { const a = Math.random() * 6.2832, r = .3 + b.fenT * 1.4; parts.push({ x: b.au[0] + Math.cos(a) * r, y: b.au[1] + Math.sin(a) * r, z: sol(b.au[0], b.au[1]) + .05, vx: Math.cos(a) * .6, vy: Math.sin(a) * .6, vz: 1.4, g: 7, life: .45, age: 0, col: Math.random() < .3 ? '#5ad0ff' : '#3a3644', luit: Math.random() < .3, tl: .08 }); }
+      if (!b.tame && Math.hypot(P.x - b.au[0], P.y - b.au[1]) < 6) { P.secousse = t; P.secousseK = .3 + b.fenT * .4; }
+      if (b.fenT < dt * 1.5) sonHorreur(b.au[0], b.au[1], g, 'grondement', { fort: 1 });
+      if (b.fenT >= 1) {
+        b.etat = 'jaillir'; b.jT = 0; sonHorreur(b.au[0], b.au[1], g + 2, 'criMille'); P.secousse = t; P.secousseK = 1;
+        for (let k = 0; k < 26; k++) parts.push({ x: b.au[0], y: b.au[1], z: sol(b.au[0], b.au[1]) + .2, vx: (Math.random() - .5) * 5, vy: (Math.random() - .5) * 5, vz: 3 + Math.random() * 4, g: 10, life: .8, age: 0, col: '#2c2a36', tl: .1 });
+        const dP = Math.hypot(P.x - b.au[0], P.y - b.au[1]);
+        if (dP < 1.7 && P.pv > 0 && !b.tame) { porterCoup(b, P, .3); P.vz = (P.vz || 0) + 6; say('le Mille-gueules jaillit sous vous', 2); }
+        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < 1.7) { porterCoup(b, o, 1); if (o.pv <= 0) mourirBete(o, 'chassé'); }
+      }
+      break;
+    }
+    case 'jaillir': {                                    // il sort, droit, très haut
+      b.jT += dt; mv = b.au; v = 0; zT = sol(b.au[0], b.au[1]) + 4.2;
+      if (b.jT > .7) { b.etat = 'dresse'; b.drT = 0; }
+      break;
+    }
+    case 'dresse': {                                     // dressé, la tête qui oscille, les mâchoires qui s'ouvrent
+      b.drT += dt; const c = b.cible && !b.cible.dead ? b.cible : P;
+      const a = Math.atan2(c.y - b.au[1], c.x - b.au[0]);
+      mv = [b.au[0] + Math.cos(a) * .8 + Math.sin(b.t * 4) * .3, b.au[1] + Math.sin(a) * .8 + Math.cos(b.t * 3.3) * .3]; v = 3; zT = sol(b.au[0], b.au[1]) + 3.6 + Math.sin(b.t * 2.5) * .3;
+      if (b.drT > 1.1) { b.etat = 'frapper'; b.frT = 0; b.coup = [c.x, c.y]; sonHorreur(T[0], T[1], T[2], 'criMille', { court: 1 }); }
+      break;
+    }
+    case 'frapper': {                                    // il s'abat
+      b.frT += dt; mv = b.coup; v = 11; zT = sol(b.coup[0], b.coup[1]) + .3;
+      if (b.frT > .32 && !b.frappe) {
+        b.frappe = 1; P.secousse = t; P.secousseK = .9;
+        for (let k = 0; k < 18; k++) parts.push({ x: T[0], y: T[1], z: g + .1, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, vz: 2 + Math.random() * 2, g: 9, life: .6, age: 0, col: '#3a3644', tl: .09 });
+        const dP = Math.hypot(P.x - T[0], P.y - T[1]);
+        if (dP < 1.9 && Math.abs(P.z - g) < 1.5 && P.pv > 0 && !b.tame) { porterCoup(b, P, .25); P.vx += (P.x - T[0]) * 5; P.vy += (P.y - T[1]) * 5; }
+        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && Math.hypot(o.x - T[0], o.y - T[1]) < 1.9) { porterCoup(b, o, .8); if (o.pv <= 0) mourirBete(o, 'chassé'); }
+      }
+      if (b.frT > .75) { b.etat = 'plonger'; b.plT = 0; b.frappe = 0; }
+      break;
+    }
+    case 'plonger': {                                    // il replonge, tête la première ; le corps suit dans le trou
+      b.plT += dt; const a = b.dir; mv = [T[0] + Math.cos(a) * 2, T[1] + Math.sin(a) * 2]; v = 5; zT = g - 2;
+      if (b.seg[MG_N - 1][2] < sol(b.seg[MG_N - 1][0], b.seg[MG_N - 1][1]) - .3 || b.plT > 3) { b.etat = 'sous'; b.cdT = b.t + 3; b.cible = null; }
+      break;
+    }
+  }
+  // la tête avance, la queue suit, anneau par anneau
+  if (mv) {
+    const dx = mv[0] - T[0], dy = mv[1] - T[1], d = Math.hypot(dx, dy);
+    if (d > .02) { const s = Math.min(v * dt, d); let nx = T[0] + dx / d * s, ny = T[1] + dy / d * s;
+      if (b.etat === 'sous' && !solMeuble(nx, ny)) { const a = Math.atan2(dy, dx) + (b.sens || 1) * 1.2; nx = T[0] + Math.cos(a) * s; ny = T[1] + Math.sin(a) * s; if (!solMeuble(nx, ny)) { nx = T[0]; ny = T[1]; b.sens = -(b.sens || 1); } }
+      T[0] = nx; T[1] = ny; b.dirT = Math.atan2(dy, dx); }
+  }
+  T[2] += (zT - T[2]) * Math.min(1, dt * (b.etat === 'frapper' ? 9 : b.etat === 'jaillir' ? 7 : 4));
+  b.seg[0] = T.slice();
+  for (let k = 1; k < MG_N; k++) {
+    const a = b.seg[k - 1], q = b.seg[k], dx = q[0] - a[0], dy = q[1] - a[1], dz = q[2] - a[2], d = Math.hypot(dx, dy, dz) || 1;
+    q[0] = a[0] + dx / d * MG_PAS; q[1] = a[1] + dy / d * MG_PAS; q[2] = a[2] + dz / d * MG_PAS;
+    const gq = sol(q[0], q[1]); if (b.etat === 'sous') q[2] = Math.min(q[2], gq - .9);   // dessous, la queue reste sous terre
+  }
+  b.x = T[0]; b.y = T[1]; b.z = sol(b.x, b.y); b.dir = b.dirT ?? b.dir;
+  b.dehors = b.seg.some(s => s[2] > sol(s[0], s[1]) - .1);
+}
+function osMille(f) {
+  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
+  if (!f.seg) initMille(f);
+  const ca = Math.cos(f.dir), sa = Math.sin(f.dir), loc = p => { const dx = p[0] - f.x, dy = p[1] - f.y; return [dx * ca + dy * sa, -dx * sa + dy * ca, p[2] - f.z]; };
+  const chit = [92, 64, 84], plaq = [132, 98, 118], bleu = [110, 220, 255], rouge = [200, 50, 70], mort = f.dead > 0;
+  const E = f.etat, ouv = E === 'dresse' ? .6 + Math.sin(t * 7) * .3 : E === 'jaillir' ? .9 : E === 'frapper' ? .2 : 0;
+  const S = f.seg.map(loc);
+  for (let k = 0; k < MG_N - 1; k++) {
+    const a = S[k], c = S[k + 1], w = k === 0 ? .62 : .58 - k * .022;
+    const ga = sol(f.seg[k][0], f.seg[k][1]), gc = sol(f.seg[k + 1][0], f.seg[k + 1][1]);
+    if (f.seg[k][2] < ga - .25 && f.seg[k + 1][2] < gc - .25) continue;          // sous terre : rien à voir
+    add(a, c, w, w * .7, chit); add([a[0], a[1], a[2] + w * .3], [c[0], c[1], c[2] + w * .3], w * .8, .1, plaq);
+    if (!mort) for (const s of [-1, 1]) add([(a[0] + c[0]) / 2, (a[1] + c[1]) / 2 + s * w * .22, (a[2] + c[2]) / 2 + w * .38], [(a[0] + c[0]) / 2 + .05, (a[1] + c[1]) / 2 + s * w * .22, (a[2] + c[2]) / 2 + w * .38], .13, .13, bleu, true);   // les points qui luisent
+    const dx = c[0] - a[0], dy = c[1] - a[1], l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l;
+    for (const s of [-1, 1]) {                            // une paire de pattes par anneau : elles ondulent
+      const ph = t * 12 - k * .9 + (s > 0 ? 0 : Math.PI), m = [(a[0] + c[0]) / 2, (a[1] + c[1]) / 2, (a[2] + c[2]) / 2];
+      const gen = [m[0] + nx * s * .45, m[1] + ny * s * .45, m[2] + .22], pied = [m[0] + nx * s * .75 + dx / l * Math.sin(ph) * .18, m[1] + ny * s * .75 + dy / l * Math.sin(ph) * .18, m[2] - .2 + Math.max(0, Math.cos(ph)) * .12];
+      add(m, gen, .06, .06, chit); add(gen, pied, .05, .05, plaq);
+    }
+  }
+  // la tête : bombée, antennes, quatre mâchoires qui s'ouvrent comme une fleur
+  const H = S[0], d0 = [S[0][0] - S[1][0], S[0][1] - S[1][1], S[0][2] - S[1][2]], l0 = Math.hypot(...d0) || 1, u = d0.map(q => q / l0);
+  if (f.seg[0][2] > sol(f.seg[0][0], f.seg[0][1]) - .25) {
+    const Hf = [H[0] + u[0] * .45, H[1] + u[1] * .45, H[2] + u[2] * .45];
+    add(H, Hf, .72, .6, plaq);
+    for (let k = 0; k < 4; k++) {
+      const a = k / 4 * 6.2832 + .785, side = [-u[1], u[0], 0], up = [-u[0] * u[2], -u[1] * u[2], 1 - u[2] * u[2]], n = Math.hypot(...up) || 1;
+      const o = [side[0] * Math.cos(a) + up[0] / n * Math.sin(a), side[1] * Math.cos(a) + up[1] / n * Math.sin(a), side[2] * Math.cos(a) + up[2] / n * Math.sin(a)];
+      const b0 = [Hf[0] + o[0] * .2, Hf[1] + o[1] * .2, Hf[2] + o[2] * .2], bt = [b0[0] + u[0] * .45 + o[0] * ouv * .35, b0[1] + u[1] * .45 + o[1] * ouv * .35, b0[2] + u[2] * .45 + o[2] * ouv * .35];
+      add(b0, bt, .1, .08, rouge); add(bt, [bt[0] + u[0] * .15 - o[0] * .08, bt[1] + u[1] * .15 - o[1] * .08, bt[2] + u[2] * .15 - o[2] * .08], .06, .05, [230, 220, 200]);
+    }
+    if (ouv > .2 && !mort) add([Hf[0], Hf[1], Hf[2]], [Hf[0] + u[0] * .1, Hf[1] + u[1] * .1, Hf[2] + u[2] * .1], .25, .25, [255, 90, 110], true);   // le gosier
+    for (const s of [-1, 1]) add([H[0], H[1] + s * .2, H[2] + .3], [H[0] - u[0] * .3 + s * .1, H[1] + s * .5, H[2] + .75], .04, .04, chit);   // les antennes
+  }
+  return B;
+}
+function dessinSilencieux(d, sp) { d.rect(7, 3, 8, 5, [214, 208, 198]); d.rect(7, 6, 8, 10, [214, 208, 198]); d.ligne(6, 6, 4, 12, [214, 208, 198]); d.ligne(9, 6, 11, 12, [214, 208, 198]); d.ligne(7, 11, 6, 15, [150, 142, 136]); d.ligne(8, 11, 9, 15, [150, 142, 136]); d.net(7, 4, [70, 14, 20]); }
+function dessinMille(d, sp) { for (let k = 0; k < 6; k++) { d.rect(2 + k * 2, 7 + (k % 2), 3 + k * 2, 8 + (k % 2), [44, 40, 58]); d.net(2 + k * 2, 6 + (k % 2), [90, 205, 255]); } d.rect(13, 6, 14, 8, [66, 60, 84]); d.net(15, 6, [190, 44, 64]); d.net(15, 8, [190, 44, 64]); }
 // ============================================================
 //  LE DRAGON À PLUMES
 //  Plus grand qu'un coursier : quatre pattes, un long cou en S, une queue à panache, de grandes
@@ -8766,6 +9215,8 @@ function centreBete(b) {
   return [b.x + U[0] * h, b.y + U[1] * h, b.z + U[2] * h];
 }
 function toucheBete(b, x, y, z) {
+  if (b.sp.corps === 'silencieux') return (b.x - x) ** 2 + (b.y - y) ** 2 < .3 && z > b.z && z < b.z + 2.7;
+  if (b.sp.corps === 'millegueule') return !!b.seg && b.seg.some(q => q[2] > sol(q[0], q[1]) - .2 && (q[0] - x) ** 2 + (q[1] - y) ** 2 < .36 && Math.abs(z - q[2]) < .5);
   if (b.sp.dragon) { const c = ptDragon(b, 0, 0, b.enVol ? .1 : 1); return (c[0] - x) ** 2 + (c[1] - y) ** 2 < 1.3 && Math.abs(z - c[2]) < .75; }
   if (b.sp.boss) { const cx = b.x - Math.cos(b.dir) * .35, cy = b.y - Math.sin(b.dir) * .35; return (cx - x) ** 2 + (cy - y) ** 2 < 3.6 && z > (b.zc || b.z) - .7 && z < (b.zc || b.z) + 1.1; }
   const k = b.sp.sz, r = .34 + k * .30;
@@ -9208,7 +9659,7 @@ const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
 const rayonCorps = b => .38 * b.sp.sz * (b.ech || 1);
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
-const aCorps = b => !b.sp.volant && !b.sp.boss && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
   corpsGrille.clear();
@@ -9675,7 +10126,8 @@ function bestiaireGraine(graine, niv) {
   if (niv >= NIV_FELIN && felinGraine(graine)) e.add('felin');   // tiré à part : le reste du bestiaire ne bouge pas
   if (niv >= 1 && bramardGraine(graine)) e.add('bramard');
   if (sterneGraine(graine)) e.add('sterne');
-  if (niv >= 3 && dragonGraine(graine)) e.add('dragon');          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
+  if (niv >= 3 && dragonGraine(graine)) e.add('dragon');
+  { const rg = biomesGraine(graine); if (rg.includes(19)) e.add('silencieux'); if (rg.includes(20)) e.add('millegueule'); }   // l'effroi vit sur son sol          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
   return e;
 }
 // La sterne des nues : un peu plus d'une île sur deux, dès la première. Il lui faut des îles de nuage.
@@ -10304,7 +10756,8 @@ function majBete(b, dt) {
   if (b.gardeCamp) return majGardienne(b, dt);           // une gardienne de campement pillé
   if (b.sp.pnj || b.pnjSuit) return majNomade(b, dt);    // un nomade, ou la bête de son dresseur (nomades.js)
   const sp = b.sp;
-  if (sp.boss) return majTisseuse(b, dt);              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
+  if (sp.boss) return majTisseuse(b, dt);
+  if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
   if (sp.dragon) return majDragon(b, dt);               // le dragon à plumes (voir LE DRAGON À PLUMES)
@@ -10706,7 +11159,7 @@ function tirerNom() {
 }
 // La chance qu'une bête accepte le lien : l'espèce d'abord, puis sa faiblesse et la confiance
 // déjà gagnée. On affaiblit un spectre avant de l'appeler, comme on nourrit longtemps un bossu.
-const chanceLien = b => automate(b.sp) || coursier(b.sp) ? 0 : Math.min(1, b.sp.lien + (1 - Math.max(0, b.pv)) * .8 + (b.conf || 0) * .5);
+const chanceLien = b => automate(b.sp) || coursier(b.sp) || b.sp.horreur ? 0 : Math.min(1, b.sp.lien + (1 - Math.max(0, b.pv)) * .8 + (b.conf || 0) * .5);
 // Lier un automate : la nuit, en veille, un éclat dans la poitrine. Éveillé, il ne se laisse
 // pas approcher ; sans éclat, rien ne le rallume ; sans lien libre, il reste à l'île.
 function rallumer(b) {
@@ -11182,6 +11635,7 @@ function rejoindre(b) {
   b.x = q[0]; b.y = q[1]; b.z = sol(q[0], q[1]); b.vx = b.vy = b.vz = 0; initFoeLegs(b);
   b.tache = null; b.loinT = 0; b.rappel = 0;
   if (b.sp.volant || b.sp.dragon) { b.enVol = false; b.etat = 'perché'; b.v = 0; b.pecheLie = false; b.proie = null; }
+  if (b.sp.corps === 'millegueule') b.seg = null;          // il repart de dessous, près de vous
   b.gite = giteDe(b);
   burst(b.x, b.y, b.z + .5, 10, '#e8404e');
   return true;
@@ -11204,7 +11658,7 @@ function majCompagnes(dt) {
         continue;
       }
       const dJ = Math.hypot(b.x - P.x, b.y - P.y);
-      if (b.sp.volant || b.sp.dragon) { if (dJ > 45 && c.mode === 'joueur') rejoindre(b); continue; }   // elle vole droit : la laisse ne la tient que de très loin
+      if (b.sp.volant || b.sp.dragon || b.sp.corps === 'millegueule') { if (dJ > 45 && c.mode === 'joueur') rejoindre(b); continue; }   // elle vole droit : la laisse ne la tient que de très loin
       // Autonome, elle va où elle veut : la laisse ne la tient pas, sauf quand on la siffle.
       const libre = c.mode === 'autonome' && b.rappel <= 0;
       const suit = !libre && (b.etat === 'suivre' || b.etat === 'récolter' || b.etat === 'rappel'
@@ -11515,6 +11969,7 @@ function osDeBase(f) {
   if (sp && sp.donjon) return djOs(f);
   if (sp && sp.pnj) return nmOs(f);                   // les Nomades du Seuil (nomades.js)                 // les machines du Centre des automates
   if (sp && sp.boss) return osTisseuse(f);
+  if (sp && sp.horreur) return sp.corps === 'silencieux' ? osSilencieux(f) : osMille(f);
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
   if (doux(sp)) return osDoux(f);
@@ -12935,6 +13390,12 @@ const PRODUITS = [
   ['groseillier', 'Grappe de groseilles', 'groseilles', 'fruit', 1, null, [214, 60, 70]],
   ['ronce', 'Mûres de ronce', 'mûres', 'fruit', 1, 'vif', [110, 46, 104]],
   ['airelle', 'Airelles', 'airelles', 'fruit', 2, 'robuste', [86, 96, 200]],
+  ['cendrelys', 'Pétales de cendrelys', 'cendrelys', 'fleur', 3, 'nuit', [214, 212, 206]],
+  ['oscep', 'Os-cep', 'os-cep', 'champignon', 2, 'robuste', [236, 230, 214]],
+  ['deuil', 'Baies de deuil', 'baies de deuil', 'fruit', 3, 'vif', [60, 40, 76]],
+  ['veinee', 'Mousse-veine', 'mousse-veine', 'feuille', 2, 'souffle', [80, 200, 250]],
+  ['lanterneau', 'Cœur de lanterne', 'cœur de lanterne', 'douceur', 4, 'nuit', [120, 230, 255]],
+  ['racinoir', 'Racine creuse', 'racine creuse', 'racine', 2, 'robuste', [60, 56, 80]],
   ['murier', 'Mûres de sylve', 'mûres de sylve', 'fruit', 3, 'nuit', [150, 236, 214]],
   ['geant', 'Lamelles de champignon géant', 'champignon géant', 'champignon', 2, null, [220, 196, 170]],
   ['vesse', 'Vesse-de-loup', 'vesse-de-loup', 'champignon', 1, null, [230, 224, 210]],
@@ -14782,6 +15243,7 @@ function actionContexte() {
     const nom = pr.comp ? pr.comp.nom : pr.sp.n.toLowerCase();
     if (automate(pr.sp)) { if (!pr.tame && pr.etat === 'veille') return { v: 'RALLUMER', o: nom, f: nourrirQ }; }
     else if (pr.sp.volant && !pr.tame && !poissonADonner()) { /* la sterne : rien qu'un poisson */ }
+    else if (pr.sp.horreur && !pr.tame) { const id = pr.sp.corps === 'silencieux' ? 'p_oscep' : 'p_lanterneau'; if (INGR[id] && sacIngr(id) > 0) return { v: 'OFFRIR', o: nom, f: nourrirQ }; }
     else if (pr.sp.dragon) { if (!pr.enVol && INGR_GARDE().some(id => INGR[id].fam === 'viande' && sacIngr(id) > 0)) return { v: 'NOURRIR', o: nom, f: nourrirQ }; }
     else if (dispo('baies') > 0 && (!pr.tame || pr.faim >= .15)) return { v: 'NOURRIR', o: nom, f: nourrirQ };
   }
@@ -14814,9 +15276,11 @@ function cibleContact(port) {
   let pr = null, dp = 1e9;
   // Une compagne marche dans vos pas : la plus proche, c'était souvent elle qu'on frappait.
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
-    const d = b.sp.boss ? Math.min(Math.max(0, Math.hypot(b.x - P.x, b.y - P.y) - 1.5), ...(b.pieds || []).map(q => Math.hypot(q.x - P.x, q.y - P.y) - .15))   // son ventre, ses pattes
+    if (b.sp.corps === 'millegueule' && !b.dehors) continue;          // sous terre : hors d'atteinte
+    const d = b.sp.corps === 'millegueule' ? Math.min(...b.seg.filter(q => q[2] > sol(q[0], q[1]) - .2).map(q => Math.hypot(q[0] - P.x, q[1] - P.y) - .3))
+      : b.sp.boss ? Math.min(Math.max(0, Math.hypot(b.x - P.x, b.y - P.y) - 1.5), ...(b.pieds || []).map(q => Math.hypot(q.x - P.x, q.y - P.y) - .15))   // son ventre, ses pattes
       : Math.hypot(b.x - P.x, b.y - P.y);
-    if (Math.abs(b.z - P.z) < 2 && d < dp) { dp = d; pr = b; }
+    if (Math.abs(b.z - P.z) < (b.sp.corps === 'millegueule' ? 4 : 2) && d < dp) { dp = d; pr = b; }
   }
   const cl = cibleLoin(P.x, P.y, P.z, Math.min(dp, port));
   if (cl) { const o = cl.b || cl.j; return { cl, x: o.x, y: o.y }; }
@@ -15108,6 +15572,7 @@ function majCible() {
       info = `${nomEspeceDe(o).toLowerCase()} · ${nomRole(o.comp.role)} · ${nomMode(o.comp.mode)} · ${DITS_ETAT[o.etat] || o.etat}`; }
     else if (coursier(o.sp) && !o.tame) { nom = nomEspeceDe(o);
       info = o === P.monture && Rodeo ? `rodéo · fougue ${Math.round(Rodeo.fougue * 100)} % · tenez ACTION` : `${DITS_ETAT[o.etat] || o.etat} · souffle ${Math.round((o.endu ?? 1) * 100)} % · se monte au contact`; }
+    else if (o.sp.horreur) { nom = o.sp.n; cl = 'meca'; info = (DITS_ETAT[o.etat] || o.etat) + (o.conf > 0 && !o.tame ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : '') + (o.sp.corps === 'silencieux' ? ' · il n\'entend que le bruit' : o.dehors ? ' · dehors : frappez !' : ' · sous la terre, hors d\'atteinte'); }
     else if (o.sp.boss) { nom = o.sp.n; cl = 'meca';
       info = o.etat === 'sommeil' ? 'endormie près de l\'arche' : 'phase ' + o.phase + ' / 3' + (o.phase === 3 ? ' · en rage' : '') + (o.act ? ' · ' + ({ viser: 'elle vous vise', mortier: 'salve de mortier', toile: 'elle tisse', cabrer: 'elle se cabre' })[o.act.k] : ''); }
     else if (automate(o.sp)) { nom = nomEspeceDe(o); cl = 'meca';
@@ -16257,7 +16722,7 @@ void main() { o = uC; }`;
     if (iso || tierce) heros(TD);
     for (const b of beasts) {
       if ((b.x - ex) ** 2 + (b.y - ey) ** 2 >= r2) continue;
-      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.dragon ? 4.5 : 1.3 * kz + .3;
+      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.corps === 'millegueule' ? 9 : b.sp.dragon ? 4.5 : b.sp.horreur ? 2 : 1.3 * kz + .3;
       if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + (b.sp.boss ? 7 : 1.8 * kz + .4), .05)) continue;
       const { U, put } = posBete(b);
       if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol

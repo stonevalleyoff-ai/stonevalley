@@ -800,3 +800,48 @@ Plus grand qu'un coursier : quatre pattes, un long cou en S de cinq anneaux, une
 Testé en simulation, sans erreur : 90 s affamé (perché, décollage, chasse : se cabrer, cracher, virer… 18 boules de feu) ; frappé, il vous chasse (cracher, virer, revenir) et vous fait brûler ; apprivoisé à la viande ; lié, il se pose et dort près de vous la nuit.
 
 Pour régler : section LE DRAGON À PLUMES d'`index.html` (`DRAG`, `majDragon`, `attaqueDragon`, `cracheFeu`, `osDragon`, `MORPHES_DRAGON`).
+
+
+## 45. Les terres de l'effroi : deux biomes, deux bêtes qu'on fuit
+
+Deux nouveaux biomes rares, tirés **à part** des cinq premiers (les îles d'avant ne bougent pas ; `N_RARES_BASE`), avec leur flore, leurs ingrédients, et une bête qu'on ne combat pas sans y laisser des plumes.
+
+| Biome | Exploration | Le sol | Sa flore → ses ingrédients |
+|---|---|---|---|
+| **Ossuaire** | 9 | os pâle, brouillard blanc qui traîne | Arbre-côtes (bois) · Lys de cendre → Pétales de cendrelys (3, vision de nuit) · Os-cep → Os-cep (2, peau dure) · Ronce de deuil (baies) → Baies de deuil (3, pas vif) |
+| **Terres creuses** | 11 | mousse noire veinée de bleu, spores bleues qui montent, **îlots de roche** | Mousse veinée → Mousse-veine (2, grand souffle ; elle luit) · Lanterne des fosses (éclats) → Cœur de lanterne (4, vision de nuit) · Racine noire → Racine creuse (2, peau dure) |
+
+### Le Silencieux (Ossuaire)
+
+Grand (2,7), maigre, gris pâle comme son sol, des lambeaux qui pendent, une tête longue et lisse **sans yeux**, des côtes saillantes, des bras qui lui tombent aux genoux, trois griffes. Il boite d'une jambe ; par moments sa tête se tord d'un coup.
+
+- **Il n'entend que le bruit** : **courir** s'entend à 26 cases, **marcher** à 9, frapper ou tirer de près aussi ; **immobile, vous n'existez pas.** Il entend aussi les bêtes qui courent, et les chasse.
+- **Ses états** : il rôde (quelques pas, de longs arrêts, des **claquements de langue**) ; un bruit faible : il **écoute**, figé, la tête inclinée, puis s'approche ; un bruit franc ou proche : il se dresse et **hurle** (0,65 s), puis **fonce** à 7,2 cases/s — plus vite que vous ne courez — **sur l'endroit du bruit** ; arrivé, il **fouille** à tâtons, renifle, puis repart.
+- **Qu'il vous touche**, bruit ou pas : il vous **saisit** et vous fracasse au sol. La première fois, il vous laisse **à peine debout** ; la seconde tue.
+- **Pour vivre** : vous figer quand il est près ; vous éloigner en marchant tant qu'il est loin ; ne pas vous trouver là où il arrive. Il guérit vite (6 s sans coup) ; un coup reçu lui crie où vous êtes. Robustesse 5.
+
+### Le Mille-gueules (Terres creuses)
+
+Un mille-pattes géant de quinze anneaux, chitine prune et plaques, des points bleus qui luisent en deux rangées, une paire de pattes par anneau qui ondule, des antennes, et **quatre mâchoires qui s'ouvrent comme une fleur** sur un gosier rouge.
+
+- **Il nage sous la terre meuble** et sent tout ce qui marche dessus, à 30 cases : une **traînée de terre** file vers vous, le sol **tremble**, un **grondement**.
+- **Arrivé dessous** : la terre **se fend** (anneau de terre et d'étincelles bleues, une seconde, la secousse qui monte) — **fuyez** —, puis il **jaillit** très haut (si vous êtes dessus : un coup, et vous voilà en l'air), **se dresse** en oscillant, mâchoires ouvertes, **s'abat** sur vous, et **replonge** tête la première, le corps suivant dans le trou. Trois secondes, et il recommence.
+- **On ne le blesse que dehors** (de l'arc, ou de près quand il se dresse) ; sous terre, il est hors d'atteinte. Blessé (moins de 30 %), il s'enfuit sous terre et se refait. Robustesse 6.
+- **La roche est le seul refuge** : il ne la traverse pas, ni l'eau, ni les dalles. Sur un îlot, il tourne autour, sous la terre, et ne frappe qu'au bord (à moins de 4 cases) ; au bout de quinze secondes, il renonce. Il chasse aussi les bêtes qui s'aventurent sur sa terre.
+
+### Les apprivoiser — difficilement (`offrandeHorreur`)
+
+Ni le lien par l'appel, ni les baies : **une offrande de son sol, au bon moment**. Le bouton d'action devient **OFFRIR** quand vous portez la bonne.
+
+| Bête | L'offrande | Le moment | Combien |
+|---|---|---|---|
+| Silencieux | un **Os-cep** (de l'ossuaire) | tendu **sans le moindre bruit** (immobile, ni arme ni arc), à moins de trois cases mais hors de portée de ses bras, quand il ne charge pas | une **dizaine** ; tant qu'il n'est pas à moitié apprivoisé, le geste l'**effraie une fois sur deux** : il hurle et fonce |
+| Mille-gueules | un **Cœur de lanterne** (rare, des lanternes des fosses) | quand il est **dehors, dressé** — donc juste après avoir survécu à son jaillissement | **sept ou huit** ; il prend l'offrande et replonge sans frapper |
+
+- **À moitié apprivoisé** : le Silencieux connaît votre pas (il ne fonce plus sur vous, ne vous saisit plus) ; le Mille-gueules ne vous chasse plus. Un moment après chaque offrande, ils restent calmes.
+- **Liés** : le **Silencieux** vous suit à quelques pas, de sa démarche boiteuse, s'arrête pour écouter ; en défense (5), il **hurle, fonce et saisit** la menace. Le **Mille-gueules** **nage sous vos pas** sur la terre meuble (il attend au bord de la roche) ; en défense (5), il **jaillit sous la menace**, se dresse, frappe et replonge. Ni l'un ni l'autre ne vous touche plus, ni vos compagnes.
+- Testé : Silencieux lié en 11 offrandes (dont une où il a pris peur), Mille-gueules en 8 ; liés, ils vous suivent sans vous blesser.
+
+Testé (graine 166 : ossuaire ; graine 109 : terres creuses) : la flore et la bête sont là ; le Silencieux hurle et fonce sur qui court, fouille puis repart quand on se fige, et saisit à portée de bras ; le Mille-gueules arrive dessous, fend, jaillit, se dresse, frappe et replonge. Repères pour l'onglet Bêta : graine 166, graine 109, niveau 12.
+
+Pour régler : section LES TERRES DE L'EFFROI d'`index.html` (`bruitJoueur`, `majSilencieux`, `osSilencieux`, `majMille`, `osMille`).
