@@ -8583,12 +8583,19 @@ function dessinDragon(d, sp) {                            // le pictogramme : ai
 // ============================================================
 // les points du corps qui touchent le sol en premier : [avant, côté, profondeur sous le centre]
 const CORPS_TISS = [[1.35, 0, .45], [.6, .55, .42], [.6, -.55, .42], [0, 0, .5], [-.9, .75, .55], [-.9, -.75, .55], [-1.2, 0, .5], [-1.95, 0, .35], [-1.6, .5, .45], [-1.6, -.5, .45]];
+const dSegment = (p, a, b) => { const dx = b[0] - a[0], dy = b[1] - a[1], dz = b[2] - a[2], l2 = dx * dx + dy * dy + dz * dz || 1e-6; const k = Math.max(0, Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy + (p[2] - a[2]) * dz) / l2)); return Math.hypot(p[0] - a[0] - dx * k, p[1] - a[1] - dy * k, p[2] - a[2] - dz * k); };
+// Chaque patte, dans le monde : [pied, genou (approché, haut), hanche] — pour la toucher
+function pattesTiss(b) {
+  if (!b.pieds) return [];
+  const c = Math.cos(b.dir), s = Math.sin(b.dir), zc = b.zc || b.z;
+  return b.pieds.map(p => { const H = [b.x + p.L.hx * c - p.L.s * .42 * s, b.y + p.L.hx * s + p.L.s * .42 * c, zc + .02]; const A = [p.x, p.y, p.z], K = [(A[0] + H[0]) / 2 + (A[0] - H[0]) * .15, (A[1] + H[1]) / 2 + (A[1] - H[1]) * .15, Math.max(A[2], H[2]) + 1.3]; return [A, K, H]; });
+}
 const TISSEUSE = { haut: 2.75, bas: .5, reach: 5, pas: 1.15, vit: 2.1, vitRage: 2.9 };
 const TOILES = [];
 let PortailCache = null;
 const ileBoss = () => profondeur() >= 10 && profondeur() % 5 === 0 && !djIci() && !(P.bossVaincus || []).includes(SEED);
 const PATTES_TISS = [0, 1, 2, 3].flatMap(k => [1, -1].map(s => ({ s, k, hx: [.95, .55, .12, -.3][k],
-  rx: [2.5, 1.0, -.5, -2.1][k], ry: [2.1, 2.7, 2.7, 2.2][k], g: (k + (s > 0 ? 0 : 1)) % 2 })));   // g : le quatuor (A ou B)
+  rx: [2.3, .9, -.5, -2.0][k], ry: [2.0, 2.45, 2.45, 2.05][k], g: (k + (s > 0 ? 0 : 1)) % 2 })));   // g : le quatuor (A ou B)
 // L'antre : un replat à 7–12 cases de l'arche ; l'arche, elle, se cache jusqu'à sa mort.
 function poserTisseuse() {
   TOILES.length = 0; PortailCache = null;
@@ -8647,7 +8654,7 @@ function marcheTiss(b, vx, vy, dt, haut, lev = 0) {
   for (const p of b.pieds) {
     const L = p.L, w = mondeTiss(b, L.rx * k0 + fx * lead, L.s * L.ry * k0 + fy * lead);
     // un pied ne se pose qu'à portée de jambe : à 3 cubes sous le corps au plus, 2 au-dessus ; sinon tout près
-    const zr = b.zc - TISSEUSE.haut * Math.max(.3, haut), bon = (x, y) => { const h = hAt(x | 0, y | 0); return h > zr - 3 && h < zr + 2; };
+    const zr = b.zc - TISSEUSE.haut * Math.max(.3, haut), bon = (x, y) => { const h = hAt(x | 0, y | 0); return h > zr - 2.2 && h < zr + 2; };
     if (!bon(w[0], w[1])) {
       let ok = null;
       for (let r = .5; r <= 1.9 && !ok; r += .45) for (let j = 0; j < 8 && !ok; j++) { const x = w[0] + Math.cos(j * .785) * r, y = w[1] + Math.sin(j * .785) * r; if (bon(x, y)) ok = [x, y]; }
@@ -8658,7 +8665,7 @@ function marcheTiss(b, vx, vy, dt, haut, lev = 0) {
   }
   const enVol = b.pieds.some(p => p.sw > 0);
   if (!enVol) b.quatuor = retard[0] >= retard[1] ? 0 : 1;
-  const seuil = v > .2 ? TISSEUSE.pas * .45 : TISSEUSE.pas;
+  const seuil = v > .2 ? TISSEUSE.pas * (.35 + .25 * Math.min(1, v / 2.5)) : TISSEUSE.pas * .6;   // l'enjambée grandit avec l'allure ; à l'arrêt, elle se replace vite
   for (const p of b.pieds) {
     const L = p.L;
     if (L.k === 0 && lev > 0) {                         // la patte avant levée, prête à frapper
@@ -8669,11 +8676,11 @@ function marcheTiss(b, vx, vy, dt, haut, lev = 0) {
     if (p.leve) { p.leve = false; p.sw = 1e-3; p.from = [p.x, p.y, p.z]; p.dur = .16; }   // elle la rabat : le coup
     if (p.sw > 0) {
       p.sw += dt / p.dur;
-      const k = Math.min(1, p.sw), f = p.from, lift = .55 + Math.max(0, p.tz - f[2]) * .6 + v * .08;
-      p.x = f[0] + (p.tx - f[0]) * k; p.y = f[1] + (p.ty - f[1]) * k; p.z = f[2] + (p.tz - f[2]) * k + Math.sin(k * Math.PI) * lift;
+      const k = Math.min(1, p.sw), e = k < .5 ? 2 * k * k : 1 - 2 * (1 - k) * (1 - k), f = p.from, lift = .5 + Math.max(0, p.tz - f[2]) * .6 + v * .1;   // le pied part et se pose en douceur
+      p.x = f[0] + (p.tx - f[0]) * e; p.y = f[1] + (p.ty - f[1]) * e; p.z = f[2] + (p.tz - f[2]) * e + Math.sin(k * Math.PI) * lift;
       if (k >= 1) { p.sw = 0; p.x = p.tx; p.y = p.ty; p.z = p.tz; atterrirPied(b, p); }
-    } else if ((!enVol && L.g === b.quatuor && p.d > seuil) || p.d > TISSEUSE.pas * 2.4) {
-      p.sw = 1e-3; p.from = [p.x, p.y, p.z]; p.dur = Math.max(.2, .42 - v * .05) * (1 + Math.random() * .12);
+    } else if ((!enVol && L.g === b.quatuor && p.d > seuil) || p.d > TISSEUSE.pas * 1.1) {
+      p.sw = 1e-3; p.from = [p.x, p.y, p.z]; p.dur = Math.max(.18, .4 - v * .06) * (1 + Math.random() * .1);
     }
   }
   // le corps : il épouse le relief qu'il couvre (tête, thorax, abdomen, flancs) autant que ses
@@ -8683,8 +8690,9 @@ function marcheTiss(b, vx, vy, dt, haut, lev = 0) {
   const hm = (f) => Math.max(...S.filter(f).map(q => q[3]));
   const hF = hm(q => q[0] > .5), hR = hm(q => q[0] < -.9), hL = hm(q => q[1] > .4), hD = hm(q => q[1] < -.4);
   const av = (P8[0].z + P8[1].z) / 2, ar = (P8[6].z + P8[7].z) / 2, ga = (P8[0].z + P8[2].z + P8[4].z + P8[6].z) / 4, dr = (P8[1].z + P8[3].z + P8[5].z + P8[7].z) / 4;
-  const tg = Math.max(-.45, Math.min(.45, .65 * Math.atan2(hF - hR, 3.1) + .35 * Math.atan2(av - ar, 4.6))) - lev * .35;
-  const rl = Math.max(-.38, Math.min(.38, .65 * Math.atan2(hL - hD, 1.9) + .35 * Math.atan2(ga - dr, 4.8)));
+  const fx2 = (vx * Math.cos(b.dir) + vy * Math.sin(b.dir)) / 3, fy2 = (-vx * Math.sin(b.dir) + vy * Math.cos(b.dir)) / 3;   // elle penche dans son mouvement
+  const tg = Math.max(-.45, Math.min(.45, .65 * Math.atan2(hF - hR, 3.1) + .35 * Math.atan2(av - ar, 4.6) - fx2 * .08)) - lev * .35;
+  const rl = Math.max(-.38, Math.min(.38, .65 * Math.atan2(hL - hD, 1.9) + .35 * Math.atan2(ga - dr, 4.8) + fy2 * .07));
   b.tg = (b.tg || 0) + (tg - (b.tg || 0)) * Math.min(1, dt * 3.5); b.rl = (b.rl || 0) + (rl - (b.rl || 0)) * Math.min(1, dt * 3.5);
   const plancher = (g, r) => Math.max(...S.map(([lx, ly, dessous, h]) => h + .18 + dessous - lx * Math.sin(g) - ly * Math.sin(r)));
   const zc = Math.max(moy + TISSEUSE.bas + (TISSEUSE.haut - TISSEUSE.bas) * haut, plancher(tg, rl) + (haut - 1) * .5) - (enVol ? .05 : 0) + Math.sin(b.t * 2.2) * .03 * haut;
@@ -9327,7 +9335,7 @@ function toucheBete(b, x, y, z) {
   if (b.sp.corps === 'silencieux') return (b.x - x) ** 2 + (b.y - y) ** 2 < .3 && z > b.z && z < b.z + 2.7;
   if (b.sp.corps === 'millegueule') return !!b.seg && b.seg.some(q => q[2] > sol(q[0], q[1]) - .2 && (q[0] - x) ** 2 + (q[1] - y) ** 2 < .36 && Math.abs(z - q[2]) < .5);
   if (b.sp.dragon) { const c = ptDragon(b, 0, 0, b.enVol ? .1 : 1); return (c[0] - x) ** 2 + (c[1] - y) ** 2 < 1.3 && Math.abs(z - c[2]) < .75; }
-  if (b.sp.boss) { const cx = b.x - Math.cos(b.dir) * .35, cy = b.y - Math.sin(b.dir) * .35; return (cx - x) ** 2 + (cy - y) ** 2 < 3.6 && z > (b.zc || b.z) - .7 && z < (b.zc || b.z) + 1.1; }
+  if (b.sp.boss) { const cx = b.x - Math.cos(b.dir) * .35, cy = b.y - Math.sin(b.dir) * .35; if ((cx - x) ** 2 + (cy - y) ** 2 < 3.6 && z > (b.zc || b.z) - .7 && z < (b.zc || b.z) + 1.1) return true; return pattesTiss(b).some(([A, K, H]) => dSegment([x, y, z], A, K) < .32 || dSegment([x, y, z], K, H) < .3); }   // le corps, puis les pattes
   const k = b.sp.sz, r = .34 + k * .30;
   if (!b.mur && !b.tang) return (b.x - x) ** 2 + (b.y - y) ** 2 < r * r && z > b.z - .15 && z < b.z + k * .95;
   const c = centreBete(b);
@@ -15407,7 +15415,7 @@ function cibleContact(port) {
     if (b.sp.corps === 'millegueule' && !b.dehors) continue;          // sous terre : hors d'atteinte
     if (b.sp.batiment || b.cache) continue;
     const d = b.sp.corps === 'millegueule' ? Math.min(...b.seg.filter(q => q[2] > sol(q[0], q[1]) - .2).map(q => Math.hypot(q[0] - P.x, q[1] - P.y) - .3))
-      : b.sp.boss ? Math.min(Math.max(0, Math.hypot(b.x - P.x, b.y - P.y) - 1.5), ...(b.pieds || []).map(q => Math.hypot(q.x - P.x, q.y - P.y) - .15))   // son ventre, ses pattes
+      : b.sp.boss ? Math.min(...pattesTiss(b).map(([A, K]) => dSegment([P.x, P.y, P.z + .9], A, [A[0] + (K[0] - A[0]) * .5, A[1] + (K[1] - A[1]) * .5, A[2] + (K[2] - A[2]) * .5]) - .35))   // ses pattes, du pied au genou
       : Math.hypot(b.x - P.x, b.y - P.y);
     if (Math.abs(b.z - P.z) < (b.sp.corps === 'millegueule' ? 4 : 2) && d < dp) { dp = d; pr = b; }
   }
