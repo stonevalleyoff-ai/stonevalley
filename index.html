@@ -467,6 +467,7 @@
 <script src="donjon.js"></script>
 <script src="nomades.js"></script>
 <script src="etats.js"></script>
+<script src="village.js"></script>
 <script>
 'use strict';
 // Le jeu partage sa portée avec donjon.js, chargé juste avant : plus d'enveloppe (() => {…})().
@@ -1219,6 +1220,7 @@ const BIOME = [
   { n: 'ossuaire',            top: [204, 196, 178], side: [150, 140, 124],  food: .08 },
   { n: 'terres creuses',      top: [40, 42, 58],    side: [28, 28, 40],     food: .15 },
   { n: 'roche rongée',        top: [36, 34, 42],    side: [24, 22, 30],     food: 0 },     // le Korlaz (etats.js)
+  { n: 'village',             top: [128, 150, 82],  side: [104, 80, 56],    food: .5 },    // le village (village.js)
 ];
 // ============================================================
 //  LES BIOMES RARES
@@ -1252,6 +1254,9 @@ const RARES = [
   { b: 20, id: 'creux', n: 'Terres creuses', rang: 'effroi', niv: 11, chance: .08, part: .18,
     sur: [2, 3, 4], alt: [0, .65], eau: [1, 255], coul: '#5ad0ff',
     d: 'le sol tremble · seule la roche abrite de ce qui nage dessous' },
+  { b: 22, id: 'village', n: 'Village', rang: 'vie', niv: 4, chance: .14, part: .07,
+    sur: [2, 3], alt: [.05, .55], eau: [1, 255], coul: '#ffd27d',
+    d: 'des toits, un puits, un feu · des familles qui vivent, et qui parlent' },
 ];
 const N_RARES_BASE = 5;
 const famille = b => b === 14 ? 13 : b;               // les braises sont de la caldeira
@@ -5937,11 +5942,11 @@ const SPEC = [
     shell:[196,140,86], dark:[142,96,52], leg:[112,76,44], oeil:[250,220,140], bio:[3,2,4],
     lien:.8, travail:{ baies:1, fibre:.6 }, metier:'cueille les baies, et un peu de fibre', grimpe:.85 },
   { id:'traqueur', n:'Traqueur', diet:'c', sz:1.0, spd:3.1, vue:24, peur:.2, herd:1, cap:20, mat:100,
-    shell:[178,94,106], dark:[116,56,70], leg:[88,60,70], oeil:[255,228,150], bio:[2,3,4], chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','vesseron'],
+    shell:[178,94,106], dark:[116,56,70], leg:[88,60,70], oeil:[255,228,150], bio:[2,3,4], chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','vesseron','villageois'],
     lien:.35, travail:{ os:1 }, metier:'chasse quand elle a faim, et rapporte les os', grimpe:.70 },
   { id:'spectre',  n:'Spectre',  diet:'c', sz:1.25,spd:3.4, vue:28, peur:0,  herd:0, cap:9,  mat:150,
     shell:[92,80,120], dark:[52,44,72], leg:[46,40,62], oeil:[180,240,255], bio:[3,5,4], nuit:1, dur:1.6,
-    chasse:['brouteur','glaneur','bosseu','traqueur','coursier','coursier_o','cotonnier','carillonneur','lentigrade','bramard'],
+    chasse:['brouteur','glaneur','bosseu','traqueur','coursier','coursier_o','cotonnier','carillonneur','lentigrade','bramard','villageois'],
     lien:.12, travail:{ os:1 }, metier:'chasse quand elle a faim, et rapporte les os', grimpe:.85 },
   // --- la famille des Automates : des humanoïdes de métal qui vivent du soleil ---
   // Ils ne mangent ni ne boivent : leur charge monte au jour et les fait tenir ; la nuit, ils
@@ -5994,7 +5999,7 @@ const SPEC = [
     shell:[104,118,70], dark:[70,82,46], leg:[92,104,60], oeil:[232,196,70], bio:[9], riposte:.3, lueur:1.2, anneau:.7,
     lien:.75, travail:{ fibre:1.2 }, metier:'fauche les massettes et la sphaigne', grimpe:0, bond:2 },
   { id:'varan',      n:'Varan d\'ocre',        fam:'tellurien', corps:'saurien',  biome:10, diet:'o', sz:1.35, spd:3.0, vue:18, peur:.25, herd:0, cap:6, mat:110,
-    shell:[196,122,70], dark:[120,68,40], leg:[170,104,60], oeil:[250,210,90], bio:[10], chasse:['glaneur','brouteur','crapaud','cotonnier'], dur:1.3, lueur:1.2, anneau:.6,
+    shell:[196,122,70], dark:[120,68,40], leg:[170,104,60], oeil:[250,210,90], bio:[10], chasse:['glaneur','brouteur','crapaud','cotonnier','villageois'], dur:1.3, lueur:1.2, anneau:.6,
     lien:.3, travail:{ os:1 }, metier:'chasse au soleil, et rapporte les os', grimpe:.8 },
   { id:'vesseron',   n:'Vesseron',             fam:'tellurien', corps:'myconide', biome:11, diet:'h', sz:1.2, spd:1.6, vue:11, peur:.6, herd:1, cap:14, mat:90,
     shell:[152,74,172], dark:[96,48,110], leg:[226,214,198], oeil:[40,26,50], bio:[11], lueur:1.5, anneau:1,
@@ -6004,7 +6009,7 @@ const SPEC = [
     lien:.2, travail:{ eclat:.6, fibre:.6 }, metier:'détache les éclats des druses', grimpe:0, bond:2 },
   { id:'salamandre', n:'Salamandre de braise', fam:'tellurien', corps:'saurien',  biome:13, diet:'o', sz:1.25, spd:2.8, vue:16, peur:.1, herd:0, cap:4, mat:140,
     shell:[58,44,46], dark:[255,122,44], leg:[70,52,52], oeil:[255,220,120], bio:[13,14], nuit:1, dur:1.6, brule:1, lueur:2.4, anneau:.6,
-    chasse:['coursier_r','traqueur','glaneur','brouteur','varan','cotonnier','carillonneur','oglodon'],
+    chasse:['coursier_r','traqueur','glaneur','brouteur','varan','cotonnier','carillonneur','oglodon','villageois'],
     lien:.15, travail:{ os:1 }, metier:'chasse la nuit, et rapporte les os', grimpe:.6 },
   // --- les automates d'élite : au-delà du dixième saut, hors du tirage du bestiaire ---
   // Le tireur d'élite met en joue de très loin : un rayon rouge le trahit, puis le coup part,
@@ -6051,7 +6056,7 @@ const DOUX_ESPECES = [
 const FELINS = [
   { id:'felin', n:'Félin de brume', corps:'felin', diet:'c', sz:1.05, spd:3.7, vue:22, peur:.15, herd:1, meute:1, camo:1, cap:4, mat:120,
     shell:[164,174,188], dark:[88,96,114], leg:[142,152,168], ventre:[208,214,222], oeil:[178,236,255], bio:[2,3,4],
-    chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','lentigrade','crapaud','cerf','vesseron'],
+    chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','lentigrade','crapaud','cerf','vesseron','villageois'],
     lien:.2, travail:{ os:1 }, metier:'chasse à l\'affût, et rapporte les os', grimpe:.5 },
 ];
 // ============================================================
@@ -6080,7 +6085,7 @@ const VOLANTS = [
   // le dragon à plumes (voir LE DRAGON À PLUMES) : plus grand qu'un coursier, il niche au plus haut de l'île
   { id:'dragon', n:'Dragon à plumes', corps:'dragon', dragon:1, diet:'c', sz:1, spd:1.4, vue:30, peur:0, herd:0, cap:1, mat:600,
     shell:[46,120,98], dark:[34,92,84], leg:[46,120,98], oeil:[255,196,60], bio:[4, 5, 6], dur:2.6, brule:1, lien:.15, travail:{},
-    chasse:['brouteur','glaneur','bosseu','cotonnier','carillonneur','coursier','lentigrade','cerf','crapaud'],
+    chasse:['brouteur','glaneur','bosseu','cotonnier','carillonneur','coursier','lentigrade','cerf','crapaud','villageois'],
     volK:{ om: .62, freq: .32, marge: 1.6 }, metier:'chasse du ciel, à coups de feu', grimpe:0 },
 ];
 SPEC.push(...djEspeces(), ...DOUX_ESPECES, ...FELINS, ...BRAMARDS, ...nmEspeces());   // et les Nomades du Seuil (nomades.js)   // les machines du Centre des automates (donjon.js), les Doux, puis le félin
@@ -6096,7 +6101,7 @@ const HORREURS = [
   { id:'millegueule', n:'Mille-gueules', corps:'millegueule', horreur:1, terre:20, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
     shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
 ];
-SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []));   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
+SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []));   // et le village (village.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -6389,6 +6394,7 @@ function majBiome(dt) {
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
   majToiles(dt); majFeux(dt);
   if (typeof majEtats === 'function') majEtats(dt);   // l'état de l'île, l'infection, les visions (etats.js)
+  if (typeof majVillage === 'function') majVillage(dt);   // le feu, les cheminées, la parole (village.js)
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
     P.pv = Math.max(.05, P.pv - dt * .014);
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
@@ -6535,6 +6541,7 @@ function loadWorld() {
   peuplerDoux();                                     // des mères et leurs petits
   poserTisseuse();                                   // aux îles 10, 15, 20… : la Tisseuse, et l'arche cachée
   if (typeof etatsIle === 'function') etatsIle();     // l'état de l'île : le Korlaz… (etats.js)
+  if (typeof villageIle === 'function') villageIle();   // le village, s'il y en a un (village.js)
   // Buissons à baies, dans les herbages. Leur place vient de la graine et non du hasard : deux
   // joueurs sur la même île voient les mêmes buissons, aux mêmes cases, et se les disputent.
   let gb = (SEED ^ 0xba1e5) >>> 0;
@@ -9316,6 +9323,7 @@ function centreBete(b) {
   return [b.x + U[0] * h, b.y + U[1] * h, b.z + U[2] * h];
 }
 function toucheBete(b, x, y, z) {
+  if (b.sp.batiment || b.cache) return false;
   if (b.sp.corps === 'silencieux') return (b.x - x) ** 2 + (b.y - y) ** 2 < .3 && z > b.z && z < b.z + 2.7;
   if (b.sp.corps === 'millegueule') return !!b.seg && b.seg.some(q => q[2] > sol(q[0], q[1]) - .2 && (q[0] - x) ** 2 + (q[1] - y) ** 2 < .36 && Math.abs(z - q[2]) < .5);
   if (b.sp.dragon) { const c = ptDragon(b, 0, 0, b.enVol ? .1 : 1); return (c[0] - x) ** 2 + (c[1] - y) ** 2 < 1.3 && Math.abs(z - c[2]) < .75; }
@@ -9758,9 +9766,9 @@ function escHud() {
 // ============================================================
 const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
-const rayonCorps = b => .38 * b.sp.sz * (b.ech || 1);
+const rayonCorps = b => b.sp.batiment ? (b.forme === 'puits' ? .85 : b.forme === 'foyer' ? .7 : b.forme === 'longue' ? 1.7 : 1.45) : .38 * b.sp.sz * (b.ech || 1);
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
-const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !b.cache && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
   corpsGrille.clear();
@@ -10859,7 +10867,8 @@ function majBete(b, dt) {
   const sp = b.sp;
   if (sp.boss) return majTisseuse(b, dt);
   if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi
-  if (sp.illusion) return majIllusion(b, dt);          // une vision du Korlaz (etats.js)              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
+  if (sp.illusion) return majIllusion(b, dt);          // une vision du Korlaz (etats.js)
+  if (sp.villageois || sp.batiment) return majVillageois(b, dt);   // le village (village.js)              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
   if (sp.dragon) return majDragon(b, dt);               // le dragon à plumes (voir LE DRAGON À PLUMES)
@@ -11521,7 +11530,7 @@ function prendreProie(b, rayon) {
   if (c && !c.dead && c.pv > 0 && !c.tame && (c.x - ox) ** 2 + (c.y - oy) ** 2 < (rayon + 6) ** 2) return c;
   let best = null, bd = b.sp.vue * b.sp.vue; const L = proiesDe(b.sp);
   for (const o of beasts) {
-    if (o.dead || o.pv <= 0 || o.tame || o.sp.pnj || o.gardeCamp || o.sp.illusion || (L && !L.includes(o.sp.id))) continue;
+    if (o.dead || o.pv <= 0 || o.tame || o.sp.pnj || o.gardeCamp || o.sp.illusion || o.sp.batiment || o.cache || (L ? !L.includes(o.sp.id) : o.sp.villageois)) continue;
     if ((o.x - ox) ** 2 + (o.y - oy) ** 2 > rayon * rayon) continue;
     const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
     if (d < bd) { bd = d; best = o; }
@@ -12073,6 +12082,8 @@ function osDeBase(f) {
   if (sp && sp.boss) return osTisseuse(f);
   if (sp && sp.horreur) return sp.corps === 'silencieux' ? osSilencieux(f) : osMille(f);
   if (sp && sp.illusion) return osIllusion(f);
+  if (sp && sp.villageois) return osVillageois(f);
+  if (sp && sp.batiment) return osMaison(f);
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
   if (doux(sp)) return osDoux(f);
@@ -15341,12 +15352,13 @@ function actionContexte() {
   if (auCamp()) return { v: 'CAMPEMENT', o: 'feu · coffre · portail', f: () => ouvrirSac(true, 'camp') };
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && Math.abs(b.z - P.z) < 2) {
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && !b.sp.batiment && !b.cache && Math.abs(b.z - P.z) < 2) {
     const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
     if (d < dp) { dp = d; pr = b; }
   }
   if (pr) {
     const nom = pr.comp ? pr.comp.nom : pr.sp.n.toLowerCase();
+    if (pr.sp.villageois) return { v: 'PARLER', o: pr.nm ? pr.nm.nom : nom, f: () => vlParler(pr) };
     if (automate(pr.sp)) { if (!pr.tame && pr.etat === 'veille') return { v: 'RALLUMER', o: nom, f: nourrirQ }; }
     else if (pr.sp.volant && !pr.tame && !poissonADonner()) { /* la sterne : rien qu'un poisson */ }
     else if (pr.sp.horreur && !pr.tame) { const id = pr.sp.corps === 'silencieux' ? 'p_oscep' : 'p_lanterneau'; if (INGR[id] && sacIngr(id) > 0) return { v: 'OFFRIR', o: nom, f: nourrirQ }; }
@@ -15383,6 +15395,7 @@ function cibleContact(port) {
   // Une compagne marche dans vos pas : la plus proche, c'était souvent elle qu'on frappait.
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
     if (b.sp.corps === 'millegueule' && !b.dehors) continue;          // sous terre : hors d'atteinte
+    if (b.sp.batiment || b.cache) continue;
     const d = b.sp.corps === 'millegueule' ? Math.min(...b.seg.filter(q => q[2] > sol(q[0], q[1]) - .2).map(q => Math.hypot(q[0] - P.x, q[1] - P.y) - .3))
       : b.sp.boss ? Math.min(Math.max(0, Math.hypot(b.x - P.x, b.y - P.y) - 1.5), ...(b.pieds || []).map(q => Math.hypot(q.x - P.x, q.y - P.y) - .15))   // son ventre, ses pattes
       : Math.hypot(b.x - P.x, b.y - P.y);
@@ -15659,7 +15672,7 @@ function cibleVue() {
   for (const b of beasts) if (b.sp.boss && !b.dead && b.pv > 0 && b.etat !== 'sommeil' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 3600) return b;   // la Tisseuse éveillée : sa barre en haut
   if (d && d.o && !d.o.dead && d.o.pv > 0 && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < 400) return d.o;
   let pr = null, dp = 25;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5) && !b.sp.illusion) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5) && !b.sp.illusion && !b.sp.batiment && !b.cache) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
   return pr;
 }
 let cibleSig = '';
@@ -15678,6 +15691,7 @@ function majCible() {
       info = `${nomEspeceDe(o).toLowerCase()} · ${nomRole(o.comp.role)} · ${nomMode(o.comp.mode)} · ${DITS_ETAT[o.etat] || o.etat}`; }
     else if (coursier(o.sp) && !o.tame) { nom = nomEspeceDe(o);
       info = o === P.monture && Rodeo ? `rodéo · fougue ${Math.round(Rodeo.fougue * 100)} % · tenez ACTION` : `${DITS_ETAT[o.etat] || o.etat} · souffle ${Math.round((o.endu ?? 1) * 100)} % · se monte au contact`; }
+    else if (o.sp.villageois) { nom = o.nm ? o.nm.nom : o.sp.n; info = (VL_DIT_METIER[o.metier] || '') + ' du village' + (o.cache ? ' · chez lui' : o.etat === 'fuir' ? ' · en fuite' : o.etat === 'combat' ? ' · se bat' : o.etat === 'repas' ? ' · au repas' : ''); }
     else if (o.sp.horreur) { nom = o.sp.n; cl = 'meca'; info = (DITS_ETAT[o.etat] || o.etat) + (o.conf > 0 && !o.tame ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : '') + (o.sp.corps === 'silencieux' ? ' · il n\'entend que le bruit' : o.dehors ? ' · dehors : frappez !' : ' · sous la terre, hors d\'atteinte'); }
     else if (o.sp.boss) { nom = o.sp.n; cl = 'meca';
       info = o.etat === 'sommeil' ? 'endormie près de l\'arche' : 'phase ' + o.phase + ' / 3' + (o.phase === 3 ? ' · en rage' : '') + (o.act ? ' · ' + ({ viser: 'elle vous vise', mortier: 'salve de mortier', toile: 'elle tisse', cabrer: 'elle se cabre' })[o.act.k] : ''); }
