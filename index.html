@@ -1220,7 +1220,7 @@ const BIOME = [
   { n: 'ossuaire',            top: [204, 196, 178], side: [150, 140, 124],  food: .08 },
   { n: 'terres creuses',      top: [40, 42, 58],    side: [28, 28, 40],     food: .15 },
   { n: 'roche rongée',        top: [36, 34, 42],    side: [24, 22, 30],     food: 0 },     // le Korlaz (etats.js)
-  { n: 'village',             top: [128, 150, 82],  side: [104, 80, 56],    food: .5 },    // le village (village.js)
+  { n: 'village',             top: [148, 126, 92],  side: [104, 80, 56],    food: .5 },    // le village (village.js) : la terre battue
 ];
 // ============================================================
 //  LES BIOMES RARES
@@ -13892,7 +13892,7 @@ function emitFoe(f, view, out) {
   const { U, put } = posBete(f);
   const flash = f.hit > 0 && (t * 16 | 0) % 2;
   const cle = view.kEnt && view.kEnt(f.x, f.y), rang = rangSol(f.z, false);
-  for (const b of foeBones(f)) emitLimb(put(b.a), put(b.b), b.w, b.h, flash ? [255, 220, 210] : b.c, view, out, cle, rang, b.luit ? 1 : undefined, undefined, undefined, U);
+  for (const b of foeBones(f)) emitLimb(put(b.a), put(b.b), b.w, b.h, flash ? [255, 220, 210] : b.c, view, out, cle, rang, b.luit ? 1 : undefined, textures && b.tex ? b.tex : undefined, b.tex ? 1 : undefined, U);
 }
 // ---------- le campement, en volumes ----------
 // Les mêmes boîtes que les bêtes et le héros : une seule description sert aux quatre rendus.
@@ -15064,6 +15064,14 @@ const TEX = {
   sable:  motif(5, (x, y, h) => h < .22 ? [-.11] : h > .90 ? [.09] : null),
   neige:  motif(6, (x, y, h) => h < .12 ? [-.09] : h > .93 ? [.13] : null),
   onde:   motif(7, (x, y, h) => ((y + (x >> 2)) % 6 === 0) ? [.10] : h < .1 ? [-.08] : null),
+  // les matières du village (village.js) et des terres nouvelles
+  planche: motif(8, (x, y, h) => y % 4 === 0 ? [-.24] : h > .97 ? [-.3] : h < .25 ? [-.09] : null),                 // des planches, et leurs nœuds
+  chaume:  motif(9, (x, y, h) => (x + y * 2) % 5 === 0 ? [-.15] : h < .3 ? [-.1] : h > .9 ? [.12] : null),            // des brins couchés
+  ardoise: motif(10, (x, y, h) => y % 4 === 0 ? [-.26] : (x + (y >> 2) * 2) % 5 === 0 ? [-.18] : h > .9 ? [.1] : null),   // des rangs d'ardoises
+  torchis: motif(11, (x, y, h) => h < .2 ? [-.08] : h > .9 ? [.07] : null),                                           // un enduit grenu
+  bloc:    motif(12, (x, y, h) => y % 4 === 0 ? [-.28] : (x + (y >> 2) * 3) % 6 === 0 ? [-.22] : h < .15 ? [-.1] : null), // des pierres taillées
+  battue:  motif(13, (x, y, h) => h > .97 ? [.26] : h < .2 ? [-.18] : h > .93 ? [.12] : null),                        // la terre battue, et ses cailloux
+  os:      motif(14, (x, y, h) => ((x * 3 + y) % 11 === 0 && h < .5) ? [-.2] : h < .15 ? [-.1] : h > .9 ? [.08] : null),  // un sol d'os craquelé
 };
 // Voiles d'arête. Plutôt qu'une bande sombre posée en géométrie — un trait franc, et trois
 // quadrilatères de plus par paroi — on plaque un dégradé noir sur les bords de la face,
@@ -15142,9 +15150,11 @@ TEX.nuage = motif(33, (x, y, h) => h > .9 ? [.18] : h > .78 ? [.08] : h < .05 ? 
 TEX.nuageM = motif(34, (x, y, h) => y > 12 ? (h < .55 ? [-.10] : null) : h > .86 ? [.12] : h < .04 ? [-.05] : null);
 //                 eau     rivage  prairie bois    lande   falaise pierre  neige   vide    tourbe  ocre     sylve   cristal  cendre  braises  métal  huile  nuage  fourmilière
 const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.touffu, TEX.herbe, TEX.roche, TEX.roche, TEX.neige, TEX.roche,
-  TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise, TEX.plaque, TEX.huile, TEX.nuage, TEX.ocre];
+  TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise, TEX.plaque, TEX.huile, TEX.nuage, TEX.ocre,
+  TEX.os, TEX.myce, TEX.basalte, TEX.battue];   // l'ossuaire, les terres creuses, la roche rongée, le village
 const TEX_COTE = [null, TEX.sableM, TEX.terreM, TEX.terreM, TEX.terreM, TEX.rocheM, TEX.rocheM, TEX.rocheM, TEX.rocheM,
-  TEX.terreM, TEX.strates, TEX.terreM, TEX.facetteM, TEX.rocheM, TEX.rocheM, TEX.plaqueM, TEX.plaqueM, TEX.nuageM, TEX.strates];
+  TEX.terreM, TEX.strates, TEX.terreM, TEX.facetteM, TEX.rocheM, TEX.rocheM, TEX.plaqueM, TEX.plaqueM, TEX.nuageM, TEX.strates,
+  TEX.terreM, TEX.terreM, TEX.rocheM, TEX.terreM];
 const TEX_FORME = { conifere:TEX.touffu, feuillu:TEX.touffu, palme:TEX.touffu, buisson:TEX.touffu,
   touffe:TEX.herbe, roseau:TEX.herbe, fleur:TEX.herbe, champi:TEX.sable, rocher:TEX.roche, cristal:TEX.onde,
   cactus:TEX.facetteM, josue:TEX.touffu, boule:TEX.sable, geant:TEX.sable, mort:TEX.terre, verre:TEX.facette,
@@ -16852,14 +16862,14 @@ void main() { o = uC; }`;
         const an = anneauLien(b);
         panneau(an.x, an.y, an.z, an.r, an.r, 232 / 255, 62 / 255, 78 / 255, an.a, 6);
       }
-      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, 0, o.luit ? L_FIXE : hb, 0, 0, 0, U);
+      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : 0, o.luit ? L_FIXE : hb, 0, 0, 0, U);
     }
     for (const b of betesLoin) {
       const kz = b.sp.sz, { U, put } = posBete(b);
       if (!iso && !boiteVue(b.x - 2, b.x + 2, b.y - 2, b.y + 2, b.z - .4, b.z + 2.2, .05)) continue;
       if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9));
       const hb = L_FIXE + 256 * horizAt(b.x, b.y), fl = b.hit > 0 && (t * 16 | 0) % 2;
-      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, 0, o.luit ? L_FIXE : hb, 0, 0, 0, U);
+      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : 0, o.luit ? L_FIXE : hb, 0, 0, 0, U);
     }
     for (const j of Autres.values()) {
       if (!iso && !boiteVue(j.x - 1, j.x + 1, j.y - 1, j.y + 1, j.z - .4, j.z + 2, .05)) continue;

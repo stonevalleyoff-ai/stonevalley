@@ -268,6 +268,8 @@ function osMaison(f) {
     if (VL.stock.viande > 0) add([.6, .55, .3], [.9, .7, .3], .18, .1, [164, 70, 60]); if (VL.stock.poisson > 0) add([-.7, .5, .3], [-.5, .75, .3], .08, .1, [196, 210, 224]);
     if (VL.stock.fibre > 0) add([-.8, -.5, .2], [-.5, -.7, .2], .3, .3, [150, 190, 90]); if (VL.stock.baies > 0) add([.6, -.6, .2], [.75, -.75, .2], .25, .25, [120, 50, 80]);
   }
+  // les matières : l'enduit, la pierre taillée, les planches, le chaume, l'ardoise (les motifs du jeu, TEX)
+  if (typeof TEX !== 'undefined') for (const o of B) o.tex = o.c === torchis ? TEX.torchis : (o.c === pierre || o.c === pierreS) ? TEX.bloc : o.c === chaume ? TEX.chaume : o.c === ardoise ? TEX.ardoise : (o.c === bois || o.c === boisClair || o.c === porte) ? TEX.planche : null;
   return B;
 }
 // ---------- la parole ----------

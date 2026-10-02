@@ -14,7 +14,7 @@ Le dossier à mettre en ligne :
 ## 1. Mettre en ligne sur GitHub Pages
 
 1. Sur github.com, nouveau dépôt **public** nommé `stone-valley`.
-2. Déposer les six fichiers à la racine du dépôt (glisser-déposer dans « Add file › Upload files »).
+2. Déposer les fichiers (index.html, donjon.js, nomades.js, etats.js, village.js, sw.js, manifest et icônes) à la racine du dépôt (glisser-déposer dans « Add file › Upload files »).
 3. Onglet **Settings › Pages** : *Source* = `Deploy from a branch`, branche `main`, dossier `/ (root)`. Enregistrer.
 4. Au bout d'une minute, l'adresse est **https://shinjiebi.github.io/stone-valley/**.
 
@@ -813,7 +813,7 @@ Deux nouveaux biomes rares, tirés **à part** des cinq premiers (les îles d'av
 
 ### Le Silencieux (Ossuaire)
 
-Grand (2,7), maigre, gris pâle comme son sol, des lambeaux qui pendent, une tête longue et lisse **sans yeux**, des côtes saillantes, des bras qui lui tombent aux genoux, trois griffes. Il boite d'une jambe ; par moments sa tête se tord d'un coup.
+Grand (2,7), maigre, gris pâle. **Le modèle fin** (120 pièces, 145 la gueule ouverte ; `osSilencieux`) : un squelette sous une peau tendue — le bassin et ses crêtes, une **colonne voûtée de sept vertèbres** dont les apophyses saillent dans le dos, **cinq paires de côtes en arc qui respirent**, le sternum, le ventre creux, les clavicules, les omoplates, des lambeaux de peau qui pendent des épaules ; un **long cou** qui s'avance, un **crâne lisse et allongé**, des orbites recouvertes de peau, et **la face qui s'ouvre en deux** le long d'une couture : gencives, **deux rangées de dents en aiguille**, la gorge. Des bras en trois pièces (le coude saillant) et des **mains à quatre doigts de trois phalanges et un pouce**, ongles noirs, qui pendent, s'écartent (le hurlement), se tendent en griffes (la charge) ou se crispent (la prise) ; des jambes à rotule et arête de tibia, des **pieds à trois orteils** ; la jambe droite traîne. Les arêtes sont plus claires, les creux plus sombres. Par moments sa tête se tord d'un coup ; à l'écoute, il la penche sur le côté.
 
 - **Il n'entend que le bruit** : **courir** s'entend à 26 cases, **marcher** à 9, frapper ou tirer de près aussi ; **immobile, vous n'existez pas.** Il entend aussi les bêtes qui courent, et les chasse.
 - **Ses états** : il rôde (quelques pas, de longs arrêts, des **claquements de langue**) ; un bruit faible : il **écoute**, figé, la tête inclinée, puis s'approche ; un bruit franc ou proche : il se dresse et **hurle** (0,65 s), puis **fonce** à 7,2 cases/s — plus vite que vous ne courez — **sur l'endroit du bruit** ; arrivé, il **fouille** à tâtons, renifle, puis repart.
@@ -845,3 +845,61 @@ Ni le lien par l'appel, ni les baies : **une offrande de son sol, au bon moment*
 Testé (graine 166 : ossuaire ; graine 109 : terres creuses) : la flore et la bête sont là ; le Silencieux hurle et fonce sur qui court, fouille puis repart quand on se fige, et saisit à portée de bras ; le Mille-gueules arrive dessous, fend, jaillit, se dresse, frappe et replonge. Repères pour l'onglet Bêta : graine 166, graine 109, niveau 12.
 
 Pour régler : section LES TERRES DE L'EFFROI d'`index.html` (`bruitJoueur`, `majSilencieux`, `osSilencieux`, `majMille`, `osMille`).
+
+
+## 46. Les états d'île — le Korlaz (fichier `etats.js`)
+
+**Nouveau fichier** : `etats.js`, chargé après `nomades.js` et avant le jeu (à déposer avec les autres ; `sw.js` le met en cache, version `stone-valley-14`). C'est un **système d'états d'île** : un fléau qui tombe sur une île au hasard de sa graine, avec son filtre et ses règles. Le jeu l'appelle par quelques crochets (`etatsInit`, `etatsIle`, `majEtats`, `etatsRecolte`, `etatsHud`, `guerirKorlaz`, `majIllusion`, `osIllusion`) ; sans le fichier, le jeu tourne comme avant.
+
+**Le Korlaz**, premier état : un élément inconnu qui **ronge la roche** et en fait monter une **spore neurotoxique**. Une île sur six environ, dès l'exploration 6.
+- **L'île** : des plaques de roche rongée (pierre et falaise noircies, sol « roche rongée »), des spores sombres qui montent autour de vous, un voile verdâtre aux bords de l'écran, un avis à l'arrivée. Sur la roche rongée pousse, rare, le **Mycélium pâle** (ingrédient, rareté 4).
+- **L'infection** : en restant **longtemps dans les spores** (une jauge « spores %» au HUD, qui monte près de la roche rongée et redescend loin d'elle ; une trentaine de secondes au cœur d'une plaque) ou en **récoltant près de la roche rongée** (un nuage en plein visage : une chance sur quatre d'être infecté d'un coup, et la jauge qui bondit). Infecté, on **le reste**, d'île en île et d'une partie à l'autre (sauvegardé), tant qu'on ne s'est pas injecté le remède.
+- **Les visions**, au hasard, de plus en plus souvent à mesure que l'infection dure (au bout d'un quart d'heure, deux fois plus) :
+  - la **brume noire** monte et respire, des volutes dérivent sur l'écran, le noir tombe une fraction de seconde ; des chuchotements ;
+  - de **petits êtres décharnés** (grosse tête, orbites noires, une pupille minuscule) vous **regardent** de loin ; ils **s'approchent quand vous leur tournez le dos**, et se dissipent en fumée si vous allez à eux ;
+  - une **blessure de nulle part** : un éclair rouge, du sang, un vrai coup léger ;
+  - une **silhouette** noire et très grande, aux yeux comme deux points, surgit dans votre dos (une note qui grince), **vous fond dessus** et frappe (vrai coup, léger) avant de se défaire en fumée. Frappée la première, elle se dissipe.
+  Vos compagnes ne voient rien.
+- **Le remède** : une **recette légendaire** à découvrir dans la cuisine, à **quatre ingrédients** — le **Sérum de clairvoyance** : le mycélium pâle de la roche rongée, la mousse céleste des îles de nuage, le nectar des oglodons, une goutte de sève. Une dose, qui se garde ; au sac, son bouton dit **Injecter**. Injecté : la brume se lève, les visions se dissipent, guéri.
+
+**Le visuel, retravaillé** :
+- **L'île** : la roche rongée vire au noir violacé ; des **excroissances** y poussent (des pointes noires aux bouts d'un vert maladif, qui luisent ; une case sur neuf) ; les spores sont lentes, noires ou vert-jaune, certaines luisent ; l'image perd un peu de couleur (filtre CSS sur les toiles `c` et `c3`).
+- **Infecté** : l'image se **désature** et se contraste ; la brume noire respire, des **vrilles** rentrent par les bords, des **yeux** blancs s'ouvrent et clignent au bord du noir ; parfois un **visage immense** se devine dans la brume (deux orbites, une bouche) sur un bourdon grave ; la blessure fait **couler du sang** du haut de l'image ; le coup d'une silhouette **inverse l'image** un éclair.
+- **Le Décharné**, modèle fin : un enfant famélique trop grand de tête — crâne nu, tempes creuses, deux **orbites noires énormes** où une **pupille minuscule** vous suit, une fente de bouche qui **s'ouvre sans un son** sur de petites dents ; un cou trop long aux vertèbres saillantes, quatre paires de côtes, le ventre rentré, des bras jusqu'aux genoux aux doigts trop longs, des genoux noueux, de longs pieds, des veines sombres. Il penche la tête lentement, puis d'un coup ; dos tourné, il **avance par à-coups** (jamais sous vos yeux) ; tout près, on l'entend **respirer**.
+- **La Silhouette**, modèle fin : près de trois mètres, trop mince, voûtée ; une tête petite et longue, **couchée sur l'épaule**, sans rien d'autre que **deux points blancs** ; des bras à **trois articulations** finis en **cinq aiguilles** ; des jambes qui **finissent en fumée**. Surgie, elle **tremble** sur place ; ruée, elle se couche presque à l'horizontale, les aiguilles en avant.
+
+Testé (graine 2, exploration 7) : 496 cases rongées, 7 mycéliums ; infecté après 23 s dans les spores ; une vision de chaque sorte ; la silhouette frappe puis se dissipe ; le sérum se cuisine avec les quatre ingrédients et guérit.
+
+Pour régler : `etats.js` (`etatGraine` pour la fréquence, `KORLAZ_SEUIL` pour l'exposition, `vision` pour les tirages, `dessinerFiltre` pour l'image).
+
+
+## 47. Le village (fichier `village.js`)
+
+**Nouveau fichier** : `village.js`, chargé après `etats.js` (à déposer ; `sw.js` passe en `stone-valley-15`). Un **biome rare** « Village » (dès l'exploration 4, une île signée sur sept environ, sur prairie ou bois, près de l'eau ; tiré à part comme les terres de l'effroi), et ce qui y vit. Sans le fichier, le jeu tourne comme avant.
+
+**Le village** (`villageIle`) : sur la place la plus plate du biome, un **foyer** (pierres en rond, bûches, la broche et sa marmite, le feu qui brûle et fume ; ce qu'on y a rapporté s'y voit : viande, poisson, fibres, baies), un **puits** (margelle de pierre, deux montants, petit toit de chaume, le seau au bout de sa corde), et **trois ou quatre maisons de formes différentes**, la porte vers le feu : la **hutte ronde** (huit pans de torchis, un toit de chaume en cône), la **maison longue** (pignons, toit à deux pentes d'ardoise, une cheminée qui fume quand on y dort), la **haute** (deux étages à colombages, un toit pointu). La nuit, les fenêtres des maisons habitées s'allument. Les maisons font obstacle (`rayonCorps`).
+
+**Les toits, et l'élégance des maisons** (`osMaison`) : les toits sont de **vraies pentes** — une boîte posée de l'avant-toit au faîte s'incline d'elle-même (son axe monte), large de toute la longueur du toit et mince ; des **rangs** plus sombres suivent la pente (chaume ou ardoise). Chaque maison a un **soubassement de pierre**, des **colombages** (poteaux, sablières, croix de Saint-André), des **chevrons** sous l'avant-toit, un **faîte** et ses épis de fer, une **porte dans son cadre** avec son linteau, son seuil, sa poignée et sa **lanterne** (allumée la nuit), des **fenêtres à volets** dans leur cadre (allumées la nuit si l'on y dort). La hutte : huit pans, le cône cerclé d'une ligature, l'épi au sommet. La longue : deux pentes d'ardoise, les pignons à colombages, la cheminée à chapeau, une jardinière fleurie. La haute : l'étage en saillie, quatre pentes qui montent en pointe, une balustrade. Le puits a son toit à deux pentes, son treuil et sa manivelle ; le foyer, ses fourches, sa marmite à couvercle et trois bancs.
+
+**Les matières** : les os d'une bête peuvent porter un **motif** (`tex`, un des motifs 16×16 de `TEX` ; `emitFoe` et le rendu GL le posent sur les faces comme sur le sol). Les maisons en ont cinq, nouveaux : l'**enduit** grenu (torchis), les **pierres taillées** (soubassements, margelle, cheminées), les **planches** (poteaux, portes, treuil), le **chaume** à brins couchés, les **rangs d'ardoises**. Le sol aussi : le biome Village est de la **terre battue** à cailloux (`TEX.battue`) ; l'ossuaire a son sol d'os craquelé (`TEX.os`), les terres creuses le motif des mycéliums, la roche rongée celui du basalte (ils n'avaient pas de motif jusque-là).
+
+**Les familles** : deux adultes par maison, un métier chacun, souvent un enfant ; chacun a son nom et sa robe. Les métiers et leur journée (`majVillageois`, `vlTache`) :
+
+| Métier | Ce qu'il fait |
+|---|---|
+| chasseur | cherche une bête à sa taille à moins de vingt cases, l'approche, la frappe de sa lance (un coup par seconde), rapporte la viande au feu (sur l'épaule) |
+| cueilleuse / cueilleur | va couper une plante mûre à fibres ou à baies (trois secondes, le panier se remplit), la rapporte |
+| porteur d'eau | va au puits (ou à la rivière quand il tire au sort), puise, revient le seau plein |
+| pêcheur | se tient au bord de l'eau, la canne et la ligne tendues, et de temps en temps ça mord (une gerbe) ; rapporte le poisson |
+| cuisinière | au feu, la louche à la main, tourne la marmite |
+| enfant | court entre les maisons |
+
+**La journée** : le matin chacun sort et travaille ; **à midi** (horloge entre 0,49 et 0,56) tout le monde vient **s'asseoir au feu** ; **la nuit** chacun rentre et dort (il disparaît dans sa maison, la fenêtre s'allume, la cheminée fume). Ils vous **saluent** de la main quand vous approchez.
+
+**Ils parlent** (ACTION près d'eux : **PARLER**, `vlParler`) : une fenêtre de dialogue à la manière des Nomades (chiffres 1 à 5 au clavier, Échap pour fermer). « Qui es-tu ? » (son nom, son métier, sa famille et leur maison), « Que fais-tu ? » (selon son métier, l'heure, et s'il y a eu une alerte), « Parle-moi du village » (une parole d'ancien, et l'état des réserves), « Un conseil pour la route ? » (des conseils vrais sur les dangers du jeu).
+
+**Ils se font attaquer, et se défendent** : les prédateurs (traqueur, spectre, félin, varan, salamandre, dragon) les ont dans leur gibier. Une menace à moins de neuf cases : les **chasseurs** en bonne santé **se battent** (lance, 0,3 par coup) ; les autres **courent s'enfermer** chez eux et attendent qu'elle s'éloigne. Un villageois tué l'est pour la visite (le village se repeuple à l'île suivante). Testé : un traqueur affamé lâché au village a été ramené à 9 % de vie par les chasseurs, sans perte.
+
+Testé (graine 11, exploration 5) : hutte, maison longue, haute, puits, 8 habitants ; en 90 s de jour, chasse, cueillette, puisage, pêche, cuisine et retours au feu ; midi au repas ; la nuit rentrés, fenêtres allumées ; la parole avec sa famille citée ; l'attaque et la défense. Repère pour l'onglet Bêta : graine 11, niveau 5.
+
+Pour régler : `village.js` (`VL_METIERS`, `vlTache`, `VL_LORE`, `VL_CONSEILS`, `osMaison`).
