@@ -753,7 +753,7 @@ Aux explorations **10, 15, 20, 25…**, une araignée automate géante dort prè
 
 Au **dernier tiers**, elle enrage : jointures rougeoyantes, plus rapide, visée en 1 s au lieu de 1,6, salves plus nourries, recharges plus courtes.
 
-**La frapper** : à l'arc, son corps ; au corps à corps, son ventre (sous elle) ou ses pattes. **Robustesse 10**, plus 6 % par exploration au-delà de 10 (`blinde`) : une cinquantaine de coups d'épée à l'exploration 10. **Crocs et griffes glissent sur le fer** : les bêtes ne lui font que la moitié de leurs dégâts ; et ses pas, son onde de cabrage, écrasent, repoussent et étourdissent celles qui l'assaillent (un spectre et un bramard seuls ne l'entament plus que de quelques pour cent par minute).
+**La frapper** — **sa boîte de contact** (`toucheBete`, `cibleContact`, `pattesTiss`) : le corps (une capsule autour du thorax et de l'abdomen) **et chacune des huit pattes**, du pied au genou et du genou à la hanche (deux segments, rayon 0,3) : une flèche qui passe entre les pattes ne touche rien, une flèche dans une patte la touche. Au corps à corps, on frappe **les pattes, du pied au genou** (à 0,35 près) ; le ventre, à 2,75 de haut, est hors de portée de l'épée. **Sa marche**, revue : l'enjambée grandit avec l'allure (et se replace vite à l'arrêt), le pied part et se pose en douceur (accélération puis freinage), une patte ne traîne jamais plus d'une enjambée derrière sa place (les jambes ne se tendent plus au-delà de leur longueur : 4,2 au plus pour 4,7), les pieds ne descendent plus qu'à 2,2 cubes sous le corps, la stance est plus ramassée (genoux hauts), et le corps **penche dans son mouvement** (vers l'avant quand elle avance, sur le flanc quand elle va de côté). **Robustesse 10**, plus 6 % par exploration au-delà de 10 (`blinde`) : une cinquantaine de coups d'épée à l'exploration 10. **Crocs et griffes glissent sur le fer** : les bêtes ne lui font que la moitié de leurs dégâts ; et ses pas, son onde de cabrage, écrasent, repoussent et étourdissent celles qui l'assaillent (un spectre et un bramard seuls ne l'entament plus que de quelques pour cent par minute).
 
 **Son corps, en détail** : les cerclages de cuivre et les rivets de l'abdomen, les tuyaux le long des flancs, **deux cheminées** sur le dos, les **évents** des flancs où son cœur rougeoie (il bat plus vite en rage), les **chélicères** qui s'ouvrent et claquent au combat, les pédipalpes, l'antenne au feu clignotant, un **vérin** sur chaque cuisse, **trois griffes** à chaque pied.
 
@@ -788,7 +788,7 @@ Plus grand qu'un coursier : quatre pattes, un long cou en S de cinq anneaux, une
 | chasser | affamé : il choisit un herbivore, revient à 14 cases de biais, **se cabre en surplace** (ailes hautes, la gorge qui rougeoie, la gueule qui s'ouvre), **crache une boule de feu** en cloche (le cercle au sol l'annonce), **vire sur l'aile** et remonte, recommence ; la proie à terre, il se pose à côté et la **dévore** |
 | menacer | approchez son aire : il se dresse, ailes ouvertes, gueule ouverte, et **gronde** ; restez, et c'est la guerre |
 
-- **La boule de feu** explose en gerbe (dégâts de zone) et **le sol brûle** trois secondes et demie : on y prend feu (la brûlure ordinaire ; l'effet « insensible aux braises » protège).
+- **La boule de feu** explose en gerbe (dégâts de zone) et **le sol brûle** trois secondes et demie (les brasiers : `BRASIERS`, `majBrasiers` — **pas** `majFeux`, qui est le calcul des lumières de la nuit : un premier nom identique avait éteint toutes les lumières, corrigé) : on y prend feu (la brûlure ordinaire ; l'effet « insensible aux braises » protège).
 - **Furieux** (frappé, ou aire violée) : il vous fait la chasse, du ciel, à coups de feu, une trentaine de secondes. Blessé (moins d'un quart), il fuit haut, puis rentre.
 - Il **vire plus large, bat plus lentement et vole plus haut** que la sterne (`volK` : un même vol, à sa mesure).
 - Aucune bête du sol ne l'atteint en vol ; le tireur d'élite le chasse ; vous, à l'arc, ou posé. Il laisse un **Filet de dragon** (rareté 4, insensible aux braises).
@@ -903,3 +903,21 @@ Pour régler : `etats.js` (`etatGraine` pour la fréquence, `KORLAZ_SEUIL` pour 
 Testé (graine 11, exploration 5) : hutte, maison longue, haute, puits, 8 habitants ; en 90 s de jour, chasse, cueillette, puisage, pêche, cuisine et retours au feu ; midi au repas ; la nuit rentrés, fenêtres allumées ; la parole avec sa famille citée ; l'attaque et la défense. Repère pour l'onglet Bêta : graine 11, niveau 5.
 
 Pour régler : `village.js` (`VL_METIERS`, `vlTache`, `VL_LORE`, `VL_CONSEILS`, `osMaison`).
+
+
+## 48. L'arrivée sûre (correction)
+
+**Le bug** : à l'arrivée sur une île, le départ cherchait une **prairie au centre** de l'île (9 000 essais) ; faute d'en trouver (îles profondes, biomes rares qui la recouvrent), il **gardait la position de l'île précédente** — souvent au-dessus de l'océan. On tombait, la chute renvoyait au « dernier sol sûr »… qui était le même point : trois chutes, trois cœurs, et sans campement planté, retour à l'exploration 1.
+
+**La correction** :
+- `lieuSur()` : une prairie au centre ; sinon prairie, bois, lande ou village un peu plus loin ; sinon toute terre qui n'est ni le vide, ni les braises, ni l'effroi, ni la roche rongée ; sinon toute terre ; en dernier recours la terre la plus haute. Jamais l'eau, le vide, les dalles de nuage.
+- `solSur(r)` : un point est-il une terre de cette île ? La chute (`respawn`) n'y renvoie que si c'en est une ; **une chute depuis un point qui n'est pas une terre de l'île ne coûte pas de cœur** : on est posé sur la terre ferme.
+- La position gardée dans la sauvegarde n'est reprise que si elle n'est pas au-dessus de la haute mer.
+
+Testé : six îles d'exploration 23 tirées au hasard, départ toujours sur la terre ; une île sans aucune prairie, départ sur un bois ; une chute depuis une position hors de l'île, aucun cœur perdu, posé sur la terre.
+
+
+## 49. Plus vite, et la mort coûte un cœur
+
+- **Les allures** (`VIT_MARCHE`, `VIT_COURSE`, `VIT_EPUISE`) : la **marche passe à 4,2** cases/s (l'ancien sprint), le **sprint à 5,8**, et l'allure épuisée à 3,2 (au lieu de 3,0 / 4,2 / 2,3). L'oreille du Silencieux suit d'elle-même : marcher reste « marcher » pour lui.
+- **Tué par une bête, on perd un cœur**, comme dans une chute (`perdreCoeur`, partagé par `respawn` et `terrasse`) : on se relève au point de départ avec un cœur de moins ; au troisième, la même règle que pour les chutes (le campement vous reprend ; sans campement planté, loin du départ, retour à l'exploration 1, sac vidé). Le donjon garde sa règle à lui. Testé : tué, cœurs 3 → 2, relevé sur la terre ferme.

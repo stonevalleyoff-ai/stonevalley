@@ -3911,7 +3911,7 @@ const partGardee = () => GARDE[coeursPerdus()];
 const COGNE = 1.2;
 // Les allures du joueur. Le traqueur fond à 4,5 de loin et serre à 3,3 ; le spectre file à 3,4 :
 // marcher ne sème personne, courir si, un temps — et à bout de souffle on est une proie.
-const VIT_MARCHE = 3.0, VIT_COURSE = 4.2, VIT_EPUISE = 2.3;
+const VIT_MARCHE = 4.2, VIT_COURSE = 5.8, VIT_EPUISE = 3.2;   // la marche au pas de l'ancien sprint, le sprint plus vif encore
 const ENDU_COURSE = 8, ENDU_REPRISE = .12, ENDU_REPOS = .24, ENDU_SEUIL = .35;
 const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1);   // l'escouade est blindée
 const degSubi = deg => deg * danger() * COGNE * (effet('robuste') ? .8 : 1);
@@ -6392,7 +6392,7 @@ function majBiome(dt) {
     if (P.pv <= 0) { P.brulure = 0; terrasse(); }
   }
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
-  majToiles(dt); majFeux(dt);
+  majToiles(dt); majBrasiers(dt);
   if (typeof majEtats === 'function') majEtats(dt);   // l'état de l'île, l'infection, les visions (etats.js)
   if (typeof majVillage === 'function') majVillage(dt);   // le feu, les cheminées, la parole (village.js)
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
@@ -6553,11 +6553,10 @@ function loadWorld() {
       { const i = y * WS + x, e = BUISSON_BIO[bi]; if (PlT[i] || Eau[i] || (Flo[i] && ESP[Flo[i] - 1].res === 'baies')) continue;
         Flo[i] = e + 1; berries.push({ i, x: x + .5, y: y + .5, z: hAt(x, y), e: ESP[e] }); }
   }
-  // point de départ : une prairie assez plate
-  for (let k = 0; k < 9000; k++) {
-    const x = (WS * .3 + Math.random() * WS * .4) | 0, y = (WS * .3 + Math.random() * WS * .4) | 0;
-    if (bAt(x, y) === 2 && hAt(x, y) > SEA + 1) { P.x = x + .5; P.y = y + .5; P.z = hAt(x, y); P.spawn = [P.x, P.y, P.z]; break; }
-  }
+  // point de départ : une prairie au centre ; sinon, de proche en proche, une terre sûre (voir lieuSur).
+  // Avant, faute de prairie au centre, on gardait la position de l'île précédente : au-dessus de
+  // l'océan, on tombait sans fin, et les trois cœurs y passaient.
+  { const r = lieuSur(); P.x = r[0]; P.y = r[1]; P.z = r[2]; P.spawn = r.slice(); }
   total = 0;
   P.vx = P.vy = P.vz = 0; P.ground = true; P.face = P.faceS = Math.PI * .25; P.land = 0;
   P.saut2 = false; P.sol = [P.x, P.y, P.z];
@@ -6620,29 +6619,53 @@ function burst(x, y, z, n, col) {
     life: .5 + Math.random()*.5, age: 0, col,
   });
 }
-function respawn() {
+// Une terre où poser le joueur : sur l'île, au-dessus de la mer, hors de l'eau, du vide et des dalles.
+const solSur = r => Array.isArray(r) && r.length >= 3 && r.every(Number.isFinite) && r[0] > 2 && r[1] > 2 && r[0] < WS - 3 && r[1] < WS - 3
+  && hAt(r[0] | 0, r[1] | 0) > SEA && bAt(r[0] | 0, r[1] | 0) !== 8 && !PlT[(r[1] | 0) * WS + (r[0] | 0)];
+function lieuSur() {
+  const ok = (x, y) => solSur([x + .5, y + .5, 0]) && hAt(x, y) > SEA + 1 && !(Eau[y * WS + x] > Hgt[y * WS + x]);
+  const passes = [[.4, b => b === 2], [.6, b => b === 2 || b === 3 || b === 4 || b === 22], [.8, b => ![8, 14, 19, 20, 21].includes(b)], [.96, b => b !== 8]];
+  for (const [f, test] of passes) for (let k = 0; k < 6000; k++) {
+    const x = (WS * (.5 - f / 2) + Math.random() * WS * f) | 0, y = (WS * (.5 - f / 2) + Math.random() * WS * f) | 0;
+    if (test(bAt(x, y)) && ok(x, y)) return [x + .5, y + .5, hAt(x, y)];
+  }
+  let best = null, bh = -1e9;                            // en dernier recours : la terre la plus haute
+  for (let i = 0; i < WS * WS; i++) { const x = i % WS, y = (i / WS) | 0; if (Hgt[i] > bh && solSur([x + .5, y + .5, 0])) { bh = Hgt[i]; best = [x + .5, y + .5, Hgt[i]]; } }
+  return best || [WS / 2, WS / 2, SEA + 2];
+}
+// Un cœur de moins — la chute et la mort ont le même prix. Rend true quand les trois y sont passés et
+// que le jeu vous a emmené ailleurs (le campement, l'exploration 1, l'île remise à zéro).
+function perdreCoeur() {
   lives--;
   // Un cœur ne coûte le butin que s'il tombe loin de chez soi : mourir sur son île n'ampute rien.
   if (P.exp && !campIci()) P.exp.coeurs = Math.min(3, (P.exp.coeurs || 0) + 1);
-  burst(P.x, P.y, P.z + .4, 16, '#ff9a7a');
-  if (lives <= 0) {
-    lives = 3;
-    if (P.exp && !campIci()) P.exp.coeurs = 3;       // tout perdu : le sac ne rapportera rien
-    // Avec un campement, on ne perd plus son île : elle vous reprend, où qu'on soit tombé.
-    // Mais passé la barrière, les compagnes sorties ne font pas le voyage du retour.
-    if (P.camp) {
-      if (auDelaBarriere()) abandonnerCompagnes();
-      if (rentrerAuCampement(true)) return;
-    }
-    // Le campement au sac, loin du départ : la chute. Retour à l'exploration 1, sur une île neuve.
-    if (campAuSac() && profondeur() > 1) {
-      for (const r of COFFRE_R) metSac(r, 0);
-      for (const id of INGR_GARDE()) metSacIngr(id, 0);
-      if (voyagerVers(tirerGraine(1, SEED), null, 'trois cœurs perdus sans campement planté · retour à l\'exploration 1', 1)) return;
-    }
-    loadWorld(); say('ÎLE RÉINITIALISÉE');
+  if (lives > 0) return false;
+  lives = 3;
+  if (P.exp && !campIci()) P.exp.coeurs = 3;       // tout perdu : le sac ne rapportera rien
+  // Avec un campement, on ne perd plus son île : elle vous reprend, où qu'on soit tombé.
+  // Mais passé la barrière, les compagnes sorties ne font pas le voyage du retour.
+  if (P.camp) {
+    if (auDelaBarriere()) abandonnerCompagnes();
+    if (rentrerAuCampement(true)) return true;
   }
-  else { const r = P.sol || P.spawn; P.x = r[0]; P.y = r[1]; P.z = r[2]; P.vx = P.vy = P.vz = 0; }
+  // Le campement au sac, loin du départ : la chute. Retour à l'exploration 1, sur une île neuve.
+  if (campAuSac() && profondeur() > 1) {
+    for (const r of COFFRE_R) metSac(r, 0);
+    for (const id of INGR_GARDE()) metSacIngr(id, 0);
+    if (voyagerVers(tirerGraine(1, SEED), null, 'trois cœurs perdus sans campement planté · retour à l\'exploration 1', 1)) return true;
+  }
+  loadWorld(); say('ÎLE RÉINITIALISÉE'); return true;
+}
+function respawn() {
+  // Une chute depuis un point qui n'est pas une terre (une arrivée ratée, une position d'une autre
+  // île) n'est pas une chute : on pose le joueur sur une terre sûre, sans lui prendre de cœur.
+  if (!solSur(P.sol) && !solSur(P.spawn)) {
+    const r = lieuSur(); P.spawn = r.slice(); P.sol = r.slice(); P.x = r[0]; P.y = r[1]; P.z = r[2]; P.vx = P.vy = P.vz = 0;
+    camX = P.x; camY = P.y; camZ = P.z; say('vous voilà sur la terre ferme', 2); return;
+  }
+  burst(P.x, P.y, P.z + .4, 16, '#ff9a7a');
+  if (perdreCoeur()) return;
+  { const r = solSur(P.sol) ? P.sol : solSur(P.spawn) ? P.spawn : (P.spawn = lieuSur()); P.x = r[0]; P.y = r[1]; P.z = r[2]; P.vx = P.vy = P.vz = 0; }
 }
 let msgT = 0;
 // ---------- les avis ----------
@@ -8204,7 +8227,7 @@ function morpheDragon(b) {
   return MORPHES_DRAGON[b.morphe];
 }
 const DRAG = { plane: 5.4, bat: 6.6, fuite: 9 };
-const FEUX = [];
+const BRASIERS = [];
 function dragonGraine(g) {
   if (!Number.isInteger(g)) return false;
   let n = (g ^ 0xd7a60) >>> 0; n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
@@ -8235,10 +8258,10 @@ function cracheFeu(b, c) {
     de: b, deg: b.tame ? .34 : .2, age: 0, c: [255, 160, 60], obus: true, feu: true, zone: 1.7, cx, cy, cz: sol(cx, cy), vol });
   SON.jouer('cracheFeu', {}, m[0], m[1], m[2]); burst(m[0], m[1], m[2], 12, '#ffb040'); b.feuT = 0; b.gueuleT = t; b.tirs = (b.tirs || 0) + 1;
 }
-function allumerFeu(f) { FEUX.push({ x: f.x, y: f.y, z: sol(f.x, f.y), r: 1.5, fin: t + 3.5, de: f.de, piq: 0 }); }
-function majFeux(dt) {                                  // le sol qui brûle : des flammes, et ce qui y passe brûle
-  for (let i = FEUX.length - 1; i >= 0; i--) {
-    const w = FEUX[i]; if (w.fin < t) { FEUX.splice(i, 1); continue; }
+function allumerFeu(f) { BRASIERS.push({ x: f.x, y: f.y, z: sol(f.x, f.y), r: 1.5, fin: t + 3.5, de: f.de, piq: 0 }); }
+function majBrasiers(dt) {                              // le sol qui brûle : des flammes, et ce qui y passe brûle
+  for (let i = BRASIERS.length - 1; i >= 0; i--) {
+    const w = BRASIERS[i]; if (w.fin < t) { BRASIERS.splice(i, 1); continue; }
     const k = Math.min(1, (w.fin - t) / 1.5);
     if (Math.random() < dt * 26 * k) { const a = Math.random() * 6.2832, r = Math.sqrt(Math.random()) * w.r;
       parts.push({ x: w.x + Math.cos(a) * r, y: w.y + Math.sin(a) * r, z: w.z + .05, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, vz: 1 + Math.random() * 1.4,
@@ -9451,9 +9474,11 @@ function terrasse() {
   if (djIci() && djMort()) return;                     // sous terre : le butin du donjon est perdu
   if (raidIci() && !Raid.fini) emporter('mort');       // terrassé en pleine visite : le butin reste au coffre
   P.pv = 1; P.endu = 1; P.epuise = false;
-  P.x = P.spawn[0]; P.y = P.spawn[1]; P.z = P.spawn[2]; P.vx = P.vy = P.vz = 0;
   for (const b of beasts) { b.traque = false; if (b.as && b.as.c === P) b.as = null; b.colere = 0; }
-  say('vous reprenez vos esprits', 3);
+  if (perdreCoeur()) return;                           // tué : un cœur de moins, comme une chute
+  const r = solSur(P.spawn) ? P.spawn : (P.spawn = lieuSur());
+  P.x = r[0]; P.y = r[1]; P.z = r[2]; P.vx = P.vy = P.vz = 0;
+  say('vous reprenez vos esprits · ' + lives + ' cœur' + (lives > 1 ? 's' : '') + ' restant' + (lives > 1 ? 's' : ''), 3);
 }
 // Le joueur vient de blesser une bête : elle s'en souvient, et une meute répond pour elle.
 function blesseParJoueur(b) {
@@ -17292,7 +17317,7 @@ function appliquer(d, vivantes) {
   vus.clear();
   P.journal.visites = propre(jr.visites, VISITES_MAX);
   const valide = p => Array.isArray(p) && p.length === 3 && p.every(Number.isFinite)
-    && p[0] >= 1 && p[1] >= 1 && p[0] < WS - 1 && p[1] < WS - 1 && bAt(p[0] | 0, p[1] | 0) !== 8;
+    && p[0] >= 1 && p[1] >= 1 && p[0] < WS - 1 && p[1] < WS - 1 && bAt(p[0] | 0, p[1] | 0) !== 8 && hAt(p[0] | 0, p[1] | 0) > SEA - 2;   // pas au-dessus de la haute mer
   if (d.graine === SEED && valide(d.pos)) {
     const [x, y, z] = d.pos;
     P.x = x; P.y = y; P.z = Math.max(z, hAt(x | 0, y | 0));   // jamais dans la roche
