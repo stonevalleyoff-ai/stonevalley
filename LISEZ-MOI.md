@@ -14,7 +14,7 @@ Le dossier à mettre en ligne :
 ## 1. Mettre en ligne sur GitHub Pages
 
 1. Sur github.com, nouveau dépôt **public** nommé `stone-valley`.
-2. Déposer les fichiers (index.html, donjon.js, nomades.js, etats.js, village.js, sw.js, manifest et icônes) à la racine du dépôt (glisser-déposer dans « Add file › Upload files »).
+2. Déposer les fichiers (index.html, donjon.js, nomades.js, etats.js, village.js, coop.js, flore.js, sw.js, manifest et icônes) à la racine du dépôt (glisser-déposer dans « Add file › Upload files »).
 3. Onglet **Settings › Pages** : *Source* = `Deploy from a branch`, branche `main`, dossier `/ (root)`. Enregistrer.
 4. Au bout d'une minute, l'adresse est **https://shinjiebi.github.io/stone-valley/**.
 
@@ -921,3 +921,42 @@ Testé : six îles d'exploration 23 tirées au hasard, départ toujours sur la t
 
 - **Les allures** (`VIT_MARCHE`, `VIT_COURSE`, `VIT_EPUISE`) : la **marche passe à 4,2** cases/s (l'ancien sprint), le **sprint à 5,8**, et l'allure épuisée à 3,2 (au lieu de 3,0 / 4,2 / 2,3). L'oreille du Silencieux suit d'elle-même : marcher reste « marcher » pour lui.
 - **Tué par une bête, on perd un cœur**, comme dans une chute (`perdreCoeur`, partagé par `respawn` et `terrasse`) : on se relève au point de départ avec un cœur de moins ; au troisième, la même règle que pour les chutes (le campement vous reprend ; sans campement planté, loin du départ, retour à l'exploration 1, sac vidé). Le donjon garde sa règle à lui. Testé : tué, cœurs 3 → 2, relevé sur la terre ferme.
+
+
+## 50. Les amis et le groupe d'expédition (fichier `coop.js`)
+
+**Nouveau fichier** : `coop.js`, chargé après `village.js` (à déposer ; `sw.js` passe en `stone-valley-16`). Tout passe par la **diffusion Realtime** déjà ouverte (rien n'est écrit en base, aucune table à créer). Il faut être connecté à un compte.
+
+**Le code d'ami** : six lettres tirées du compte (sans les caractères ambigus 0/O, 1/I/L), affiché dans le nouvel onglet **Amis** du sac, avec un bouton Copier. Chacun écoute son canal `sv:ami:<code>`.
+
+**Ajouter un ami** : on entre son code, **Envoyer la demande**. S'il est en ligne, une carte s'affiche chez lui (**Accepter / Refuser**) ; sinon la demande **attend un quart d'heure** et repart dès qu'on le voit passer en ligne (la présence `ici` porte maintenant le code). Deux demandes croisées se valent un oui. La liste dit qui est **en ligne**, sur quelle île et à quelle exploration ; on peut **retirer** un ami (il est prévenu).
+
+**Le groupe d'expédition** (quatre au plus) : **Inviter au groupe** un ami en ligne (on devient chef du groupe s'il n'existait pas) ; il reçoit la carte **Rejoindre / Décliner**. Le groupe a son canal `sv:groupe:<id>` ; chacun y dit où il est toutes les cinq secondes. L'onglet montre chaque membre, son île et son exploration ; **Quitter le groupe** (à deux, le groupe se dissout).
+
+**Passer un portail en groupe** (`coopPortail`, appelé par le portail de l'île et par le portail dirigé du campement) : les membres qui sont **ailleurs** reçoivent une carte « *X a passé le portail · exploration N. Le suivre ?* » avec un compte à rebours de trente secondes :
+- **Le suivre** : ils arrivent sur son île, à son exploration ;
+- **Plus tard** (ou sans réponse) : « *Vous rejoindrez X en passant n'importe quel portail* » — un **rendez-vous** est noté (visible dans l'onglet, avec **Oublier**) : leur **prochain portail** les mène auprès de lui (là où il est alors, s'il a bougé depuis) ; tant que ce rendez-vous tient, le portail ne mène pas au campement d'un inconnu.
+
+Amis, demandes en attente, groupe et rendez-vous sont **gardés dans la sauvegarde** (un voyage recharge la page : le groupe se reforme tout seul).
+
+Testé avec deux joueurs simulés (Alice et Bob) : demande, acceptation, invitation, groupe à deux (chef Alice), Alice passe un portail, Bob reçoit la carte, décline, et son portail suivant le mène auprès d'Alice.
+
+
+## 51. La flore rare, légendaire et épique (fichier `flore.js`)
+
+**Nouveau fichier** : `flore.js`, chargé après `coop.js` (à déposer ; `sw.js` passe en `stone-valley-17`). **Dix-sept biomes** (rivage, prairie, bois, lande, falaise, pierre, neige, tourbière, canyon d'ocre, sylve fongique, champs de cristal, caldeira, nuage, fourmilière, ossuaire, terres creuses, village) ont chacun **douze plantes** à eux, à leurs couleurs (tige, feuille, pétale, cœur qui luit, pointe) : **6 rares, 4 légendaires, 2 épiques** — 204 plantes, 204 ingrédients.
+
+**Leurs formes** (quatorze silhouettes en volumes, qui toutes bougent : le vent, la respiration, le jour et la nuit) :
+- **Rares** (agrandies d'un tiers) : l'**étoile** (une corolle de sept pétales sur une tige qui ploie, qui s'ouvre le jour et se referme la nuit), les **clochettes** (un arc d'où pendent des cloches qui luisent la nuit), l'**éventail** (sept frondes qui ondulent), la **crosse** (trois spirales qui se déroulent et s'enroulent), l'**orbe** (des lanternes qui flottent au bout de tiges fines), l'**arbuste en fleurs** (ses pétales tombent) ; au champ de cristal, la **cristalline** (des pétales de cristal autour d'un cœur).
+- **Légendaires** (géantes) : le **colosse** (une fleur de quatre mètres, dix pétales qui respirent, des étamines qui luisent et tournent, du pollen), le **saule** (une ramure en touffes, vingt-quatre chevelures qui ondoient au vent, leurs pointes lumineuses), la **méduse** (elle flotte à deux mètres, pulse, traîne dix filaments), l'**arbre-lumière** (une ramure en touffes, douze fruits lumineux qui tournent lentement).
+- **Épiques** (géantes, et elles attaquent) : la **gueule** (deux mâchoires dentées sur une tige en S, une langue : elle se cabre, s'ouvre en grand, se détend et mord — 3,4 cases), la **fouetteuse** (cinq fouets d'épines qui ondulent ; l'un se lève et cingle — 4,2 cases, ça repousse), la **cracheuse** (un bulbe veiné qui gonfle et crache un venin en cloche — 9 cases, le nuage empoisonne). Chaque attaque s'annonce (0,6 à 0,9 s), puis elle se remet.
+
+**Sur l'île** (`floreIle`, la graine décide) : sur chaque biome assez grand, **2 à 7 rares**, **une légendaire** une fois sur deux environ (un peu plus en s'enfonçant), **une épique** une fois sur trois environ dès l'exploration 2 ; jamais près de l'arche, du village ni du point d'arrivée. Leurs lueurs : du pollen lumineux autour des légendaires et des épiques ; la nuit, **les quatre plus proches éclairent** autour d'elles. La fiche dit leur nom et leur rang.
+
+**Les cueillir** (ACTION : **CUEILLIR**) : la rare donne 1 ou 2 de son ingrédient et repousse en dix minutes ; la légendaire, 1, et repousse en une demi-heure ; l'épique **se défend** : il faut l'**abattre** (robustesse 3), et elle donne 2 de son ingrédient. Cueillie, la plante pâlit, ses pétales se ferment.
+
+**Leurs ingrédients** (au garde-manger) : « Pétale de… », « Clochette de… », « Fronde de… », « Crosse de… », « Orbe de… », « Fleur de… », « Éclat de… », « Cœur de… », « Larme de… », « Voile de… », « Fruit de… », « Croc de… », « Épine de… », « Venin de… » (ou le nom de la plante quand il le dit déjà) ; rareté **rare** (rares), **légendaire** (légendaires), **épique** (épiques, nouveau rang) — plus la rareté est haute, plus ils nourrissent ; chacun porte un effet (vision de nuit, braises, pas vif, coups puissants, peau dure, grand souffle).
+
+Testé (graines 166 et 11) : 46 plantes sur une île d'exploration 12 (40 rares, 4 légendaires, 2 épiques) ; les quatorze formes rendues sans faute ; une rare cueillie (+2, rareté rare, repousse) ; une épique arme, frappe, se remet ; abattue, +2 de son venin (épique).
+
+Pour régler : `flore.js` (`FL_BIOMES` pour les noms et les couleurs, `floreIle` pour la fréquence, `majPlante` pour les attaques, `osPlante` pour les formes).

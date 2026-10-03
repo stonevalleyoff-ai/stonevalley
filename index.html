@@ -468,6 +468,8 @@
 <script src="nomades.js"></script>
 <script src="etats.js"></script>
 <script src="village.js"></script>
+<script src="coop.js"></script>
+<script src="flore.js"></script>
 <script>
 'use strict';
 // Le jeu partage sa portée avec donjon.js, chargé juste avant : plus d'enveloppe (() => {…})().
@@ -3592,12 +3594,14 @@ function ouvrirPortail() {
   if (!auCamp() && !auPortailIle()) { say('il faut être devant un portail', 2.5); return false; }
   if (chercheRaid) return false;                     // le portail hésite déjà
   // une fois sur douze, avec un compte, il mène au campement d'un autre joueur
-  if (Compte.dedans && !essai && Math.random() < probaRaid()) { chercherRaid(); return true; }
+  if (Compte.dedans && !essai && !(typeof coopCible === 'function' && coopCible()) && Math.random() < probaRaid()) { chercherRaid(); return true; }
   return portailNormal();
 }
 function portailNormal() {
   const g = tirerGraine(profondeur() + 1, SEED);      // une île permise à l'exploration suivante
   burst(P.x, P.y, P.z + .8, 24, '#8fe3ff'); SON.jouer('portail');
+  const r = typeof coopPortail === 'function' ? coopPortail(g, profondeur() + 1) : null;   // le groupe : le rendez-vous, et les autres prévenus
+  if (r) return voyagerVers(r.g, null, r.mot, r.niv);
   return voyagerVers(g, null, 'le portail s\'ouvre · exploration ' + (profondeur() + 1));
 }
 
@@ -4099,6 +4103,7 @@ function brancher() {
   w.onopen = () => {
     RS.ouvert = true; RS.essais = 0; RS.etat = 'en ligne'; RS.canaux.clear(); RS.ile = canalIle();
     ouvrirCanal('sv:monde'); ouvrirCanal(canalIle());
+    if (typeof coopBrancher === 'function') coopBrancher();   // vos amis, votre groupe (coop.js)
   };
   w.onmessage = e => { try { recevoir(JSON.parse(e.data)); } catch (_) {} };
   w.onerror = () => {};
@@ -4169,9 +4174,10 @@ function recevoir(m) {
   const topic = String(m.topic || '').replace(/^realtime:/, '');
   if (!d || !d.u || d.u === Compte.uid) return;
   if (evt === 'ici') {
-    EnLigne.set(d.u, { nom: String(d.n || '?').slice(0, 18), graine: d.g | 0, vu: maintenant() });
+    EnLigne.set(d.u, { nom: String(d.n || '?').slice(0, 18), graine: d.g | 0, vu: maintenant(), c: String(d.c || '').slice(0, 6) });
     return;
   }
+  if (typeof coopRecevoir === 'function' && coopRecevoir(topic, evt, d)) return;   // les amis, le groupe (coop.js)
   if (topic !== canalIle()) return;
   if (evt === 'pos') majDistant(d);
   else if (evt === 'coup') encaisser(d);
@@ -4335,7 +4341,7 @@ function majReseau(dt) {
           g: P.evt && t - P.evt.t0 < Math.max(P.evt.dur, .6) ? [P.evt.n, P.evt.nom, r2(t - P.evt.t0), r2(P.evt.dur), P.evt.o] : null });
       }
     }
-    if (now - RS.monde > ICI_RESEAU) { RS.monde = now; diffuser('sv:monde', 'ici', { u: Compte.uid, n: pseudo(), g: SEED }); }
+    if (now - RS.monde > ICI_RESEAU) { RS.monde = now; diffuser('sv:monde', 'ici', { u: Compte.uid, n: pseudo(), g: SEED, c: typeof codeAmi === 'function' ? codeAmi() : '' }); }
   }
   // les autres glissent vers leur dernière position connue, et s'effacent s'ils se taisent
   const k = Math.min(1, dt * 8);                      // plus doux : les nouvelles sont plus espacées
@@ -4475,6 +4481,8 @@ function partirVers(g) {
   if (!auCamp()) { say('le portail est à votre campement', 2.5); return false; }
   if (g === SEED) { say('vous y êtes déjà', 2); return false; }
   burst(P.x, P.y, P.z + .8, 24, '#8fe3ff');
+  const r = typeof coopPortail === 'function' ? coopPortail(g, profondeur() + 1) : null;
+  if (r) return voyagerVers(r.g, null, r.mot, r.niv);
   return voyagerVers(g, null, 'cap sur l\'île ' + nomIle(g));
 }
 
@@ -4860,6 +4868,7 @@ const DESSINS = {
     d.ligne(5, 7, 10, 2, PIX.boisC); d.rect(9, 1, 12, 3, PIX.pierreC); },
   ongletSauve: d => { d.rect(3, 3, 12, 12, PIX.papier); d.rect(3, 2, 12, 3, PIX.boisC); d.rect(3, 12, 12, 13, PIX.boisC);
     for (const y of [5, 7, 9]) d.ligne(5, y, 10, y, PIX.gris); d.net(10, 10, PIX.rouge); },
+  ongletAmis: d => (typeof dessinOngletAmis === 'function' ? dessinOngletAmis(d) : null),
   ongletBeta: d => { d.rect(6, 1, 9, 5, PIX.pierreC); d.ligne(6, 5, 2, 13, PIX.pierre, 2); d.ligne(9, 5, 13, 13, PIX.pierre, 2);   // une fiole
     d.rect(3, 10, 12, 13, [120, 214, 255]); d.ligne(3, 14, 12, 14, PIX.pierre); d.net(7, 8, [120, 214, 255]); d.net(8, 6, [120, 214, 255]); },
   ongletReglages: d => { d.disque(8, 8, 5, PIX.pierre);
@@ -5081,6 +5090,7 @@ const ONGLETS = [
   { id: 'reglages', n: 'Réglages', ic: 'ongletReglages' },
   { id: 'beta', n: 'Bêta', ic: 'ongletBeta' },
   { id: 'cuisine', n: 'Cuisine', ic: 'ongletCuisine' },
+  { id: 'amis', n: 'Amis', ic: 'ongletAmis' },          // coop.js
 ];
 const EMPLACEMENTS = [
   { id: 'outil', n: 'Outil', fantome: 'pioche', vide: 'Aucun outil en main' },
@@ -5757,7 +5767,7 @@ function majSac() {
   if (!sacOuvert) return;
   const el = document.getElementById('sac');
   const actif = document.activeElement;
-  if (actif && (actif.tagName === 'SELECT' || (actif.tagName === 'INPUT' && (actif.dataset.partage || actif.dataset.tp))) && el.contains(actif)) { sacEnAttente = true; return; }
+  if (actif && (actif.tagName === 'SELECT' || (actif.tagName === 'INPUT' && (actif.dataset.partage || actif.dataset.tp || actif.dataset.coopsaisie))) && el.contains(actif)) { sacEnAttente = true; return; }
   // Le panneau est réécrit en entier : on garde la saisie d'un code et la position des listes.
   const champ = document.getElementById('svcode');
   const saisie = champ ? champ.value : '', enSaisie = !!champ && document.activeElement === champ;
@@ -5767,7 +5777,8 @@ function majSac() {
   const focusCle = focus ? ['onglet', 'recette', 'choix', 'filtre', 'comp', 'role', 'choixcamp'].map(k => focus.dataset[k] !== undefined ? `[data-${k}="${focus.dataset[k]}"]` : '').join('') : '';
   feuilleIcones();
   const page = { sac: pageSac, etabli: pageEtabli, compagnes: pageCompagnes, camp: pageCampement,
-    journal: pageJournal, sauve: pageSauve, reglages: pageReglages, beta: pageBeta, cuisine: pageCuisine }[ongletSac]();
+    journal: pageJournal, sauve: pageSauve, reglages: pageReglages, beta: pageBeta, cuisine: pageCuisine,
+    amis: () => (typeof pageAmis === 'function' ? pageAmis() : '<p class="note">coop.js manquant</p>') }[ongletSac]();
   let nDefil = 0;
   const titre = ONGLETS.find(o => o.id === ongletSac).n;
   const rail = ONGLETS.map((o, i) =>
@@ -5885,6 +5896,7 @@ function clicSac(b) {
   else if (d.mesures) { mesures = !mesures; majSac(); }
   else if (d.retour) ouvrirRetour();
   else if (d.beta) outilBeta(d.beta);
+  else if (d.coop && typeof coopAction === 'function') coopAction(d.coop, d.arg);
   else if (d.boire) boireNectar();
   else if (d.manger) mangerPoisson(d.manger);
   else if (d.cru) mangerCru(d.cru);
@@ -6101,7 +6113,7 @@ const HORREURS = [
   { id:'millegueule', n:'Mille-gueules', corps:'millegueule', horreur:1, terre:20, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
     shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
 ];
-SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []));   // et le village (village.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
+SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -6145,7 +6157,7 @@ const tellurien = sp => !!sp && sp.fam === 'tellurien';
 const doux = sp => !!sp && sp.fam === 'doux';
 // la pierre natale prend la teinte de son biome
 for (const sp of SPEC) if (sp.biome) { const h = RARES.find(r => r.b === sp.biome).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
-for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.corps === 'silencieux' ? dessinSilencieux(d, sp) : sp.corps === 'millegueule' ? dessinMille(d, sp) : sp.boss ? dessinTisseuse(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
+for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.plante ? (typeof dessinPlante === 'function' ? dessinPlante(d, sp) : null) : sp.corps === 'silencieux' ? dessinSilencieux(d, sp) : sp.corps === 'millegueule' ? dessinMille(d, sp) : sp.boss ? dessinTisseuse(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
   : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'dragon' ? dessinDragon(d, sp) : sp.corps === 'sterne' ? dessinSterne(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;   // berries : l'index des buissons à baies (des pieds de la flore)
 const BUISSON_BIO = { 2: ESP.findIndex(e => e.id === 'groseillier'), 3: ESP.findIndex(e => e.id === 'ronce'),
@@ -6311,6 +6323,7 @@ function majFeux() {
   for (const j of Autres.values()) pousse(j.x, j.y, j.z + 1, j.lum ? vacille(RAYON.lanterne, 5) : RAYON.joueur);
   for (const b of betesLoin) if (!b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
   if (noirceur() > .05) lueursRares(pousse);
+  if (noirceur() > .05 && typeof lueursPlantes === 'function') lueursPlantes(pousse);   // la flore qui luit, la nuit (flore.js)
   L.sort((a, b) => a[4] - b[4]);
   for (let i = 0; i < L.length && feux.length < FEUX_MAX; i++) feux.push(L[i]);
   return feux;
@@ -6395,6 +6408,7 @@ function majBiome(dt) {
   majToiles(dt); majBrasiers(dt);
   if (typeof majEtats === 'function') majEtats(dt);   // l'état de l'île, l'infection, les visions (etats.js)
   if (typeof majVillage === 'function') majVillage(dt);   // le feu, les cheminées, la parole (village.js)
+  if (typeof majCoop === 'function') majCoop(dt);         // les amis, le groupe (coop.js)
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
     P.pv = Math.max(.05, P.pv - dt * .014);
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
@@ -6542,6 +6556,7 @@ function loadWorld() {
   poserTisseuse();                                   // aux îles 10, 15, 20… : la Tisseuse, et l'arche cachée
   if (typeof etatsIle === 'function') etatsIle();     // l'état de l'île : le Korlaz… (etats.js)
   if (typeof villageIle === 'function') villageIle();   // le village, s'il y en a un (village.js)
+  if (typeof floreIle === 'function') floreIle();       // la flore rare, légendaire, épique (flore.js)
   // Buissons à baies, dans les herbages. Leur place vient de la graine et non du hasard : deux
   // joueurs sur la même île voient les mêmes buissons, aux mêmes cases, et se les disputent.
   let gb = (SEED ^ 0xba1e5) >>> 0;
@@ -6914,6 +6929,7 @@ for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
   document.getElementById('batt').addEventListener(ev, e => { e.preventDefault(); lacheQ = true; });
 document.getElementById('bsac').onclick = () => ouvrirSac();
 document.getElementById('sac').addEventListener('input', e => {       // le curseur glisse : les chiffres suivent
+  if (e.target && e.target.dataset && e.target.dataset.coopsaisie && typeof COOP !== 'undefined') { COOP.saisie = e.target.value; return; }
   const tp = e.target && e.target.dataset && e.target.dataset.tp;
   if (tp) { const v = e.target.value.trim(); if (tp === 'g') tpGraine = v === '' ? null : Math.floor(Number(v)); else tpNiv = v === '' ? null : Math.floor(Number(v)); return; }
   const r = e.target && e.target.dataset && e.target.dataset.partage; if (!r) return;
@@ -8069,7 +8085,7 @@ function majMille(b, dt) {
   const vise = () => {
     if (b.tame) { const m = b.role === 'defense' ? menaceOrdre(b) : null; return m && m !== P && !m.dead && m.pv > 0 && solMeuble(m.x, m.y) && Math.hypot(m.x - T[0], m.y - T[1]) < 25 ? [m.x, m.y, m] : null; }
     if (proche && (b.conf || 0) < .5 && b.t > (b.calmeT || 0)) return [P.x, P.y, P];                           // vous, sinon une bête sur sa terre
-    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.enVol && !o.sp.horreur && Math.hypot(o.x - T[0], o.y - T[1]) < 18 && solMeuble(o.x, o.y)) return [o.x, o.y, o];
+    for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.enVol && !o.sp.horreur && !o.sp.plante && !o.sp.batiment && Math.hypot(o.x - T[0], o.y - T[1]) < 18 && solMeuble(o.x, o.y)) return [o.x, o.y, o];
     return null; };
   let mv = null, v = 0, zT = g - 1.4;
   switch (b.etat) {
@@ -9801,7 +9817,7 @@ const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
 const rayonCorps = b => b.sp.batiment ? (b.forme === 'puits' ? .85 : b.forme === 'foyer' ? .7 : b.forme === 'longue' ? 1.7 : 1.45) : .38 * b.sp.sz * (b.ech || 1);
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
-const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !b.cache && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !b.sp.plante && !b.cache && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
   corpsGrille.clear();
@@ -10901,6 +10917,7 @@ function majBete(b, dt) {
   if (sp.boss) return majTisseuse(b, dt);
   if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi
   if (sp.illusion) return majIllusion(b, dt);          // une vision du Korlaz (etats.js)
+  if (sp.plante) return majPlante(b, dt);              // la flore rare, légendaire, épique (flore.js)
   if (sp.villageois || sp.batiment) return majVillageois(b, dt);   // le village (village.js)              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
   if (automate(sp)) return majAutomate(b, dt);
   if (coursier(sp)) return majCoursier(b, dt);
@@ -11563,7 +11580,7 @@ function prendreProie(b, rayon) {
   if (c && !c.dead && c.pv > 0 && !c.tame && (c.x - ox) ** 2 + (c.y - oy) ** 2 < (rayon + 6) ** 2) return c;
   let best = null, bd = b.sp.vue * b.sp.vue; const L = proiesDe(b.sp);
   for (const o of beasts) {
-    if (o.dead || o.pv <= 0 || o.tame || o.sp.pnj || o.gardeCamp || o.sp.illusion || o.sp.batiment || o.cache || (L ? !L.includes(o.sp.id) : o.sp.villageois)) continue;
+    if (o.dead || o.pv <= 0 || o.tame || o.sp.pnj || o.gardeCamp || o.sp.illusion || o.sp.batiment || o.sp.plante || o.cache || (L ? !L.includes(o.sp.id) : o.sp.villageois)) continue;
     if ((o.x - ox) ** 2 + (o.y - oy) ** 2 > rayon * rayon) continue;
     const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2;
     if (d < bd) { bd = d; best = o; }
@@ -12115,6 +12132,7 @@ function osDeBase(f) {
   if (sp && sp.boss) return osTisseuse(f);
   if (sp && sp.horreur) return sp.corps === 'silencieux' ? osSilencieux(f) : osMille(f);
   if (sp && sp.illusion) return osIllusion(f);
+  if (sp && sp.plante) return osPlante(f);
   if (sp && sp.villageois) return osVillageois(f);
   if (sp && sp.batiment) return osMaison(f);
   if (automate(sp)) return automateBones(f);
@@ -13480,7 +13498,7 @@ function blocPeche() {
 //  remarquables attendent qu'on tombe sur leur mariage.
 //  On cuisine au feu du campement, ou partout ailleurs avec sa marmite posée.
 // ============================================================
-const RARETES = ['commune', 'peu commune', 'rare', 'très rare', 'légendaire'];
+const RARETES = ['commune', 'peu commune', 'rare', 'très rare', 'légendaire', 'épique'];
 const SOIN_FAM = { viande: .15, fruit: .06, racine: .07, graine: .04, fleur: .03, feuille: .04, champignon: .05, douceur: .08 };
 const NOM_FAM = { viande: 'Viandes', poisson: 'Poissons', fruit: 'Fruits', racine: 'Racines', graine: 'Graines', fleur: 'Fleurs', feuille: 'Feuilles', champignon: 'Champignons', douceur: 'Douceurs' };
 const EFFETS = { nuit: 'vision de nuit', braise: 'insensible aux braises', vif: 'pas vif', fort: 'coups puissants', robuste: 'peau dure', souffle: 'grand souffle' };
@@ -13557,7 +13575,7 @@ const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], ang
 const INGR = {};
 for (const f of POISSONS) INGR[f.id] = { id: f.id, n: f.n, court: f.n.split(' ')[0].toLowerCase(), fam: 'poisson', r: POISSON_R[f.id][0], tag: POISSON_R[f.id][1], soin: f.soin, c: f.c, src: 'poisson' };
 for (const [sp, n, court, r, tag, c] of VIANDES) INGR['v_' + sp] = { id: 'v_' + sp, sp, n, court, fam: 'viande', r, tag, soin: SOIN_FAM.viande * (1 + (r - 1) * .15), c, src: 'denree' };
-for (const [fl, n, court, fam, r, tag, c] of PRODUITS) INGR['p_' + fl] = { id: 'p_' + fl, fl, n, court, fam, r, tag, soin: SOIN_FAM[fam] * (1 + (r - 1) * .15), c, src: 'denree' };
+for (const [fl, n, court, fam, r, tag, c] of [...PRODUITS, ...(typeof FLORE_PRODUITS !== 'undefined' ? FLORE_PRODUITS : [])]) INGR['p_' + fl] = { id: 'p_' + fl, fl, n, court, fam, r, tag, soin: SOIN_FAM[fam] * (1 + (r - 1) * .15), c, src: 'denree' };
 INGR.baie = { id: 'baie', n: 'Baie', court: 'baies', fam: 'fruit', r: 1, tag: null, soin: .04, c: [214, 72, 104], src: 'baie' };
 INGR.nectar = { id: 'nectar', n: 'Nectar d\'oglodon', court: 'ambre', fam: 'douceur', r: 2, tag: 'souffle', soin: .1, c: [238, 158, 52], src: 'nectar' };
 const viandeDe = sp => INGR['v_' + sp.id] || null;
@@ -15395,12 +15413,13 @@ function actionContexte() {
   if (auCamp()) return { v: 'CAMPEMENT', o: 'feu · coffre · portail', f: () => ouvrirSac(true, 'camp') };
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && !b.sp.batiment && !b.cache && Math.abs(b.z - P.z) < 2) {
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && (!b.sp.batiment || b.sp.plante) && !b.cache && Math.abs(b.z - P.z) < 2) {
     const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
     if (d < dp) { dp = d; pr = b; }
   }
   if (pr) {
     const nom = pr.comp ? pr.comp.nom : pr.sp.n.toLowerCase();
+    if (pr.sp.plante) return { v: 'CUEILLIR', o: pr.pl ? pr.pl.n : nom, f: () => cueillirPlante(pr) };
     if (pr.sp.villageois) return { v: 'PARLER', o: pr.nm ? pr.nm.nom : nom, f: () => vlParler(pr) };
     if (automate(pr.sp)) { if (!pr.tame && pr.etat === 'veille') return { v: 'RALLUMER', o: nom, f: nourrirQ }; }
     else if (pr.sp.volant && !pr.tame && !poissonADonner()) { /* la sterne : rien qu'un poisson */ }
@@ -15715,7 +15734,7 @@ function cibleVue() {
   for (const b of beasts) if (b.sp.boss && !b.dead && b.pv > 0 && b.etat !== 'sommeil' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 3600) return b;   // la Tisseuse éveillée : sa barre en haut
   if (d && d.o && !d.o.dead && d.o.pv > 0 && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < 400) return d.o;
   let pr = null, dp = 25;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5) && !b.sp.illusion && !b.sp.batiment && !b.cache) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5) && !b.sp.illusion && (!b.sp.batiment || b.sp.plante) && !b.cache) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
   return pr;
 }
 let cibleSig = '';
@@ -15734,6 +15753,7 @@ function majCible() {
       info = `${nomEspeceDe(o).toLowerCase()} · ${nomRole(o.comp.role)} · ${nomMode(o.comp.mode)} · ${DITS_ETAT[o.etat] || o.etat}`; }
     else if (coursier(o.sp) && !o.tame) { nom = nomEspeceDe(o);
       info = o === P.monture && Rodeo ? `rodéo · fougue ${Math.round(Rodeo.fougue * 100)} % · tenez ACTION` : `${DITS_ETAT[o.etat] || o.etat} · souffle ${Math.round((o.endu ?? 1) * 100)} % · se monte au contact`; }
+    else if (o.sp.plante && o.pl) { nom = o.pl.n; cl = o.pl.rang === 'epique' ? 'meca' : 'lie'; info = FL_RANG[o.pl.rang] + (o.pl.rang === 'epique' ? (o.etat === 'arme' ? ' · elle s\'arme !' : ' · elle attaque qui s\'approche') : o.cueillie ? ' · cueillie, elle repousse' : ' · à cueillir'); }
     else if (o.sp.villageois) { nom = o.nm ? o.nm.nom : o.sp.n; info = (VL_DIT_METIER[o.metier] || '') + ' du village' + (o.cache ? ' · chez lui' : o.etat === 'fuir' ? ' · en fuite' : o.etat === 'combat' ? ' · se bat' : o.etat === 'repas' ? ' · au repas' : ''); }
     else if (o.sp.horreur) { nom = o.sp.n; cl = 'meca'; info = (DITS_ETAT[o.etat] || o.etat) + (o.conf > 0 && !o.tame ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : '') + (o.sp.corps === 'silencieux' ? ' · il n\'entend que le bruit' : o.dehors ? ' · dehors : frappez !' : ' · sous la terre, hors d\'atteinte'); }
     else if (o.sp.boss) { nom = o.sp.n; cl = 'meca';
@@ -16885,7 +16905,7 @@ void main() { o = uC; }`;
     if (iso || tierce) heros(TD);
     for (const b of beasts) {
       if ((b.x - ex) ** 2 + (b.y - ey) ** 2 >= r2) continue;
-      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.corps === 'millegueule' ? 9 : b.sp.dragon ? 4.5 : b.sp.horreur ? 2 : 1.3 * kz + .3;
+      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.corps === 'millegueule' ? 9 : b.sp.plante ? 4 : b.sp.dragon ? 4.5 : b.sp.horreur ? 2 : 1.3 * kz + .3;
       if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + (b.sp.boss ? 7 : 1.8 * kz + .4), .05)) continue;
       const { U, put } = posBete(b);
       if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol
@@ -17178,7 +17198,8 @@ function photo() {
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
-    denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null, bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
+    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -17264,6 +17285,10 @@ function appliquer(d, vivantes) {
   }
   // la cuisine : les denrées connues, des plats aux champs bornés, le carnet, la marmite
   P.denrees = {}; P.cellier = {};
+  P.amis = Array.isArray(d.amis) ? d.amis.filter(a => a && typeof a.u === 'string').slice(0, 50).map(a => ({ u: a.u.slice(0, 64), n: String(a.n || '?').slice(0, 18), c: String(a.c || '').slice(0, 6) })) : [];
+  P.amisAttente = Array.isArray(d.amisAttente) ? d.amisAttente.filter(a => a && typeof a.c === 'string').slice(0, 20) : [];
+  P.groupe = d.groupe && typeof d.groupe.id === 'string' && Array.isArray(d.groupe.membres) ? { id: d.groupe.id.slice(0, 24), chef: String(d.groupe.chef || ''), membres: d.groupe.membres.filter(m => m && typeof m.u === 'string').slice(0, 4).map(m => ({ u: m.u.slice(0, 64), n: String(m.n || '?').slice(0, 18), c: String(m.c || '').slice(0, 6) })) } : null;
+  P.groupeCible = d.groupeCible && Number.isInteger(d.groupeCible.g) ? { g: d.groupeCible.g, niv: nb(d.groupeCible.niv, 0, 99, 1) | 0, n: String(d.groupeCible.n || '?').slice(0, 18), u: String(d.groupeCible.u || '') } : null;
   P.korlaz = d.korlaz && typeof d.korlaz === 'object' ? { duree: nb(d.korlaz.duree, 0, 1e7, 0), prochain: 0 } : null; P.korlazExpo = 0;   // l'infection suit le personnage
   P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
   for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
