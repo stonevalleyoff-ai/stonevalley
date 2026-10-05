@@ -246,6 +246,7 @@
   .sac-rail button.on .ic{opacity:1;}
   #sac .sac-rail button:focus-visible{outline-offset:-2px;}
   .sac-rail .fermer{margin-top:auto;font-size:17px;padding:10px 0;}
+  .fermer-tete{display:none;}                         /* la croix de l'en-tête : téléphone seulement */
   .sac-page{flex:1;min-width:0;min-height:0;display:flex;flex-direction:column;}
   .sac-tete{flex:none;display:flex;align-items:center;gap:10px;padding:10px 18px 9px;border-bottom:1px solid var(--trait);}
   .sac-tete h2{margin:0;font-size:18px;font-weight:650;color:var(--texte);}
@@ -286,7 +287,8 @@
   @media (prefers-reduced-motion:reduce){.case.neuf{animation:none;}}
   .equip{display:grid;grid-template-columns:repeat(3,max-content);gap:8px 14px;}
   .rangee{display:flex;flex-wrap:wrap;gap:8px 10px;}
-  .emplacement{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--texte2);}
+  .emplacement{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--texte2);min-width:0;}
+  .emplacement > span{max-width:5.6em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .grille{display:grid;grid-template-columns:repeat(auto-fill,52px);gap:8px;}
   .fiche{display:flex;gap:14px;align-items:flex-start;margin-top:14px;padding-top:12px;border-top:1px solid var(--trait);}
   .fiche.haute{margin-top:10px;padding-top:0;border-top:0;}
@@ -390,17 +392,78 @@
   .btn.discret{background:none;border-color:transparent;color:var(--texte2);}
   .btn.discret:hover{background:none;color:var(--braise);border-color:#4a3036;}
   .btn.alerte{background:#2a1618;border-color:var(--braise);color:var(--braise);}
+  /* l'onglet Amis (coop.js) : deux colonnes, le code en vedette, une ligne par ami */
+  .sac-corps.amis{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);}
+  #sac .amis h3:first-child{margin-top:10px;}
+  #sac .amis .note{display:block;margin:6px 2px 2px;line-height:1.45;}
+  #sac .code-ami{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 14px;
+    background:#141926;border:1px solid var(--trait);border-radius:10px;}
+  #sac .code-ami .code{display:block;font-size:24px;line-height:1.15;font-weight:800;letter-spacing:5px;color:var(--or);
+    font-variant-numeric:tabular-nums;user-select:all;-webkit-user-select:all;}
+  #sac .code-ami .note{margin:4px 0 0;}
+  #sac .code-ami .btn{flex:none;}
+  #sac .ajout-ami{display:flex;gap:8px;align-items:stretch;}
+  #sac .ajout-ami input{flex:1;min-width:0;max-width:220px;padding:8px 11px;border-radius:8px;border:1px solid var(--trait);
+    background:#121622;color:var(--texte);font:inherit;font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;}
+  #sac .ajout-ami input::placeholder{font-size:13px;font-weight:400;letter-spacing:.3px;text-transform:none;color:#5d6679;}
+  #sac .ajout-ami input:focus{outline:none;border-color:var(--or);box-shadow:inset 0 0 0 1px var(--or);}
+  #sac .amis .obj{padding:10px 2px;}
+  #sac .amis .obj > div:first-child{min-width:0;}
+  #sac .amis .obj.porte{padding-left:12px;}
+  #sac .amis .gestes-ligne{display:flex;flex:none;gap:6px;align-items:center;}
+  #sac .amis .obj button.principal{background:var(--or);border-color:var(--or);color:#2a1d05;}
+  #sac .amis .obj button.principal:hover{background:#ffdd9a;}
+  #sac .amis .obj button.discret{background:none;border-color:transparent;color:var(--texte2);}
+  #sac .amis .obj button.discret:hover{color:var(--braise);border-color:#4a3036;}
+  #sac .amis .obj button.alerte{background:#2a1618;border-color:var(--braise);}
+  #sac .amis .gestes{margin-top:14px;}
+  .code-petit{margin-left:4px;font-size:11px;font-weight:600;letter-spacing:1.5px;color:var(--texte2);}
+  .code-moyen{font-size:14px;font-weight:700;letter-spacing:3px;color:var(--texte);}
+  .pastille{display:inline-block;width:7px;height:7px;margin-right:6px;border-radius:50%;background:#4d5568;vertical-align:1px;}
+  .pastille.on{background:#7fd88a;box-shadow:0 0 6px rgba(127,216,138,.55);}
+  /* « #sac button { font: inherit; color: inherit } » l'emportait sur ces réglages : les libellés du
+     rail passaient en 13 px, et le texte des boutons dorés, clair sur l'or, ne se lisait plus */
+  #sac .sac-rail button{font-size:11px;line-height:1.2;}
+  #sac .btn.principal{color:#2a1d05;}
+  #sac .btn.principal:disabled{color:#687186;}
+  #sac .btn.alerte{color:var(--braise);}
+  #sac .btn.discret{color:var(--texte2);}
+  #sac .btn.discret:hover{color:var(--braise);}
+  /* dix onglets doivent tenir dans le cadre de 640 px ; plus bas (téléphone en paysage), le rail
+     défile, au lieu de faire défiler le cadre entier et d'en cacher l'en-tête */
+  .sac-rail{overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;}
+  .sac-rail::-webkit-scrollbar{display:none;}
+  .sac-rail button{flex:none;padding:3px 0;position:relative;}
+  /* le filet entre les deux groupes d'onglets */
+  .sac-rail button.groupe{margin-top:9px;}
+  .sac-rail button.groupe::before{content:'';position:absolute;left:14px;right:14px;top:-6px;height:1px;background:#2c3345;}
   @media (max-width:640px){
     .sac-cadre{flex-direction:column;}
-    .sac-rail{flex-direction:row;width:auto;padding:5px 6px;border-right:0;border-bottom:1px solid var(--trait);}
-    .sac-rail button{flex:1;min-width:0;font-size:10px;}
+    /* deux lignes de cinq, noms en entier, sur toute la largeur : la croix monte dans l'en-tête */
+    .sac-rail{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:3px 2px;width:auto;padding:6px 4px 5px;
+      overflow:visible;border-right:0;border-bottom:1px solid var(--trait);}
+    .sac-rail button{min-width:0;padding:5px 0 4px;gap:3px;}
+    .sac-rail button .ic{width:24px;height:24px;}
+    #sac .sac-rail button{font-size:11px;}
     .sac-rail button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .sac-rail button.on{box-shadow:inset 0 -3px 0 var(--or);}
-    .sac-rail .fermer{margin:0;flex:0 0 44px;}
+    .sac-rail button.on{background:#1d2334;color:var(--or);box-shadow:inset 0 -2px 0 var(--or);}
+    .sac-rail button.groupe{margin-top:0;}
+    .sac-rail button.groupe::before{display:none;}
+    .sac-rail .fermer{display:none;}
+    .fermer-tete{display:grid;place-items:center;flex:none;width:34px;height:34px;margin:-4px -8px -4px 0;border:0;border-radius:8px;
+      background:none;color:var(--texte2);font-size:18px;line-height:1;}
+    .fermer-tete:hover{background:#191e2b;color:var(--texte);}
+    .sac-tete{padding:9px 14px 9px 16px;}
+    .sac-tete h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .sac-corps.deux,.sac-corps.etabli{display:block;overflow:auto;padding-bottom:18px;}
     .sac-corps.deux>.col{overflow:visible;padding-bottom:0;}
-    .jauges{gap:8px;}
-    .jauges .barre{width:44px;}
+    .sac-corps.amis>.col+.col{margin-top:8px;}
+    .jauges{gap:6px;}
+    .jauges .barre{width:36px;}
+  }
+  @media (max-width:350px){                         /* les plus petits écrans : 320 px */
+    #sac .sac-rail button{font-size:10px;}
+    .jauges .vies{display:none;}
   }
   @media (max-height:440px){
     .filtres{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:8px 0 4px;padding-bottom:2px;}
@@ -413,6 +476,17 @@
     .sac-rail button .ic{width:28px;height:28px;}
     .case.grande{--t:72px;}
     .case.grande .ic{width:56px;height:56px;}
+  }
+  /* téléphone en paysage : le rail passe sur deux colonnes de cinq (un groupe par colonne),
+     et tout tient sans défiler */
+  @media (max-height:440px) and (min-width:641px){
+    .sac-rail{display:grid;grid-auto-flow:column;grid-template-rows:repeat(5,auto) 1fr;grid-template-columns:repeat(2,66px);
+      gap:2px 4px;width:auto;padding:6px;overflow:visible;}
+    .sac-rail button{padding:3px 0;}
+    .sac-rail button .ic{width:26px;height:26px;}
+    .sac-rail button.groupe{margin-top:0;}
+    .sac-rail button.groupe::before{display:none;}
+    .sac-rail .fermer{grid-column:1 / -1;grid-row:6;align-self:end;margin:0;}
   }
 </style>
 </head>
@@ -469,6 +543,7 @@
 <script src="etats.js"></script>
 <script src="village.js"></script>
 <script src="coop.js"></script>
+<script src="faune.js"></script>
 <script src="flore.js"></script>
 <script>
 'use strict';
@@ -2557,7 +2632,7 @@ function coupRecolte(nd) {
   if (!e) {
     const mult = nd.sp.res === 'eclat' ? rendement() * .6 : rendement();
     const tn = teinteNoeud(nd);                        // une druse lavande ou dorée rend davantage
-    const n = Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0);
+    const n = Math.round((Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0)) * (1 + .5 * effet('cueilleur')));   // récolte abondante
     // un outil de haut rang abat plus vite : un coup de moins à partir de la serpe
     const c = Math.max(1, Math.min(n, (COUPS_FORME[nd.sp.forme] || 2) - (nivOutil() >= 3 ? 1 : 0)));
     e = { reste: n, coups: c, total: c, choc: 0, tn };
@@ -3356,6 +3431,8 @@ function tirerFleche(p) {
   FLECHES.push({ x: P.x + dx * .45, y: P.y + dy * .45, z: P.z + .55 + dz * .45,
     vx: dx * v0, vy: dy * v0, vz: dz * v0, age: 0, plantee: 0, dir: [dx, dy, dz],
     deg: (a && a.deg || .8) });
+  if (RS.ouvert && Autres.size && Compte.uid) { const f = FLECHES[FLECHES.length - 1];   // les autres la voient filer
+    diffuser(canalIle(), 'fleche', { u: Compte.uid, x: r2(f.x), y: r2(f.y), z: r2(f.z), vx: r2(f.vx), vy: r2(f.vy), vz: r2(f.vz) }); }
   burst(P.x + dx * .4, P.y + dy * .4, P.z + .55, 4, '#dfe6f2');
   majSac();
 }
@@ -3370,22 +3447,29 @@ function planter(f) {
 // Retourne vrai si la flèche s'arrête là. Les dégâts suivent la vitesse à l'impact :
 // une flèche mollement décochée pique et ne fait presque rien.
 function impactFleche(f, nx, ny, nz) {
+  if (f.fantome) {                                     // la flèche d'en face : elle s'arrête où elle touche, et c'est tout
+    if ((P.x - nx) ** 2 + (P.y - ny) ** 2 < .36 && nz > P.z - .2 && nz < P.z + 1.5 && f.age > .05) return true;
+    for (const b of beasts) if (!b.dead && b.pv > 0 && toucheBete(b, nx, ny, nz)) return true;
+    for (const b of betesLoin) if (b.loin !== f.de && b.pv > 0 && toucheBete(b, nx, ny, nz)) return true;
+    for (const j of Autres.values()) if (j !== f.de && j.pv > 0 && (j.x - nx) ** 2 + (j.y - ny) ** 2 < .36 && nz > j.z - .2 && nz < j.z + 1.5) return true;
+  } else
   for (const b of betesLoin) if (b.pv > 0 && toucheBete(b, nx, ny, nz)) {
     frapperLoin({ j: b.loin, b }, f.deg * Math.min(1, Math.hypot(f.vx, f.vy, f.vz) / ARC_VMAX));
     return true;
   }
-  for (const j of Autres.values()) if (j.pv > 0
+  if (!f.fantome) for (const j of Autres.values()) if (j.pv > 0
       && (j.x - nx) ** 2 + (j.y - ny) ** 2 < .36 && nz > j.z - .2 && nz < j.z + 1.5) {
     frapperLoin({ j, b: null }, f.deg * Math.min(1, Math.hypot(f.vx, f.vy, f.vz) / ARC_VMAX));
     return true;
   }
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {        // une flèche épargne les compagnes
+  if (!f.fantome) for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {        // une flèche épargne les compagnes
     if (toucheBete(b, nx, ny, nz)) {
-      const v = Math.hypot(f.vx, f.vy, f.vz), deg = f.deg * Math.min(1, v / ARC_VMAX);
-      b.pv -= degJoueur(deg, b); b.hit = .25; b.alarm = 1; blesseParJoueur(b); SON.jouer('touche', { arme: 'fleche' }, b.x, b.y, b.z + .4);
+      const v = Math.hypot(f.vx, f.vy, f.vz), deg = f.deg * Math.min(1, v / ARC_VMAX), dgJ = degJoueur(deg, b);
+      b.pv -= dgJ; b.hit = .25; b.alarm = 1; blesseParJoueur(b); SON.jouer('touche', { arme: 'fleche' }, b.x, b.y, b.z + .4);
       lacherParoi(b);                                   // fichée dans une bête qui grimpe : elle tombe
       b.vx += f.vx * .18; b.vy += f.vy * .18;
       burst(nx, ny, nz, 10, '#ffb0a0');
+      if (typeof fauneCoup === 'function') fauneCoup(b, dgJ, f.vx * .18, f.vy * .18, 'flèche');
       if (b.pv <= 0) { mourirBete(b, 'flèche'); butin(b); }
       else say(b.sp.n + ' · ' + Math.round(b.pv * 100) + '% · flèche ' + Math.round(deg * 100), 1.2);
       return true;                                      // la flèche est perdue dans la bête
@@ -3404,8 +3488,8 @@ function majFleches(dt) {
   for (let k = FLECHES.length - 1; k >= 0; k--) {
     const f = FLECHES[k]; f.age += dt;
     if (f.plantee) {
-      if (f.age > 26) { FLECHES.splice(k, 1); continue; }
-      if ((f.x - P.x) ** 2 + (f.y - P.y) ** 2 < 1 && Math.abs(f.z - P.z) < 1.6) {
+      if (f.age > (f.fantome ? 8 : 26)) { FLECHES.splice(k, 1); continue; }
+      if (!f.fantome && (f.x - P.x) ** 2 + (f.y - P.y) ** 2 < 1 && Math.abs(f.z - P.z) < 1.6) {   // celle d'en face est à lui
         P.fleches++; FLECHES.splice(k, 1); say('+1 flèche · ' + P.fleches, 1); majSac();
       }
       continue;
@@ -3620,7 +3704,9 @@ let Raid = null, raidPart = null, chercheRaid = false;
 const raidIci = () => !!Raid && Raid.graine === SEED;
 const probaRaid = () => typeof globalThis.__RAID_P === 'number' ? globalThis.__RAID_P : RAID_P;
 const coffreRaid = () => [Raid.x - .7, Raid.y + .84];            // les deux caisses, près de la tente
-const campsIci = () => { const L = []; if (campIci()) L.push(P.camp); if (raidIci()) L.push(Raid); return L; };
+const campsIci = () => { const L = []; if (campIci()) L.push(P.camp); if (raidIci()) L.push(Raid);
+  for (const j of Autres.values()) if (j.camp) L.push(j.camp);   // le campement d'un joueur d'en face, planté sur cette île
+  return L; };
 const GARDE_COMBAT = { deg: null, ramasse: .32, bond: .2, portee: 1.8, recul: .5, pause: 1.2 };
 // Ce que la base (ou la sauvegarde) en dit : rien d'autre à croire que des nombres bornés.
 function raidLu(r) {
@@ -3918,8 +4004,8 @@ const COGNE = 1.2;
 const VIT_MARCHE = 4.2, VIT_COURSE = 5.8, VIT_EPUISE = 3.2;   // la marche au pas de l'ancien sprint, le sprint plus vif encore
 const ENDU_COURSE = 8, ENDU_REPRISE = .12, ENDU_REPOS = .24, ENDU_SEUIL = .35;
 const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1);   // l'escouade est blindée
-const degSubi = deg => deg * danger() * COGNE * (effet('robuste') ? .8 : 1);
-const degJoueur = (deg, b) => deg / danger() / robuste(b) * (effet('fort') ? 1.25 : 1);
+const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.6, effet('robuste') * .2));   // peau dure : −20 % par niveau, −60 % au plus
+const degJoueur = (deg, b) => deg / danger() / robuste(b) * (1 + effet('fort') * .25);   // coups puissants : +25 % par niveau
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
 function capEsp(sp) {
   if (sp.biome) return especesIle.has(sp.id) ? sp.cap : 0;   // un Tellurien : autant que son sol en nourrit
@@ -4060,8 +4146,11 @@ function abandonnerCompagnes() {
 //  C'est la règle qui convient à une alpha entre gens qui se connaissent, et elle évite un
 //  serveur de jeu. Sans réseau, sans compte, ou canal fermé : le jeu continue seul.
 // ============================================================
-const RS = { ws: null, ouvert: false, refs: 1, canaux: new Set(), essais: 0, prochain: 0,
-  etat: 'hors ligne', envoi: 0, monde: 0, battement: 0, ile: '', cle: '', forcer: true };
+// canaux : les canaux rejoints (sujet → la référence de sa jonction) ; voulus : ceux qu'on veut
+// garder ouverts, rouverts d'eux-mêmes si le serveur les ferme ; joints : les jonctions en attente
+// de réponse (référence → sujet) ; reprises : quand retenter un canal perdu.
+const RS = { ws: null, ouvert: false, refs: 1, canaux: new Map(), voulus: new Set(), joints: new Map(), reprises: new Map(),
+  essais: 0, prochain: 0, etat: 'hors ligne', envoi: 0, monde: 0, battement: 0, ile: '', cle: '', forcer: true, verif: 0, renouv: 0 };
 const Autres = new Map();                            // uid → le joueur distant, interpolé
 const betesLoin = [];                                // ses compagnes, dessinées comme des bêtes
 const EnLigne = new Map();                           // uid → { nom, graine, vu } : le monde entier
@@ -4097,18 +4186,21 @@ function reseauUrl() {
 function brancher() {
   if (globalThis.__RESEAU_URL === false) return;      // les bancs jouent sans réseau
   if (RS.ws || !Compte.dedans || !Compte.jeton || maintenant() < RS.prochain) return;
+  // un jeton périmé ouvrirait des canaux aussitôt refusés : on le renouvelle d'abord
+  if (Compte.refresh && Date.now() >= Compte.exp - 60000) { renouvelerJeton(); return; }
   let w;
   try { w = new WebSocket(globalThis.__RESEAU_URL || reseauUrl()); } catch (e) { RS.etat = 'impossible'; RS.prochain = maintenant() + 30; return; }
   RS.ws = w; RS.etat = 'connexion';
   w.onopen = () => {
-    RS.ouvert = true; RS.essais = 0; RS.etat = 'en ligne'; RS.canaux.clear(); RS.ile = canalIle();
+    RS.ouvert = true; RS.essais = 0; RS.etat = 'en ligne';
+    RS.canaux.clear(); RS.voulus.clear(); RS.joints.clear(); RS.reprises.clear(); RS.ile = canalIle();
     ouvrirCanal('sv:monde'); ouvrirCanal(canalIle());
     if (typeof coopBrancher === 'function') coopBrancher();   // vos amis, votre groupe (coop.js)
   };
   w.onmessage = e => { try { recevoir(JSON.parse(e.data)); } catch (_) {} };
   w.onerror = () => {};
   w.onclose = () => {
-    RS.ws = null; RS.ouvert = false; RS.canaux.clear(); RS.etat = 'coupé';
+    RS.ws = null; RS.ouvert = false; RS.canaux.clear(); RS.joints.clear(); RS.etat = 'coupé';
     RS.essais = Math.min(6, RS.essais + 1);
     RS.prochain = maintenant() + Math.min(30, Math.pow(2, RS.essais));
   };
@@ -4116,27 +4208,68 @@ function brancher() {
 function debrancher(mot) {
   if (RS.ouvert) { diffuser(canalIle(), 'parti', { u: Compte.uid }); }
   try { RS.ws && RS.ws.close(); } catch (_) {}
-  RS.ws = null; RS.ouvert = false; RS.canaux.clear(); RS.etat = mot || 'hors ligne';
+  RS.ws = null; RS.ouvert = false; RS.canaux.clear(); RS.joints.clear(); RS.etat = mot || 'hors ligne';
   for (const u of [...Autres.keys()]) effacerDistant(u);
   EnLigne.clear();
 }
-function pousserRS(topic, event, payload) {
+// Chaque message porte la référence de jonction de son canal (join_ref), comme le client officiel :
+// c'est elle qui permet de reconnaître la fermeture d'un ancien canal de celle du canal en cours.
+function pousserRS(topic, event, payload, ref) {
   if (!RS.ws || RS.ws.readyState !== 1) return false;
-  try { RS.ws.send(JSON.stringify({ topic, event, payload, ref: String(++RS.refs), join_ref: '1' })); return true; }
+  const jr = RS.canaux.get(topic.replace(/^realtime:/, '')) || null;
+  try { RS.ws.send(JSON.stringify({ topic, event, payload, ref: ref || String(++RS.refs), join_ref: jr })); return true; }
   catch (e) { return false; }
 }
+// Realtime n'accepte un message que sur un canal rejoint : un envoi sur un canal où l'on n'est pas
+// est rejeté sans bruit (« unmatched topic »). On rejoint donc toujours avant de parler.
 function ouvrirCanal(topic) {
-  if (RS.canaux.has(topic)) return;
-  RS.canaux.add(topic);
+  RS.voulus.add(topic);
+  if (RS.canaux.has(topic) || !RS.ws || RS.ws.readyState !== 1) return;
+  const ref = String(++RS.refs);
+  RS.canaux.set(topic, ref); RS.joints.set(ref, topic);
   pousserRS('realtime:' + topic, 'phx_join', { config: { broadcast: { ack: false, self: false },
-    presence: { enabled: false }, private: false }, access_token: Compte.jeton });
+    presence: { enabled: false }, private: false }, access_token: Compte.jeton }, ref);
 }
 function quitterCanal(topic) {
-  if (!RS.canaux.delete(topic)) return;
+  RS.voulus.delete(topic); RS.reprises.delete(topic);
+  if (!RS.canaux.has(topic)) return;
   pousserRS('realtime:' + topic, 'phx_leave', {});
+  RS.canaux.delete(topic);
 }
 const diffuser = (topic, evt, data) =>
   pousserRS('realtime:' + topic, 'broadcast', { type: 'broadcast', event: evt, payload: data });
+// Le serveur a fermé un canal (jeton expiré, jonction refusée, canal tombé) : s'il nous sert encore,
+// on le rouvre un peu plus tard, de plus en plus lentement s'il retombe.
+function canalPerdu(topic) {
+  RS.canaux.delete(topic);
+  if (!RS.voulus.has(topic)) return;
+  const r = RS.reprises.get(topic) || { n: 0, t: 0 };
+  r.n = Math.min(5, r.n + 1); r.t = maintenant() + Math.pow(2, r.n);
+  RS.reprises.set(topic, r);
+  renouvelerJeton();                                   // le plus souvent, c'est le jeton qui a expiré
+}
+// Les réponses du serveur : la jonction acceptée ou refusée, la fermeture d'un canal.
+function suiviCanal(m, topic) {
+  const ref = String(m.ref == null ? '' : m.ref);
+  if (m.event === 'phx_reply') {
+    if (!RS.joints.has(ref)) return;                   // réponse à un envoi ordinaire : rien à faire
+    RS.joints.delete(ref);
+    if (RS.canaux.get(topic) !== ref) return;          // une ancienne jonction, déjà remplacée
+    if (m.payload && m.payload.status === 'ok') RS.reprises.delete(topic);
+    else canalPerdu(topic);
+  } else if (RS.canaux.get(topic) === ref) canalPerdu(topic);   // phx_close, phx_error du canal en cours
+}
+// Le jeton du compte ne vaut qu'une heure, et Realtime ferme les canaux ouverts avec un jeton expiré.
+// On le renouvelle avant l'échéance, et on le redonne aussitôt à chaque canal ouvert.
+function renouvelerJeton() {
+  if (!Compte.refresh || maintenant() < RS.renouv || Date.now() < Compte.exp - 60000) return;
+  RS.renouv = maintenant() + 30;
+  jetonValide().catch(() => {});
+}
+function jetonReseau() {
+  if (!RS.ouvert || !Compte.jeton) return;
+  for (const topic of RS.canaux.keys()) pousserRS('realtime:' + topic, 'access_token', { access_token: Compte.jeton });
+}
 
 // Ce qu'on vient de prendre, dit aux autres. Rien à envoyer si l'on joue seul.
 function partagerRecolte(quoi, i) {
@@ -4149,8 +4282,9 @@ function envoyerEtatIle(pour) {
   for (const [i, q] of coupes) { c.push(i, Math.round((t - q) * 10) / 10); if (c.length >= 800) break; }
   const b = [];
   for (const br of berries) if (br.pris > t) b.push(br.i, Math.round((br.pris - t) * 10) / 10);
-  if (!c.length && !b.length) return false;
-  return diffuser(canalIle(), 'etat', { u: Compte.uid, a: pour, c, b });
+  const p = typeof plantesCueillies === 'function' ? plantesCueillies() : [];   // les plantes rares déjà cueillies (flore.js)
+  if (!c.length && !b.length && !p.length) return false;
+  return diffuser(canalIle(), 'etat', { u: Compte.uid, a: pour, c, b, p });
 }
 function appliquerEtatIle(d) {
   if (d.a && d.a !== Compte.uid) return;               // adressé à quelqu'un d'autre
@@ -4166,19 +4300,24 @@ function appliquerEtatIle(d) {
     const br = berries[b[k] | 0], r = +b[k + 1];
     if (br && Number.isFinite(r)) br.pris = Math.max(br.pris, t + Math.max(0, Math.min(300, r)));
   }
+  const p = Array.isArray(d.p) ? d.p : [];
+  if (typeof cueillieAilleurs === 'function') for (let k = 0; k + 1 < p.length && k < 400; k += 2) cueillieAilleurs(p[k] | 0, +p[k + 1]);
 }
 function recevoir(m) {
-  if (!m || !m.payload) return;
-  if (m.event !== 'broadcast') return;                 // phx_reply, phx_error : rien à en faire ici
-  const evt = m.payload.event, d = m.payload.payload;
+  if (!m) return;
   const topic = String(m.topic || '').replace(/^realtime:/, '');
+  if (m.event === 'phx_reply' || m.event === 'phx_close' || m.event === 'phx_error') { suiviCanal(m, topic); return; }
+  if (!m.payload || m.event !== 'broadcast') return;   // system, presence : rien à en faire ici
+  const evt = m.payload.event, d = m.payload.payload;
   if (!d || !d.u || d.u === Compte.uid) return;
   if (evt === 'ici') {
-    EnLigne.set(d.u, { nom: String(d.n || '?').slice(0, 18), graine: d.g | 0, vu: maintenant(), c: String(d.c || '').slice(0, 6) });
+    EnLigne.set(d.u, { nom: String(d.n || '?').slice(0, 18), graine: d.g | 0, vu: maintenant(), c: String(d.c || '').slice(0, 6),
+      niv: Number.isInteger(d.niv) ? d.niv : null });
     return;
   }
   if (typeof coopRecevoir === 'function' && coopRecevoir(topic, evt, d)) return;   // les amis, le groupe (coop.js)
   if (topic !== canalIle()) return;
+  if (typeof fauneEvenement === 'function' && fauneEvenement(evt, d)) return;   // la faune partagée (faune.js)
   if (evt === 'pos') majDistant(d);
   else if (evt === 'coup') encaisser(d);
   else if (evt === 'parti') effacerDistant(d.u);
@@ -4187,6 +4326,23 @@ function recevoir(m) {
     if (i >= 0 && i < WS * WS && !coupes.has(i)) { coupes.set(i, t); signalDecor('flore', i); }
   }
   else if (evt === 'baie') { const br = berries[d.i | 0]; if (br && br.pris <= t) br.pris = t + 120; }
+  else if (evt === 'fleche') {                         // une flèche d'en face, en vol : on la voit, elle ne blesse rien ici
+    const j = Autres.get(d.u), v = [d.x, d.y, d.z, d.vx, d.vy, d.vz];
+    if (j && v.every(Number.isFinite) && FLECHES.length < 80) { const n = Math.hypot(d.vx, d.vy, d.vz) || 1;
+      FLECHES.push({ x: d.x, y: d.y, z: d.z, vx: d.vx, vy: d.vy, vz: d.vz, age: 0, plantee: 0, dir: [d.vx / n, d.vy / n, d.vz / n], deg: 0, fantome: true, de: j });
+      SON.jouer('decoche', { k: .8 }, d.x, d.y, d.z); }
+  }
+  else if (evt === 'fx') {                             // un sort d'en face : on en voit l'éclat
+    if (![d.x, d.y, d.z].every(Number.isFinite)) return;
+    const C = { souffle: ['#bfe6ff', 22], ancrage: ['#cfd6e4', 18], aube: ['#ffe9b0', 26], appel: ['#c8404e', 12] }[d.k];
+    if (C) { burst(d.x, d.y, d.z + .4, C[1], C[0]); SON.jouer('sort', {}, d.x, d.y, d.z); }
+  }
+  else if (evt === 'dalle') {                          // une dalle conjurée d'en face : douze secondes ici aussi
+    const zt = d.z | 0, L = Array.isArray(d.c) ? d.c.slice(0, 9) : [];
+    for (const v of L) { const i = v | 0; if (i < 0 || i >= WS * WS || PlT[i] || Hgt[i] + 1 >= zt || zt > 80) continue;
+      PlT[i] = zt; PlB[i] = zt - 1; dalles.push({ i, zt, t: 12 }); signalDecor('dalle', i); }
+  }
+  else if (evt === 'fcueille') { if (typeof cueillieAilleurs === 'function') cueillieAilleurs(d.n | 0, +d.r); }   // une plante rare cueillie d'en face (flore.js)
   else if (evt === 'etat') appliquerEtatIle(d);
 }
 // Un joueur distant : on garde sa position visée (c*) et on glisse vers elle, sinon il
@@ -4208,6 +4364,9 @@ function majDistant(d) {
   j.pv = Math.max(0, Math.min(1, Number.isFinite(d.v) ? d.v : 1));
   j.ground = !d.air; j.lum = !!d.l; j.selle = Math.max(0, Math.min(2, +d.m || 0)); j.vu = maintenant();
   gesteDistant(j, d);
+  const cp = Array.isArray(d.cp) && d.cp.length >= 3 && d.cp.slice(0, 3).every(Number.isFinite) ? d.cp : null;
+  j.camp = cp && !(cp[3] && raidIci()) ? { x: cp[0], y: cp[1], z: cp[2], graine: SEED, autre: j.u, pille: !!cp[3] } : null;   // son campement (ou celui qu'il pille), vu d'ici
+  if (typeof fauneDistant === 'function') fauneDistant(j, d);   // gardien ou suiveur, et les bêtes qu'il fait vivre
   // ses compagnes sorties : des bêtes fantômes, dessinées et frappables, mais sans vie propre
   const l = Array.isArray(d.c) ? d.c.slice(0, COMPAGNES_RESEAU) : [];
   while (j.comps.length > l.length) retirerLoin(j.comps.pop());
@@ -4224,6 +4383,34 @@ function majDistant(d) {
     b.cx = e.x; b.cy = e.y; b.cz = e.z;
     b.pv = Math.max(0, Math.min(1, Number.isFinite(e.v) ? e.v : 1));
     b.variante = varianteSure(e.w);                   // la robe de la compagne d'en face
+  }
+  j.marmite = Array.isArray(d.mm) && d.mm.length === 3 && d.mm.every(Number.isFinite) ? { x: d.mm[0], y: d.mm[1], z: d.mm[2] } : null;
+  pecheDistante(j, d);
+  // la bête qu'il mène au rodéo : avec les gardiennes, sans vie propre ici
+  const mt = d.mt && specById[d.mt.e] && Number.isFinite(d.mt.x) && Number.isFinite(d.mt.y) ? d.mt : null;
+  if (!mt && j.monte) { retirerLoin(j.monte); j.monte = null; }
+  if (mt) {
+    const sp = specById[mt.e];
+    if (!j.monte || j.monte.sp !== sp) { if (j.monte) retirerLoin(j.monte); const b = naitre(sp, mt.x, mt.y, sp.mat * 2); b.tame = true; b.loin = j; b.gardeLoin = true; b.cx = mt.x; b.cy = mt.y; b.cz = +mt.z || sol(mt.x, mt.y); b.z = b.cz; j.monte = b; betesLoin.push(b); }
+    const b = j.monte; b.cx = mt.x; b.cy = mt.y; b.cz = Number.isFinite(mt.z) ? mt.z : b.cz; b.dirT = +mt.d || 0; b.pv = Math.max(0, Math.min(1, +mt.v || 1)); b.variante = varianteSure(mt.w); b.ruade = .6;
+  }
+  // les gardiennes du campement qu'il pille : on les voit se battre, sans pouvoir s'en mêler
+  const lg = Array.isArray(d.gc) ? d.gc.slice(0, 6) : [];
+  j.gardes = j.gardes || [];
+  while (j.gardes.length > lg.length) retirerLoin(j.gardes.pop());
+  for (let i = 0; i < lg.length; i++) {
+    const e = lg[i], sp = specById[e && e.e];
+    if (!sp || !Number.isFinite(e.x) || !Number.isFinite(e.y)) continue;
+    let b = j.gardes[i];
+    if (!b || b.sp !== sp) {
+      if (b) retirerLoin(b);
+      b = naitre(sp, e.x, e.y, sp.mat * 2);
+      b.tame = true; b.loin = j; b.gardeLoin = true; b.z = +e.z || sol(e.x, e.y); b.cx = e.x; b.cy = e.y; b.cz = b.z;
+      j.gardes[i] = b; betesLoin.push(b);
+    }
+    b.cx = e.x; b.cy = e.y; b.cz = Number.isFinite(e.z) ? e.z : b.cz; b.dirT = +e.d || 0;
+    b.pv = Math.max(0, Math.min(1, Number.isFinite(e.v) ? e.v : 1));
+    b.variante = varianteSure(e.w);
   }
 }
 // Ce que fait l'autre : son arme, la bande de son arc, et chaque geste une fois (coup, récolte,
@@ -4256,7 +4443,10 @@ function retirerLoin(b) {
 function effacerDistant(u) {
   const j = Autres.get(u); if (!j) return;
   for (const b of j.comps) if (b) retirerLoin(b);
+  for (const b of j.gardes || []) if (b) retirerLoin(b);
+  if (j.monte) retirerLoin(j.monte);
   Autres.delete(u);
+  if (typeof fauneDepart === 'function') fauneDepart(u);   // le gardien parti : un autre reprend la faune
 }
 // L'abri : on ne frappe pas, et on ne se fait pas frapper, tout près d'un campement — ni
 // dans les premières secondes qui suivent une arrivée. Sans cela, on camperait les portails.
@@ -4271,7 +4461,7 @@ function cibleLoin(x, y, z, port) {
     if (Math.abs(j.z - z) < 2 && d < db) { db = d; best = { j, b: null, d }; }
   }
   for (const b of betesLoin) {
-    if (b.pv <= 0) continue;
+    if (b.pv <= 0 || b.gardeLoin) continue;           // les gardiennes d'un pillage : l'affaire du pillard
     const d = Math.hypot(b.x - x, b.y - y);
     if (Math.abs(b.z - z) < 2 && d < db) { db = d; best = { j: b.loin, b, d }; }
   }
@@ -4279,7 +4469,7 @@ function cibleLoin(x, y, z, port) {
 }
 // Frapper d'en face : on annonce le coup, et c'est l'autre qui décide de ce qu'il encaisse.
 function frapperLoin(c, deg) {
-  if (!c || !c.j) return false;
+  if (!c || !c.j || (c.b && c.b.gardeLoin)) return false;   // une gardienne de pillage d'en face : pas la nôtre à frapper
   if (sousAbri()) { say('pas de coups près d\'un campement', 2); return false; }
   const cible = c.b ? c.j.comps.indexOf(c.b) : -1;
   P.designe = { o: c.b || c.j, t, loin: true };    // un automate en défense tirera dessus
@@ -4323,25 +4513,41 @@ function majReseau(dt) {
   if (RS.ouvert) {
     if (RS.ile !== canalIle()) { quitterCanal(RS.ile); RS.ile = canalIle(); ouvrirCanal(RS.ile); RS.forcer = true; }
     if (now - RS.battement > 20) { RS.battement = now; pousserRS('phoenix', 'heartbeat', {}); }
+    renouvelerJeton();                                   // une minute avant l'échéance du jeton
+    if (now > RS.verif) {                                // les canaux fermés par le serveur se rouvrent
+      RS.verif = now + 1;
+      for (const tp of RS.voulus) if (!RS.canaux.has(tp) && now >= ((RS.reprises.get(tp) || {}).t || 0)) ouvrirCanal(tp);
+    }
     if (now - RS.envoi > PAS_RESEAU) {
       const comps = P.compagnes.filter(c => c.dehors && c.b).slice(0, COMPAGNES_RESEAU);
+      const gardes = raidIci() ? beasts.filter(b => b.gardeCamp && !b.dead).slice(0, 6) : [];   // les gardiennes du campement qu'on pille
+      const monture = P.monture && !P.monture.tame && P.monture.num === undefined ? P.monture : null;   // au rodéo : elle n'est encore à personne
       // ce qui se verrait d'en face : un dixième de case, un huitième de radian, les compagnes au quart
       const q = (v, k) => Math.round(v * k);
+      const pq = P.peche ? [P.peche.etat, P.peche.bx ? q(P.peche.bx, 4) : 0] : [];   // (les ombres, elles, ne pressent pas l'envoi : en face, elles nagent seules vers leur but)
       const cle = [q(P.x, 10), q(P.y, 10), q(P.z, 10), q(P.faceS, 8), q(P.pv, 50), P.ground ? 0 : 1, porte('lumiere') ? 1 : 0,
         P.monture ? q(P.selle, 10) : 0, P.equip.arme || '', P.evt ? P.evt.n : 0, P.arc === null ? -1 : q(Math.min(1, P.arc / ARC_TEMPS), 4),
-        ...comps.flatMap(c => [c.esp, q(c.b.x, 4), q(c.b.y, 4), q(c.b.pv, 20)])].join();
+        ...comps.flatMap(c => [c.esp, q(c.b.x, 4), q(c.b.y, 4), q(c.b.pv, 20)]), ...gardes.flatMap(b => [q(b.x, 4), q(b.y, 4), q(b.pv, 20)]),
+        ...pq, monture ? q(monture.x, 4) + ':' + q(monture.y, 4) : '', marmiteIci() ? 'm' : ''].join();
       const seul = !Autres.size;
-      if (RS.forcer || (!seul && cle !== RS.cle) || now - RS.envoi > (seul ? BALISE_RESEAU : GARDE_RESEAU)) {
+      if (RS.forcer || (!seul && cle !== RS.cle) || now - RS.envoi > (seul ? BALISE_RESEAU : GARDE_RESEAU)
+          || (!seul && typeof fauneDoitEnvoyer === 'function' && fauneDoitEnvoyer(now))) {
         RS.envoi = now; RS.cle = cle; RS.forcer = false;
-        diffuser(canalIle(), 'pos', { u: Compte.uid, n: pseudo(), x: r2(P.x), y: r2(P.y), z: r2(P.z),
+        diffuser(canalIle(), 'pos', Object.assign({ u: Compte.uid, n: pseudo(), x: r2(P.x), y: r2(P.y), z: r2(P.z),
           a: r2(P.faceS), v: r2(P.pv), air: P.ground ? 0 : 1, l: porte('lumiere') ? 1 : 0, m: P.monture ? r2(P.selle) : 0,
           c: comps.map(c => Object.assign({ e: c.esp, x: r2(c.b.x), y: r2(c.b.y), z: r2(c.b.z), v: r2(c.b.pv) }, c.variante ? { w: c.variante } : {})),
           // l'arme portée, le dernier geste (compteur, nom, âge, durée, outil ou arme), la bande de l'arc
           w: P.equip.arme || '', b: P.arc === null ? null : r2(Math.min(1, P.arc / ARC_TEMPS)),
-          g: P.evt && t - P.evt.t0 < Math.max(P.evt.dur, .6) ? [P.evt.n, P.evt.nom, r2(t - P.evt.t0), r2(P.evt.dur), P.evt.o] : null });
+          g: P.evt && t - P.evt.t0 < Math.max(P.evt.dur, .6) ? [P.evt.n, P.evt.nom, r2(t - P.evt.t0), r2(P.evt.dur), P.evt.o] : null },
+          { cp: campIci() ? [r2(P.camp.x), r2(P.camp.y), r2(P.camp.z)] : raidIci() ? [r2(Raid.x), r2(Raid.y), r2(Raid.z), 1] : 0 },   // son campement, s'il est sur cette île (ou celui qu'il pille)
+          gardes.length ? { gc: gardes.map(b => Object.assign({ e: b.sp.id, x: r2(b.x), y: r2(b.y), z: r2(b.z), v: r2(b.pv), d: r2(b.dir) }, b.variante ? { w: b.variante } : {})) } : {},
+          marmiteIci() ? { mm: [r2(P.marmite.x), r2(P.marmite.y), r2(P.marmite.z)] } : {},   // sa marmite posée sur cette île
+          pecheReseau(),                                // sa canne, son bouchon, ses ombres
+          monture ? { mt: Object.assign({ e: monture.sp.id, x: r2(monture.x), y: r2(monture.y), z: r2(monture.z), v: r2(monture.pv), d: r2(monture.dir) }, monture.variante ? { w: monture.variante } : {}) } : {},   // la bête qu'il mène au rodéo
+          typeof fauneEntete === 'function' ? fauneEntete(now) : {}));   // la faune partagée : qui fait vivre l'île, et ses bêtes (faune.js)
       }
     }
-    if (now - RS.monde > ICI_RESEAU) { RS.monde = now; diffuser('sv:monde', 'ici', { u: Compte.uid, n: pseudo(), g: SEED, c: typeof codeAmi === 'function' ? codeAmi() : '' }); }
+    if (now - RS.monde > ICI_RESEAU) { RS.monde = now; diffuser('sv:monde', 'ici', { u: Compte.uid, n: pseudo(), g: SEED, niv: profondeur(), c: typeof codeAmi === 'function' ? codeAmi() : '' }); }
   }
   // les autres glissent vers leur dernière position connue, et s'effacent s'ils se taisent
   const k = Math.min(1, dt * 8);                      // plus doux : les nouvelles sont plus espacées
@@ -4356,8 +4562,9 @@ function majReseau(dt) {
     j.faceS += da * Math.min(1, dt * 10);
     if (j.hurt > 0) j.hurt -= dt;
     if (j.hit > 0) j.hit -= dt;
-    for (const b of j.comps) if (b) {
+    for (const b of [...j.comps, ...(j.gardes || []), j.monte]) if (b) {
       b.x += (b.cx - b.x) * k; b.y += (b.cy - b.y) * k; b.z += (b.cz - b.z) * k;
+      if (b.gardeLoin) { let dd = (b.dirT || 0) - b.dir; while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832; b.dir += dd * Math.min(1, dt * 8); }
       if (b.hit > 0) b.hit -= dt;
       updateFoeLegs(b, dt);
     }
@@ -4518,6 +4725,7 @@ function lancerSort() {
       const dx = b.x - P.x, dy = b.y - P.y, d = Math.hypot(dx, dy);
       if (d < 7) { lacherParoi(b); b.vx += dx / (d || 1) * 9; b.vy += dy / (d || 1) * 9; b.alarm = 1; n++; }
     }
+    if (typeof fauneGeste === 'function') fauneGeste('souffle', { x: r2(P.x), y: r2(P.y) });   // les bêtes du gardien reculent chez lui
     burst(P.x, P.y, P.z + .4, 22, '#bfe6ff'); say(n ? n + ' bête(s) repoussée(s)' : 'le souffle se perd', 1.6);
   } else if (gr.id === 'ancrage') {
     const zt = Math.max(1, Math.floor(P.z)); let n = 0;
@@ -4530,7 +4738,10 @@ function lancerSort() {
       signalDecor('dalle', i);
     }
     if (!n) { ok = false; say('pas de place pour la dalle', 1.6); }
-    else { burst(P.x, P.y, zt, 18, '#cfd6e4'); say('dalle conjurée · 12 s', 2); }
+    else {
+      burst(P.x, P.y, zt, 18, '#cfd6e4'); say('dalle conjurée · 12 s', 2);
+      if (RS.ouvert && Autres.size && Compte.uid) diffuser(canalIle(), 'dalle', { u: Compte.uid, c: dalles.slice(-n).map(d => d.i), z: zt });   // les autres la voient, et s'y tiennent
+    }
   } else if (gr.id === 'appel') {
     // L'Appel ne fait plus qu'offrir un lien : il en faut un de libre, et la bête peut refuser.
     // Sans lien libre, on ne dépense rien. Une bête blessée ou déjà confiante cède plus souvent,
@@ -4547,14 +4758,17 @@ function lancerSort() {
       else {
         pr.alarm = 1; pr.conf = Math.max(0, pr.conf - .2);
         if (pr.sp.chasse) pr.colere = Math.max(pr.colere || 0, 12);   // un prédateur le prend mal
+        if (typeof fauneGeste === 'function' && pr.num !== undefined) fauneGeste('appel', { n: pr.num });
         burst(pr.x, pr.y, pr.z + .5, 12, '#c8404e');
         say(pr.sp.n + ' résiste à l\'appel · ' + Math.round(ch * 100) + ' %', 2.2);
       }
     }
   } else if (gr.id === 'aube') {
     horloge = .26; burst(P.x, P.y, P.z + .6, 26, '#ffe9b0'); say('le jour se lève', 2.2);
+    if (typeof fauneGeste === 'function') fauneGeste('aube');   // une seule heure sur l'île : celle du gardien
   }
   if (ok) payerMana(cs);
+  if (ok && RS.ouvert && Autres.size && Compte.uid) diffuser(canalIle(), 'fx', { u: Compte.uid, k: gr.id, x: r2(P.x), y: r2(P.y), z: r2(P.z) });   // l'éclat du sort, vu d'en face
 }
 
 function majDalles(dt) {
@@ -5080,18 +5294,23 @@ function feuilleIcones() {
 //  gauche, le détail de ce qu'on a touché à droite — et les objets sont des vignettes
 //  posées dans des cases taillées dans la roche de l'île.
 // ============================================================
+// Deux groupes de cinq : ce qui sert en jouant (le sac, fabriquer, cuisiner, les bêtes, le camp),
+// puis le reste (le journal, les autres joueurs, la sauvegarde, les réglages, les essais). Sur
+// téléphone, chaque groupe fait une ligne ; ailleurs, un filet les sépare dans le rail.
+// Touches, sac ouvert : 1 à 9 dans cet ordre, 0 pour le dixième.
 const ONGLETS = [
   { id: 'sac', n: 'Sac', ic: 'ongletSac' },
   { id: 'etabli', n: 'Établi', ic: 'ongletEtabli' },
+  { id: 'cuisine', n: 'Cuisine', ic: 'ongletCuisine' },
   { id: 'compagnes', n: 'Compagnes', ic: 'ongletCompagnes' },
   { id: 'camp', n: 'Campement', ic: 'ongletCamp' },
-  { id: 'journal', n: 'Journal', ic: 'ongletJournal' },
+  { id: 'journal', n: 'Journal', ic: 'ongletJournal', groupe: true },
+  { id: 'amis', n: 'Amis', ic: 'ongletAmis' },          // coop.js
   { id: 'sauve', n: 'Sauvegarde', ic: 'ongletSauve' },
   { id: 'reglages', n: 'Réglages', ic: 'ongletReglages' },
   { id: 'beta', n: 'Bêta', ic: 'ongletBeta' },
-  { id: 'cuisine', n: 'Cuisine', ic: 'ongletCuisine' },
-  { id: 'amis', n: 'Amis', ic: 'ongletAmis' },          // coop.js
 ];
+const toucheOnglet = i => i < 10 ? String((i + 1) % 10) : '';
 const EMPLACEMENTS = [
   { id: 'outil', n: 'Outil', fantome: 'pioche', vide: 'Aucun outil en main' },
   { id: 'arme', n: 'Arme', fantome: 'epee', vide: 'Aucune arme en main' },
@@ -5691,6 +5910,9 @@ function pageBeta() {
     + `<button data-mesures="1" aria-pressed="${mesures}">${mesures ? 'Affichées' : 'Cachées'}</button></div>`
     + ligne('Où vous êtes', 'graine ' + SEED + ' · exploration ' + profondeur() + (ileMeca ? ' · île des automates' : '') + (dj ? ' · étage ' + DJ.e + '/' + DJ.n : '')
       + ' · x ' + P.x.toFixed(1) + ', y ' + P.y.toFixed(1) + ', z ' + P.z.toFixed(1), '')
+    + ligne('Faune de départ', Faune0.n + ' bêtes · empreinte ' + (Faune0.sig || '—')
+      + ' · deux joueurs sur la même île, au même niveau, doivent lire la même empreinte', '')
+    + (typeof fauneEtat === 'function' ? ligne('Île partagée', ESC(fauneEtat()), btn('faune', FA.actif ? 'Couper' : 'Activer')) : '')
     + `<h3>Diagnostic</h3>`
     + `<div class="obj"><div><div class="n">${G3.ok && !G3.perdu ? 'Carte graphique active' : 'Tracé en canvas'}${(globalThis.__PANNE || {}).repli ? ' (repli automatique)' : ''}</div>`
     + `<div class="d">${(globalThis.__PANNE || {}).n ? __PANNE.n + ' incident(s) · ' + __PANNE.dernier.replace(/[<>]/g, '') : 'Aucun incident.'}`
@@ -5702,6 +5924,7 @@ function pageBeta() {
 // Les outils : chacun passe d'abord en mode essai (sauf la descente d'essai, qui a ses propres règles).
 let tpGraine = null, tpNiv = null;                     // ce qu'on a tapé dans « Se téléporter » (onglet Bêta)
 function outilBeta(k) {
+  if (k === 'faune') { if (typeof fauneBascule === 'function') fauneBascule(); majSac(); return; }
   if (k === 'tpHasard') { tpGraine = (Math.random() * 4294967296) >>> 0; majSac(); return; }
   if (k === 'tp') {
     const g = Number(tpGraine ?? SEED), n = Number(tpNiv ?? profondeur());
@@ -5724,9 +5947,9 @@ function outilBeta(k) {
   else if (k === 'meteo') { const L = Object.keys(METEO), v = L[(L.indexOf(Meteo.vers) + 1) % L.length]; forcerMeteo(v); Meteo.de = v; Meteo.m = 1; say(METEO[v].n + ' · essai', 1.6); }
   else if (k === 'dj1' || k === 'djFin') { djEssai(k === 'dj1' ? 1 : 99); return; }
   else if (k === 'quitterDj') { djRemonter(); return; }
-  else if (k === 'nmVenir') { if (!nmVenir(true) && NM.car) say('une caravane est déjà là', 1.4); }
-  else if (k === 'nmPartir') { nmPartir(); }
-  else if (k === 'escouade') { if (!lancerEscouade(Math.max(NIV_ESCOUADE, profondeur()))) say('pas de sol pour un portail ici', 1.6); }
+  else if (k === 'nmVenir') { if (typeof fauneGeste === 'function' && fauneGeste('nomades')) say('demandé au gardien de l\'île', 1.4); else if (!nmVenir(true) && NM.car) say('une caravane est déjà là', 1.4); }
+  else if (k === 'nmPartir') { if (!(typeof fauneGeste === 'function' && fauneGeste('nmPartir'))) nmPartir(); }
+  else if (k === 'escouade') { if (typeof fauneGeste === 'function' && fauneGeste('escouade', { n: Math.max(NIV_ESCOUADE, profondeur()) })) say('demandé au gardien de l\'île', 1.4); else if (!lancerEscouade(Math.max(NIV_ESCOUADE, profondeur()))) say('pas de sol pour un portail ici', 1.6); }
   majSac();
 }
 
@@ -5737,7 +5960,7 @@ function pageReglages() {
     ['1 à 5', 'utiliser une case : sort, sifflet, lanterne, arme, outil'], ['G', 'offrir une baie'], ['H', 'siffler : les compagnes accourent'], ['N', 'boire du nectar d\'oglodon'],
     ['Q, E', 'pivoter la vue'], ['R, F', 'incliner la vue'],
     ['V', 'isométrie ou 1re personne'], ['I ou Tab', 'ouvrir ou fermer le sac'], ['B', 'ouvrir l\'établi'],
-    ['1 à 9', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
+    ['1 à 9, 0', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
     ['Clic droit', 'en 1re personne, prendre ou rendre la caméra'], ['Clic gauche', 'attaquer, caméra prise']];
   return `<div class="sac-corps lignes">`
     + `<h3>Aide</h3>`
@@ -5783,7 +6006,8 @@ function majSac() {
   const titre = ONGLETS.find(o => o.id === ongletSac).n;
   const rail = ONGLETS.map((o, i) =>
     `<button role="tab" id="onglet-${o.id}" aria-controls="sac-page" aria-selected="${o.id === ongletSac}" tabindex="${o.id === ongletSac ? 0 : -1}"`
-    + ` class="${o.id === ongletSac ? 'on' : ''}" data-onglet="${o.id}" title="${o.n} (${i + 1})">${img(o.ic)}<span>${o.n}</span></button>`).join('');
+    + ` class="${[o.id === ongletSac ? 'on' : '', o.groupe ? 'groupe' : ''].join(' ').trim()}" data-onglet="${o.id}"`
+    + ` title="${o.n}${toucheOnglet(i) ? ' (' + toucheOnglet(i) + ')' : ''}">${img(o.ic)}<span>${o.n}</span></button>`).join('');
   const vies = [0, 1, 2].map(i => img('vie', i < lives ? '' : 'eteint')).join('');
   const jauges = `<div class="jauges" aria-label="Vie ${Math.round(P.pv * 100)} %, mana ${essai ? 'illimité' : eclats(P.sac.eclat || 0)}">`
     + `<span class="vies" title="${lives} vie${lives > 1 ? 's' : ''}">${vies}</span>`
@@ -5793,7 +6017,8 @@ function majSac() {
     + `<nav class="sac-rail" role="tablist" aria-label="Sections du sac">${rail}`
     + `<button class="fermer" data-fin="1" aria-label="Fermer le sac" title="Fermer (Échap)">✕</button></nav>`
     + `<section class="sac-page" id="sac-page" role="tabpanel" aria-labelledby="onglet-${ongletSac}">`
-    + `<header class="sac-tete"><h2>${titre}</h2>${essai ? '<span class="badge">Essai</span>' : ''}${jauges}</header>`
+    + `<header class="sac-tete"><h2>${titre}</h2>${essai ? '<span class="badge">Essai</span>' : ''}${jauges}`
+    + `<button class="fermer-tete" data-fin="1" aria-label="Fermer le sac" title="Fermer (Échap)">✕</button></header>`
     + page.replace(/<div class="(col|sac-corps[^"]*)"/g, (m, c) => `<div class="${c}" data-defil="${ongletSac}-${nDefil++}"`)
     + `</section></div>`;
   if (el.querySelectorAll) el.querySelectorAll('[data-defil]').forEach(n => { if (defil[n.dataset.defil]) n.scrollTop = defil[n.dataset.defil]; });
@@ -6205,7 +6430,8 @@ const met = k => { const a = METEO[Meteo.de][k], b = METEO[Meteo.vers][k]; retur
 function majMeteo(dt) {
   if (djIci()) { Meteo.de = Meteo.vers = 'clair'; Meteo.m = 1; Meteo.reste = 90; Meteo.vent = 0; Meteo.flash = 0; GOUTTES.length = 0; return; }
   if (Meteo.m < 1) Meteo.m = Math.min(1, Meteo.m + dt / 25);       // 25 s pour basculer
-  if ((Meteo.reste -= dt) <= 0) {
+  const suit = typeof fauneSuiveur === 'function' && fauneSuiveur();   // une seule météo par île : celle du gardien (faune.js)
+  if (!suit && (Meteo.reste -= dt) <= 0) {
     const su = METEO[Meteo.vers].suite;
     Meteo.de = Meteo.vers; Meteo.vers = su[(Math.random() * su.length) | 0];
     Meteo.m = Meteo.de === Meteo.vers ? 1 : 0;
@@ -6216,7 +6442,7 @@ function majMeteo(dt) {
   Meteo.dir += dt * .013;                                          // le vent tourne lentement
   // L'éclair : un coup de lumière sur tout le décor, pas un voile blanc plaqué dessus.
   // C'est `clarte` qui le porte, donc les ombres se déplacent avec lui et la scène s'allume.
-  if (met('pluie') > .8) { if ((Meteo.eclair -= dt) <= 0) { Meteo.eclair = 2.5 + Math.random() * 10; Meteo.flash = 1; } }
+  if (!suit && met('pluie') > .8) { if ((Meteo.eclair -= dt) <= 0) { Meteo.eclair = 2.5 + Math.random() * 10; Meteo.flash = 1; if (typeof fauneEclair === 'function') fauneEclair(); } }
   Meteo.flash = Math.max(0, Meteo.flash - dt * (Meteo.flash > .55 ? 9 : 3.2));
   majGouttes(dt);
 }
@@ -6285,8 +6511,9 @@ function dessinerGouttes(view) {
   g.fillStyle = 'rgba(244,248,255,.78)'; g.fill();
 }
 
-function forcerMeteo(type) {                                       // pour essayer, et pour les sorts
+function forcerMeteo(type, net) {                                  // pour essayer, et pour les sorts
   if (!METEO[type]) return;
+  if (!net && typeof fauneForceMeteo === 'function' && fauneForceMeteo(type)) return;   // c'est le gardien de l'île qui fait le ciel
   Meteo.de = Meteo.vers; Meteo.vers = type; Meteo.m = 0; Meteo.reste = 90 + Math.random() * 90;
 }
 // La CLARTÉ est la lumière du jour ternie par le temps qu'il fait. Le décor la suit ; les
@@ -6315,7 +6542,7 @@ function majFeux() {
   const L = [];
   const vacille = (r, s) => r * (1 + .035 * Math.sin(t * 9.3 + s) + .02 * Math.sin(t * 23.1 + s * 2));
   const pousse = (x, y, z, r) => { if (Number.isFinite(x) && Number.isFinite(y)) L.push([x, y, z, r, (x - P.x) ** 2 + (y - P.y) ** 2]); };
-  feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : effet('nuit') ? 6.5 : RAYON.joueur]);   // un plat de lueurs : on voit la nuit
+  feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : effet('nuit') ? 6.5 + (effet('nuit') - 1) * 2.5 : RAYON.joueur]);   // un plat de lueurs : on voit la nuit
   for (const c of campsIci()) pousse(c.x, c.y, c.z + .6, vacille(RAYON.feu, 3));
   if (PortailIle) pousse(PortailIle.x, PortailIle.y, PortailIle.z + 1.2, RAYON.arche);
   if (Escouade && Escouade.k > 0) pousse(Escouade.x, Escouade.y, Escouade.z + 1.35, RAYON.arche * 1.6 * Escouade.k);
@@ -6409,6 +6636,9 @@ function majBiome(dt) {
   if (typeof majEtats === 'function') majEtats(dt);   // l'état de l'île, l'infection, les visions (etats.js)
   if (typeof majVillage === 'function') majVillage(dt);   // le feu, les cheminées, la parole (village.js)
   if (typeof majCoop === 'function') majCoop(dt);         // les amis, le groupe (coop.js)
+  if (typeof majFaune === 'function') majFaune(dt);       // qui fait vivre la faune de l'île (faune.js)
+  if (effet('antidote')) { P.poison = 0; P.spores = 0; }   // l'antidote : ni poison, ni spores
+  if (P.regenT > t && P.pv > 0) P.pv = Math.min(1, P.pv + dt * (P.regenV || 0));   // la régénération (plats légendaires, épiques)
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
     P.pv = Math.max(.05, P.pv - dt * .014);
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
@@ -6537,7 +6767,42 @@ const HABITATS_RARES = { brouteur: [9, 11], glaneur: [9, 10, 11], bosseu: [9, 10
   lentigrade: [9, 11], cotonnier: [9], carillonneur: [10, 12], felin: [9, 11] };
 for (const sp of SPEC) for (const b of HABITATS_RARES[sp.id] || []) if (!sp.bio.includes(b)) sp.bio.push(b);
 for (const sp of SPEC) if (automate(sp)) sp.bio.push(15, 16);   // l'île des automates est à eux, jusqu'aux flaques
+// ---------- le hasard de la graine ----------
+// Un tirage pseudo-aléatoire (mulberry32) : la même graine rend la même suite, sur tous les appareils.
+function alea(graine) {
+  let s = graine >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let z = s;
+    z = Math.imul(z ^ (z >>> 15), z | 1);
+    z ^= z + Math.imul(z ^ (z >>> 7), z | 61);
+    return ((z ^ (z >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Le temps d'un peuplement, Math.random tire de la graine : poser, naitre, les robes rares, les mères
+// et leurs petits, la Tisseuse, les plantes rares… y passent sans qu'on touche à leurs centaines de
+// tirages. Le peuplement est d'un seul tenant (rien d'autre ne tourne pendant) ; finally rend
+// toujours le vrai hasard, même si une exception traverse.
+function avecHasardDe(graine, f) {
+  const vrai = Math.random;
+  Math.random = alea(graine);
+  try { return f(); } finally { Math.random = vrai; }
+}
+// La graine de la faune : celle de l'île, mêlée au niveau d'exploration (qui règle le bestiaire et le
+// nombre de bêtes) et au genre d'île.
+const graineFaune = () => (Math.imul(SEED ^ 0x5fa0e, 0x9e3779b1) + Math.imul(profondeur() + 1, 0x85ebca6b) + (ileMeca ? 0x51ed27 : 0)) >>> 0;
+// Une empreinte de la faune de départ, à comparer entre deux joueurs (onglet Bêta, « Où vous êtes ») :
+// espèce, place de naissance au dixième et robe de chaque bête.
+let Faune0 = { n: 0, sig: '' };
+function signatureFaune() {
+  let h = 2166136261 >>> 0;
+  const mange = s => { for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; };
+  for (const b of beasts) { const q = b.home || [b.x, b.y];
+    mange(b.sp.id + ':' + Math.round(q[0] * 10) + ',' + Math.round(q[1] * 10) + ':' + (b.variante ? JSON.stringify(b.variante) : '') + ';'); }
+  return (h >>> 0).toString(16).toUpperCase().padStart(8, '0').slice(0, 6);
+}
 function loadWorld() {
+  if (typeof etatsSolDOrigine === 'function') etatsSolDOrigine();   // le sol d'avant le Korlaz : chaque chargement part du même sol (etats.js)
   calcCarteEau();                                    // les chemins de l'eau, pour le bestiaire
   calcFlore();                                       // peuplement de l'île, une fois pour toutes
   crystals = []; crates = []; foes = []; parts.length = 0; got = 0; won = false;
@@ -6551,12 +6816,24 @@ function loadWorld() {
   for (const sp of SPEC) if (sp.biome && RaresIle.includes(sp.biome) && (!sp.chasse || profondeur() >= NIV_RAMPANTS || Array.isArray(globalThis.__RARES))) especesIle.add(sp.id);   // les bancs choisissent
   if (!Fourmi) especesIle.delete('oglodon');         // pas de replat pour sa fourmilière : pas d'oglodon
   regleHerbe();
-  for (const sp of SPEC) { const n = Math.round(capEsp(sp) * .75); for (let i = 0; i < n; i++) { const b = poser(sp); if (b) beasts.push(b); } }
-  peuplerDoux();                                     // des mères et leurs petits
-  poserTisseuse();                                   // aux îles 10, 15, 20… : la Tisseuse, et l'arche cachée
-  if (typeof etatsIle === 'function') etatsIle();     // l'état de l'île : le Korlaz… (etats.js)
-  if (typeof villageIle === 'function') villageIle();   // le village, s'il y en a un (village.js)
-  if (typeof floreIle === 'function') floreIle();       // la flore rare, légendaire, épique (flore.js)
+  // Le peuplement de départ tire son hasard de la graine et du niveau : deux joueurs qui arrivent
+  // sur la même île, au même niveau, y trouvent les mêmes bêtes aux mêmes places, avec les mêmes
+  // robes, et le même point d'arrivée. Ensuite, chacun les fait vivre de son côté.
+  avecHasardDe(graineFaune(), () => {
+    // l'arrivée d'abord : « loin de l'arrivée » (horreurs) et « pas sous les pieds » (flore rare)
+    // se mesuraient depuis la position d'avant le chargement, (0, 0) au démarrage
+    { const r = lieuSur(); P.x = r[0]; P.y = r[1]; P.z = r[2]; P.spawn = r.slice(); }
+    for (const sp of SPEC) { const n = Math.round(capEsp(sp) * .75); for (let i = 0; i < n; i++) { const b = poser(sp); if (b) beasts.push(b); } }
+    peuplerDoux();                                     // des mères et leurs petits
+    poserTisseuse();                                   // aux îles 10, 15, 20… : la Tisseuse, et l'arche cachée
+    if (typeof etatsIle === 'function') etatsIle();     // l'état de l'île : le Korlaz… (etats.js)
+    if (typeof villageIle === 'function') villageIle();   // le village, s'il y en a un (village.js)
+    if (typeof floreIle === 'function') floreIle();       // la flore rare, légendaire, épique (flore.js)
+  });
+  beasts.forEach((b, k) => { b.num = k; });          // un numéro qui est le même chez tous les joueurs de l'île
+  for (let k = beasts.length - 1; k >= 0; k--) if (beasts[k].horsJeu) beasts.splice(k, 1);   // la Tisseuse déjà vaincue : son numéro reste pris
+  Faune0 = { n: beasts.length, sig: signatureFaune() };
+  if (typeof fauneNouvelleIle === 'function') fauneNouvelleIle();   // l'île remise à zéro : la faune partagée repart de là (faune.js)
   // Buissons à baies, dans les herbages. Leur place vient de la graine et non du hasard : deux
   // joueurs sur la même île voient les mêmes buissons, aux mêmes cases, et se les disputent.
   let gb = (SEED ^ 0xba1e5) >>> 0;
@@ -6570,8 +6847,7 @@ function loadWorld() {
   }
   // point de départ : une prairie au centre ; sinon, de proche en proche, une terre sûre (voir lieuSur).
   // Avant, faute de prairie au centre, on gardait la position de l'île précédente : au-dessus de
-  // l'océan, on tombait sans fin, et les trois cœurs y passaient.
-  { const r = lieuSur(); P.x = r[0]; P.y = r[1]; P.z = r[2]; P.spawn = r.slice(); }
+  // l'océan, on tombait sans fin, et les trois cœurs y passaient. Il est tiré avec le peuplement, plus haut.
   total = 0;
   P.vx = P.vy = P.vz = 0; P.ground = true; P.face = P.faceS = Math.PI * .25; P.land = 0;
   P.saut2 = false; P.sol = [P.x, P.y, P.z];
@@ -6789,14 +7065,17 @@ const TOUCHES = {
 };
 // 1 à 5 : les onglets, dans l'ordre du rail
 // sac fermé, 1 à 5 : les cinq cases
-ONGLETS.forEach((o, i) => { TOUCHES['Digit' + (i + 1)] = () => { if (sacOuvert) choisirOnglet(o.id); else if (i < CASES) utiliser(i); }; });
+ONGLETS.forEach((o, i) => { if (toucheOnglet(i)) TOUCHES['Digit' + toucheOnglet(i)] = () => { if (sacOuvert) choisirOnglet(o.id); else if (i < CASES) utiliser(i); }; });
 // seules touches actives, sac ouvert
 const SAC_SEUL = { KeyI:1, KeyB:1, Escape:1 };
-ONGLETS.forEach((o, i) => { SAC_SEUL['Digit' + (i + 1)] = 1; });
+ONGLETS.forEach((o, i) => { if (toucheOnglet(i)) SAC_SEUL['Digit' + toucheOnglet(i)] = 1; });
 addEventListener('keydown', e => {
   if (document.getElementById('retour').classList.contains('ouvert')) return;   // le panneau du mot : les touches sont à lui
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {   // une saisie : les touches sont à elle
     if (e.key === 'Escape') e.target.blur();
+    if (e.key === 'Enter' && e.target.dataset && e.target.dataset.coopsaisie && typeof coopAction === 'function') {   // le code d'un ami : Entrée l'envoie
+      e.preventDefault(); COOP.saisie = e.target.value; e.target.blur(); coopAction('ajout');
+    }
     return;
   }
   if (sacOuvert) {
@@ -7047,10 +7326,11 @@ function update(dt) {
     SPD = Mt.essouffle ? M.marche * .8 : court ? M.course : M.marche;
   } else {
   const court = im > .06 && veutCourir && !P.epuise && !(P.recul > 0);
-  if (court) { P.endu = Math.max(0, P.endu - dt / ENDU_COURSE * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * (effet('souffle') ? .5 : 1)); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
+  if (court && P.enduBonus > 0) { P.enduBonus = Math.max(0, P.enduBonus - dt / ENDU_COURSE); P.courseT = t; }   // le second souffle s'use d'abord
+  else if (court) { P.endu = Math.max(0, P.endu - dt / ENDU_COURSE * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * [1, .5, .3, .15, 0][effet('souffle')]); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
   else if (t - P.courseT > .5) P.endu = Math.min(1, P.endu + dt * (im > .06 ? ENDU_REPRISE : ENDU_REPOS));
   if (P.epuise && P.endu >= ENDU_SEUIL) P.epuise = false;
-  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (effet('vif') ? 1.15 : 1);
+  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (1 + effet('vif') * .15);   // pas vif : +15 % par niveau
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
@@ -7114,13 +7394,14 @@ function update(dt) {
   // --- vertical ---
   if (jumpQ) { P.buf = .14; jumpQ = false; }
   P.buf -= dt; P.coyote = P.ground ? .12 : P.coyote - dt;
-  if (P.buf > 0 && P.coyote > 0) { P.vz = M ? M.saut : 6.6; P.buf = 0; P.coyote = 0; P.ground = false; P.saut2 = !M; burst(P.x, P.y, P.z, M ? 8 : 4, M ? '#d9b283' : '#cfd6e4'); }
+  if (P.buf > 0 && P.coyote > 0) { P.vz = M ? M.saut : 6.6 * (1 + .12 * effet('saut')); P.buf = 0; P.coyote = 0; P.ground = false; P.saut2 = !M; burst(P.x, P.y, P.z, M ? 8 : 4, M ? '#d9b283' : '#cfd6e4'); }
   // Second souffle en l'air : c'est lui qui ouvre le relief vertical. Un peu plus court que
   // le premier, et il repart de la vitesse courante — sauter au sommet de l'arc monte le plus
   // haut, sauter tard porte le plus loin.
-  else if (P.buf > 0 && P.saut2) { P.vz = 6.0; P.buf = 0; P.saut2 = false; burst(P.x, P.y, P.z, 7, '#a8e0d8'); }
+  else if (P.buf > 0 && P.saut2) { P.vz = 6.0 * (1 + .12 * effet('saut')); P.buf = 0; P.saut2 = false; burst(P.x, P.y, P.z, 7, '#a8e0d8'); }
   const z0 = P.z;                                       // d'où l'on part : le pas entier compte
-  P.vz -= (P.vz > 0 ? 17 : 26) * dt;                    // chute plus rapide que la montée
+  P.vz -= (P.vz > 0 ? 17 : 26 * (effet('plume') ? Math.max(.2, .6 - .1 * effet('plume')) : 1)) * dt;
+  if (effet('plume') && P.vz < -4) P.vz = -4;            // chute de plume : on descend en planant                    // chute plus rapide que la montée
   if (M && M.plane && P.vz < -1.7 && im > .06) { P.vz = -1.7; if ((t * 10 | 0) % 3 === 0) burst(P.x, P.y, P.z + .8, 1, '#ffd0e8'); }   // l'aurore plane
   P.z += P.vz * dt;
   if (P.vz > 0) {                                       // on se cogne sous une île volante
@@ -7200,11 +7481,13 @@ function update(dt) {
       if (pois) { P.poissons[pois]--; c.faim = Math.max(0, c.faim - .8); burst(c.x, c.y, c.z + .5, 10, '#9fd4f0'); }
       else { puiser('baies', 1); c.faim = Math.max(0, c.faim - .5); burst(c.x, c.y, c.z + .5, 10, '#ffd68a'); }
       c.alarm = 0;
+      // une bête du gardien : elle a mangé chez lui aussi (sa confiance, elle, est la vôtre)
+      if (!c.tame && c.num !== undefined && typeof fauneGeste === 'function') fauneGeste('mange', { n: c.num, f: pois ? .8 : .5, d: c.sp.roche ? .6 : 0 });
       if (c.tame) say((c.comp ? c.comp.nom : c.sp.n) + (pois ? ' mange un poisson' : ' mange') + ' · faim ' + Math.round(c.faim * 100) + ' %', 1.5);
       else {
         // La confiance vient en mangeant, plus lentement chez les espèces rares, plus vite chez
         // une bête blessée. Au bout, il faut un lien libre pour qu'elle s'y attache.
-        c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1) * (pois ? 2 : 1));
+        c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1) * (pois ? 2 : 1) * (1 + .5 * effet('apprivoiseur')));
         const colonie = c.sp.roche ? ' · colonie ' + Math.round(Math.min(1, confColonie() + 1 / OG_BAIES) * 100) + ' %' : '';
         if (c.sp.roche) { c.doute = Math.max(0, (c.doute || 0) - .6); gagnerColonie(1 / OG_BAIES); }
         if (c.conf >= 1) { if (!lier(c, 'baies')) say('confiance totale · il faut un lien d\'éclat libre' + colonie, 2.6); }
@@ -7220,10 +7503,11 @@ function update(dt) {
   // un coup ne frappe donc pas en retombant.
   if (P.hurt <= 0) for (const b of beasts) if (b.sp.chasse && !b.tame && !b.dead && b.pv > 0 && P.vz < -1.5 && P.z > b.z + .35
       && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 1.3 && Math.abs(b.z - P.z) < 1.5) {
-    const deg = Math.max(.3, Math.min(.7, .2 + .045 * -P.vz));
-    b.pv -= degJoueur(deg, b); b.hit = .25; b.alarm = 1; blesseParJoueur(b); lacherParoi(b);
+    const deg = Math.max(.3, Math.min(.7, .2 + .045 * -P.vz)), dgJ = degJoueur(deg, b);
+    b.pv -= dgJ; b.hit = .25; b.alarm = 1; blesseParJoueur(b); lacherParoi(b);
     if (b.as && b.as.prof !== COMBAT.defense) { b.as = null; b.pret = b.t + .8; }
     b.etourdi = .6; b.vx = b.vy = 0;
+    if (typeof fauneCoup === 'function') fauneCoup(b, dgJ, 0, 0, 'piétiné', .6);
     burst(b.x, b.y, b.z + .4, 9, '#ffb0a0');
     if (b.pv <= 0) { mourirBete(b, 'piétiné'); butin(b); }
     else say(b.sp.n + ' · ' + Math.round(b.pv * 100) + '%', 1);
@@ -7563,7 +7847,12 @@ function paint(list) {
 // tourne le tout selon la direction de marche.
 // Les os du personnage. J vaut le joueur par défaut, mais un joueur distant a les mêmes :
 // c'est ce qui permet de le dessiner sans écrire une seconde silhouette.
-function heroBones(J) {
+function heroBones(J) {                                  // invisible : un fantôme pâle
+  const B = heroBonesBase(J);
+  if (J === P && effet('invisible')) for (const o of B) o.c = [Math.round(o.c[0] * .25 + 150), Math.round(o.c[1] * .25 + 175), Math.round(o.c[2] * .25 + 205)];
+  return B;
+}
+function heroBonesBase(J) {
   J = J || P;
   const HC = J.HC || HC_HERO;                          // la peau : celle du héros, ou d'un automate
   const spd = J.veille ? 0 : Math.min(1, Math.hypot(J.vx, J.vy) / 4.2);
@@ -7641,7 +7930,8 @@ function heroBones(J) {
     }
     hip = hipF; neck = neckF;
   }
-  if (J === P && P.peche) poseCanne(B, neck);          // les deux mains sur la canne
+  const QJ = J === P ? P.peche : J.peche;
+  if (QJ) poseCanne(B, neck, QJ);                      // les deux mains sur la canne (celle d'en face aussi)
   B.push({ a: hip, b: neck, w: 0.205, h: 0.145, c: HC.tunic });                    // buste
   if (J.automate) {
     // la plaque solaire dans le dos, l'œil-lampe, et le bras-canon qui recule au tir
@@ -7715,8 +8005,8 @@ function menaceEtProie(b, vue) {
     // une compagne est une proie comme une autre pour un chasseur de l'île — pas pour une autre compagne
     if (sp.chasse && sp.chasse.includes(o.sp.id) && (!o.tame || (o.comp && !b.tame)) && !o.pnjSuit && !(o.enfoui > 0) && d < vue * vue && d < dP) { dP = d; pr = o; }
   }
-  if (!b.tame && sp.peur > .3) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2, r = rayonPeurJoueur(b, vue);
-    if (d < r * r && d < dM && !(b.ignore === P && b.t < b.ignoreT && d > 6.25 && !(b.colere > 0))) { dM = d; men = P; } }
+  if (!b.tame && sp.peur > .3) { const J = JC, d = (b.x - J.x) ** 2 + (b.y - J.y) ** 2, r = rayonPeurJoueur(b, vue);
+    if (d < r * r * (effetDe(J, 'silence') || effetDe(J, 'invisible') ? .15 : 1) && d < dM && !(b.ignore === J && b.t < b.ignoreT && d > 6.25 && !(b.colere > 0))) { dM = d; men = J; } }
   return [men, dM, pr, dP];
 }
 // ---------- le joueur calme ----------
@@ -7726,28 +8016,50 @@ function menaceEtProie(b, vue) {
 // près (l'état « curieux »). Qui court, frappe ou tire redevient la menace d'avant, et l'aise
 // retombe en deux secondes. Les chasseurs, les automates et l'oglodon n'en changent pas.
 const joueurCalme = () => t - (P.courseT ?? -99) > 2.5 && t - (P.agiteT ?? -99) > 8;
+// ---------- les joueurs que voient les bêtes ----------
+// Une bête sauvage se règle sur « le joueur ». Sur l'appareil qui fait vivre la faune de l'île (le
+// gardien, voir faune.js), ce sont tous les joueurs de l'île : pour chaque bête partagée, JC est le
+// plus proche d'entre eux — celui qu'elle craint, chasse, regarde, charge ou vise. Pour les compagnes,
+// les bêtes qui ne sont qu'à cet appareil, et hors du tour de l'écosystème, c'est le joueur d'ici (P).
+// Un joueur d'en face (une entrée d'Autres) dit dans ses positions s'il est calme, à l'abri,
+// invisible, silencieux ou repoussant (fx) : c'est son appareil qui le sait.
+let JC = P;
+const estJoueur = o => o === P || !!(o && o.distant && o.u);
+const effetDe = (j, e) => j === P ? effet(e) : j && j.fx && j.fx[e] ? 1 : 0;
+const abriDe = j => j === P ? sousAbri() : !!(j && j.fx && j.fx.abri);
+const calmeDe = j => j === P ? joueurCalme() : !!(j && j.fx && j.fx.calme);
+function joueurPour(b) {
+  if (!Autres.size || typeof fauneGardien !== 'function' || !fauneGardien()) return P;
+  let best = P, bd = (P.x - b.x) ** 2 + (P.y - b.y) ** 2 + ((P.z - b.z) * 2) ** 2;
+  for (const j of Autres.values()) {
+    if (!j.fv || !(j.pv > 0)) continue;                // un joueur d'avant la faune partagée : les bêtes d'ici l'ignorent
+    const d = (j.x - b.x) ** 2 + (j.y - b.y) ** 2 + ((j.z - b.z) * 2) ** 2;
+    if (d < bd) { bd = d; best = j; }
+  }
+  return best;
+}
 const proieCalme = b => !b.tame && b.sp.peur > .3 && !b.sp.chasse && !automate(b.sp) && !b.sp.roche && !(b.colere > 0);
 // la distance qu'elle garde : grande au début, un pas à peine une fois habituée
 const distGarde = b => .8 + b.sp.sz * .45 + (1 - (b.aise || 0)) * 2.4 * b.sp.peur;
 function rayonPeurJoueur(b, vue) {
-  if (!proieCalme(b) || !joueurCalme()) return vue * .55;
+  if (!proieCalme(b) || !calmeDe(JC)) return vue * .55;
   return Math.max(0, distGarde(b) - 1.6) * (1 - (b.aise || 0));   // trop près trop tôt : elle détale quand même
 }
 // Le coursier est plus long à gagner : quatre fois plus lent à s'habituer (deux minutes, immobile),
 // trois fois moins quand on marche, et il perd sa confiance deux fois plus vite.
 function majAise(b, dt) {
   if (!proieCalme(b)) { b.aise = 0; return; }
-  const d = Math.hypot(P.x - b.x, P.y - b.y), co = coursier(b.sp);
-  if (!joueurCalme()) { if (d < b.sp.vue) b.aise = Math.max(0, (b.aise || 0) - dt * (co ? 1.2 : .6)); }
+  const J = JC, d = Math.hypot(J.x - b.x, J.y - b.y), co = coursier(b.sp);
+  if (!calmeDe(J)) { if (d < b.sp.vue) b.aise = Math.max(0, (b.aise || 0) - dt * (co ? 1.2 : .6)); }
   else if (d < b.sp.vue * (co ? 1 : .7)) {                           // le troupeau de coursiers erre loin : on le compte à vue
-    const lent = (co ? 4 * (Math.hypot(P.vx, P.vy) > .5 ? 3 : 1) / (nmSait('regard-oblique') ? 2 : 1) : 1) / (!co && nmSait('main-basse') ? 2 : 1);   // les techniques des nomades
+    const lent = (co ? 4 * (Math.hypot(J.vx || 0, J.vy || 0) > .5 ? 3 : 1) / (J === P && nmSait('regard-oblique') ? 2 : 1) : 1) / (!co && J === P && nmSait('main-basse') ? 2 : 1);   // les techniques des nomades
     b.aise = Math.min(1, (b.aise || 0) + dt / ((12 + 18 * b.sp.peur) * lent));
   }
   else b.aise = Math.max(0, (b.aise || 0) - dt * (co ? .012 : .004));   // loin, elle vous oublie en quelques minutes
 }
 // Viendra-t-elle voir ? Elle y pense de loin en loin, d'autant plus qu'elle vous connaît.
 function curieuse(b, dJ, dzJ) {
-  if (!proieCalme(b) || !joueurCalme() || dJ > b.sp.vue * .7 || dzJ > 2.5) { b.curFin = 0; return false; }
+  if (!proieCalme(b) || !calmeDe(JC) || dJ > b.sp.vue * .7 || dzJ > 2.5) { b.curFin = 0; return false; }
   if (b.t < (b.curFin || 0)) return true;
   if (b.t < (b.curProch || 0)) return false;
   b.curProch = b.t + 5 + Math.random() * 6;
@@ -7774,10 +8086,12 @@ const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) ||
 //  qu'à son bord.
 // ============================================================
 const OSSUAIRE = 19, CREUX = 20;
+// Ce qu'un joueur d'en face fait entendre (il le dit dans ses positions, faune.js)
+const bruitDe = j => j === P ? bruitJoueur() : (j && j.pv > 0 ? j.br || 0 : 0);
 const bruitJoueur = () => {                               // ce que vous faites entendre : 0, ou 0..1
   if (P.pv <= 0) return 0;
   const v = Math.hypot(P.vx || 0, P.vy || 0);
-  let n = v < .4 ? 0 : v < VIT_MARCHE + .3 ? .35 : 1;
+  let n = effet('silence') ? 0 : v < .4 ? 0 : v < VIT_MARCHE + .3 ? .35 : 1;   // pas feutrés : le Silencieux n'entend rien
   if (P.anim && P.anim.k === 'arme') n = Math.max(n, .9);
   if (P.arc !== null && P.arc !== undefined) n = Math.max(n, .15);
   return n;
@@ -7808,11 +8122,14 @@ function offrandeHorreur(c) {
     if (Math.hypot(P.x - c.x, P.y - c.y) < 1.3) { say('trop près de ses bras', 1.4); return; }
   } else if (c.etat !== 'dresse' && c.etat !== 'jaillir') { say('il faut qu\'il soit dehors, dressé', 1.6); return; }
   metSacIngr(id, sacIngr(id) - 1);
-  c.conf = Math.min(1, (c.conf || 0) + (sil ? .1 : .14));
+  c.conf = Math.min(1, (c.conf || 0) + (sil ? .1 : .14) * (1 + .5 * effet('apprivoiseur')));
   burst(c.x, c.y, (sil ? c.z + 2 : (c.tete ? c.tete[2] : c.z + 2)), 10, '#ffd68a');
   if (sil && c.conf < .5 && Math.random() < .5) {            // le geste l'a effrayé
-    c.etat = 'hurler'; c.hurT = .5; c.son = { x: P.x, y: P.y, n: 1, cible: P }; c.sonT = c.t; sonHorreur(c.x, c.y, c.z + 2, 'hurlement'); say('il a pris peur', 1.6); return;
+    c.etat = 'hurler'; c.hurT = .5; c.son = { x: P.x, y: P.y, n: 1, cible: P }; c.sonT = c.t; sonHorreur(c.x, c.y, c.z + 2, 'hurlement'); say('il a pris peur', 1.6);
+    if (typeof fauneGeste === 'function' && c.num !== undefined) fauneGeste('offrande', { n: c.num, c: r2(c.conf), peur: 1 });
+    return;
   }
+  if (typeof fauneGeste === 'function' && c.num !== undefined && c.conf < 1) fauneGeste('offrande', { n: c.num, c: r2(c.conf) });
   c.calmeT = c.t + 8;
   if (sil) { c.etat = 'écouter'; c.ecT = 3; } else { c.etat = 'plonger'; c.plT = 0; c.frappe = 1; c.cdT = c.t + 8; }
   if (c.conf >= 1) { if (!lier(c)) { c.conf = .95; say('plus de lien libre', 1.6); } }
@@ -7828,12 +8145,18 @@ function majSilencieux(b, dt) {
   if (b.t - (b.blesseT ?? -99) > 6) b.pv = Math.min(1, b.pv + dt * .012);   // il guérit vite
   if (b.tame) return silencieuxLie(b, dt);
   const z0 = sol(b.x, b.y);
-  // l'oreille : vous, et toute bête qui court
-  const n = bruitJoueur(), dJ = Math.hypot(P.x - b.x, P.y - b.y);
-  let entendu = null;
+  // l'oreille : les joueurs de l'île (le plus bruyant, à portée de son bruit), et toute bête qui court
   const ami = (b.conf || 0) >= .5 || b.t < (b.calmeT || 0);       // nourri souvent : votre pas, il le connaît
-  if (n > 0 && dJ < 26 * n && Math.abs(P.z - b.z) < 6) entendu = { x: P.x, y: P.y, n: ami ? Math.min(n, .3) : n, cible: P };
-  if (b.hit > .2 && !b.cri) { b.cri = 1; b.blesseT = b.t; entendu = { x: P.x, y: P.y, n: 1, cible: P }; }   // touché : il sait d'où ça vient
+  let entendu = null, fort = 0;
+  for (const Q of joueursFaune()) {
+    const nQ = bruitDe(Q), dQ = Math.hypot(Q.x - b.x, Q.y - b.y);
+    if (nQ > 0 && dQ < 26 * nQ && Math.abs(Q.z - b.z) < 6 && nQ * (1 - dQ / 30) > fort) { fort = nQ * (1 - dQ / 30); entendu = { x: Q.x, y: Q.y, n: ami ? Math.min(nQ, .3) : nQ, cible: Q }; }
+  }
+  if (b.hit > .2 && !b.cri) {                                       // touché : il sait d'où ça vient
+    b.cri = 1; b.blesseT = b.t;
+    const Q = b.coupDistant && maintenant() - (b.coupDistantT || -99) < .5 ? Autres.get(b.coupDistant) || P : P;
+    entendu = { x: Q.x, y: Q.y, n: 1, cible: Q };
+  }
   if (!(b.hit > .2)) b.cri = 0;
   if (!entendu && b.t > (b.proieT || 0)) {
     b.proieT = b.t + .5;
@@ -7843,18 +8166,21 @@ function majSilencieux(b, dt) {
   const S = b.son;
   // le contact : qui est à portée de ses bras est saisi, bruit ou pas
   if (b.etat !== 'saisir' && b.t > (b.repuT || 0)) {
-    const prise = dJ < 1.25 && Math.abs(P.z - b.z) < 1.6 && P.pv > 0 && !ami ? P : (b.etat === 'charger' && S && S.cible !== P && S.cible && !S.cible.dead && Math.hypot(S.cible.x - b.x, S.cible.y - b.y) < 1.3 ? S.cible : null);
+    const Q = ami ? null : joueursFaune().find(Q => Math.hypot(Q.x - b.x, Q.y - b.y) < 1.25 && Math.abs(Q.z - b.z) < 1.6);
+    const prise = Q || (b.etat === 'charger' && S && !estJoueur(S.cible) && S.cible && !S.cible.dead && Math.hypot(S.cible.x - b.x, S.cible.y - b.y) < 1.3 ? S.cible : null);
     if (prise) { b.etat = 'saisir'; b.saisirT = 0; b.prise = prise; sonHorreur(b.x, b.y, b.z + 2, 'hurlement', { fort: 1 }); }
   }
   let tx = b.x, ty = b.y, vit = 0;
   switch (b.etat) {
     case 'saisir': {                                     // il soulève, et frappe au sol
-      b.saisirT += dt; vit = 0; const c = b.prise; b.dirT = Math.atan2(c.y - b.y, c.x - b.x);
-      if (b.saisirT > .55 && !b.frappe) {
-        b.frappe = 1; P.secousse = t; P.secousseK = .8;
+      b.saisirT += dt; vit = 0; const c = b.prise; if (c) b.dirT = Math.atan2(c.y - b.y, c.x - b.x);
+      if (b.saisirT > .55 && !b.frappe && c) {
+        b.frappe = 1; if (Math.hypot(P.x - b.x, P.y - b.y) < 12) { P.secousse = t; P.secousseK = .8; }
         if (c === P) {                                  // la première fois, il vous laisse à peine debout ; la seconde tue
           const pv0 = P.pv, k = degSubi(1) || 1; porterCoup(b, P, pv0 > .35 ? Math.min(.5, (pv0 - .08) / k) : .5);
           P.vx += Math.cos(b.dirT) * 9; P.vy += Math.sin(b.dirT) * 9; say('le Silencieux vous saisit', 2); }
+        else if (estJoueur(c)) {                        // un joueur d'en face : même prise, encaissée chez lui
+          const pv0 = c.pv; frapperJoueur(b, c, pv0 > .35 ? Math.min(.5, pv0 - .08) : .5, { kb: [Math.cos(b.dirT) * 9, Math.sin(b.dirT) * 9, 0], sh: .8, m: 'le Silencieux vous saisit' }); }
         else { porterCoup(b, c, 1.2); if (c.pv <= 0 && !c.dead) mourirBete(c, 'chassé'); }
         burst(c.x, c.y, (c.z || 0) + .6, 14, '#c84040');
       }
@@ -8081,10 +8407,13 @@ function majMille(b, dt) {
   if (b.etat === 'sous' && b.t - (b.blesseT ?? -99) > 8) b.pv = Math.min(1, b.pv + dt * .008);
   if (b.pv < .3 && !b.fuite && b.etat === 'sous') { b.fuite = b.t + 20; }
   if (b.fuite && b.t > b.fuite) b.fuite = 0;
-  const dJ = Math.hypot(P.x - T[0], P.y - T[1]), surMeuble = solMeuble(P.x, P.y), proche = P.pv > 0 && Math.abs(P.z - g) < 4 && dJ < 32 && !b.fuite;
+  // le joueur le plus proche de sa tête, d'ici ou d'en face
+  let J = P, dJ = Math.hypot(P.x - T[0], P.y - T[1]);
+  if (!b.tame) for (const Q of joueursFaune()) { const d = Math.hypot(Q.x - T[0], Q.y - T[1]); if (Q !== P && d < dJ) { J = Q; dJ = d; } }
+  const proche = J.pv > 0 && Math.abs(J.z - g) < 4 && dJ < 32 && !b.fuite;
   const vise = () => {
     if (b.tame) { const m = b.role === 'defense' ? menaceOrdre(b) : null; return m && m !== P && !m.dead && m.pv > 0 && solMeuble(m.x, m.y) && Math.hypot(m.x - T[0], m.y - T[1]) < 25 ? [m.x, m.y, m] : null; }
-    if (proche && (b.conf || 0) < .5 && b.t > (b.calmeT || 0)) return [P.x, P.y, P];                           // vous, sinon une bête sur sa terre
+    if (proche && (b.conf || 0) < .5 && b.t > (b.calmeT || 0)) return [J.x, J.y, J];                           // vous, sinon une bête sur sa terre
     for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.enVol && !o.sp.horreur && !o.sp.plante && !o.sp.batiment && Math.hypot(o.x - T[0], o.y - T[1]) < 18 && solMeuble(o.x, o.y)) return [o.x, o.y, o];
     return null; };
   let mv = null, v = 0, zT = g - 1.4;
@@ -8114,7 +8443,8 @@ function majMille(b, dt) {
       // la traînée : la terre qui se soulève au-dessus de sa tête, et le grondement
       if (Math.random() < dt * (v > 3 ? 18 : 6)) parts.push({ x: T[0] + (Math.random() - .5) * .5, y: T[1] + (Math.random() - .5) * .5, z: g + .05, vx: (Math.random() - .5) * .8, vy: (Math.random() - .5) * .8, vz: .8 + Math.random(), g: 6, life: .5, age: 0, col: '#2c2a36', tl: .07 });
       if (v > 3 && Math.random() < dt * .8) sonHorreur(T[0], T[1], g, 'grondement');
-      if (v > 3 && dJ < 10 && !b.tame) { P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, .12 * (1 - dJ / 10)); }
+      const dP = Math.hypot(P.x - T[0], P.y - T[1]);
+      if (v > 3 && dP < 10 && !b.tame) { P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, .12 * (1 - dP / 10)); }
       break;
     }
     case 'fendre': {                                     // la terre se fend : une seconde pour s'enfuir
@@ -8123,10 +8453,9 @@ function majMille(b, dt) {
       if (!b.tame && Math.hypot(P.x - b.au[0], P.y - b.au[1]) < 6) { P.secousse = t; P.secousseK = .3 + b.fenT * .4; }
       if (b.fenT < dt * 1.5) sonHorreur(b.au[0], b.au[1], g, 'grondement', { fort: 1 });
       if (b.fenT >= 1) {
-        b.etat = 'jaillir'; b.jT = 0; sonHorreur(b.au[0], b.au[1], g + 2, 'criMille'); P.secousse = t; P.secousseK = 1;
+        b.etat = 'jaillir'; b.jT = 0; sonHorreur(b.au[0], b.au[1], g + 2, 'criMille'); if (Math.hypot(P.x - b.au[0], P.y - b.au[1]) < 30) { P.secousse = t; P.secousseK = 1; }
         for (let k = 0; k < 26; k++) parts.push({ x: b.au[0], y: b.au[1], z: sol(b.au[0], b.au[1]) + .2, vx: (Math.random() - .5) * 5, vy: (Math.random() - .5) * 5, vz: 3 + Math.random() * 4, g: 10, life: .8, age: 0, col: '#2c2a36', tl: .1 });
-        const dP = Math.hypot(P.x - b.au[0], P.y - b.au[1]);
-        if (dP < 1.7 && P.pv > 0 && !b.tame) { porterCoup(b, P, .3); P.vz = (P.vz || 0) + 6; say('le Mille-gueules jaillit sous vous', 2); }
+        if (!b.tame) for (const Q of joueursFaune()) if (Math.hypot(Q.x - b.au[0], Q.y - b.au[1]) < 1.7) frapperJoueur(b, Q, .3, { kb: [0, 0, 6], m: 'le Mille-gueules jaillit sous vous' });
         for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < 1.7) { porterCoup(b, o, 1); if (o.pv <= 0) mourirBete(o, 'chassé'); }
       }
       break;
@@ -8137,7 +8466,7 @@ function majMille(b, dt) {
       break;
     }
     case 'dresse': {                                     // dressé, la tête qui oscille, les mâchoires qui s'ouvrent
-      b.drT += dt; const c = b.cible && !b.cible.dead ? b.cible : P;
+      b.drT += dt; const c = b.cible && !b.cible.dead && !(estJoueur(b.cible) && !(b.cible.pv > 0)) ? b.cible : J;
       const a = Math.atan2(c.y - b.au[1], c.x - b.au[0]);
       mv = [b.au[0] + Math.cos(a) * .8 + Math.sin(b.t * 4) * .3, b.au[1] + Math.sin(a) * .8 + Math.cos(b.t * 3.3) * .3]; v = 3; zT = sol(b.au[0], b.au[1]) + 3.6 + Math.sin(b.t * 2.5) * .3;
       if (b.drT > 1.1) { b.etat = 'frapper'; b.frT = 0; b.coup = [c.x, c.y]; sonHorreur(T[0], T[1], T[2], 'criMille', { court: 1 }); }
@@ -8146,10 +8475,9 @@ function majMille(b, dt) {
     case 'frapper': {                                    // il s'abat
       b.frT += dt; mv = b.coup; v = 11; zT = sol(b.coup[0], b.coup[1]) + .3;
       if (b.frT > .32 && !b.frappe) {
-        b.frappe = 1; P.secousse = t; P.secousseK = .9;
+        b.frappe = 1; if (Math.hypot(P.x - T[0], P.y - T[1]) < 30) { P.secousse = t; P.secousseK = .9; }
         for (let k = 0; k < 18; k++) parts.push({ x: T[0], y: T[1], z: g + .1, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, vz: 2 + Math.random() * 2, g: 9, life: .6, age: 0, col: '#3a3644', tl: .09 });
-        const dP = Math.hypot(P.x - T[0], P.y - T[1]);
-        if (dP < 1.9 && Math.abs(P.z - g) < 1.5 && P.pv > 0 && !b.tame) { porterCoup(b, P, .25); P.vx += (P.x - T[0]) * 5; P.vy += (P.y - T[1]) * 5; }
+        if (!b.tame) for (const Q of joueursFaune()) if (Math.hypot(Q.x - T[0], Q.y - T[1]) < 1.9 && Math.abs(Q.z - g) < 1.5) frapperJoueur(b, Q, .25, { kb: [(Q.x - T[0]) * 5, (Q.y - T[1]) * 5, 0] });
         for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && Math.hypot(o.x - T[0], o.y - T[1]) < 1.9) { porterCoup(b, o, .8); if (o.pv <= 0) mourirBete(o, 'chassé'); }
       }
       if (b.frT > .75) { b.etat = 'plonger'; b.plT = 0; b.frappe = 0; }
@@ -8169,13 +8497,18 @@ function majMille(b, dt) {
       T[0] = nx; T[1] = ny; b.dirT = Math.atan2(dy, dx); }
   }
   T[2] += (zT - T[2]) * Math.min(1, dt * (b.etat === 'frapper' ? 9 : b.etat === 'jaillir' ? 7 : 4));
+  chaineMille(b);
+  b.x = T[0]; b.y = T[1]; b.z = sol(b.x, b.y); b.dir = b.dirT ?? b.dir;
+}
+// La tête avance, la queue suit, anneau par anneau.
+function chaineMille(b) {
+  const T = b.tete;
   b.seg[0] = T.slice();
   for (let k = 1; k < MG_N; k++) {
     const a = b.seg[k - 1], q = b.seg[k], dx = q[0] - a[0], dy = q[1] - a[1], dz = q[2] - a[2], d = Math.hypot(dx, dy, dz) || 1;
     q[0] = a[0] + dx / d * MG_PAS; q[1] = a[1] + dy / d * MG_PAS; q[2] = a[2] + dz / d * MG_PAS;
     const gq = sol(q[0], q[1]); if (b.etat === 'sous') q[2] = Math.min(q[2], gq - .9);   // dessous, la queue reste sous terre
   }
-  b.x = T[0]; b.y = T[1]; b.z = sol(b.x, b.y); b.dir = b.dirT ?? b.dir;
   b.dehors = b.seg.some(s => s[2] > sol(s[0], s[1]) - .1);
 }
 function osMille(f) {
@@ -8272,9 +8605,10 @@ function cracheFeu(b, c) {
   const cx = c.x + (c.vx || 0) * vol * .7 + Math.cos(a) * e * Math.random(), cy = c.y + (c.vy || 0) * vol * .7 + Math.sin(a) * e * Math.random();
   TIRS.push({ x: m[0], y: m[1], z: m[2], vx: (cx - m[0]) / vol, vy: (cy - m[1]) / vol, vz: (sol(cx, cy) - m[2]) / vol + TIR_G * vol * .5,
     de: b, deg: b.tame ? .34 : .2, age: 0, c: [255, 160, 60], obus: true, feu: true, zone: 1.7, cx, cy, cz: sol(cx, cy), vol });
+  if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
   SON.jouer('cracheFeu', {}, m[0], m[1], m[2]); burst(m[0], m[1], m[2], 12, '#ffb040'); b.feuT = 0; b.gueuleT = t; b.tirs = (b.tirs || 0) + 1;
 }
-function allumerFeu(f) { BRASIERS.push({ x: f.x, y: f.y, z: sol(f.x, f.y), r: 1.5, fin: t + 3.5, de: f.de, piq: 0 }); }
+function allumerFeu(f) { BRASIERS.push({ x: f.x, y: f.y, z: sol(f.x, f.y), r: 1.5, fin: t + 3.5, de: f.de, piq: 0, fantome: !!f.fantome }); }
 function majBrasiers(dt) {                              // le sol qui brûle : des flammes, et ce qui y passe brûle
   for (let i = BRASIERS.length - 1; i >= 0; i--) {
     const w = BRASIERS[i]; if (w.fin < t) { BRASIERS.splice(i, 1); continue; }
@@ -8284,7 +8618,7 @@ function majBrasiers(dt) {                              // le sol qui brûle : d
         g: -1.5, life: .45 + Math.random() * .4, age: 0, col: Math.random() < .6 ? '#ffb040' : '#ff5a24', luit: 1, tl: .1 }); }
     if (Math.random() < dt * 4 * k) parts.push({ x: w.x, y: w.y, z: w.z + .5, vx: 0, vy: 0, vz: 1.2, g: -1, life: 1.4, age: 0, col: '#5a524c', tl: .16 });
     if ((P.x - w.x) ** 2 + (P.y - w.y) ** 2 < w.r * w.r && Math.abs(P.z - w.z) < 1.2 && !effet('braise') && !(w.de.tame)) P.brulure = Math.max(P.brulure || 0, t + 1.2);
-    if (t > w.piq) { w.piq = t + .5;
+    if (t > w.piq && !w.fantome) { w.piq = t + .5;   // un brasier rejoué (le feu d'un dragon du gardien) : les bêtes brûlent chez lui
       for (const o of beasts) if (o !== w.de && !o.dead && o.pv > 0 && !(w.de.tame && o.tame) && (o.x - w.x) ** 2 + (o.y - w.y) ** 2 < w.r * w.r && Math.abs(o.z - w.z) < 1.2 && !o.sp.brule) porterCoup(w.de, o, .06); }
   }
 }
@@ -8321,7 +8655,8 @@ function nourrirDragon(c) {                              // à la viande seuleme
   if (!v) { say(c.sp.n + ' ne prend que de la viande', 1.8); return; }
   metSacIngr(v, sacIngr(v) - 1); c.faim = Math.max(0, c.faim - .35); c.etat = 'manger'; c.mangeT = 2; burst(c.x, c.y, c.z + 1.6, 10, '#ffd68a');
   if (c.tame) { say(c.comp.nom + ' dévore ' + INGR[v].n.toLowerCase(), 1.6); return; }
-  c.conf = Math.min(1, (c.conf || 0) + .2 + .05 * (INGR[v].r || 1));
+  c.conf = Math.min(1, (c.conf || 0) + (.2 + .05 * (INGR[v].r || 1)) * (1 + .5 * effet('apprivoiseur')));
+  if (typeof fauneGeste === 'function' && c.num !== undefined && c.conf < 1) fauneGeste('nourrir', { n: c.num, c: r2(c.conf) });
   if (c.conf >= 1) { if (!lier(c)) { c.conf = .95; say('plus de lien libre', 1.6); } }
   else say(c.sp.n + ' · confiance ' + Math.round(c.conf * 100) + ' %', 1.6);
 }
@@ -8344,22 +8679,22 @@ function majDragon(b, dt) {
   if (!b.nid) b.nid = { x: b.x, y: b.y, z: b.z };
   if (b.vx || b.vy) { b.x += (b.vx || 0) * dt; b.y += (b.vy || 0) * dt; b.vx *= .85; b.vy *= .85; if (Math.abs(b.vx) + Math.abs(b.vy) < .05) b.vx = b.vy = 0; }
   if (b.tame) { if (majDragonLie(b, dt)) return; }
-  const N = b.nid, nuit = lumiere() < .36, dJ = Math.hypot(P.x - b.x, P.y - b.y), vJ = Math.hypot(P.vx || 0, P.vy || 0);
-  const viande = INGR_GARDE().some(id => INGR[id].fam === 'viande' && sacIngr(id) > 0);
+  const J = b.tame ? P : JC, N = b.nid, nuit = lumiere() < .36, dJ = Math.hypot(J.x - b.x, J.y - b.y), vJ = Math.hypot(J.vx || 0, J.vy || 0);
+  const viande = J === P && INGR_GARDE().some(id => INGR[id].fam === 'viande' && sacIngr(id) > 0);   // la viande d'un joueur d'en face ne se sent pas d'ici
   if (!b.tame) {
     if (b.hit > 0) b.colere = 30;                          // frappé : il vous fait la chasse
     if (b.colere > 0) b.colere -= dt;
-    const pres = Math.hypot(P.x - N.x, P.y - N.y) < 9 && !b.enVol && Math.hypot(b.x - N.x, b.y - N.y) < 3 && !(viande && vJ < 1.3) && P.pv > 0;
+    const pres = Math.hypot(J.x - N.x, J.y - N.y) < 9 && !b.enVol && Math.hypot(b.x - N.x, b.y - N.y) < 3 && !(viande && vJ < 1.3) && J.pv > 0;
     if (pres && !(b.colere > 0)) {                        // son aire : il se dresse, gronde ; insistez, et c'est la guerre
       if (b.etat !== 'menacer') { b.etat = 'menacer'; b.menT = 0; SON.jouer('rugissement', {}, b.x, b.y, b.z + 1.6); }
-      b.menT += dt; b.dirT = b.dir = Math.atan2(P.y - b.y, P.x - b.x);
+      b.menT += dt; b.dirT = b.dir = Math.atan2(J.y - b.y, J.x - b.x);
       if (b.menT > 2.2 && dJ < 7) b.colere = 25;
       return;
     }
     if (b.etat === 'menacer') b.etat = 'perché';
     if (b.pv < .25 && b.colere > 0 && !b.fuiT) { b.fuiT = b.t + 14; b.colere = 0; }
-    if (b.fuiT > b.t) { if (!b.enVol) { b.etat = 'décoller'; b.decT = .3; b.suite = 'fuir'; } else { const a = Math.atan2(b.y - P.y, b.x - P.x); volerVers(b, b.x + Math.cos(a) * 15, b.y + Math.sin(a) * 15, hRendu(b.x, b.y) + 16, DRAG.fuite, 'bat', dt); b.etat = 'fuir'; } return; }
-    if (b.colere > 0 && P.pv > 0 && !sousAbri() && dJ < 45) { if (b.etat !== 'décoller') attaqueDragon(b, P, dt); else { b.decT -= dt; if (b.decT <= 0) envol(b, 'attaque'); } return; }
+    if (b.fuiT > b.t) { if (!b.enVol) { b.etat = 'décoller'; b.decT = .3; b.suite = 'fuir'; } else { const a = Math.atan2(b.y - J.y, b.x - J.x); volerVers(b, b.x + Math.cos(a) * 15, b.y + Math.sin(a) * 15, hRendu(b.x, b.y) + 16, DRAG.fuite, 'bat', dt); b.etat = 'fuir'; } return; }
+    if (b.colere > 0 && J.pv > 0 && !(abriDe(J) || effetDe(J, 'invisible')) && dJ < 45) { if (b.etat !== 'décoller') attaqueDragon(b, J, dt); else { b.decT -= dt; if (b.decT <= 0) envol(b, 'attaque'); } return; }
   }
   if (!b.enVol) {
     b.v = 0; b.vz = 0; b.bat = 0; b.roll = (b.roll || 0) * .8; b.tang = (b.tang || 0) * .8;
@@ -8374,7 +8709,7 @@ function majDragon(b, dt) {
     if (nuit) { if (!auNid) { b.etat = 'décoller'; b.decT = .45; b.suite = 'rentrer'; return; } b.etat = 'dormir'; return; }
     if (b.etat === 'dormir') b.perchT = 3 + Math.random() * 6;
     b.etat = 'perché'; gestesPerche(b);
-    if (viande && vJ < 1.3 && dJ < 6) { b.dirT = b.dir = b.dir + Math.max(-dt, Math.min(dt, Math.atan2(P.y - b.y, P.x - b.x) - b.dir)); b.curieux = 1; return; }   // la viande : il vous laisse venir, curieux
+    if (viande && vJ < 1.3 && dJ < 6) { b.dirT = b.dir = b.dir + Math.max(-dt, Math.min(dt, Math.atan2(J.y - b.y, J.x - b.x) - b.dir)); b.curieux = 1; return; }   // la viande : il vous laisse venir, curieux
     b.curieux = 0;
     b.perchT -= dt;
     if (b.perchT <= 0) { b.etat = 'décoller'; b.decT = .45; b.suite = b.faim > .5 ? 'chasser' : 'planer'; }
@@ -8388,11 +8723,11 @@ function majDragon(b, dt) {
       b.planeT = (b.planeT ?? 30) - dt;
       if (nuit || b.planeT <= 0) { b.etat = 'rentrer'; b.cercle = null; }
       else if (b.faim > .55) { b.etat = 'chasser'; b.cercle = null; }
-      else if (dJ < 28 && P.pv > 0 && !b.vuJ && Math.random() < dt * .1) { b.etat = 'observer'; b.obsT = 10 + Math.random() * 6; b.vuJ = 1; b.cercle = null; }
+      else if (dJ < 28 && J.pv > 0 && !b.vuJ && Math.random() < dt * .1) { b.etat = 'observer'; b.obsT = 10 + Math.random() * 6; b.vuJ = 1; b.cercle = null; }
       break;
     }
     case 'observer': {                                   // curieux : il vient tourner au-dessus de vous
-      b.obsT -= dt; cercleAutour(b, P.x, P.y, P.z + 9, 9, dt);
+      b.obsT -= dt; cercleAutour(b, J.x, J.y, J.z + 9, 9, dt);
       if (b.obsT <= 0 || nuit) b.etat = 'rentrer';
       break;
     }
@@ -8633,12 +8968,13 @@ const TISSEUSE = { haut: 2.75, bas: .5, reach: 5, pas: 1.15, vit: 2.1, vitRage: 
 const TOILES = [];
 let PortailCache = null;
 const ileBoss = () => profondeur() >= 10 && profondeur() % 5 === 0 && !djIci() && !(P.bossVaincus || []).includes(SEED);
+const ileBossTiree = () => profondeur() >= 10 && profondeur() % 5 === 0 && !djIci();   // l'île en a une, vaincue ou non
 const PATTES_TISS = [0, 1, 2, 3].flatMap(k => [1, -1].map(s => ({ s, k, hx: [.95, .55, .12, -.3][k],
   rx: [2.3, .9, -.5, -2.0][k], ry: [2.0, 2.45, 2.45, 2.05][k], g: (k + (s > 0 ? 0 : 1)) % 2 })));   // g : le quatuor (A ou B)
 // L'antre : un replat à 7–12 cases de l'arche ; l'arche, elle, se cache jusqu'à sa mort.
 function poserTisseuse() {
   TOILES.length = 0; PortailCache = null;
-  if (!ileBoss() || !PortailIle || !specById.tisseuse) return null;
+  if (!ileBossTiree() || !PortailIle || !specById.tisseuse) return null;
   const A = PortailIle; let best = null, bs = 1e9;
   for (let k = 0; k < 80; k++) {
     const a = Math.random() * 6.2832, r = 7 + Math.random() * 5, x = A.x + Math.cos(a) * r, y = A.y + Math.sin(a) * r;
@@ -8652,6 +8988,9 @@ function poserTisseuse() {
   b.pv = 1; b.etat = 'sommeil'; b.antre = best; b.age = 1e6; b.ech = 1;
   b.blinde = 1 + Math.max(0, profondeur() - 10) * .06;   // plus loin, plus coriace b.dir = b.dirT = Math.atan2(A.y - best[1], A.x - best[0]) + Math.PI;
   beasts.push(b);
+  // Déjà vaincue : elle n'est là que pour garder les numéros des bêtes de l'île (les mêmes chez tous) ;
+  // on la retire dès qu'ils sont donnés. Un autre joueur qui ne l'a pas vaincue la fera revivre ici.
+  if (!ileBoss()) { b.horsJeu = true; return null; }
   PortailCache = PortailIle; PortailIle = null;             // l'arche attend sa mort
   return b;
 }
@@ -8673,9 +9012,10 @@ function terrainTiss(b, x, y) {
 }
 // Le pas : le corps glisse (vers vx, vy), les pieds suivent en deux quatuors, le corps se règle
 // sur eux. lev : pattes avant levées (0..1), pour se cabrer.
-function marcheTiss(b, vx, vy, dt, haut, lev = 0) {
+function marcheTiss(b, vx, vy, dt, haut, lev = 0, place = false) {
   const sp = Math.hypot(vx, vy);
-  if (sp > .01) {
+  if (place) b.vit = sp;                               // une marionnette : le gardien l'a déjà menée là
+  else if (sp > .01) {
     let nx = b.x + vx * dt, ny = b.y + vy * dt;
     if (!terrainTiss(b, nx, ny)) {                     // la falaise trop haute, l'eau profonde : on tourne
       const a0 = Math.atan2(vy, vx); let ok = false;
@@ -8745,30 +9085,34 @@ function atterrirPied(b, p) {
     g: eau ? 9 : 2, life: .5 + Math.random() * .4, age: 0, col: eau ? '#d8eefa' : '#9a8f80', tl: .07 });
   if (d < 30) SON.jouer('pasLourd', {}, p.x, p.y, p.z);
   if (d < 16) { P.secousse = t; P.secousseK = Math.max(.15, 1 - d / 16) * .6; }
-  if (d < .75 && Math.abs(P.z - p.z) < 1 && P.pv > 0) { porterCoup(b, P, .1); P.vx += (P.x - p.x) * 8; P.vy += (P.y - p.y) * 8; say('écrasé', 1.2); }
+  if (d < .75 && Math.abs(P.z - p.z) < 1 && P.pv > 0) { porterCoup(b, P, .1); P.vx += (P.x - p.x) * 8; P.vy += (P.y - p.y) * 8; say('écrasé', 1.2); }   // chacun sous les pieds qu'il voit
+  if (typeof fauneSuiveur === 'function' && fauneSuiveur() && b.num !== undefined) return;   // les bêtes : chez le gardien
   for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && (o.x - p.x) ** 2 + (o.y - p.y) ** 2 < .7 && Math.abs(o.z - p.z) < 1) { porterCoup(b, o, .25); o.vx += (o.x - p.x) * 6; o.vy += (o.y - p.y) * 6; }
   if (b.phase === 3 && Math.random() < .3) burst(p.x, p.y, p.z + .2, 4, '#ff7a4a');
 }
 // Ses armes : origines dans le monde (la tourelle, la lentille, la filière)
 function pointTiss(b, lx, ly, lz) { const w = mondeTiss(b, lx, ly); return [w[0], w[1], b.zc + lz + lx * Math.sin(b.tg || 0)]; }
-function mortierTiss(b) {
+function mortierTiss(b, J = P) {
   const o = pointTiss(b, -1.05, 0, 1.25), lead = 1 + Math.random() * .4;
   const r = 1.2 + Math.random() * (b.phase === 3 ? 2.6 : 2), a = Math.random() * 6.2832;
-  const cx = Math.max(2, Math.min(WS - 3, P.x + (P.vx || 0) * lead + Math.cos(a) * r)), cy = Math.max(2, Math.min(WS - 3, P.y + (P.vy || 0) * lead + Math.sin(a) * r));
+  const cx = Math.max(2, Math.min(WS - 3, J.x + (J.vx || 0) * lead + Math.cos(a) * r)), cy = Math.max(2, Math.min(WS - 3, J.y + (J.vy || 0) * lead + Math.sin(a) * r));
   const cz = sol(cx, cy), d = Math.hypot(cx - o[0], cy - o[1]), vol = Math.max(1.4, Math.min(2.4, 1 + d * .06));
   TIRS.push({ x: o[0], y: o[1], z: o[2], vx: (cx - o[0]) / vol, vy: (cy - o[1]) / vol, vz: (cz - o[2]) / vol + TIR_G * vol * .5,
     de: b, deg: .13, age: 0, c: [80, 74, 68], obus: true, zone: 1.7, cx, cy, cz, vol });
-  SON.jouer('obus', {}, o[0], o[1], o[2]); burst(o[0], o[1], o[2] + .2, 10, '#8a8078'); b.mortT = t; vapeurTiss(b, o[0], o[1], o[2], 5, 1.3);
+  if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
+  SON.jouer('obus', {}, o[0], o[1], o[2]); burst(o[0], o[1], o[2] + .2, 10, '#8a8078'); b.mortierT = t; vapeurTiss(b, o[0], o[1], o[2], 5, 1.3);
 }
 function sniperTiss(b) {
   const o = pointTiss(b, 1.75, 0, -.2), q = b.vise, d = Math.hypot(q[0] - o[0], q[1] - o[1], q[2] - o[2]) || 1, V = 42, vol = d / V;
   TIRS.push({ x: o[0], y: o[1], z: o[2], vx: (q[0] - o[0]) / vol, vy: (q[1] - o[1]) / vol, vz: (q[2] - o[2]) / vol + TIR_G * vol * .5, de: b, deg: .17, age: 0, c: [255, 96, 70] });
+  if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
   SON.jouer('tir', {}, o[0], o[1], o[2]); burst(o[0], o[1], o[2], 9, '#ffd0a0'); b.reculT = t;
 }
-function toileTiss(b) {
-  const o = pointTiss(b, -1.75, 0, .5), cx = P.x + (P.vx || 0) * .5, cy = P.y + (P.vy || 0) * .5, cz = sol(cx, cy) + .4;
+function toileTiss(b, J = P) {
+  const o = pointTiss(b, -1.75, 0, .5), cx = J.x + (J.vx || 0) * .5, cy = J.y + (J.vy || 0) * .5, cz = sol(cx, cy) + .4;
   const d = Math.hypot(cx - o[0], cy - o[1]), vol = Math.max(.7, Math.min(1.3, .5 + d * .06));
   TIRS.push({ x: o[0], y: o[1], z: o[2], vx: (cx - o[0]) / vol, vy: (cy - o[1]) / vol, vz: (cz - o[2]) / vol + TIR_G * vol * .5, de: b, deg: 0, age: 0, c: [196, 232, 255], toile: true });
+  if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
   SON.jouer('crachat', {}, o[0], o[1], o[2]);
 }
 function poserToile(f) {                                 // la soie s'ouvre au sol, électrique
@@ -8804,17 +9148,17 @@ function majTisseuse(b, dt) {
   if (b.pieds) souffleTiss(b, dt);
   if (!b.pieds) initTisseuse(b);
   if (b.dead) return mortTisseuse(b, dt);
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y), vu = P.pv > 0 && !sousAbri() && Math.abs(P.z - b.z) < 12;
+  const J = JC, dJ = Math.hypot(J.x - b.x, J.y - b.y), vu = J.pv > 0 && !(abriDe(J) || effetDe(J, 'invisible')) && Math.abs(J.z - b.z) < 12;
   b.phase = b.pv > .66 ? 1 : b.pv > .33 ? 2 : 3;
   if (b.etat === 'sommeil') {
     if ((vu && dJ < 24) || b.hit > 0) {
       b.etat = 'éveil'; b.eveilT = b.t; SON.jouer('eveilTisseuse', {}, b.x, b.y, b.zc);
-      say('La Tisseuse de fer s\'éveille', 3); P.secousse = t; P.secousseK = 1;
+      say('La Tisseuse de fer s\'éveille', 3); if (Math.hypot(P.x - b.x, P.y - b.y) < 40) { P.secousse = t; P.secousseK = 1; }
     }
     marcheTiss(b, 0, 0, dt, 0); return;
   }
   if (b.etat === 'éveil') {
-    const k = Math.min(1, (b.t - b.eveilT) / 2.4); b.dirT = Math.atan2(P.y - b.y, P.x - b.x);
+    const k = Math.min(1, (b.t - b.eveilT) / 2.4); b.dirT = Math.atan2(J.y - b.y, J.x - b.x);
     marcheTiss(b, 0, 0, dt, k * k * (3 - 2 * k));
     if (k >= 1) { b.etat = 'combat'; b.act = null; }
     return;
@@ -8827,7 +9171,7 @@ function majTisseuse(b, dt) {
     if (da > 1) b.dirT = Math.atan2(ay, ax);
     return;
   }
-  b.etat = 'combat'; b.dirT = Math.atan2(P.y - b.y, P.x - b.x);
+  b.etat = 'combat'; b.dirT = Math.atan2(J.y - b.y, J.x - b.x);
   const rage = b.phase === 3, cd = b.cd;
   for (const k in cd) cd[k] -= dt;
   // ---- l'arme en cours ----
@@ -8836,24 +9180,26 @@ function majTisseuse(b, dt) {
   if (A) {
     A.T -= dt;
     if (A.k === 'viser') {                               // le laser vous suit, en retard
-      const cible = [P.x, P.y, P.z + .9], r = Math.min(1, dt * (rage ? 4.4 : 3));
+      const cible = [J.x, J.y, J.z + .9], r = Math.min(1, dt * (rage ? 4.4 : 3));
       b.vise = b.vise ? b.vise.map((q, j) => q + (cible[j] - q) * r) : cible;
       vMul = .25;
       if (A.T <= 0) { sniperTiss(b); b.act = null; cd.sniper = rage ? 5.5 : 7.5; }
     } else if (A.k === 'mortier') {
       vMul = .45;
-      if (A.T <= 0) { mortierTiss(b); A.n--; A.T = .34; if (A.n <= 0) { b.act = null; cd.mortier = rage ? 4.5 : 6.5; } }
+      if (A.T <= 0) { mortierTiss(b, J); A.n--; A.T = .34; if (A.n <= 0) { b.act = null; cd.mortier = rage ? 4.5 : 6.5; } }
     } else if (A.k === 'toile') {
       vMul = .35;
-      if (A.T <= 0) { toileTiss(b); b.act = null; cd.toile = rage ? 7 : 9; }
+      if (A.T <= 0) { toileTiss(b, J); b.act = null; cd.toile = rage ? 7 : 9; }
     } else if (A.k === 'cabrer') {
       vMul = 0; lev = A.T > .18 ? Math.min(1, (.95 - A.T) / .4) : 0;
       if (A.T <= 0) {
         const f = pointTiss(b, 2.3, 0, 0), z = sol(f[0], f[1]);
         for (let k = 0; k < 28; k++) { const a = k / 28 * 6.2832; parts.push({ x: f[0] + Math.cos(a) * .4, y: f[1] + Math.sin(a) * .4, z: z + .1, vx: Math.cos(a) * 7, vy: Math.sin(a) * 7, vz: .4, g: 2, life: .45, age: 0, col: '#bfae96', tl: .08 }); }
-        SON.jouer('pilon', {}, f[0], f[1], z); P.secousse = t; P.secousseK = 1;
-        const dP = Math.hypot(P.x - f[0], P.y - f[1]);
-        if (dP < 3.4 && P.z < sol(P.x, P.y) + .35 && P.pv > 0) { porterCoup(b, P, .12); P.vx += (P.x - f[0]) / (dP || 1) * 7; P.vy += (P.y - f[1]) / (dP || 1) * 7; }   // en l'air, on y échappe
+        SON.jouer('pilon', {}, f[0], f[1], z); if (Math.hypot(P.x - f[0], P.y - f[1]) < 30) { P.secousse = t; P.secousseK = 1; }
+        for (const Q of joueursFaune()) {                 // chacun de ceux qui sont dessous, d'ici ou d'en face
+          const dP = Math.hypot(Q.x - f[0], Q.y - f[1]);
+          if (dP < 3.4 && Q.z < sol(Q.x, Q.y) + .35) frapperJoueur(b, Q, .12, { kb: [(Q.x - f[0]) / (dP || 1) * 7, (Q.y - f[1]) / (dP || 1) * 7, 0] });   // en l'air, on y échappe
+        }
         for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && Math.hypot(o.x - f[0], o.y - f[1]) < 3.4) { porterCoup(b, o, .35); o.vx += (o.x - f[0]) * 3; o.vy += (o.y - f[1]) * 3; o.etourdi = Math.max(o.etourdi || 0, 1.2); }
         b.act = null; cd.cabrer = 4;
       }
@@ -8867,7 +9213,7 @@ function majTisseuse(b, dt) {
   }
   // ---- se placer : de flanc, à bonne distance, face à vous ----
   if (b.t > b.sensT) { b.sens = Math.random() < .5 ? 1 : -1; b.sensT = b.t + 5 + Math.random() * 5; }
-  const ux = (P.x - b.x) / (dJ || 1), uy = (P.y - b.y) / (dJ || 1);
+  const ux = (J.x - b.x) / (dJ || 1), uy = (J.y - b.y) / (dJ || 1);
   let mx = -uy * b.sens, my = ux * b.sens;                // de flanc
   if (dJ < 9) { mx = mx * .4 - ux; my = my * .4 - uy; }  // trop près : elle recule
   else if (dJ > 18) { mx = mx * .3 + ux; my = my * .3 + uy; }   // trop loin : elle approche
@@ -8891,15 +9237,18 @@ function mortTisseuse(b, dt) {
   }
   if (k >= 2.4 && !b.fini) {
     b.fini = 1;
-    P.sac.ferraille = (P.sac.ferraille || 0) + 24; P.sac.eclat = (P.sac.eclat || 0) + 12; P.sac.pierre = (P.sac.pierre || 0) + 10;
-    (P.bossVaincus || (P.bossVaincus = [])).push(SEED); Sauve.sale = true;
+    const deja = (P.bossVaincus || []).includes(SEED);   // déjà vaincue (avec d'autres, une autre fois) : l'arche, pas de part
+    if (!deja) {
+      P.sac.ferraille = (P.sac.ferraille || 0) + 24; P.sac.eclat = (P.sac.eclat || 0) + 12; P.sac.pierre = (P.sac.pierre || 0) + 10;
+      (P.bossVaincus || (P.bossVaincus = [])).push(SEED); Sauve.sale = true;
+    }
     if (PortailCache) {
       PortailIle = PortailCache; PortailCache = null;
       const q = PortailIle;
       for (let j = 0; j < 60; j++) { const a = j / 60 * 6.2832; parts.push({ x: q.x + .5 + Math.cos(a) * 1.4, y: q.y + .5 + Math.sin(a) * 1.4, z: q.z + Math.random() * 2.6, vx: Math.cos(a) * .4, vy: Math.sin(a) * .4, vz: 1.5, g: -.5, life: 1.6, age: 0, col: '#9fd8ff', luit: 1, tl: .08 }); }
       SON.jouer('lien', {}, q.x, q.y, q.z + 1);
     }
-    say('La Tisseuse est terrassée · +24 ferraille · +12 éclats · +10 pierres · l\'arche apparaît', 5);
+    say(deja ? 'La Tisseuse est terrassée · l\'arche apparaît' : 'La Tisseuse est terrassée · +24 ferraille · +12 éclats · +10 pierres · l\'arche apparaît', 5);
     majSac();
   }
 }
@@ -8958,7 +9307,7 @@ function osTisseuse(f) {
     add(bout, q, .025 + charge * .03, .025 + charge * .03, [255, 60 + 120 * (charge > .75 ? (t * 20 | 0) % 2 : 0), 50], true);
   }
   // le mortier, sur l'abdomen : il se dresse vers vous, recule au coup
-  const rm = f.mortT != null && t - f.mortT < .25 ? (1 - (t - f.mortT) / .25) * .25 : 0;
+  const rm = f.mortierT != null && t - f.mortierT < .25 ? (1 - (t - f.mortierT) / .25) * .25 : 0;
   const mo = tb([-1.05, 0, .85]); add(tb([-.85, 0, .82]), tb([-1.25, 0, .84]), .62, .3, cuivre);   // la tourelle
   const el = f.act && f.act.k === 'mortier' ? 1.05 : .75, dmx = Math.cos(el), dmz = Math.sin(el);
   add([mo[0] - dmx * rm * .5, mo[1], mo[2] - dmz * rm], [mo[0] + dmx * (.75 - rm), mo[1], mo[2] + dmz * (.75 - rm)], .3, .3, sombre);
@@ -9498,7 +9847,10 @@ function terrasse() {
 }
 // Le joueur vient de blesser une bête : elle s'en souvient, et une meute répond pour elle.
 function blesseParJoueur(b) {
-  b.colere = 20; b.aise = 0; P.agiteT = t;
+  if (effet('vampire')) P.pv = Math.min(1, P.pv + .015 * effet('vampire'));
+  if (effet('gel')) { b.etourdi = Math.max(b.etourdi || 0, .4 + .3 * effet('gel')); burst(b.x, b.y, b.z + .6, 6, '#bfe8ff'); }
+  if (effet('invisible')) { P.effets.invisible = t; say('vous redevenez visible', 1.6); }
+  b.colere = 20; b.aise = 0; P.agiteT = t; b.colereD = false;
   if (b.sp.roche) for (const o of beasts) if (o !== b && o.sp === b.sp && !o.tame && !o.dead   // toute la colonie s'en mêle
       && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 196) o.colere = Math.max(o.colere || 0, 12);
   b.joue = 0;                                      // touché en pleine mise en joue : le tireur d'élite reprend sa visée
@@ -9509,11 +9861,23 @@ function blesseParJoueur(b) {
 }
 function porterCoup(b, c, deg) {
   const dx = c.x - b.x, dy = c.y - b.y, d = Math.hypot(dx, dy) || 1;
+  if (c !== P && estJoueur(c)) {
+    // un joueur d'en face : c'est son appareil qui encaisse (armure, épines, recul, chute), comme
+    // pour les coups entre joueurs. Ici, on le tient sonné un instant pour ne pas frapper deux fois.
+    if (c.hurt > 0 || !(c.pv > 0)) return false;
+    c.hurt = 1;
+    if (typeof fauneMorsure === 'function') fauneMorsure(b, c, deg);
+    burst(c.x, c.y, c.z + .6, 10, '#ff8a7a');
+    return true;
+  }
   if (c === P) {
     if (P.invincible) return false;                  // l'outil de test « invincible »
     if (P.hurt > 0) return false;                   // encore sonné : ce coup-là ne compte pas
     P.hurt = 1.0; P.dernierCoup = t;
-    P.pv = Math.max(0, P.pv - degSubi(deg) * (1 - ((porte('armure') || {}).red || 0)));
+    let dg = degSubi(deg) * (1 - ((porte('armure') || {}).red || 0));
+    if (P.bonusPv > 0) { const a = Math.min(P.bonusPv, dg); P.bonusPv -= a; dg -= a; }   // la vie en plus prend le coup d'abord
+    P.pv = Math.max(0, P.pv - dg);
+    if (effet('epines') && b.sp && !b.tame && b.pv > 0) { b.pv -= deg * .3 * effet('epines') / robuste(b); b.hit = .25; if (b.pv <= 0 && !b.dead) mourirBete(b, 'combat'); }   // les épines rendent le coup
     P.vx = dx / d * 7; P.vy = dy / d * 7; P.vz = 4.2; P.recul = .3;
     if (b.sp && b.sp.roche && b.as) { P.vx = dx / d * 11; P.vy = dy / d * 11; P.vz = 5.4; }   // la charge de l'oglodon projette loin
     burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
@@ -9522,13 +9886,15 @@ function porterCoup(b, c, deg) {
     if (P.pv <= 0) terrasse();
     return true;
   }
-  c.pv -= deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1); c.hit = .25; c.alarm = 1;   // sur la Tisseuse, crocs et griffes glissent
+  const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .25 * effet('meute') : 1);
+  c.pv -= dgC; c.hit = .25; c.alarm = 1;   // la meute galvanisée   // sur la Tisseuse, crocs et griffes glissent
   // le bossu rend parfois le coup qu'il reçoit d'un chasseur
   if (b.sp.chasse && c.sp.riposte > .3 && Math.random() < c.sp.riposte * .5) { b.pv -= .12; b.hit = .2; }
   // repoussée et un instant étourdie : la bête laisse une vraie fenêtre pour fuir — et lâche sa paroi
   lacherParoi(c);
   c.vx = dx / d * 6; c.vy = dy / d * 6; c.etourdi = .45;
   c.lastAtk = c.t;                                  // et son propre coup est retardé
+  if (typeof fauneCoup === 'function') fauneCoup(c, dgC, c.vx, c.vy, b.comp ? 'compagne' : 'combat');   // une bête du gardien : il l'apprend
   // Mordue alors que sa fuite ne lui fait rien gagner, la proie n'attend plus de se savoir
   // prise : elle se retourne. En terrain ouvert, sa fuite gagne du terrain et elle file.
   if (b.sp.chasse && !c.sp.chasse && c.fuiteMoy != null && c.fuiteMoy < c.sp.spd * .6) c.accule = Math.max(c.accule || 0, 2.5);
@@ -9571,13 +9937,14 @@ function porterCoup(b, c, deg) {
   return true;
 }
 function lancerAssaut(b, c, prof) {
-  if (b.mur || (c !== P && c.mur)) return;            // on ne bondit ni d'une paroi, ni sur une bête qui y tient
+  if (b.mur || (!estJoueur(c) && c.mur)) return;      // on ne bondit ni d'une paroi, ni sur une bête qui y tient
   b.as = { phase: 'ramasse', t: 0, c, prof, ux: 0, uy: 0, vit: 0, fait: false };
 }
 // Pendant une attaque, c'est elle qui mène la bête. Rend vrai tant qu'elle dure.
 function majAssaut(b, dt) {
   const a = b.as, c = a.c, pr = a.prof;
-  if (c !== P && (c.dead || c.pv <= 0)) { b.as = null; return false; }
+  if (!estJoueur(c) && (c.dead || c.pv <= 0)) { b.as = null; return false; }
+  if (c !== P && estJoueur(c) && (!(c.pv > 0) || !Autres.has(c.u))) { b.as = null; return false; }   // le joueur d'en face est tombé, ou parti
   a.t += dt;
   const dx = c.x - b.x, dy = c.y - b.y, d = Math.hypot(dx, dy) || 1;
   if (a.phase === 'ramasse') {
@@ -9600,7 +9967,7 @@ function majAssaut(b, dt) {
     const L = Math.min(a.vit * dt, Math.max(0, a.course - a.parcouru));
     const s = Math.max(0, Math.min(L, dx * a.ux + dy * a.uy));
     const dmin = Math.hypot(c.x - (b.x + a.ux * s), c.y - (b.y + a.uy * s));
-    const contact = .55 + b.sp.sz * .3 + (c === P ? .2 : .25 + c.sp.sz * .2);
+    const contact = .55 + b.sp.sz * .3 + (estJoueur(c) ? .2 : .25 + c.sp.sz * .2);
     if (!a.fait && dmin < contact && Math.abs(c.z - b.z) < 1.4) {
       b.vx = a.ux * s / Math.max(dt, 1e-3); b.vy = a.uy * s / Math.max(dt, 1e-3);   // il s'arrête sur sa cible
       a.parcouru += s;
@@ -9621,7 +9988,7 @@ function majAssaut(b, dt) {
   b.vx *= k; b.vy *= k;
   if (a.t >= pr.recul) {
     b.as = null; b.pret = b.t + pr.pause;
-    if (b.sp.chasse && c === P && a.fait) b.repli = 1.4;            // frappe et se dégage
+    if (b.sp.chasse && estJoueur(c) && a.fait) b.repli = 1.4;       // frappe et se dégage
     if (!b.sp.chasse && a.fait && Math.random() < .6) b.accule = 0;  // la menace reculée, on refuit
   }
   return true;
@@ -9630,6 +9997,7 @@ function majAssaut(b, dt) {
 // qu'il le voie, et — pour le traqueur — qu'il ait faim.
 function envieDuJoueur(b, actif, dJ, dzJ) {
   const sp = b.sp;
+  if (effetDe(JC, 'invisible') || effetDe(JC, 'repousse')) return false;   // invisible, ou repoussant
   if (!sp.chasse || b.tame || b.pv < .3 || dzJ > 3) return false;
   if (b.colere > 0) return dJ < sp.vue * 1.3;
   if (b.etat === 'lézarder' && dJ < 5) return true;   // le varan au soleil : on passe trop près, il fond
@@ -9641,6 +10009,7 @@ function envieDuJoueur(b, actif, dJ, dzJ) {
 // Dans la mêlée, une compagne qui s'interpose — plus près du chasseur que vous, de deux pas au
 // moins, et à six pas de lui au plus — prend les coups à votre place. Il la garde cinq secondes.
 function compagneEnTravers(b, dJ) {
+  if (JC !== P) { b.visC = null; return null; }       // il en veut à un joueur d'en face : vos compagnes n'y sont pour rien
   const c = b.visC;
   if (c && c.comp && !c.dead && c.pv > 0 && b.t < b.visT && beasts.includes(c)
       && (c.x - b.x) ** 2 + (c.y - b.y) ** 2 < 64) return c;
@@ -9703,11 +10072,11 @@ function compoEscouade(L) {
 const frappeEscouade = L => L < 10 ? .6 + (L - 3) * .4 / 7 : Math.min(1.2, 1 + (L - 10) * .02);
 const blindeEscouade = L => 1 + Math.max(0, L - 3) * .05;
 // Où ouvrir : du sol ferme à une marche de votre hauteur, hors du campement.
-function lieuPortail(rMin, rMax) {
-  const z0 = solJoueur();
+function lieuPortail(rMin, rMax, J = P) {
+  const z0 = J === P ? solJoueur() : sol(J.x, J.y);
   for (let k = 0; k < 40; k++) {
     const a = Math.random() * 6.2832, r = rMin + Math.random() * (rMax - rMin);
-    const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+    const x = J.x + Math.cos(a) * r, y = J.y + Math.sin(a) * r;
     if (x < 6 || y < 6 || x > WS - 6 || y > WS - 6) continue;
     const q = placePres(x, y, z0, 2);
     if (!q || prsCamp(q[0], q[1]) || Math.abs(hAt(q[0] | 0, q[1] | 0) - z0) > 3) continue;
@@ -9715,13 +10084,16 @@ function lieuPortail(rMin, rMax) {
   }
   return null;
 }
-function lancerEscouade(L) {
-  const q = lieuPortail(15, 20);
+function lancerEscouade(L, pour) {
+  // elle vient pour l'un des joueurs de l'île, au hasard (le gardien de la faune la fait venir pour tous)
+  const Js = typeof joueursFaune === 'function' ? joueursFaune().filter(Q => Q === P || !(Q.fx && Q.fx.abri)) : [P];
+  const J = pour || (Js.length ? Js[Math.random() * Js.length | 0] : P);
+  const q = lieuPortail(15, 20, J);
   if (!q) return false;
   const file = compoEscouade(L);
-  Escouade = { x: q[0], y: q[1], z: q[2], a: Math.atan2(P.y - q[1], P.x - q[0]), k: 0, t: 0, etat: 'ouvre', niv: L, file, membres: [], sauts: [] };
+  Escouade = { x: q[0], y: q[1], z: q[2], a: Math.atan2(J.y - q[1], J.x - q[0]), k: 0, t: 0, etat: 'ouvre', niv: L, file, membres: [], sauts: [] };
   SON.jouer('portail', {}, q[0], q[1], q[2] + 1);
-  say('un portail s\'ouvre · une escouade de ' + file.length + ' automates vient pour vous', 3.2);
+  say('un portail s\'ouvre · une escouade de ' + file.length + ' automates vient ' + (J === P ? 'pour vous' : 'pour ' + J.nom), 3.2);
   return true;
 }
 function sortirMembre(E) {
@@ -9742,7 +10114,16 @@ function aspirer(A, R, cz) {
 const vivantsEscouade = E => E.membres.filter(m => !m.dead && beasts.includes(m));
 function majEscouade(dt) {
   if (escGraine !== SEED) { escGraine = SEED; Escouade = null; escAttente = attenteEscouade(); }
+  if (typeof fauneSuiveur === 'function' && fauneSuiveur()) {   // l'escouade est celle du gardien de l'île : on n'en voit que le portail
+    const E = Escouade; escAttente = Math.max(escAttente, 60);
+    if (E && !djIci()) {
+      if (E.k > 0 && Math.random() < dt * 40) aspirer(E, 1.25 * E.k, E.z + 1.35);
+      for (const A of E.sauts) if (A.k > .3 && Math.random() < dt * 20) aspirer(A, .95 * Math.sin(A.k * Math.PI), A.z + 1.05);
+    }
+    return;
+  }
   const E = Escouade;
+  if (E && E.miroir) E.miroir = false;                    // devenu gardien : l'escouade d'en face est la nôtre
   if (!E) {
     if (profondeur() < NIV_ESCOUADE || djIci() || raidIci() || P.pv <= 0 || prsCamp(P.x, P.y) || maintenant() - arriveeLe < ESC_REPIT) return;
     if ((escAttente -= dt) <= 0 && !lancerEscouade(profondeur())) escAttente = 20;
@@ -9762,15 +10143,18 @@ function majEscouade(dt) {
     if (E.membres.some(m => m.dead)) { say('l\'escouade est brisée', 2.6); SON.jouer('niveau'); }
     Escouade = null; escAttente = attenteEscouade(); return;
   }
-  // semé : il repasse par un portail, près de vous
+  // semé : il repasse par un portail, près du joueur le plus proche
+  const Js = typeof joueursFaune === 'function' ? joueursFaune() : [P];
   for (const m of vivants) {
-    m.loinT = Math.hypot(m.x - P.x, m.y - P.y) > 45 && !prsCamp(P.x, P.y) ? (m.loinT || 0) + dt : 0;
+    let J = null, dJ = 1e9;
+    for (const Q of Js) { const d = Math.hypot(m.x - Q.x, m.y - Q.y); if (d < dJ && !(Q === P ? prsCamp(P.x, P.y) : Q.fx && Q.fx.abri)) { dJ = d; J = Q; } }
+    m.loinT = J && dJ > 45 ? (m.loinT || 0) + dt : 0;
     if (m.loinT < 20) continue;
-    const q = lieuPortail(14, 20);
+    const q = lieuPortail(14, 20, J);
     if (!q) { m.loinT = 15; continue; }
     E.sauts.push({ x: m.x, y: m.y, z: m.z, a: m.dir, k: 1 });
     m.x = q[0]; m.y = q[1]; m.z = q[2]; m.vx = m.vy = 0; m.loinT = 0; m.poste = null;
-    E.sauts.push({ x: q[0], y: q[1], z: q[2], a: Math.atan2(P.y - q[1], P.x - q[0]), k: 1 });
+    E.sauts.push({ x: q[0], y: q[1], z: q[2], a: Math.atan2(J.y - q[1], J.x - q[0]), k: 1 });
     SON.jouer('portail', { vol: .6 }, q[0], q[1], q[2] + 1);
   }
 }
@@ -9891,12 +10275,12 @@ function demeler(dt) {
 }
 // Deux jetons d'attaque, aux prédateurs les plus proches. Recompté à chaque tour.
 function distribuerJetons() {
-  const engages = [];
-  for (const b of beasts) if (b.traque && !b.dead) { b.jeton = false; engages.push([(b.x - P.x) ** 2 + (b.y - P.y) ** 2, b]); }
+  const engages = [];                                // deux jetons pour chaque joueur traqué, ici ou en face
+  for (const b of beasts) if (b.traque && !b.dead) { const J = b.traqueJ || P; b.jeton = false; engages.push([(b.x - J.x) ** 2 + (b.y - J.y) ** 2, b, J]); }
   engages.sort((a, b) => a[0] - b[0]);
-  let n = 0;
-  for (const [, b] of engages) if (b.as && b.as.c === P) { b.jeton = true; n++; }
-  for (const [, b] of engages) if (!b.jeton && n < JETONS) { b.jeton = true; n++; }
+  const n = new Map(), un = J => n.set(J, (n.get(J) || 0) + 1);
+  for (const [, b, J] of engages) if (b.as && b.as.c === J) { b.jeton = true; un(J); }
+  for (const [, b, J] of engages) if (!b.jeton && (n.get(J) || 0) < JETONS) { b.jeton = true; un(J); }
 }
 
 
@@ -9968,6 +10352,7 @@ function tirer(b, c) {
   const ox = b.x + dx / d * .35, oy = b.y + dy / d * .35, oz = b.z + .62 * sp.sz;
   TIRS.push({ x: ox, y: oy, z: oz, vx: ex / vol, vy: ey / vol, vz: (cz - oz) / vol + TIR_G * vol * .5,
     de: b, deg: T.deg * (b.frappe || 1), age: 0, c: sp.oeil });
+  if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
   b.lastAtk = b.t; b.recul = .22; b.dirT = Math.atan2(dy, dx);
 }
 // Le mortier : un obus en cloche, de une à deux secondes et quelques de vol, vers l'endroit où la
@@ -9986,6 +10371,7 @@ function lober(b, c) {
   const ox = b.x - ux * .15, oy = b.y - uy * .15, oz = b.z + .95 * sp.sz;
   TIRS.push({ x: ox, y: oy, z: oz, vx: (cx - ox) / vol, vy: (cy - oy) / vol, vz: (cz - oz) / vol + TIR_G * vol * .5,
     de: b, deg: T.deg * (b.frappe || 1), age: 0, c: sp.oeil, obus: true, zone: T.zone, cx, cy, cz, vol });
+  if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
   b.lastAtk = b.t; b.recul = .35; b.dirT = Math.atan2(cy - b.y, cx - b.x);
   burst(ox, oy, oz + .2, 8, '#8a8078');
 }
@@ -10000,6 +10386,7 @@ function exploser(f) {
   burst(f.x, f.y, f.z + .2, 30, '#ffb45a'); burst(f.x, f.y, f.z + .4, 16, '#6a6058'); burst(f.x, f.y, f.z + .1, 10, '#fff0c0');
   f.eclate = true;
   if (!sien && !sousAbri()) { const k = part(P.x, P.y, P.z + .5); if (k > 0) porterCoup(src, P, f.deg * k); }
+  if (f.fantome) return;                            // l'obus d'une bête du gardien, rejoué ici : le reste se règle chez lui
   for (const o of beasts) {
     if (o === de || o.dead || o.pv <= 0 || (sien ? o.tame : automate(o.sp))) continue;
     const k = part(o.x, o.y, o.z + .3 * o.sp.sz); if (k <= 0) continue;
@@ -10139,6 +10526,13 @@ function majTirs(dt) {
 // celui qui l'a tiré, ni le maître d'une compagne, ni ses autres compagnes.
 function impactTir(f, nx, ny, nz) {
   const de = f.de, sien = de.comp;
+  if (f.fantome) {                                  // le tir d'une bête du gardien, rejoué ici : chacun encaisse chez lui
+    if ((nx - P.x) ** 2 + (ny - P.y) ** 2 < .36 && nz > P.z - .1 && nz < P.z + 1.4) { porterCoup(de, P, f.deg); return true; }
+    for (const o of beasts) if (o !== de && !o.dead && o.pv > 0 && toucheBete(o, nx, ny, nz)) return true;
+    for (const j of Autres.values()) if (j.pv > 0 && (nx - j.x) ** 2 + (ny - j.y) ** 2 < .36 && nz > j.z - .1 && nz < j.z + 1.4) return true;
+    return false;
+  }
+  if (!sien) for (const j of Autres.values()) if (j.fv && j.pv > 0 && (nx - j.x) ** 2 + (ny - j.y) ** 2 < .36 && nz > j.z - .1 && nz < j.z + 1.4) return true;   // il le voit chez lui, et l'y encaisse
   if (!sien && (nx - P.x) ** 2 + (ny - P.y) ** 2 < .36 && nz > P.z - .1 && nz < P.z + 1.4) {
     porterCoup(de, P, f.deg);
     return true;
@@ -10327,23 +10721,24 @@ function cibleAutomate(b, actif) {
   const sp = b.sp, T = tirDe(b);
   if (!T || !actif) return null;
   const vue2 = sp.vue * sp.vue;
-  const dJ2 = (P.x - b.x) ** 2 + (P.y - b.y) ** 2;
-  // l'escouade : vous, ou la compagne nettement plus proche d'elle ; vous à l'abri, personne
-  if (b.escouade) return compagneEnVue(b, Math.min(vue2, dJ2) * .5) || (P.pv > 0 && !sousAbri() ? P : null);
+  const J = b.tame ? P : JC;                           // les compagnes n'en ont qu'après vous ; l'escouade, après le plus proche
+  const dJ2 = (J.x - b.x) ** 2 + (J.y - b.y) ** 2;
+  // l'escouade : le joueur le plus proche, ou la compagne nettement plus proche d'elle ; à l'abri, personne
+  if (b.escouade) return compagneEnVue(b, Math.min(vue2, dJ2) * .5) || (J.pv > 0 && !(abriDe(J) || effetDe(J, 'invisible')) ? J : null);
   // frappé par le joueur : il le lui rend, quelle que soit l'espèce
-  if (!b.tame && b.colere > 0 && dJ2 < vue2 && Math.abs(P.z - b.z) < 3) return P;
+  if (!b.tame && b.colere > 0 && dJ2 < vue2 && Math.abs(J.z - b.z) < 3) return J;
   if (b.tame) {
     if (b.role === 'defense') {
       // avec vous : ce que vous frappez d'en face — un joueur, sa compagne — il y tire aussi
       const dz = P.designe;
       if (b.mode === 'joueur' && dz && dz.loin && t - dz.t < 12 && dz.o && dz.o.pv > 0
-          && (dz.o.x - b.x) ** 2 + (dz.o.y - b.y) ** 2 < vue2 && !sousAbri()) return dz.o;
+          && (dz.o.x - b.x) ** 2 + (dz.o.y - b.y) ** 2 < vue2 && !(sousAbri() || effet('invisible'))) return dz.o;
       // le mercenaire (et l'élite), hors du campement, vise de lui-même les joueurs d'en face
       if (sp.duel && b.mode !== 'camp') {
         let best = null, bd = vue2;
         for (const j of Autres.values()) { const d = (j.x - b.x) ** 2 + (j.y - b.y) ** 2; if (j.pv > 0 && d < bd) { bd = d; best = j; } }
-        for (const o of betesLoin) { const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (o.pv > 0 && d < bd) { bd = d; best = o; } }
-        if (best && !sousAbri()) return best;
+        for (const o of betesLoin) { const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (o.pv > 0 && !o.gardeLoin && d < bd) { bd = d; best = o; } }
+        if (best && !(sousAbri() || effet('invisible'))) return best;
       }
       const a = menaceOrdre(b);
       if (a && a !== b && (a.x - b.x) ** 2 + (a.y - b.y) ** 2 < vue2) return a;
@@ -10355,15 +10750,15 @@ function cibleAutomate(b, actif) {
   // le mortier n'a pas besoin de vous voir : il sait où vous êtes, et tire par-dessus
   // sur l'île des automates, le traceur n'a plus de gibier : c'est vous qu'il vise
   if (sp.duel || (ileMeca && sp.chasse)) {
-    const voitJ = dJ2 < vue2 && Math.abs(P.z - b.z) < (T.cloche ? 8 : T.visee ? 6 : 4) && !sousAbri();
+    const voitJ = dJ2 < vue2 && Math.abs(J.z - b.z) < (T.cloche ? 8 : T.visee ? 6 : 4) && !(abriDe(J) || effetDe(J, 'invisible'));
     // une compagne à découvert, nettement plus près de lui que vous, essuie ses tirs
-    const q = compagneEnVue(b, voitJ ? dJ2 * .5 : vue2 * .5) || (voitJ ? P : null);
+    const q = (J === P ? compagneEnVue(b, voitJ ? dJ2 * .5 : vue2 * .5) : null) || (voitJ ? J : null);
     if (q || ileMeca || !sp.chasse || !sp.chasse.length) return q;   // personne en vue : son gibier, plus bas
   }
   if (sp.garde) {
     // ce qui approche de l'arche : chasseurs et joueur, dans son rayon
     const R2 = 8 * 8;
-    if (dJ2 < R2 && !sousAbri()) return P;
+    if (dJ2 < R2 && !(abriDe(J) || effetDe(J, 'invisible'))) return J;
     let best = null, bd = R2;
     for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && (o.comp || (!o.tame && predateur(o.sp)))) {
       const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd) { bd = d; best = o; }
@@ -10461,7 +10856,7 @@ function majAutomate(b, dt) {
     }
     else if (pret) (cloche ? lober : tirer)(b, cible);
   }
-  else if (etat === 'fuir') { sprint = 1.5; tx = b.x + (b.x - P.x) * 3; ty = b.y + (b.y - P.y) * 3; }
+  else if (etat === 'fuir') { const J = b.tame ? P : JC; sprint = 1.5; tx = b.x + (b.x - J.x) * 3; ty = b.y + (b.y - J.y) * 3; }
   else if (etat === 'patrouiller') { const e = explorer(b); if (e) { tx = e[0]; ty = e[1]; vit *= .6; } else vit = 0; }
   else if (etat === 'rôder') {
     const c = P.camp && campIci() && prsCamp(P.x, P.y) ? P.camp : null;
@@ -10600,17 +10995,17 @@ function majCoursier(b, dt) {
   // --- ce qui l'alarme : un chasseur, ou le joueur — de loin s'il court, de près s'il marche,
   //     au contact s'il dort. Une compagne ne craint que ce qui la vise.
   let [men, dM] = menaceEtProie(b, sp.vue);
-  if (men === P) { men = null; dM = 1e9; }
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y), vJ = Math.hypot(P.vx, P.vy);
+  if (estJoueur(men)) { men = null; dM = 1e9; }
+  const J = b.tame ? P : JC, dJ = Math.hypot(J.x - b.x, J.y - b.y), vJ = Math.hypot(J.vx || 0, J.vy || 0);
   if (!b.tame) majAise(b, dt);
   if (!b.tame) {
     let portee = b.etat === 'dormir' ? 1.2 : vJ > 3.4 ? 12 : vJ > .5 ? 5 : 2.4;   // court · marche · immobile · endormi
     // joueur calme (voir LE JOUEUR CALME) : la portée fond à mesure qu'il s'habitue
-    if (b.etat !== 'dormir' && proieCalme(b) && joueurCalme()) portee = (vJ > .5 ? 5 : 2.4) * (1 - .75 * (b.aise || 0));
-    if (dJ < portee && dJ * dJ < dM) { men = P; dM = dJ * dJ; }
-    if (b.colere > 0 && dJ < 14 && dJ * dJ < dM) { men = P; dM = dJ * dJ; }
+    if (b.etat !== 'dormir' && proieCalme(b) && calmeDe(J)) portee = (vJ > .5 ? 5 : 2.4) * (1 - .75 * (b.aise || 0));
+    if (dJ < portee && dJ * dJ < dM) { men = J; dM = dJ * dJ; }
+    if (b.colere > 0 && dJ < 14 && dJ * dJ < dM) { men = J; dM = dJ * dJ; }
   }
-  if (men) { b.alarm = 1; b.fuite = Math.max(b.fuite || 0, men === P ? 3 : 5); b.menace = men; }
+  if (men) { b.alarm = 1; b.fuite = Math.max(b.fuite || 0, estJoueur(men) ? 3 : 5); b.menace = men; }
 
   // --- l'état ---
   let etat = 'brouter', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
@@ -10624,7 +11019,7 @@ function majCoursier(b, dt) {
   }
   else if (b.faim < .3 && Math.sin(b.t * .35 + b.bob) > .4) etat = 'guet';
   else if (b.faim < .2) etat = 'troupeau';
-  if ((etat === 'guet' || etat === 'troupeau' || (etat === 'brouter' && b.faim < .6)) && curieuse(b, dJ, Math.abs(P.z - b.z))) etat = 'curieux';
+  if ((etat === 'guet' || etat === 'troupeau' || (etat === 'brouter' && b.faim < .6)) && curieuse(b, dJ, Math.abs(J.z - b.z))) etat = 'curieux';
   b.etat = etat;
 
   if (etat === 'fuir') {
@@ -10637,18 +11032,18 @@ function majCoursier(b, dt) {
     // acculé — l'eau ou le vide derrière lui — ou blessé au contact : il rue
     if (d < 1.4 && b.t - (b.lastAtk || 0) > 1.6 && (b.endu < .3 || b.colere > 0 || b.accule)) {
       b.lastAtk = b.t; b.coup = 1; b.dirT = Math.atan2(m.y - b.y, m.x - b.x);
-      if (m === P) porterCoup(b, P, .11); else porterCoup(b, m, .18);
-      say((m === P ? 'le ' : 'un ') + sp.n.toLowerCase() + ' rue' + (m === P ? ' · vous êtes projeté' : ''), 1.4);
+      if (estJoueur(m)) porterCoup(b, m, .11); else porterCoup(b, m, .18);
+      if (m === P || !estJoueur(m)) say((m === P ? 'le ' : 'un ') + sp.n.toLowerCase() + ' rue' + (m === P ? ' · vous êtes projeté' : ''), 1.4);
     }
   } else {
     b.endu = Math.min(1, b.endu + dt * (etat === 'dormir' ? .12 : .06));
     if (etat === 'dormir') { vit = 0; b.couT = -.55; b.aileT = 0; }
     else if (etat === 'curieux') {                    // il vient voir, s'arrête à sa distance, tend le cou
-      const garde = distGarde(b), ux = (b.x - P.x) / (dJ || 1), uy = (b.y - P.y) / (dJ || 1);
-      tx = P.x + ux * garde; ty = P.y + uy * garde; b.couT = .1; b.aileT = 0;
+      const garde = distGarde(b), ux = (b.x - J.x) / (dJ || 1), uy = (b.y - J.y) / (dJ || 1);
+      tx = J.x + ux * garde; ty = J.y + uy * garde; b.couT = .1; b.aileT = 0;
       if (dJ < garde - .4) vit *= .4;
       else if (dJ > garde + .3) vit *= .35;
-      else { vit = 0; b.dirT = Math.atan2(P.y - b.y, P.x - b.x); }
+      else { vit = 0; b.dirT = Math.atan2(J.y - b.y, J.x - b.x); }
     }
     else if (etat === 'guet') {                       // tête haute, il balaie l'horizon
       vit = 0; b.couT = -.1; b.aileT = 0;
@@ -10844,6 +11239,7 @@ function monter(b) {
   }
   if (b.etat === 'fuir' || b.fuite > 0) { say('il fuit : approchez sans courir, ou la nuit', 1.8); return; }
   if (liensLibres() <= 0) { say('il faut un lien d\'éclat libre pour le garder', 2); return; }
+  if (typeof fauneLien === 'function') fauneLien(b);   // au rodéo, c'est vous qui la menez : elle quitte la faune du gardien
   P.monture = b; P.rodeo = true;
   Rodeo = { b, fougue: 1, lache: 0, ruadeT: t + .8, cap: b.dir };
   b.alarm = 1; b.etat = 'rodéo'; b.ruade = 1; b.fuite = 0;
@@ -10851,7 +11247,9 @@ function monter(b) {
 }
 function descendre(jete) {
   const b = P.monture; if (!b) return;
+  const rendre = P.rodeo && !b.tame && b.num === undefined;   // un rodéo raté chez un suiveur : elle retourne au gardien
   P.monture = null; P.rodeo = false; Rodeo = null; P.selle = 0;
+  if (rendre && typeof fauneRendre === 'function') setTimeout(() => fauneRendre(b), 0);
   b.vx *= .3; b.vy *= .3;
   if (jete) {
     const a = P.faceS + Math.PI + (Math.random() - .5);
@@ -10966,16 +11364,17 @@ function majBete(b, dt) {
   if (!b.cible && pr && b.faim > .5 && b.t - b.renonce > 2.5) { b.cible = pr; b.cibleT = b.t; }
   if (b.cible) { pr = b.cible; dP = (b.x - pr.x) ** 2 + (b.y - pr.y) ** 2; }
   // Le joueur comme proie. Un chasseur qui renonce ne revient pas avant vingt secondes.
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y), dzJ = Math.abs(P.z - b.z);
+  // (J : le joueur que cette bête considère — le plus proche, quand cet appareil est le gardien)
+  const J = JC, dJ = Math.hypot(J.x - b.x, J.y - b.y), dzJ = Math.abs(J.z - b.z);
   const veut = envieDuJoueur(b, actif, dJ, dzJ) && (b.traque || b.colere > 0 || b.t - (b.renonceJ ?? -99) > 20);
   if (veut && !b.traque) {
     b.traque = true; b.traqueT = 0;
-    if (t - dernierAvis > 6 && !sp.camo) { dernierAvis = t; say('un ' + sp.n.toLowerCase() + ' vous a repéré', 1.8); }   // le félin, lui, ne s'annonce pas
+    if (J === P && t - dernierAvis > 6 && !sp.camo) { dernierAvis = t; say('un ' + sp.n.toLowerCase() + ' vous a repéré', 1.8); }   // le félin, lui, ne s'annonce pas
   } else if (!veut && b.traque) {
     b.traque = false; b.renonceJ = b.t; b.repli = 0;
-    if (b.as && b.as.c === P) b.as = null;
+    if (b.as && estJoueur(b.as.c)) b.as = null;
   }
-  if (b.traque) b.traqueT += dt;
+  if (b.traque) { b.traqueT += dt; b.traqueJ = J; }
   // mordu par une compagne, il se retourne contre elle s'il l'a au contact
   if (b.riposteA) {
     const r = b.riposteA;
@@ -10985,7 +11384,7 @@ function majBete(b, dt) {
     }
   }
   // un chasseur mal en point décroche et fuit le joueur
-  const panique = sp.chasse && !b.tame && b.pv < .3 && dJ < vue * .5;
+  const panique = (sp.chasse && !b.tame && b.pv < .3 && dJ < vue * .5) || (effetDe(J, 'repousse') && !b.tame && predateur(sp) && dJ < 6 + 3 * effetDe(J, 'repousse'));   // le plat qui repousse : ils s'écartent
 
   // On ne cherche une source que de temps en temps, et l'on ne part boire que si l'on
   // sait où aller : sinon la bête reste en quête d'eau, ne broute jamais, et meurt de faim.
@@ -11002,7 +11401,7 @@ function majBete(b, dt) {
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
   if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
   else if (b.as) etat = 'assaut';
-  else if (panique) { etat = 'fuir'; men = P; dM = dJ * dJ; }
+  else if (panique) { etat = 'fuir'; men = J; dM = dJ * dJ; }
   else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15 && (!besoin || presse) && !(b.tame && (b.rappel > 0 || (b.role === 'defense' && b.pv > .3)))) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
   else if (b.decroche > 0 && b.epargne && !b.epargne.dead) etat = 'décrocher';
   else if (b.tame) {
@@ -11056,9 +11455,9 @@ function majBete(b, dt) {
     tx = b.x + (b.x - b.epargne.x) * 2; ty = b.y + (b.y - b.epargne.y) * 2;
   } else if (etat === 'acculé') {
     vit = 0; b.dirT = Math.atan2(men.y - b.y, men.x - b.x);
-    const allonge = COMBAT.defense.portee + .45 + (men === P ? 0 : men.sp.sz * .25);
+    const allonge = COMBAT.defense.portee + .45 + (estJoueur(men) ? 0 : men.sp.sz * .25);
     // on ne frappe que ce qui s'en prend à soi : pas un chasseur qui dort, boit ou s'en va
-    const engage = men === P || men.cible === b || (men.as && men.as.c === b);
+    const engage = estJoueur(men) || men.cible === b || (men.as && men.as.c === b);
     if (men === P) b.faitFrontJ = b.t + 2;          // elle se défend contre vous : vos compagnes le voient
     if (engage && dM < allonge * allonge && b.t >= (b.pret || 0)) {
       lancerAssaut(b, men, COMBAT.defense);
@@ -11074,13 +11473,13 @@ function majBete(b, dt) {
       if (dC < prof.portee + .4 && Math.abs(vc.z - b.z) < 1.4 && b.t >= (b.pret || 0)) lancerAssaut(b, vc, prof);
     } else if (b.repli > 0) {                       // après un coup : il se dégage, puis revient
       b.repli -= dt; sprint = 1.15;
-      tx = b.x + (b.x - P.x) * 2; ty = b.y + (b.y - P.y) * 2;
+      tx = b.x + (b.x - J.x) * 2; ty = b.y + (b.y - J.y) * 2;
     } else if (!b.jeton && dJ < 4.6) {              // pas de place dans la mêlée : il tourne autour
-      const a = Math.atan2(b.y - P.y, b.x - P.x) + (b.cote || 1) * .7;
-      tx = P.x + Math.cos(a) * 5; ty = P.y + Math.sin(a) * 5; sprint = .8;
+      const a = Math.atan2(b.y - J.y, b.x - J.x) + (b.cote || 1) * .7;
+      tx = J.x + Math.cos(a) * 5; ty = J.y + Math.sin(a) * 5; sprint = .8;
     } else {
-      tx = P.x; ty = P.y; sprint = dJ > 6 ? 1.45 : 1.05;
-      if (b.jeton && dJ < prof.portee + .4 && dzJ < 1.4 && b.t >= (b.pret || 0) && P.hurt <= .25) lancerAssaut(b, P, prof);
+      tx = J.x; ty = J.y; sprint = dJ > 6 ? 1.45 : 1.05;
+      if (b.jeton && dJ < prof.portee + .4 && dzJ < 1.4 && b.t >= (b.pret || 0) && (J.hurt || 0) <= .25) lancerAssaut(b, J, prof);
     }
   } else if (etat === 'quête') {
     if (!b.quete || b.t - (b.qt || 0) > 12) {
@@ -11145,11 +11544,11 @@ function majBete(b, dt) {
   } else if (etat === 'curieux') {
     // Elle vient voir, s'arrête à sa distance — plus près à mesure qu'elle s'habitue — et vous
     // regarde. Si vous avancez sur elle, elle recule d'un pas, sans détaler.
-    const garde = distGarde(b), ux = (b.x - P.x) / (dJ || 1), uy = (b.y - P.y) / (dJ || 1);
-    tx = P.x + ux * garde; ty = P.y + uy * garde;
+    const garde = distGarde(b), ux = (b.x - J.x) / (dJ || 1), uy = (b.y - J.y) / (dJ || 1);
+    tx = J.x + ux * garde; ty = J.y + uy * garde;
     if (dJ < garde - .4) vit *= .45;
     else if (dJ > garde + .3) vit *= .4 + .2 * (b.aise || 0);
-    else { vit = 0; b.dirT = Math.atan2(P.y - b.y, P.x - b.x); }
+    else { vit = 0; b.dirT = Math.atan2(J.y - b.y, J.x - b.x); }
   } else if (etat === 'troupeau') {
     let cx = 0, cy = 0, n = 0;
     for (const o of beasts) if (o.sp === sp && o !== b && !o.dead && (b.x - o.x) ** 2 + (b.y - o.y) ** 2 < 300) { cx += o.x; cy += o.y; n++; }
@@ -11241,14 +11640,21 @@ function majEcosysteme(dt) {
   tour++;
   distribuerJetons();
   dansEcosysteme = true;
+  // La faune partagée (faune.js) : chez un suiveur, les bêtes du gardien ne pensent pas, elles
+  // suivent ce qu'il en dit ; chez le gardien, chacune se règle sur le joueur le plus proche (JC).
+  const suiveur = typeof fauneSuiveur === 'function' && fauneSuiveur();
+  const partagee = typeof faunePartagee === 'function' ? faunePartagee : () => false;
   for (let i = beasts.length - 1; i >= 0; i--) {
     const b = beasts[i];
     if (b.dead > .9) { beasts.splice(i, 1); continue; }
-    const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
-    // même logique partout : seule la cadence change avec la distance au joueur
+    if (suiveur && b.num !== undefined && partagee(b)) { fauneMarionnette(b, dt); continue; }
+    JC = b.tame || !partagee(b) ? P : joueurPour(b);
+    const d = (b.x - JC.x) ** 2 + (b.y - JC.y) ** 2;
+    // même logique partout : seule la cadence change avec la distance au joueur (le plus proche)
     if (d < 3600) majBete(b, dt);
     else if ((i + tour) % 6 === 0) majBete(b, dt * 6);
   }
+  JC = P;
   dansEcosysteme = false;
   // une compagne rentrée pendant le tour (à bout de forces) quitte le monde avant l'image
   if (retraits) { beasts = beasts.filter(b => !b.retire); retraits = 0; }
@@ -11256,7 +11662,7 @@ function majEcosysteme(dt) {
   // seuil de reproduction et ne jamais remonter. On la réamorce depuis les marges — mais seulement
   // une espèce de l'île : sans ce filtre, le filet semait sur toutes les îles, dès la première
   // minute, trois bêtes de chaque espèce du jeu, tireurs d'élite et mortiers compris.
-  if (tour % 220 === 0) for (const sp of SPEC) {
+  if (!suiveur && tour % 220 === 0) for (const sp of SPEC) {   // chez un suiveur, c'est le gardien qui repeuple
     if (capEsp(sp) <= 0) continue;
     const pop = populationSauvage(sp);
     if (pop < 3 && beasts.length < 240) { const b = poser(sp); if (b) beasts.push(b); }
@@ -11337,6 +11743,7 @@ function rallumer(b) {
 }
 function lier(b, voie) {
   if (liensLibres() <= 0 || b.tame || b.dead || b.pv <= 0 || b.gardeCamp) return null;   // la gardienne d'un autre ne se lie pas
+  if (typeof fauneLien === 'function') fauneLien(b);   // une bête du gardien : elle quitte sa faune pour la vôtre
   const c = { id: prochainId++, esp: b.sp.id, nom: tirerNom(), role: 'defense', mode: 'joueur', dehors: true, b,
     pv: b.pv, faim: b.faim, soif: b.soif, nrj: b.nrj, ko: 0 };
   const plein = enJeu() >= EN_JEU_MAX;
@@ -12507,7 +12914,9 @@ function osTellurien(f) {
 const TEINTES_MYCO = [[204, 82, 152], [152, 74, 172], [112, 80, 194], [84, 104, 182], [150, 96, 124], [180, 116, 180]];
 function couleurChapeau(f) {                              // chaque individu, sa nuance de chapeau
   if (f.capC) return f.capC;
-  let c0 = f.comp && Number.isFinite(f.comp.capT) ? f.comp.capT : Number.isFinite(f.capT) ? f.capT : Math.random();
+  // la nuance : tirée de son numéro sur l'île (le même chez tous les joueurs), au hasard sinon
+  const deNum = f.num !== undefined && !f.comp ? ((Math.imul((f.num + 1) ^ SEED, 0x9e3779b1) >>> 0) % 1000) / 1000 : null;
+  let c0 = f.comp && Number.isFinite(f.comp.capT) ? f.comp.capT : Number.isFinite(f.capT) ? f.capT : deNum ?? Math.random();
   f.capT = c0; if (f.comp && !Number.isFinite(f.comp.capT)) f.comp.capT = c0;
   const n = TEINTES_MYCO.length - 1, x = c0 * n, i = Math.min(n - 1, x | 0), k = x - i, A = TEINTES_MYCO[i], B = TEINTES_MYCO[i + 1];
   const l = .86 + ((c0 * 7.31) % 1) * .26;               // et sa lumière : plus pâle, plus sombre
@@ -12520,6 +12929,7 @@ function rireVesseron(b, k) {
 }
 // Un abri : une plante haute à portée, et le point derrière elle, par rapport à vous.
 function abriVesseron(b, dmin = 5) {
+  const J = b.tame ? P : JC;                              // caché de qui ? du joueur le plus proche
   let best = null, bs = 1e9;
   for (let k = 0; k < 44; k++) {
     const a = Math.random() * 6.2832, r = 1 + Math.random() * 7;
@@ -12527,15 +12937,15 @@ function abriVesseron(b, dmin = 5) {
     if (x < 2 || y < 2 || x >= WS - 2 || y >= WS - 2) continue;
     const i = y * WS + x, q = Flo[i]; if (!q || PlT[i]) continue;
     const e = ESP[q - 1]; if (e.h < .8) continue;          // assez haut pour le cacher
-    const dx = x + .5 - P.x, dy = y + .5 - P.y, d = Math.hypot(dx, dy) || 1;
-    const cx = x + .5 + dx / d * .85, cy = y + .5 + dy / d * .85, dj = Math.hypot(cx - P.x, cy - P.y);
+    const dx = x + .5 - J.x, dy = y + .5 - J.y, d = Math.hypot(dx, dy) || 1;
+    const cx = x + .5 + dx / d * .85, cy = y + .5 + dy / d * .85, dj = Math.hypot(cx - J.x, cy - J.y);
     if (dj < dmin || dj > 13 || !libreBete(b, cx, cy)) continue;
     if (beasts.some(o => o !== b && o.farce && o.farce.C && Math.hypot(o.farce.C[0] - cx, o.farce.C[1] - cy) < 1.5)) continue;
     const s = Math.hypot(cx - b.x, cy - b.y); if (s < bs) { bs = s; best = [cx, cy]; }
   }
   if (best) return best;
-  const a = Math.atan2(b.y - P.y, b.x - P.x) + (Math.random() - .5), R = Math.max(dmin + 1, 7);   // pas d'abri : il recule
-  const x = P.x + Math.cos(a) * R, y = P.y + Math.sin(a) * R;
+  const a = Math.atan2(b.y - J.y, b.x - J.x) + (Math.random() - .5), R = Math.max(dmin + 1, 7);   // pas d'abri : il recule
+  const x = J.x + Math.cos(a) * R, y = J.y + Math.sin(a) * R;
   return libreBete(b, x, y) ? [x, y] : null;
 }
 // La boule de spores, lancée en cloche vers c (vous, ou la menace d'un vesseron lié).
@@ -12547,6 +12957,7 @@ function lancerSpore(b, c) {
   const a = Math.atan2(cy - b.y, cx - b.x), ox = b.x + Math.cos(a) * .12, oy = b.y + Math.sin(a) * .12, oz = b.z + .62 * b.sp.sz;
   TIRS.push({ x: ox, y: oy, z: oz, vx: (cx - ox) / vol, vy: (cy - oy) / vol, vz: (cz - oz) / vol + TIR_G * vol * .5,
     de: b, deg: b.tame ? .1 : .035, age: 0, c: couleurChapeau(b), spore: true, vol });
+  if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
   b.lanceT = t; b.dirT = a; SON.jouer('crachat', {}, ox, oy, oz);
 }
 function toucheSpore(f, nx, ny, nz) {
@@ -12576,14 +12987,14 @@ function eclaterSpore(f) {                               // le nuage vert, et le
 }
 // La farce, sauvage : rend [état, x, y, allure] tant qu'elle dure, null sinon (la vie ordinaire).
 function farceVesseron(b, dt) {
-  const sp = b.sp, dJ = Math.hypot(P.x - b.x, P.y - b.y), F = b.farce || (b.farce = { m: null });
+  const J = JC, sp = b.sp, dJ = Math.hypot(J.x - b.x, J.y - b.y), F = b.farce || (b.farce = { m: null });   // le joueur le plus proche, d'ici ou d'en face
   if (b.rireA && t > b.rireA) { b.rireA = 0; rireVesseron(b, .5); }
-  const jeu = P.pv > 0 && !sousAbri() && Math.abs(P.z - b.z) < 4 && b.pv > .3 && !(b.etourdi > 0) && !b.as;
+  const jeu = J.pv > 0 && !(abriDe(J) || effetDe(J, 'invisible')) && Math.abs(J.z - b.z) < 4 && b.pv > .3 && !(b.etourdi > 0) && !b.as;
   if (!jeu || dJ > (F.m ? 16 : 12.5)) { F.m = null; F.C = null; return null; }
   if (b.hit > 0 && b.t > (b.sporeT || 0)) { nuageSpores(b, true); F.m = 'filer'; F.C = abriVesseron(b, 7); F.lim = b.t + 8; }
   if (!F.m) { F.m = 'cacher'; F.C = abriVesseron(b); F.lim = b.t + 8; rireVesseron(b, .6); }   // vu : il glousse, et file
   if (dJ < 3.2 && F.m !== 'filer') { F.m = 'filer'; F.C = abriVesseron(b, 7); F.lim = b.t + 8; rireVesseron(b, 1); }
-  b.dirT = Math.atan2(P.y - b.y, P.x - b.x);
+  b.dirT = Math.atan2(J.y - b.y, J.x - b.x);
   if (F.m === 'cacher' || F.m === 'filer') {
     if (!F.C || Math.hypot(F.C[0] - b.x, F.C[1] - b.y) < .45 || b.t > F.lim) { F.m = 'tapi'; F.T = b.t + .8 + Math.random() * 1.6; }
     else return [b.etat = 'cacher', F.C[0], F.C[1], sp.spd * (F.m === 'filer' ? 2.1 : 1.5)];
@@ -12596,7 +13007,7 @@ function farceVesseron(b, dt) {
     return [b.etat = 'tapi', b.x, b.y, 0];
   }
   if (F.m === 'ajuster') {
-    if (b.t > F.T) { lancerSpore(b, P); F.m = 'rire'; F.T = b.t + 1.15; rireVesseron(b, 1); }
+    if (b.t > F.T) { lancerSpore(b, J); F.m = 'rire'; F.T = b.t + 1.15; rireVesseron(b, 1); }
     return [b.etat = 'ajuster', b.x, b.y, 0];
   }
   if (F.m === 'rire' && b.t > F.T) {
@@ -12966,25 +13377,26 @@ function guetCarillon(b) {
 // aux buissons, cueille une baie, la remonte à une entrée : la fourmilière gagne un nectar. Affamé,
 // il grignote la pierre — de la montagne, ou de la fourmilière. La nuit, il dort à ses pieds.
 function instinctOglodon(b, etat, tx, ty, vit, men, dM, dt) {
-  const sp = b.sp, F = Fourmi;
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y), dzJ = Math.abs(P.z - b.z);
+  const sp = b.sp, F = Fourmi, J = JC;
+  const dJ = Math.hypot(J.x - b.x, J.y - b.y), dzJ = Math.abs(J.z - b.z);
   const chezSoi = F && Math.hypot(F.x - b.x, F.y - b.y) < F.r + 4;
-  const conf = Math.max(b.conf || 0, confColonie());               // ce qu'il vous accorde : le sien, ou celui de sa colonie
+  // ce qu'il vous accorde : le sien, ou celui de sa colonie (celle d'un joueur d'en face, il la dit dans ses positions)
+  const conf = Math.max(b.conf || 0, J === P ? confColonie() : (J.oc || 0));   // la colonie se souvient de chacun (faune.js)
   majDoute(b, dJ, dzJ, chezSoi, conf, dt);
   let cible = null, dC = 1e9;
-  if (b.colere > 0 && dJ < 10 && dzJ < 2) { cible = P; dC = dJ; }
-  else if (b.doute >= 1 && dJ < 9 && dzJ < 2) { cible = P; dC = dJ; }
-  else if (men && men !== P && dM < 36) { cible = men; dC = Math.sqrt(dM); }
+  if (b.colere > 0 && dJ < 10 && dzJ < 2) { cible = J; dC = dJ; }
+  else if (b.doute >= 1 && dJ < 9 && dzJ < 2) { cible = J; dC = dJ; }
+  else if (men && !estJoueur(men) && dM < 36) { cible = men; dC = Math.sqrt(dM); }
   if (cible && etat !== 'assaut') {
     const pr = COMBAT.oglodon;
     b.dirT = Math.atan2(cible.y - b.y, cible.x - b.x);
-    if (b.t >= (b.pret || 0) && dC < pr.portee + .3 && !b.mur) { lancerAssaut(b, cible, pr); b.pret = b.t + pr.pause + 1.4; if (cible === P) b.doute = .5; return [b.etat = 'charger', b.x, b.y, 0]; }
+    if (b.t >= (b.pret || 0) && dC < pr.portee + .3 && !b.mur) { lancerAssaut(b, cible, pr); b.pret = b.t + pr.pause + 1.4; if (estJoueur(cible)) b.doute = .5; return [b.etat = 'charger', b.x, b.y, 0]; }
     if (b.t < (b.pret || 0)) return [b.etat = 'guetter', b.x, b.y, 0];                 // il souffle, puis revient
     return [b.etat = 'charger', cible.x, cible.y, sp.spd * 1.2];
   }
   const besoinOg = b.soif > .7 || b.faim > .85;                     // affamé ou assoiffé, il vous tient à l'œil en allant boire ou manger
-  if (!besoinOg && ((etat === 'fuir' && men === P && conf < .7) || (b.doute > .15 && dJ < 7 && dzJ < 2.5))) { b.dirT = Math.atan2(P.y - b.y, P.x - b.x); return [b.etat = 'guetter', b.x, b.y, 0]; }
-  if (etat === 'fuir' && men === P) { etat = 'errer'; tx = b.x + Math.cos(b.dir) * 3; ty = b.y + Math.sin(b.dir) * 3; vit = sp.spd * .4; }   // il ne vous fuit pas : il vaque
+  if (!besoinOg && ((etat === 'fuir' && estJoueur(men) && conf < .7) || (b.doute > .15 && dJ < 7 && dzJ < 2.5))) { b.dirT = Math.atan2(J.y - b.y, J.x - b.x); return [b.etat = 'guetter', b.x, b.y, 0]; }
+  if (etat === 'fuir' && estJoueur(men)) { etat = 'errer'; tx = b.x + Math.cos(b.dir) * 3; ty = b.y + Math.sin(b.dir) * 3; vit = sp.spd * .4; }   // il ne vous fuit pas : il vaque
   if (etat === 'brouter') {
     if (ROCHE.includes(bAt(b.x | 0, b.y | 0))) {
       if (Math.random() < dt * 2.5) parts.push({ x: b.x + Math.cos(b.dir) * .4 * sp.sz, y: b.y + Math.sin(b.dir) * .4 * sp.sz, z: b.z + .12, age: 0, life: .5,
@@ -13025,9 +13437,9 @@ function instinctOglodon(b, etat, tx, ty, vit, men, dM, dt) {
 // doute et monter la confiance : la sienne, et celle de la colonie (voir confColonie).
 function majDoute(b, dJ, dzJ, chezSoi, conf, dt) {
   const d0 = b.doute || 0;
-  if (dJ < 10 && dzJ < 2.5 && conf < .7 && (!joueurCalme() || (chezSoi && dJ < 2.6 && conf < .4))) b.doute = 1;
+  if (dJ < 10 && dzJ < 2.5 && conf < .7 && (!calmeDe(JC) || (chezSoi && dJ < 2.6 && conf < .4))) b.doute = 1;
   else if (dJ < 7 && dzJ < 2.5) {
-    const monte = .5 * (7 - dJ) / 7 * (1 - conf) * (Math.hypot(P.vx, P.vy) > .5 ? 1.6 : 1) * (nmSait('souffle-lent') ? .65 : 1);
+    const monte = .5 * (7 - dJ) / 7 * (1 - conf) * (Math.hypot(JC.vx || 0, JC.vy || 0) > .5 ? 1.6 : 1) * (JC === P && nmSait('souffle-lent') ? .65 : 1);
     b.doute = Math.max(0, d0 + dt * (monte - .08 * conf));
   }
   else b.doute = Math.max(0, d0 - dt * .25);
@@ -13108,11 +13520,13 @@ function ogPuiser() {
     if (vus) gagnerColonie(-.25);                                     // elle s'en souviendra
     say('+' + n + ' nectar d\'oglodon' + (vus ? ' · la colonie vous a vu' : ''), 2.4);
   }
+  if (typeof fauneGeste === 'function') fauneGeste('puise', { q: n, f: vus ? 1 : 0 });   // la fourmilière est au gardien : il la vide, ses oglodons chargent
   if (sacOuvert) majSac();
 }
 // La colonie fait aussi du nectar de ses réserves : un toutes les quarante-cinq secondes, jusqu'à la moitié.
 function ogMaj(dt) {
   const F = Fourmi; if (!F) return;
+  if (typeof fauneSuiveur === 'function' && fauneSuiveur()) return;   // le nectar, c'est le gardien qui le compte
   if ((F.acc += dt) > 45) { F.acc = 0; if (F.nectar < F.max / 2) F.nectar++; }
 }
 // Boire du nectar : un bon tiers de vie, et tout le souffle.
@@ -13168,7 +13582,7 @@ const POISSONS = [
 ];
 const poissonDe = id => POISSONS.find(f => f.id === id);
 const OMBRE = { petite: [.3, .12], moyenne: [.46, .17], grande: [.66, .26], longue: [.95, .08], plate: [.62, .58], enorme: [1.15, .46] };
-let Ombres = [], ombreT = 0;
+let Ombres = [], ombreT = 0, ombreN = 0;
 for (const f of POISSONS) DESSINS['poisson_' + f.id] = d => dessinPoisson(d, f);
 DESSINS.canne = d => {
   d.ligne(3, 14, 13, 2, PIX.bois); d.ligne(4, 14, 7, 10, PIX.boisF, 2);
@@ -13236,7 +13650,7 @@ function majOmbres(dt) {
     if (n < 3) continue;                                             // pas dans une flaque
     const sp = tirerPoisson(hab); if (!sp) continue;
     const u = Math.random(), cm = Math.round(sp.cm[0] + (sp.cm[1] - sp.cm[0]) * u * u);   // les grands sont plus rares
-    Ombres.push({ sp, hab, cm, x: (x | 0) + .5, y: (y | 0) + .5, dir: Math.random() * 6.2832, tx: null, ty: null, t: 0, age: 0, etat: 'nage' });
+    Ombres.push({ sp, hab, cm, x: (x | 0) + .5, y: (y | 0) + .5, dir: Math.random() * 6.2832, tx: null, ty: null, t: 0, age: 0, etat: 'nage', n: ++ombreN });
     return;
   }
 }
@@ -13337,6 +13751,7 @@ function ferrer() {
 }
 function majPeche(dt) {
   majOmbres(dt);
+  majPecheLoin(dt);
   const Q = P.peche; if (!Q) return;
   if (P.monture || djIci()) { rangerCanne(); return; }
   Q.t += dt; Q.dip = Math.max(0, (Q.dip || 0) - dt * 2.5);
@@ -13369,14 +13784,14 @@ function angleCanne(Q) {
   return .95;
 }
 const GRIP_CANNE = [.17, -.06, .40], LONG_CANNE = 1.05;
-function boutCanne() {
-  const a = angleCanne(P.peche), f = P.faceS, cf = Math.cos(f), sf = Math.sin(f);
+function boutCanne(J = P) {
+  const a = angleCanne(J === P ? P.peche : J.peche), f = J.faceS, cf = Math.cos(f), sf = Math.sin(f);
   const lx = GRIP_CANNE[0] + Math.cos(a) * LONG_CANNE, ly = GRIP_CANNE[1], lz = GRIP_CANNE[2] + Math.sin(a) * LONG_CANNE;
-  return [P.x + lx * cf - ly * sf, P.y + lx * sf + ly * cf, P.z + (P.selle || 0) + lz];
+  return [J.x + lx * cf - ly * sf, J.y + lx * sf + ly * cf, J.z + (J.selle || 0) + lz];
 }
 // Les bras du joueur prennent la canne ; la canne elle-même, dans son repère.
-function poseCanne(B, neck) {
-  const a = angleCanne(P.peche), u = [Math.cos(a), 0, Math.sin(a)], G = GRIP_CANNE;
+function poseCanne(B, neck, Q = P.peche) {
+  const a = angleCanne(Q), u = [Math.cos(a), 0, Math.sin(a)], G = GRIP_CANNE;
   const M2 = v3.add(G, v3.add(v3.mul(u, .17), [0, .05, 0]));
   [[-1, G, POLE_D], [1, M2, POLE_G]].forEach(([sd, M, pole], i) => {
     const sh = [neck[0], sd * .115, neck[2] - .02], k = ik2(sh, M, .125, .115, pole), o = 6 + i * 2;
@@ -13388,10 +13803,12 @@ function poseCanne(B, neck) {
   B.push({ a: v3.add(G, v3.mul(u, .12)), b: v3.add(G, v3.mul(u, LONG_CANNE)), w: .018, h: .018, c: BOIS });  // le scion
 }
 // ---------- ce qu'on voit : ombres, bouchon, ligne, et le poisson brandi ----------
+// Les ombres d'en face : chacun fait nager les siennes, autour de lui, et les dit dans ses positions.
+const ombresLoin = () => { const L = []; for (const j of Autres.values()) if (j.ombres) L.push(...j.ombres); return L; };
 function pecheDecor(ex, ey, r) {
   const L = [];
   if (djIci()) return L;
-  for (const o of Ombres) {
+  for (const o of Ombres.concat(ombresLoin())) {
     if ((o.x - ex) ** 2 + (o.y - ey) ** 2 > r * r) continue;
     const [lg, lr] = OMBRE[o.sp.taille], k = .8 + .4 * (o.cm - o.sp.cm[0]) / (o.sp.cm[1] - o.sp.cm[0]);
     const ux = Math.cos(o.dir), uy = Math.sin(o.dir), z = hRendu(o.x, o.y) + .03, C = [24, 42, 64];
@@ -13410,8 +13827,8 @@ function pecheDecor(ex, ey, r) {
     seg(.25, .5, W * .62); seg(-.1, .25, W); seg(-.3, -.1, W * .6); seg(-.3, -.5, W * .5, 0, ond);
   }
   const Q = P.peche;
-  if (Q && Q.etat !== 'main' && Q.etat !== 'prise') {                // le bouchon
-    const p = boutonPos(Q), bz = p[2];
+  for (const Qb of [Q, ...[...Autres.values()].map(j => j.peche)]) if (Qb && Qb.etat !== 'main' && Qb.etat !== 'prise') {   // les bouchons
+    const p = boutonPos(Qb), bz = p[2];
     L.push({ a: [p[0], p[1], bz - .03], b: [p[0], p[1], bz + .02], w: .08, h: .08, c: [240, 240, 236] });
     L.push({ a: [p[0], p[1], bz + .02], b: [p[0], p[1], bz + .07], w: .07, h: .07, c: [222, 54, 44] });
   }
@@ -13456,12 +13873,64 @@ function pecheEmit(view, out) {
 }
 // La ligne : du scion au bouchon, un peu lâche.
 function pecheTraits() {
-  const Q = P.peche;
-  if (!Q || Q.etat === 'main' || Q.etat === 'prise') return [];
-  const a = boutCanne(), b = boutonPos(Q), tend = Q.etat === 'mord' ? .02 : .18;
-  const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2 - tend];
-  const c = [.92, .94, .96];
-  return [{ a, b: m, w: 1, c, al: .9 }, { a: m, b, w: 1, c, al: .9 }];
+  const R = [];
+  for (const J of [P, ...Autres.values()]) {          // la sienne, et celles d'en face
+    const Q = J === P ? P.peche : J.peche;
+    if (!Q || Q.etat === 'main' || Q.etat === 'prise') continue;
+    const a = boutCanne(J), b = boutonPos(Q), tend = Q.etat === 'mord' ? .02 : .18;
+    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2 - tend];
+    const c = [.92, .94, .96];
+    R.push({ a, b: m, w: 1, c, al: .9 }, { a: m, b, w: 1, c, al: .9 });
+  }
+  return R;
+}
+// Ce qu'on dit de sa pêche dans ses positions : la canne, le bouchon ; et ses ombres, si quelqu'un est là.
+const PECHE_ETATS = ['main', 'lance', 'flotte', 'mordille', 'mord', 'prise'];
+function pecheReseau() {
+  const Q = P.peche, d = {};
+  if (Q) d.pe = Q.bx !== undefined && Q.etat !== 'main' && Q.etat !== 'prise' ? [PECHE_ETATS.indexOf(Q.etat), r2(Q.bx), r2(Q.by), r2(Q.bz)] : [PECHE_ETATS.indexOf(Q.etat)];
+  // les ombres que voit quelqu'un d'en face (à trente cases d'elles)
+  const vues = djIci() ? [] : Ombres.filter(o => [...Autres.values()].some(j => (j.x - o.x) ** 2 + (j.y - o.y) ** 2 < 30 * 30)).slice(0, 8);
+  if (vues.length) d.om = vues.map(o => [r2(o.x), r2(o.y), r2(o.dir), POISSONS.indexOf(o.sp), o.cm, o.etat === 'fuit' ? 1 : 0, r2(o.tx ?? o.x), r2(o.ty ?? o.y), o.n | 0]);
+  return d;
+}
+// Celle d'en face : sa canne, son bouchon, et les ombres qu'il fait nager.
+function pecheDistante(j, d) {
+  const e = Array.isArray(d.pe) ? PECHE_ETATS[d.pe[0] | 0] : null;
+  if (!e) j.peche = null;
+  else {
+    if (!j.peche || j.peche.etat !== e) j.peche = { etat: e, t: 0, dip: 0 };
+    const Q = j.peche;
+    if (d.pe.length >= 4 && d.pe.slice(1, 4).every(Number.isFinite)) {
+      if (Q.bx === undefined) Q.x0 = boutCanne(j);
+      Q.bx = d.pe[1]; Q.by = d.pe[2]; Q.bz = d.pe[3];
+    }
+    if (e === 'mordille' && Q.etat0 !== e) Q.dip = .55;
+    Q.etat0 = e;
+  }
+  const L = Array.isArray(d.om) ? d.om.slice(0, 8) : [];
+  const vieux = new Map((j.ombres || []).map(o => [o.n, o]));
+  j.ombres = L.map(q => {
+    const sp = POISSONS[q[3] | 0]; if (!sp || !Number.isFinite(q[0]) || !Number.isFinite(q[1])) return null;
+    const v = vieux.get(q[8] | 0), o = v && v.sp === sp ? v : { sp, cm: q[4] | 0, x: q[0], y: q[1], dir: +q[2] || 0, age: 0, t: 0, n: q[8] | 0 };
+    o.ex = q[0] - o.x; o.ey = q[1] - o.y; o.eT = .5;    // l'écart à rattraper, en une demi-seconde
+    if (o.ex * o.ex + o.ey * o.ey > 4) { o.x = q[0]; o.y = q[1]; o.ex = o.ey = 0; }
+    o.tx = Number.isFinite(q[6]) ? q[6] : q[0]; o.ty = Number.isFinite(q[7]) ? q[7] : q[1];
+    o.dirC = +q[2] || 0; o.etat = q[5] ? 'fuit' : 'nage'; o.cm = Math.max(sp.cm[0], Math.min(sp.cm[1], q[4] | 0));
+    return o;
+  }).filter(Boolean);
+}
+function majPecheLoin(dt) {
+  for (const j of Autres.values()) {
+    if (j.peche) j.peche.t += dt, j.peche.dip = Math.max(0, (j.peche.dip || 0) - dt * 2.5);
+    for (const o of j.ombres || []) {                  // elle nage vers son but, comme chez lui, et rattrape l'écart
+      o.age += dt;
+      if (o.eT > 0) { const k = Math.min(o.eT, dt) / .5; o.x += o.ex * k; o.y += o.ey * k; o.eT -= dt; }
+      const dx = o.tx - o.x, dy = o.ty - o.y, d = Math.hypot(dx, dy), vit = o.etat === 'fuit' ? 3 : .35 + OMBRE[o.sp.taille][0] * .25;
+      if (d > .05) { const s = Math.min(d, vit * dt); o.x += dx / d * s; o.y += dy / d * s; o.dirC = Math.atan2(dy, dx); }
+      let da = o.dirC - o.dir; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832; o.dir += Math.max(-dt * 3, Math.min(dt * 3, da));
+    }
+  }
 }
 // ---------- manger, donner ----------
 function mangerPoisson(id) {
@@ -13501,7 +13970,26 @@ function blocPeche() {
 const RARETES = ['commune', 'peu commune', 'rare', 'très rare', 'légendaire', 'épique'];
 const SOIN_FAM = { viande: .15, fruit: .06, racine: .07, graine: .04, fleur: .03, feuille: .04, champignon: .05, douceur: .08 };
 const NOM_FAM = { viande: 'Viandes', poisson: 'Poissons', fruit: 'Fruits', racine: 'Racines', graine: 'Graines', fleur: 'Fleurs', feuille: 'Feuilles', champignon: 'Champignons', douceur: 'Douceurs' };
-const EFFETS = { nuit: 'vision de nuit', braise: 'insensible aux braises', vif: 'pas vif', fort: 'coups puissants', robuste: 'peau dure', souffle: 'grand souffle' };
+const EFFETS = { nuit: 'vision de nuit', braise: 'insensible aux braises', vif: 'pas vif', fort: 'coups puissants', robuste: 'peau dure', souffle: 'grand souffle',
+  surplus: 'vie en plus', coeur: 'un cœur en plus', second: 'second souffle',                        // à usage unique (EFFETS_UNIQUES)
+  repousse: 'prédateurs à distance', invisible: 'invisible', cueilleur: 'récolte abondante', saut: 'grand saut', plume: 'chute de plume',
+  silence: 'pas feutrés', epines: 'épines', vampire: 'vol de vie', apprivoiseur: 'main douce', antidote: 'antidote', gel: 'coups glacés', meute: 'meute galvanisée' };
+const EFFETS_UNIQUES = new Set(['surplus', 'coeur', 'second']);
+// Les ingrédients : un effet chacun, tiré dans les effets qui vont à sa famille (le cœur, seulement aux très rares et au-delà).
+const EFFETS_FAM = {
+  viande: ['fort', 'vampire', 'meute', 'epines', 'robuste', 'surplus'], poisson: ['silence', 'souffle', 'second', 'antidote', 'nuit', 'surplus'],
+  fruit: ['vif', 'surplus', 'saut', 'cueilleur', 'second', 'souffle'], racine: ['robuste', 'epines', 'gel', 'fort', 'antidote', 'coeur'],
+  graine: ['saut', 'plume', 'cueilleur', 'vif', 'apprivoiseur', 'silence'], fleur: ['nuit', 'invisible', 'apprivoiseur', 'plume', 'repousse', 'braise'],
+  feuille: ['souffle', 'antidote', 'repousse', 'silence', 'braise', 'second'], champignon: ['invisible', 'antidote', 'gel', 'nuit', 'repousse', 'vampire'],
+  douceur: ['surplus', 'coeur', 'second', 'apprivoiseur', 'meute', 'braise'] };
+function redistribuerEffets() {
+  for (const id in INGR) {
+    const i = INGR[id], L = EFFETS_FAM[i.fam]; if (!L) continue;
+    let h = 2166136261 >>> 0; for (let k = 0; k < id.length; k++) h = Math.imul(h ^ id.charCodeAt(k), 16777619) >>> 0;
+    let tag = L[h % L.length]; if (tag === 'coeur' && (i.r || 1) < 4) tag = L[(h + 1) % L.length];
+    i.tag = tag;
+  }
+}
 // [espèce, nom, nom court, rareté (1 à 5), effet, couleur]
 const VIANDES = [
   ['brouteur', 'Cuissot de brouteur', 'brouteur', 1, null, [196, 110, 104]],
@@ -13646,13 +14134,17 @@ function preparer(ids) {
   const q = Math.max(R ? 4 : 1, Math.min(5, Math.round(score / 2.6)));
   const soin = Math.min(1, L.reduce((s, i) => s + i.soin, 0) * (.8 + .15 * q) + (R && R.id === 'lune' ? 1 : 0));
   // l'effet : celui qui revient le plus ; deux effets à égalité se contrarient
-  const cpt = {}; for (const i of L) if (i.tag) cpt[i.tag] = (cpt[i.tag] || 0) + 1;
+  const rang = i => i.id && i.id.startsWith('p_fl') ? (i.r >= 6 ? 4 : i.r >= 5 ? 3 : 2) : 1;   // rare 2, légendaire 3, épique 4
+  const pu = Math.max(...L.map(rang));
+  const cpt = {}; for (const i of L) if (i.tag) cpt[i.tag] = (cpt[i.tag] || 0) + rang(i);
   const tri = Object.entries(cpt).sort((a, b) => b[1] - a[1]);
   const tag = tri.length && (tri.length === 1 || tri[0][1] > tri[1][1]) ? tri[0][0] : null;
-  const d = tag ? Math.round(Math.min(600, 45 * cpt[tag] * (1 + .3 * (q - 1)) * (R ? 2 : 1))) : 0;
+  const d = tag ? Math.round(Math.min(pu >= 3 ? 1200 : 600, 45 * cpt[tag] * (1 + .3 * (q - 1)) * (R ? 2 : 1) * (pu >= 2 ? 1.5 : 1))) : 0;
   const souffle = has('fruit') || has('douceur') || has('fleur') ? 1 : 0;
   const main = L.slice().sort((a, b) => b.r - a.r)[0];
-  return { c: cle, n, q, soin: Math.round(soin * 100) / 100, tag, d, so: souffle, col: main.c };
+  const soinF = pu >= 4 ? 1 : Math.min(1, soin + (pu >= 3 ? .3 : pu >= 2 ? .1 : 0));
+  const uniq = tag && EFFETS_UNIQUES.has(tag), u = uniq ? Math.round((tag === 'coeur' ? 1 : Math.min(tag === 'surplus' ? .8 : 1.5, (tag === 'surplus' ? .15 : .3) * pu + .05 * (cpt[tag] - 1))) * 100) / 100 : 0;
+  return { c: cle, n, q, soin: Math.round(soinF * 100) / 100, tag, d: uniq ? 0 : d, ...(uniq ? { u } : {}), so: souffle || pu >= 3 ? 1 : 0, col: main.c, pu, ...(pu >= 3 ? { rv: pu >= 4 ? .02 : .01, rd: pu >= 4 ? 90 : 60 } : {}) };
 }
 // ---------- ce qui se garde ----------
 // Un plat sort chaud et ne se garde pas : on le mange, ou on le donne à une compagne près du feu, tout
@@ -13667,7 +14159,8 @@ const conserve = c => CONSERVE[c.startsWith('r:') ? c : c.split(':')[0]] || null
 const dureeTxt = s => { const m = Math.ceil(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min'; };
 const gardeTxt = p => ((p.parts || 1) > 1 ? p.parts + ' parts · ' : '') + (p.g === undefined ? 'longue conservation' : 'se garde encore ' + dureeTxt(p.g));
 const conserveTxt = c => { const k = conserve(c); return !k ? 'se mange chaud' : (k[0] > 1 ? k[0] + ' parts · ' : '') + (k[1] ? 'longue conservation' : 'se garde ' + dureeTxt(GARDE_MOMENT)); };
-const valeurTxt = p => `+${Math.round(p.soin * 100)} % de vie${p.so ? ' · souffle' : ''}${p.tag ? ' · ' + EFFETS[p.tag] + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min' : ''}`;
+const effetTxt = p => !p.tag ? '' : EFFETS_UNIQUES.has(p.tag) ? ' · ' + (p.tag === 'coeur' ? 'un cœur en plus' : EFFETS[p.tag] + ' +' + Math.round((p.u || 0) * 100) + ' %') : ' · ' + EFFETS[p.tag] + (ROMAIN[p.pu || 1] || '') + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min';
+const valeurTxt = p => `+${Math.round(p.soin * 100)} % de vie${p.so ? ' · souffle' : ''}${effetTxt(p)}${p.rv ? ' · régénération ' + Math.round(p.rv * 100) + ' %/s ' + p.rd + ' s' : ''}`;
 let servi = null, gateT = 0;                          // le plat chaud, tant qu'on ne l'a ni mangé ni donné
 const foyer = () => auCamp() ? P.camp : marmiteIci() ? P.marmite : null;
 function compagnesAuFeu() {
@@ -13782,9 +14275,17 @@ function consommer(p) {
   if (p.c === 'r:serum' && typeof guerirKorlaz === 'function') guerirKorlaz();   // le sérum, injecté
   P.pv = Math.min(1, P.pv + p.soin);
   if (p.so) { P.endu = 1; P.epuise = false; }
-  if (p.tag) P.effets[p.tag] = Math.max(P.effets[p.tag] || 0, t) + p.d;
+  if (p.tag === 'surplus') P.bonusPv = Math.min(.8, (P.bonusPv || 0) + (p.u || .15));                 // de la vie en plus, au-delà du plein
+  else if (p.tag === 'coeur') { if (lives < 4) lives++; else say('vous avez déjà un cœur en plus', 2); }   // un quatrième cœur, le premier à partir
+  else if (p.tag === 'second') P.enduBonus = Math.min(1.5, (P.enduBonus || 0) + (p.u || .3));          // un souffle en réserve
+  else if (p.tag) {
+    const actif = (P.effets[p.tag] || 0) > t, n = p.pu || 1; P.effetsN = P.effetsN || {};
+    P.effetsN[p.tag] = actif ? Math.max(P.effetsN[p.tag] || 1, n) : n;      // la puissance la plus forte l'emporte
+    P.effets[p.tag] = Math.max(P.effets[p.tag] || 0, t) + p.d;
+  }
+  if (p.rv) { P.regenV = Math.max(P.regenT > t ? P.regenV : 0, p.rv); P.regenT = Math.max(P.regenT || 0, t) + p.rd; }   // la régénération des plats légendaires et épiques
   SON.jouer('ramasse');
-  say(p.n + ' · +' + Math.round(p.soin * 100) + ' % de vie' + (p.so ? ' · souffle' : '') + (p.tag ? ' · ' + EFFETS[p.tag] + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min' : ''), 2.6);
+  say(p.n + ' · +' + Math.round(p.soin * 100) + ' % de vie' + (p.so ? ' · souffle' : '') + (p.rv ? ' · régénération' : '') + (p.tag ? effetTxt(p) : ''), 2.6);
   majSac();
 }
 // Manger cru, depuis le sac : les poissons (voir LA PÊCHE) ; les fruits, fleurs, feuilles, graines,
@@ -13799,15 +14300,16 @@ function mangerCru(id) {
   SON.jouer('ramasse'); say(i.n.toLowerCase() + ' · +' + Math.round(i.soin * 50) + ' % de vie', 1.6);
   majSac();
 }
-const effet = k => (P.effets[k] || 0) > t;
+const effet = k => (P.effets[k] || 0) > t ? ((P.effetsN && P.effetsN[k]) || 1) : 0;   // 0, ou la puissance de l'effet (1 à 4)
+const ROMAIN = ['', '', ' II', ' III', ' IV'];
 function effetsHud() {
   const L = Object.keys(EFFETS).filter(effet);
   if (!L.length) return '';
-  return ' · <span style="color:#ffd27d">' + L.map(k => { const s = Math.ceil(P.effets[k] - t); return EFFETS[k] + ' ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }).join(' · ') + '</span>';
+  return ' · <span style="color:#ffd27d">' + L.map(k => { const s = Math.ceil(P.effets[k] - t); return EFFETS[k] + (ROMAIN[effet(k)] || '') + ' ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }).join(' · ') + '</span>';
 }
 // La marmite posée : un cercle de pierres, un petit feu, le pot et sa vapeur.
-function marmiteOs() {
-  const B = [], add = (a, b, w, h, c, lum) => B.push({ a, b, w, h, c, lum }), m = P.marmite;
+function marmiteOs(m = P.marmite) {
+  const B = [], add = (a, b, w, h, c, lum) => B.push({ a, b, w, h, c, lum });
   const f = Math.sin(t * 7.3) * .5 + .5, x = m.x, y = m.y, z = m.z;
   for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832; add([x + Math.cos(a) * .3, y + Math.sin(a) * .3, z + .02], [x + Math.cos(a) * .3, y + Math.sin(a) * .3, z + .1], .13, .13, k % 2 ? C_PIERRE : C_PIERREF); }
   add([x - .18, y - .18, z + .06], [x + .18, y + .18, z + .06], .07, .07, C_BOISF); add([x - .18, y + .18, z + .06], [x + .18, y - .18, z + .06], .07, .07, C_BOISF);
@@ -13819,9 +14321,14 @@ function marmiteOs() {
   return B;
 }
 function marmiteDecor(ex, ey, r) {
-  if (!marmiteIci() || djIci() || (P.marmite.x - ex) ** 2 + (P.marmite.y - ey) ** 2 > r * r) return [];
-  if (Math.random() < .03) parts.push({ x: P.marmite.x + (Math.random() - .5) * .1, y: P.marmite.y, z: P.marmite.z + .5, vx: (Math.random() - .5) * .2, vy: (Math.random() - .5) * .2, vz: .45, g: -.15, life: 1.4, age: 0, col: '#e8e8e8', tl: .05 });   // un filet de vapeur
-  return marmiteOs();
+  if (djIci()) return [];
+  const L = [];
+  for (const m of [marmiteIci() ? P.marmite : null, ...[...Autres.values()].map(j => j.marmite)]) {   // la sienne, et celles d'en face
+    if (!m || (m.x - ex) ** 2 + (m.y - ey) ** 2 > r * r) continue;
+    if (Math.random() < .03) parts.push({ x: m.x + (Math.random() - .5) * .1, y: m.y, z: m.z + .5, vx: (Math.random() - .5) * .2, vy: (Math.random() - .5) * .2, vz: .45, g: -.15, life: 1.4, age: 0, col: '#e8e8e8', tl: .05 });   // un filet de vapeur
+    L.push(...marmiteOs(m));
+  }
+  return L;
 }
 function marmiteEmit(view, out) {
   for (const o of marmiteDecor(P.x, P.y, 60)) {
@@ -13965,7 +14472,7 @@ function portailOs() {
   }
   return B;
 }
-function campOs(ennemi) {
+function campOs(ennemi, autre) {
   const B = [], f = Math.sin(t * 7.3) * .5 + .5, g = Math.sin(t * 4.1 + 1.7) * .5 + .5;
   const bat = (a, b, w, h, c) => B.push({ a, b, w, h, c });
   bat([-1.05, 0, .05], [1.05, 0, .05], 2.1, .1, C_BOISF);              // le plancher
@@ -13990,7 +14497,7 @@ function campOs(ennemi) {
   bat([-.5, .86, .06], [-.28, .86, .06], .22, .24, C_BOISF);
   bat([1.0, .78, .06], [1.0, .78, 1.2], .08, .08, C_BOIS);
   bat([1.0, .78, 1.12], [1.0, .42, 1.06], .05, .34, ennemi ? [196, 58, 50] : C_OR);   // la bannière d'un autre est rouge
-  if (ennemi) return B;                             // et son portail ne s'ouvre que pour lui
+  if (ennemi || autre) return B;                    // et son portail ne s'ouvre que pour lui
   // le portail du campement : la même arche que celles des îles, posée en lisière
   for (const o of portailOs()) bat([o.a[0], o.a[1] + 1.02, o.a[2]], [o.b[0], o.b[1] + 1.02, o.b[2]], o.w, o.h, o.c);
   return B;
@@ -14005,7 +14512,7 @@ function emitPortailIle(view, out) {
   }
 }
 function emitCamp(view, out) {
-  for (const c of campsIci()) for (const o of campOs(c !== P.camp)) {
+  for (const c of campsIci()) for (const o of campOs(c === Raid || c.pille, c !== P.camp)) {   // la bannière rouge : le campement qu'on pille
     const A = [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], Bb = [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]];
     const cle = view.kEnt && view.kEnt((A[0] + Bb[0]) / 2, (A[1] + Bb[1]) / 2);
     emitLimb(A, Bb, o.w, o.h, o.c, view, out, cle, rangSol(c.z, false));
@@ -14169,7 +14676,7 @@ function instinctFelin(b, etat, tx, ty, vit, sprint, pr, dP, dt) {
   if (b.dead || b.t < (b.revele || 0)) k = Math.min(k, .08);
   b.camo = (b.camo ?? k) + (k - (b.camo ?? k)) * Math.min(1, dt * (k < (b.camo ?? k) ? 6 : 1.2));   // se révèle vite, se fond lentement
   // un filet de brume, de loin en loin, quand il se déplace fondu
-  if (b.camo > .5 && v > .3 && Math.random() < dt * .5 && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 400)
+  if (b.camo > .5 && v > .3 && Math.random() < dt * .5 && (b.x - JC.x) ** 2 + (b.y - JC.y) ** 2 < 400)
     parts.push({ x: b.x + (Math.random() - .5) * .5, y: b.y + (Math.random() - .5) * .5, z: b.z + .3, age: 0, life: 1.4,
       vx: (Math.random() - .5) * .2, vy: (Math.random() - .5) * .2, vz: .18, g: -.04, col: '#dce4ec' });
   return r;
@@ -14445,13 +14952,13 @@ function majVolant(b, dt) {
   const nuit = lumiere() < .38;
   if (b.tame && majVolantLie(b, dt)) return;           // liée : voir LA STERNE LIÉE
   // la peur : vous, de trop près ; un coup ; l'alarme d'une voisine de la colonie
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y), dz = b.z - P.z, vJ = Math.hypot(P.vx || 0, P.vy || 0);
+  const J = b.tame ? P : JC, dJ = Math.hypot(J.x - b.x, J.y - b.y), dz = b.z - J.z, vJ = Math.hypot(J.vx || 0, J.vy || 0);
   // endormie, on peut l'approcher de près (de nuit, au nid, c'est là qu'on l'atteint sans arc)
   // un poisson tendu, sans bouger (ou presque) : posée, elle vous laisse venir tout près
-  const appat = !b.enVol && vJ < 1.3 && !!poissonADonner();
+  const appat = !b.enVol && vJ < 1.3 && J === P && !!poissonADonner();
   const trop = dJ < (b.enVol ? 4.5 : appat ? 1.3 : b.etat === 'dormir' ? 1.6 + vJ * .25 : 5.5 + Math.min(3, vJ * .5)) && dz < 5 && dz > -3;
   if (!b.tame && (trop || b.hit > 0 || b.alarm > .6) && b.etat !== 'fuir' && b.etat !== 'décoller') {
-    b.fuiteT = 7 + Math.random() * 5; b.fuiteDe = [P.x, P.y]; b.alarm = Math.max(b.alarm, .7);
+    b.fuiteT = 7 + Math.random() * 5; b.fuiteDe = [J.x, J.y]; b.alarm = Math.max(b.alarm, .7);
     for (const o of beasts) if (o !== b && o.sp === sp && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 100) o.alarm = Math.max(o.alarm || 0, .75);
     if (b.enVol) b.etat = 'fuir'; else { b.etat = 'décoller'; b.decT = .2; b.suite = 'fuir'; }
   }
@@ -14845,20 +15352,20 @@ function instinctBramard(b, etat, tx, ty, vit, sprint, dt) {
   const adulte = b.age >= sp.mat, rut = saisonRut();
   b.rut = (b.rut || 0) + ((adulte && b.male && rut > 0 && !b.tame ? rut : 0) - (b.rut || 0)) * Math.min(1, dt * .8);
   if (b.tame || b.dead) return [etat, tx, ty, vit, sprint];
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y), dzJ = Math.abs(P.z - b.z);
+  const J = JC, dJ = Math.hypot(J.x - b.x, J.y - b.y), dzJ = Math.abs(J.z - b.z);
   // l'annonce de la saison, une fois, si l'on est près d'un troupeau
   const cycle = Math.floor(t / JOUR / RUT_CYCLE);
-  if (rut > .2 && rutAnnonce !== cycle && dJ < 25) { rutAnnonce = cycle; say('le brame monte des plaines · les bramards sont en rut', 3); }
+  if (J === P && rut > .2 && rutAnnonce !== cycle && dJ < 25) { rutAnnonce = cycle; say('le brame monte des plaines · les bramards sont en rut', 3); }
   // frappé, le troupeau fait front : la colère gagne les adultes à dix cases
   if (b.colere > 0 && !b._fait) { b._fait = true; for (const o of beasts) if (o.sp === sp && !o.tame && !o.dead && o.age >= sp.mat && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 100) o.colere = Math.max(o.colere || 0, 12); }
   if (!(b.colere > 0)) b._fait = false;
   let cible = null;
-  if (b.colere > 0 && dJ < 12 && dzJ < 2) cible = P;
+  if (b.colere > 0 && dJ < 12 && dzJ < 2) cible = J;
   else if (b.rut > .3) {
     // le rut : il charge qui approche (moins loin si l'on reste calme), et défie les autres mâles
     // une charge qui a porté l'a satisfait : il vous a chassé de son troupeau, et vous laisse dix secondes
-    const r = typeof joueurCalme === 'function' && joueurCalme() ? 4 : 6.5;
-    if (dJ < r && dzJ < 2 && b.t > (b.chasseT || 0)) cible = P;
+    const r = calmeDe(J) ? 4 : 6.5;
+    if (dJ < r && dzJ < 2 && b.t > (b.chasseT || 0)) cible = J;
     else if (b.t > (b.jouteT || 0)) {
       b.jouteT = b.t + 8 + Math.random() * 10;
       const rival = beasts.find(o => o !== b && o.sp === sp && o.male && !o.tame && !o.dead && o.age >= sp.mat && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 36);
@@ -14869,13 +15376,13 @@ function instinctBramard(b, etat, tx, ty, vit, sprint, dt) {
     if (b.t > (b.brameT || 0)) { b.brameT = b.t + 7 + Math.random() * 9; b.brame = b.t; SON.crier(b, 'appel');
       if (dJ < 22) parts.push({ x: b.x + Math.cos(b.dir) * .9, y: b.y + Math.sin(b.dir) * .9, z: b.z + 1.1, age: 0, life: 1.1, vx: Math.cos(b.dir) * .6, vy: Math.sin(b.dir) * .6, vz: .5, g: -.1, col: '#e8ecf0' }); }
   }
-  if (b.as && b.as.c === P && b.as.fait && !(b.colere > 0)) b.chasseT = b.t + 10;
+  if (b.as && estJoueur(b.as.c) && b.as.fait && !(b.colere > 0)) b.chasseT = b.t + 10;
   if (cible && !b.as) {
-    const d = Math.hypot(cible.x - b.x, cible.y - b.y), prof = cible === P ? COMBAT.bramard : COMBAT.joute;
+    const d = Math.hypot(cible.x - b.x, cible.y - b.y), prof = estJoueur(cible) ? COMBAT.bramard : COMBAT.joute;
     b.dirT = Math.atan2(cible.y - b.y, cible.x - b.x);
     if (b.t >= (b.pret || 0) && d < prof.portee && Math.abs((cible.z || 0) - b.z) < 1.4 && !b.mur) {
       lancerAssaut(b, cible, prof); b.pret = b.t + prof.pause;
-      if (cible !== P && !cible.as) { cible.dirT = Math.atan2(b.y - cible.y, b.x - cible.x); lancerAssaut(cible, b, COMBAT.joute); cible.pret = cible.t + COMBAT.joute.pause; }   // front contre front
+      if (!estJoueur(cible) && !cible.as) { cible.dirT = Math.atan2(b.y - cible.y, b.x - cible.x); lancerAssaut(cible, b, COMBAT.joute); cible.pret = cible.t + COMBAT.joute.pause; }   // front contre front
       return ['charger', b.x, b.y, 0, 1];
     }
     if (b.t < (b.pret || 0)) return ['guetter', b.x, b.y, 0, 1];                         // il souffle, tête basse
@@ -15540,10 +16047,12 @@ function coupArme(A) {
     life: .25 + Math.random() * .2, age: 0, col: etin[0], tl: .045, luit: A.arme === 'lame' });
   if (c.cl) { frapperLoin(c.cl, degJoueur(a.deg)); return; }
   const pr = c.b;
-  pr.pv -= degJoueur(a.deg, pr); pr.hit = .25; pr.alarm = 1; blesseParJoueur(pr);
+  const dgJ = degJoueur(a.deg, pr);
+  pr.pv -= dgJ; pr.hit = .25; pr.alarm = 1; blesseParJoueur(pr);
   lacherParoi(pr);                                   // frappée sur sa paroi, elle tombe
   const rec = RECUL_ARME[A.arme] || 3;
   pr.vx += (pr.x - P.x) * rec; pr.vy += (pr.y - P.y) * rec;
+  if (typeof fauneCoup === 'function') fauneCoup(pr, dgJ, (pr.x - P.x) * rec, (pr.y - P.y) * rec, 'chassé');
   burst(pr.x, pr.y, pr.z + .4, 9, '#ffb0a0');
   if (pr.pv <= 0) { mourirBete(pr, 'chassé'); butin(pr); }
   else say(pr.sp.n + ' · ' + Math.round(pr.pv * 100) + '%', 1);
@@ -15635,7 +16144,7 @@ document.getElementById('cases').addEventListener('pointerdown', e => {
 // ---------- les jauges ----------
 const jaugesEl = {};
 function majJauges() {
-  for (const [id, v, n] of [['j-vie', P.pv, '♥' + lives], ['j-mana', manaDispo() / JAUGE_MANA, essai ? '∞' : (P.sac.eclat || 0)]]) {
+  for (const [id, v, n] of [['j-vie', P.pv, '♥' + lives + (P.bonusPv > .005 ? ' +' + Math.round(P.bonusPv * 100) + '%' : '') + (P.enduBonus > .005 ? ' ≈' + Math.round(P.enduBonus * 100) + '%' : '')], ['j-mana', manaDispo() / JAUGE_MANA, essai ? '∞' : (P.sac.eclat || 0)]]) {
     const e = jaugesEl[id] || (jaugesEl[id] = { b: document.getElementById(id), w: -1, n: null });
     if (!e.b) continue;
     const w = Math.round(Math.max(0, Math.min(1, v)) * 200) / 2;
@@ -16937,7 +17446,7 @@ void main() { o = uC; }`;
     }
     for (const c of campsIci()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {
       const hc = L_FIXE + 256 * horizAt(c.x, c.y);
-      for (const o of campOs(c !== P.camp))
+      for (const o of campOs(c === Raid || c.pille, c !== P.camp))
         boite(TD, [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]],
           o.w, o.h, o.c, 0, 0, hc, 0, 0, 0);
     }
@@ -17136,6 +17645,7 @@ function prendreSession(r) {
   Compte.uid = (r.user && r.user.id) || Compte.uid;
   Compte.email = (r.user && r.user.email) || Compte.email;
   ecrireSession();
+  jetonReseau();                                       // les canaux Realtime ouverts prennent le nouveau jeton
   return true;
 }
 // Un appel à Supabase Auth. Rend les données, ou lève l'erreur que le service explique.
@@ -17155,17 +17665,22 @@ async function auth(chemin, corps, jeton, methode) {
   return d;
 }
 // Le jeton ne vaut qu'une heure : on le renouvelle une minute avant, avec le jeton de rafraîchissement.
+// Un seul renouvellement à la fois : la sauvegarde et le réseau peuvent le demander au même instant.
+let renouvellement = null;
 async function jetonValide() {
   if (!Compte.jeton) return null;
   if (Date.now() < Compte.exp - 60000) return Compte.jeton;
   if (!Compte.refresh) return Compte.jeton;
-  try {
-    const r = await auth('/token?grant_type=refresh_token', { refresh_token: Compte.refresh });
-    prendreSession(r);
-  } catch (e) {
-    if (e.code === 400 || e.code === 401) { quitterCompte(true); return null; }   // session périmée
-  }
-  return Compte.jeton;
+  if (!renouvellement) renouvellement = (async () => {
+    try {
+      const r = await auth('/token?grant_type=refresh_token', { refresh_token: Compte.refresh });
+      prendreSession(r);
+    } catch (e) {
+      if (e.code === 400 || e.code === 401) { quitterCompte(true); return null; }   // session périmée
+    } finally { renouvellement = null; }
+    return Compte.jeton;
+  })();
+  return renouvellement;
 }
 function quitterCompte(force) {
   const jeton = Compte.jeton;
@@ -17295,7 +17810,7 @@ function appliquer(d, vivantes) {
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
   P.plats = (Array.isArray(d.plats) ? d.plats : []).filter(p => p && typeof p.n === 'string' && typeof p.c === 'string').slice(0, PLATS_MAX)
     .map(p => ({ c: p.c.slice(0, 40), n: p.n.slice(0, 60), q: nb(p.q, 1, 5, 1) | 0, soin: nb(p.soin, 0, 1, 0), tag: EFFETS[p.tag] ? p.tag : null,
-      d: nb(p.d, 0, 1200, 0) | 0, so: p.so ? 1 : 0, parts: nb(p.parts, 1, 8, 1) | 0, ...(Number.isFinite(p.g) ? { g: nb(p.g, 0, 7200, 0) } : {}), col: Array.isArray(p.col) ? p.col.slice(0, 3).map(v => nb(v, 0, 255, 128) | 0) : [196, 130, 80] }));
+      d: nb(p.d, 0, 1200, 0) | 0, ...(p.u ? { u: nb(p.u, 0, 1.5, 0) } : {}), so: p.so ? 1 : 0, pu: nb(p.pu, 1, 4, 1) | 0, ...(p.rv ? { rv: nb(p.rv, 0, .05, 0), rd: nb(p.rd, 0, 300, 0) | 0 } : {}), parts: nb(p.parts, 1, 8, 1) | 0, ...(Number.isFinite(p.g) ? { g: nb(p.g, 0, 7200, 0) } : {}), col: Array.isArray(p.col) ? p.col.slice(0, 3).map(v => nb(v, 0, 255, 128) | 0) : [196, 130, 80] }));
   P.recettes = {};
   if (d.recettes && typeof d.recettes === 'object') for (const [k, r] of Object.entries(d.recettes).slice(0, 300))
     if (r && typeof r.n === 'string') { const i = Array.isArray(r.i) ? r.i.filter(x => INGR[x]).slice(0, 4) : [];
@@ -17838,6 +18353,7 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 djInit();                                             // les armes d'en bas, leurs places sur le dos, leurs vignettes
+redistribuerEffets();                                // un effet varié pour chaque ingrédient
 if (typeof etatsInit === 'function') etatsInit();   // le remède du Korlaz dans les recettes (etats.js)
 loadWorld();
 arriveeLe = maintenant();                            // le répit des premières secondes

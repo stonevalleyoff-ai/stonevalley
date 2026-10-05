@@ -40,11 +40,19 @@ function etatsInit() {
   if (typeof CONSERVE !== 'undefined') CONSERVE['r:serum'] = [1, 1];          // une dose, qui se garde
 }
 // ---------- l'île : la roche rongée, par plaques ----------
+// Le Korlaz change le sol en place (Bio). Un second chargement de l'île (l'île remise à zéro) partait
+// donc d'un sol déjà rongé, et son peuplement ne ressemblait plus à celui d'un joueur qui arrive :
+// loadWorld rend le sol d'origine avant de peupler, puis etatsIle le ronge de nouveau.
+function etatsSolDOrigine() {
+  if (ETAT.bioAvant) for (const [i, b] of ETAT.bioAvant) Bio[i] = b;
+  ETAT.bioAvant = null;
+}
 function etatsIle() {
+  etatsSolDOrigine();
   ETAT.id = etatGraine(SEED, profondeur()); ETAT.cases = null; ETAT.annonce = false;
   if (ETAT.id !== 'korlaz') return;
   let s = (SEED ^ 0x9e3779b9) >>> 0 || 1; const r = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
-  const C = ETAT.cases = new Uint8Array(WS * WS), roc = [];
+  const C = ETAT.cases = new Uint8Array(WS * WS), roc = [], avant = ETAT.bioAvant = new Map();
   for (let i = 0; i < WS * WS; i++) if (Bio[i] === 5 || Bio[i] === 6) roc.push(i);
   if (!roc.length) { ETAT.id = null; return; }
   const n = 6 + (r() * 6 | 0);
@@ -53,7 +61,7 @@ function etatsIle() {
     for (let dy = -R | 0; dy <= R; dy++) for (let dx = -R | 0; dx <= R; dx++) {
       const x = cx + dx, y = cy + dy; if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) continue;
       const i = y * WS + x, d = Math.hypot(dx, dy) / R;
-      if ((Bio[i] === 5 || Bio[i] === 6) && d < .7 + r() * .45) { C[i] = 1; Bio[i] = KORLAZ_BIO; }
+      if ((Bio[i] === 5 || Bio[i] === 6) && d < .7 + r() * .45) { C[i] = 1; avant.set(i, Bio[i]); Bio[i] = KORLAZ_BIO; }
     }
   }
   const m = ESP.findIndex(e => e.id === 'mycelium'), x = ESP.findIndex(e => e.id === 'excroissance');   // le mycélium pâle, rare ; les excroissances, partout
@@ -256,7 +264,7 @@ function majEtats(dt) {
     for (let k = 0; k < 4; k++) { const x = P.x + (Math.random() - .5) * 18, y = P.y + (Math.random() - .5) * 18;   // les spores, lentes, luisantes
       if (roche(x, y) && Math.random() < dt * 30) parts.push({ x, y, z: sol(x, y) + .1, vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25, vz: .25 + Math.random() * .35, g: -.12, life: 3 + Math.random(), age: 0, col: Math.random() < .6 ? '#161a12' : '#8ab048', luit: Math.random() < .4, tl: .07 + Math.random() * .05 }); }
     if (!P.korlaz) {
-      if (n > 0 && P.pv > 0) P.korlazExpo = (P.korlazExpo || 0) + dt * (.35 + n / 49 * 2.5);
+      if (n > 0 && P.pv > 0 && !(typeof effet === 'function' && effet('antidote'))) P.korlazExpo = (P.korlazExpo || 0) + dt * (.35 + n / 49 * 2.5);   // l'antidote : les spores n'y font rien
       else P.korlazExpo = Math.max(0, (P.korlazExpo || 0) - dt * .25);
       if (P.korlazExpo >= KORLAZ_SEUIL) infecter('vous êtes resté trop longtemps dans les spores');
     }

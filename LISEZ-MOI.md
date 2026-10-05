@@ -319,7 +319,7 @@ Les deux se portent dans le dos, se voient en main chez les autres joueurs, et l
 
 ## 20. L'onglet Bêta (les outils de test)
 
-Dans le sac, l'onglet Bêta (**touche 8**, sac ouvert) réunit tout ce qui sert à tester. Les outils qui donnent quelque chose passent d'eux-mêmes en **mode essai** : rien de ce qu'on y gagne ne part dans la sauvegarde, et « Arrêter l'essai » rend le vrai sac.
+Dans le sac, l'onglet Bêta (**touche 0**, sac ouvert) réunit tout ce qui sert à tester. Les outils qui donnent quelque chose passent d'eux-mêmes en **mode essai** : rien de ce qu'on y gagne ne part dans la sauvegarde, et « Arrêter l'essai » rend le vrai sac.
 
 - **Ressources** : le mode essai (ressources illimitées : rien ne se paie, flèches et mana compris — la pierre de foyer aussi) et « Tout fabriquer ».
 - **Remplir le sac** : +200 de chaque ressource, 50 baies, 64 flèches, trois de chaque viande, produit de plante et poisson (pour essayer la cuisine), et 5 baumes de relève.
@@ -457,7 +457,7 @@ Façon Animal Crossing. La **canne à pêche** se fabrique à l'établi (12 bois
 
 ## 28. La cuisine
 
-Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu'à quatre ingrédients), et **il en sort toujours un plat**. L'onglet **Cuisine** du sac (touche 9, sac ouvert) montre à gauche la marmite, le plat servi et les plats du sac ; à droite, deux sous-onglets : **Ingrédients** (le garde-manger) et **Recettes** (le livre).
+Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu'à quatre ingrédients), et **il en sort toujours un plat**. L'onglet **Cuisine** du sac (touche 3, sac ouvert) montre à gauche la marmite, le plat servi et les plats du sac ; à droite, deux sous-onglets : **Ingrédients** (le garde-manger) et **Recettes** (le livre).
 
 - **Où** : au feu du campement (onglet Campement, « Cuisiner »), ou partout avec la **marmite** (établi : 16 pierre, 10 bois, 6 fibres). Depuis une case du bord, elle se pose devant vous avec son petit feu ; ACTION près d'elle : CUISINER. Elle reste sur son île ; la reposer ailleurs la déplace.
 - **Les ingrédients** :
@@ -960,3 +960,205 @@ Testé avec deux joueurs simulés (Alice et Bob) : demande, acceptation, invitat
 Testé (graines 166 et 11) : 46 plantes sur une île d'exploration 12 (40 rares, 4 légendaires, 2 épiques) ; les quatorze formes rendues sans faute ; une rare cueillie (+2, rareté rare, repousse) ; une épique arme, frappe, se remet ; abattue, +2 de son venin (épique).
 
 Pour régler : `flore.js` (`FL_BIOMES` pour les noms et les couleurs, `floreIle` pour la fréquence, `majPlante` pour les attaques, `osPlante` pour les formes).
+
+
+## 52. Des plats puissants, et des noms qui tiennent sous l'icône
+
+**La puissance des effets** (`effet(k)` rend désormais 0, ou un niveau de 1 à 4 ; `ROMAIN`) : un plat ordinaire donne son effet au niveau I ; un plat qui contient un ingrédient de la **flore rare** monte au **II**, **légendaire** au **III**, **épique** au **IV**. Chaque niveau compte :
+
+| Effet | I | II | III | IV |
+|---|---|---|---|---|
+| Coups puissants | +25 % | +50 % | +75 % | **×2** |
+| Peau dure (dégâts reçus) | −20 % | −40 % | −60 % | −60 % |
+| Pas vif | +15 % | +30 % | +45 % | +60 % |
+| Grand souffle (course) | ½ | 0,3 | 0,15 | **sans fin** |
+| Vision de nuit | 6,5 | 9 | 11,5 | 14 cases |
+| Insensible aux braises | oui | oui | oui | oui |
+
+**Ce que la flore rare ajoute au plat** (`preparer`) : son effet **compte double** (rare), **triple** (légendaire), **quadruple** (épique) — il l'emporte sur ceux des ingrédients ordinaires au lieu de s'annuler avec eux ; la **durée** est allongée de moitié (et peut monter à **20 minutes** dès le légendaire, au lieu de 10) ; la **vie** : +10 % (rare), +30 % (légendaire), **pleine** (épique) ; dès le légendaire, le **souffle** est rendu et une **régénération** s'ajoute (1 %/s pendant 60 s ; épique : 2 %/s pendant 90 s). Deux plats du même effet : la puissance la plus forte l'emporte, les durées s'additionnent. Le HUD et le livre de recettes disent le niveau (« coups puissants IV »).
+
+**Les noms** : sous l'icône, une ligne, coupée proprement (…) — la grille ne se décale plus ; le nom entier reste au survol. Les ingrédients de la flore rare portent sous l'icône le nom de la plante (« fougère-houle »), leur nom complet garde la partie (« Fronde de fougère-houle ») ; les plats s'appellent par la plante (« Infusion d'étoile des prés »).
+
+Testé : plat ordinaire (pas vif I, 1,5 min) ; avec une rare (coups puissants II, 2,9 min, +22 %) ; une légendaire (III, 5,4 min, +48 %, régénération 1 %/s) ; une épique (IV, 7,2 min, +100 %, régénération 2 %/s) ; mangé, dégâts ×2 et +18 % de vie en 5 s ; la grille de la cuisine alignée.
+
+
+## 53. Vingt et un effets
+
+Chaque ingrédient porte désormais **un effet tiré dans ceux qui vont à sa famille** (`EFFETS_FAM`, `redistribuerEffets` au démarrage ; le cœur, seulement aux ingrédients très rares et au-delà). Le plat prend l'effet qui revient le plus (la flore rare compte double, triple, quadruple), au niveau de son ingrédient le plus précieux (I à IV, voir § 52).
+
+**À usage unique** (dès qu'on mange ; une quantité, pas une durée) :
+
+| Effet | Ce qu'il fait |
+|---|---|
+| Vie en plus | une réserve de vie **au-delà du plein** (+15 % par niveau, 80 % au plus) qui prend les coups la première ; affichée « +x % » à côté des cœurs |
+| Un cœur en plus | un **quatrième cœur** (une seule fois : il part le premier) |
+| Second souffle | une réserve de souffle (+30 % par niveau, 150 % au plus) qui s'use avant la jauge ; affichée « ≈x % » |
+
+**À durée** :
+
+| Effet | Ce qu'il fait (par niveau) |
+|---|---|
+| Prédateurs à distance | les prédateurs ne vous chassent plus et **s'écartent** à 9 cases (+3 par niveau) |
+| Invisible | les chasseurs, les automates, le dragon, la Tisseuse, le vesseron **ne vous voient plus** ; le personnage devient un fantôme pâle ; **frapper vous rend visible** (le Silencieux, lui, entend toujours) |
+| Récolte abondante | ×1,5 / ×2 / ×2,5 / ×3 à chaque récolte |
+| Grand saut | +12 % d'élan par niveau (≈ +25 % de hauteur), double saut compris |
+| Chute de plume | on descend en planant (chute plafonnée) |
+| Pas feutrés | le Silencieux ne vous entend plus ; les herbivores ne fuient qu'au tout dernier moment |
+| Épines | qui vous frappe prend 30 % du coup par niveau |
+| Vol de vie | chacun de vos coups vous rend 1,5 % de vie par niveau |
+| Main douce | la confiance des bêtes monte +50 % par niveau (baies, poisson, viande, offrandes) |
+| Antidote | ni poison, ni spores, et le Korlaz n'y fait rien |
+| Coups glacés | vos coups étourdissent (0,7 s, +0,3 s par niveau) |
+| Meute galvanisée | vos compagnes frappent +25 % par niveau |
+
+…plus les six d'avant (vision de nuit, braises, pas vif, coups puissants, peau dure, grand souffle). Testé : chaque effet s'applique ; la vie en plus a encaissé un coup entier ; le quatrième cœur ; la réserve de souffle ; frapper invisible rend visible ; avec les pas feutrés, le Silencieux n'entend rien.
+
+
+## 54. Les demandes d'ami arrivent enfin, et l'onglet Amis est remis d'aplomb
+
+Fichiers à redéposer : `index.html`, `coop.js`, `sw.js` (qui passe en `stone-valley-18`). Rien à changer côté Supabase.
+
+**Pourquoi la demande n'arrivait pas.** Realtime (Phoenix) n'accepte un message que sur un canal qu'on a **rejoint** ; sinon il le jette sans bruit (« unmatched topic »). Le jeu postait la demande sur le canal `sv:ami:<code>` de l'autre sans s'y être abonné : elle n'atteignait jamais personne. Même chose pour accepter, refuser, retirer et inviter au groupe. Le banc « deux joueurs simulés » de la section 50 ne s'en apercevait pas, parce que son faux serveur laissait passer ces messages. Désormais `envoiAmi` rejoint le canal du destinataire, envoie, et le quitte dix secondes plus tard.
+
+**Les canaux qui mouraient au bout d'une heure.** Les canaux s'ouvrent avec le jeton du compte, qui ne vaut qu'une heure ; à l'échéance, Realtime les ferme tous (canal d'ami, île, `sv:monde`), et le jeu ne s'en rendait pas compte. Désormais :
+- le jeton est renouvelé une minute avant l'échéance, même sans sauvegarde en cours, et redonné aussitôt à chaque canal ouvert (message `access_token`, comme le client officiel) ; un seul renouvellement à la fois ;
+- chaque jonction porte sa propre référence (`join_ref`), et le jeu lit les réponses du serveur : un canal refusé ou fermé est rouvert tout seul (2 s, puis 4, 8… jusqu'à 32 s) ;
+- au démarrage, un jeton périmé est renouvelé avant d'ouvrir la connexion.
+
+**Les demandes, côté joueur.**
+- Une demande en attente repart toutes les six secondes tant que l'autre est en ligne : il n'en voit plus qu'**une carte** à la fois (avant, une nouvelle carte toutes les six secondes), avec une clochette à la première.
+- Les demandes reçues restent dans l'onglet (**Demandes reçues**, avec Accepter / Refuser) même quand la carte du haut a disparu ; répondre d'un côté efface l'autre. Une carte périmée quitte enfin l'écran.
+- Un code qui contient 0, O, 1, I ou L est refusé avec une explication (ces caractères n'existent jamais dans un code). Entrée envoie la demande. Entrer le code de quelqu'un qui vous a déjà écrit vaut un oui.
+- Le message d'envoi dit si le joueur est en ligne (« demande envoyée à Bob ») ou s'il faudra attendre qu'il se connecte.
+- On ne peut plus se faire ajouter par un « oui » qu'on n'a pas demandé, ni par un code qui ne correspond pas au compte annoncé.
+- **Retirer** un ami demande deux appuis (« Confirmer »).
+- La présence `ici` porte maintenant l'exploration : la liste affiche « île X · exploration N » pour tout ami en ligne, et plus « exploration ? ».
+
+**La mise en page.**
+- L'onglet n'avait ni marges ni colonnes : il prend maintenant la même charpente que les autres (`sac-corps deux`) — 18 px de marge, deux colonnes sur ordinateur (amis à gauche, groupe d'expédition à droite), une seule sur téléphone, chaque colonne défile.
+- Le code en vedette dans un cadre, l'ajout sur une ligne (champ + **Envoyer**), puis les demandes reçues, les demandes envoyées (pastille verte si le joueur est en ligne, minutes restantes) et les amis (en ligne d'abord). Le groupe affiche « 2 sur 4 », le chef et « vous ».
+- **Le rail des onglets** : avec dix onglets, il ne tenait plus dans le cadre de 640 px ; ouvrir Amis faisait défiler tout le cadre et cachait l'en-tête. Les onglets sont un peu plus serrés (tout tient à 640 px) et le rail défile seul quand l'écran est plus bas (téléphone en paysage).
+- Deux règles CSS que `#sac button { font: inherit; color: inherit }` écrasait sans qu'on le voie : les libellés du rail reprennent leurs 11 px (10 px sur téléphone, donc moins de « Com… »), et le texte des boutons dorés redevient sombre et lisible (il était clair sur l'or, dans tous les onglets).
+
+Testé avec deux et trois navigateurs contre un faux Realtime **strict** (il rejette comme le vrai les messages hors canal et ferme les canaux d'un jeton expiré) : la demande arrive aussitôt, une seule carte, acceptation par la carte ou par l'onglet, refus, invitation et groupe à deux, jeton renouvelé et transmis aux canaux, canaux rouverts après expiration et nouvelle demande reçue. Avant la correction, le même banc montrait la demande rejetée quatre fois sur quatre.
+
+
+## 55. Les onglets du sac, lisibles sur téléphone
+
+Fichiers à redéposer : `index.html` et `sw.js` (qui passe en `stone-valley-19`), plus `coop.js` de la section 54 si ce n'est pas déjà fait.
+
+Sur téléphone, les dix onglets tenaient sur une seule ligne de 33 px chacun : « Com… », « Ca… », « Sa… ». Ils sont maintenant **sur deux lignes de cinq**, avec leur nom en entier, et rangés en deux groupes :
+
+| | 1 | 2 | 3 | 4 | 5 |
+|---|---|---|---|---|---|
+| **En jouant** | Sac (1) | Établi (2) | Cuisine (3) | Compagnes (4) | Campement (5) |
+| **Le reste** | Journal (6) | Amis (7) | Sauvegarde (8) | Réglages (9) | Bêta (0) |
+
+- **L'ordre change partout** (rail d'ordinateur compris) : Cuisine passe de la touche 9 à la 3, Bêta de la 8 à la **0**, qui ouvre maintenant le dixième onglet (Amis n'avait pas de touche). Les touches suivent l'ordre du tableau ; l'aide des Réglages dit « 1 à 9, 0 ».
+- **Téléphone en portrait** : l'onglet ouvert est sur fond sombre, nom doré, filet doré dessous. La croix monte dans l'en-tête, à droite des jauges, pour laisser toute la largeur aux onglets ; les barres de vie et de mana y sont un peu plus courtes, et sous 350 px de large les trois cœurs s'effacent de l'en-tête (ils restent dans le HUD). Les noms tiennent en entier de 320 à 640 px.
+- **Téléphone en paysage** : le rail passe sur deux colonnes de cinq (un groupe par colonne), et tout tient sans défiler.
+- **Ordinateur** : le rail ne change pas de forme ; un filet sépare les deux groupes.
+
+
+## 56. La même faune de départ pour tout le monde (phase 0 du partage des créatures)
+
+Fichiers à redéposer : `index.html`, `etats.js` et `sw.js` (qui passe en `stone-valley-20`). Rien à changer côté Supabase, et pas un message de plus.
+
+**Avant.** La graine fixait la liste des espèces d'une île, mais chaque bête était posée au hasard du navigateur : deux joueurs sur la même île ne voyaient ni les mêmes bêtes, ni aux mêmes places, ni avec les mêmes robes, même en arrivant ensemble.
+
+**Maintenant.** Le peuplement de départ tire son hasard de la graine de l'île, mêlée au niveau d'exploration (qui règle le bestiaire et le nombre de bêtes) et au genre d'île :
+- deux joueurs qui arrivent sur la même île, au même niveau (c'est le cas quand on suit un ami ou qu'on le rejoint), y trouvent **les mêmes bêtes, aux mêmes places, avec les mêmes robes rares** — les Doux et leurs petits, les Rampants, les coursiers, les Telluriens, les félins, les automates, la Tisseuse, les plantes rares, le village ;
+- **le point d'arrivée** est lui aussi le même pour tous : on arrive à côté de son ami ;
+- chaque bête de départ porte un **numéro** (`b.num`), le même chez tous les joueurs de l'île : c'est ce qui permettra à la phase suivante de désigner une bête sans ambiguïté.
+
+**Ensuite, chacun fait encore vivre ses bêtes de son côté** : elles divergent au fil des minutes (où elles broutent, qui elles chassent, qui naît, qui meurt). Le partage en continu, c'est la phase 1 (un « gardien de l'île » qui fait vivre la faune et la diffuse aux autres).
+
+**Comment.** Le temps du peuplement (une suite d'appels qui ne rend jamais la main), `Math.random` est remplacé par un tirage pseudo-aléatoire (mulberry32) semé par `graineFaune()`, puis rendu dans un `finally`. Les centaines de tirages de `poser`, `naitre`, des robes rares, des mères et de leurs petits, de la Tisseuse ou des plantes rares y passent sans qu'on y touche. Après le peuplement, le vrai hasard reprend.
+
+**Deux corrections au passage.**
+- Les horreurs se plaçaient « loin de l'arrivée » et la flore rare « pas sous les pieds », mais la distance se mesurait depuis la position d'*avant* le chargement — (0, 0) au démarrage. Le point d'arrivée est maintenant tiré **avant** le peuplement.
+- Le Korlaz change le sol en place : un second chargement de la même île (l'île remise à zéro) partait d'un sol déjà rongé et donnait une autre faune. `etats.js` garde le sol d'origine et `loadWorld` le rend avant de peupler : chaque chargement donne la même île.
+
+**Pour vérifier à deux.** Onglet Bêta › Mesures › **Faune de départ** : le nombre de bêtes et une empreinte de six caractères (espèce, place de naissance et robe de chaque bête). Deux joueurs sur la même île, au même niveau, doivent lire la même.
+
+Testé avec deux navigateurs : Bob part vers l'île d'Alice par le vrai chemin (`voyagerVers`, comme pour suivre un ami) et retrouve la même empreinte et le même point d'arrivée ; aux niveaux 0, 2, 3, 6, 10, 15 et 21, les deux joueurs (l'un avec campement, mode essai et position différente) obtiennent les mêmes bêtes, une à une (97 à 137 selon le niveau, toutes identiques) ; une île du Korlaz rechargée trois fois rend trois fois la même faune ; deux joueurs arrivés ensemble voient la même fourmilière et les mêmes oglodons aux mêmes places ; après le peuplement, `Math.random` est bien le vrai.
+
+
+## 57. La faune partagée : tout le monde voit les mêmes bêtes (phases 1 et 2, fichier `faune.js`)
+
+**Nouveau fichier** : `faune.js`, chargé après `coop.js` (à déposer, avec `index.html` et `sw.js`, qui passe en `stone-valley-21`). Rien à changer côté Supabase : tout passe par la diffusion Realtime déjà ouverte.
+
+**Le principe : un gardien par île.** Un seul appareil fait vivre la faune d'une île : le **gardien**. Les autres joueurs de l'île la **suivent** : leurs bêtes n'y pensent plus elles-mêmes, ce sont des marionnettes qui glissent vers la place, le cap et l'état que dit le gardien (prolongés de leur vitesse entre deux nouvelles). Leurs pattes, leurs voix, leurs ailes s'animent comme d'habitude.
+
+- **Qui garde** : celui qui garde depuis le plus longtemps ; à trois secondes près, le plus petit identifiant de compte. Seul sur son île, on est son propre gardien. Celui qui arrive (ou réactive le partage) **écoute quatre secondes** sans se dire gardien : il trouve ainsi le gardien en place et le suit, au lieu de lui imposer sa faune. Deux joueurs arrivés ensemble : l'un garde, l'autre suit (leurs faunes de départ sont identiques depuis la phase 0, la bascule ne se voit pas).
+- **La relève** : le gardien parti (portail, fermeture, quatre secondes de silence), le plus petit identifiant des suiveurs reprend la faune telle qu'il la voyait, et elle continue de vivre.
+- **L'inventaire** : un suiveur demande au gardien sa faune entière (`faune?` / `faune`, environ 15 Ko une fois) : les bêtes qu'il a déjà (même numéro, même espèce) sont replacées, les autres naissent, celles que le gardien n'a plus disparaissent.
+- **En continu**, dans la position du gardien (champ `f`) : les bêtes à moins de 48 cases de chaque suiveur, six autres à tour de rôle (une bête lointaine n'est jamais figée longtemps), les naissances (espèce, robe, âge), les retraits, et **l'heure du jour** — une seule heure par île, celle du gardien.
+- **Ce qui se voit** : place, cap, état, vie, vitesse, et l'allure — l'alarme, le ramassé avant le bond, le camouflage du félin, la mise en joue du tireur d'élite (et sa cible, le rayon rouge compris), le crapaud enfoui, le vol et le battement d'ailes de la sterne, le cou, la crinière et la ruade du coursier, le recul d'un tir, la taille d'un petit, la faim sur la fiche de la bête visée.
+
+**Les bêtes voient tous les joueurs (phase 2).** Chez le gardien, chaque bête partagée se règle sur **le joueur le plus proche**, qu'il soit ici ou en face : elle le craint, le regarde, s'y habitue (« vous observe »), le chasse, le charge, le vise. Chaque joueur dit dans ses positions s'il est **calme**, **à l'abri** (campement, répit d'arrivée), **invisible**, **silencieux** ou **repoussant** (champ `fx`) : les bêtes du gardien en tiennent compte comme pour lui. Les jetons d'attaque (deux chasseurs à la fois sur un joueur) se comptent par joueur.
+
+**Les coups.**
+- **Une bête sur un joueur d'en face** (morsure, charge, ruade, coup de corne) : le gardien envoie `morsure`, et c'est l'appareil du joueur qui encaisse — armure, vie en plus, recul, brûlure, désarçonné, chute, épines (qui reviennent au gardien), comme pour un coup d'ici.
+- **Les tirs des automates** : le gardien envoie chaque tir (`ftir`) ; les suiveurs le voient partir et voler (balle, obus en cloche et son cercle au sol), et **chacun encaisse ce qui le touche, chez lui**. Le vrai tir du gardien s'arrête sur un joueur d'en face sans le blesser deux fois.
+- **Un suiveur frappe une bête** (arme, flèche, retombée, ou ses compagnes) : il le voit aussitôt, et l'envoie au gardien (`fcoup`), qui compte le coup, la colère, celle de la colonie ou du troupeau, l'étourdissement (coups glacés compris) et la mort. Le butin est à celui qui l'a abattue.
+- **Lier ou monter une bête** (baies, Appel, éclat d'un automate, rodéo) : elle quitte la faune du gardien (`flien`) et devient celle du joueur ; les autres la voient alors comme sa compagne, comme avant.
+
+**Restent propres à chaque appareil**, comme avant : les compagnes (déjà partagées par leur maître), le souterrain, les visions du Korlaz, les nomades, le village, les plantes rares, les gardiennes du pillage, l'escouade, la Tisseuse, le dragon et les horreurs, la météo. *(Depuis la section 58, tout cela est partagé, sauf les visions du Korlaz.)*
+
+**Pas encore (phase 3 et suivantes — faits à la section 58)** : puiser à la fourmilière et la colère de la colonie contre un suiveur, les sorts (Souffle, Ancrage…) sur les bêtes du gardien, les spores du vesseron sur un suiveur, la confiance gagnée par un suiveur ne passe pas au gardien (elle compte chez lui, et le lien part bien). Un coursier dont un suiveur tombe au rodéo reste chez lui seul.
+
+**L'onglet Bêta** › Mesures › **Faune partagée** dit qui fait vivre la faune (« vous la faites vivre · suivie par Bob · 83 bêtes », « faite vivre par Alice · dernière nouvelle il y a 0,3 s »), avec un bouton **Couper / Activer** (gardé dans le navigateur) : coupée, on revoit ses propres bêtes, et les bêtes des autres vous ignorent.
+
+**Ce que ça coûte (mesuré, à deux joueurs, contre le faux serveur Realtime)** :
+
+| | Faune coupée | Faune partagée |
+|---|---|---|
+| Tous deux immobiles | 2,3 msg/s | 5,0 msg/s |
+| Position du gardien | 0,29 Ko | 1,0 à 1,5 Ko en moyenne, 2,2 Ko au plus |
+
+Le gardien parle au plus trois fois par seconde quand quelque chose bouge près d'un suiveur, et se tait comme avant quand rien ne bouge ; quand il marche, il parle déjà cinq fois par seconde et la faune ne coûte rien de plus. À deux, moitié du temps en mouvement, on passe d'environ 12 à 14-15 msg/s (de ~46 h à ~38 h de jeu par mois sur le quota gratuit de 2 millions). Les données : une quinzaine de Mo par heure à deux, loin des 5 Go du plan gratuit. **Le plafond à surveiller reste celui du plan gratuit : 100 messages par seconde pour tout le projet** (quatre joueurs en mouvement en font déjà ~83).
+
+**Testé** avec deux et trois navigateurs : Bob arrive chez Alice, reçoit l'inventaire et la suit ; autour de lui, les bêtes sont aux mêmes places chez les deux (écart médian 0,04 à 0,07 case, au plus 0,14), dans le même état ; sur toute l'île, mêmes bêtes, mêmes espèces. Bob agité près d'un cotonnier : il fuit chez Alice comme chez Bob. Un traqueur du gardien traque Bob, et sa morsure est encaissée chez Bob seulement. Un mercenaire tire sur Bob : Bob voit les tirs (sept en vingt secondes) et en prend trois ; Alice rien. Bob frappe un lentigrade : sa vie baisse chez Alice et il entre en colère ; Bob l'achève : mort chez les deux. Bob lie un cotonnier : il quitte la faune d'Alice, qui voit la compagne de Bob. Alice et Bob arrivés ensemble : Alice garde, Bob suit. Carole rejoint : elle suit Alice. Bob coupe le partage, puis le réactive : il suit Carole. Alice s'en va : Carole reprend, les bêtes vivent. Seul sur son île, rien ne change. Les amis, la faune de départ et le Korlaz n'ont pas bougé.
+
+## 58. L'île partagée : tout le monde voit tout (fichiers `faune.js`, `index.html`, `flore.js`, `village.js`, `nomades.js`, `donjon.js`)
+
+**À déposer** : `index.html`, `faune.js`, `flore.js`, `village.js`, `nomades.js`, `donjon.js`, `sw.js` (qui passe en `stone-valley-22`). Rien à changer côté Supabase : tout passe encore par la diffusion Realtime de l'île.
+
+La faune partagée de la section 57 devient **l'île partagée**. Le même gardien (celui qui fait vivre l'île) fait vivre désormais tout ce qui se voit, et les autres le suivent. Seules **les visions du Korlaz** restent à chacun : ce sont des hallucinations, elles n'existent que dans la tête de qui les voit (deux joueurs ne voient pas les mêmes, et c'est voulu).
+
+**Le ciel.** Une seule météo par île : le gardien tire les changements de temps et les éclairs, les autres voient le même ciel, le même fondu, le même vent, les mêmes nuages, et l'éclair (puis le tonnerre) au même moment. Un sort ou l'essai de l'onglet Bêta qui change le temps chez un suiveur est demandé au gardien, qui le fait pour toute l'île. Le sort de l'Aube aussi : le jour se lève pour tous.
+
+**Les campements.** Le campement d'un joueur posé sur l'île se voit chez les autres (sa tente, son feu qui crépite et éclaire, sa bannière dorée ; son portail ne s'ouvre que pour lui). Celui qu'il pille se voit aussi, bannière rouge, avec ses gardiennes qui se battent (on les voit, sans pouvoir s'en mêler : le pillage est l'affaire du pillard).
+
+**Les bêtes à part**, partagées comme les autres, avec en plus leur « sac » : ce qui se voit de leur état et qu'un suiveur ne peut pas deviner. Chez le suiveur, chacune a sa marionnette.
+- **La Tisseuse de fer** vise le joueur le plus proche, d'ici ou d'en face : mortier, fusil (le laser suit sa cible chez tous), toile ; se cabrer frappe tous ceux qui sont dessous. Chez les suiveurs, ses huit pattes cherchent le sol d'elles-mêmes et chacun peut se faire écraser par les pieds qu'il voit. Son réveil, ses salves, sa vapeur, sa chute se voient et s'entendent partout. **Abattue, elle l'est pour tous** : chacun de ceux qui sont sur l'île et ne l'avaient pas encore vaincue reçoit sa part (24 ferraille, 12 éclats, 10 pierres), et l'arche apparaît chez tous. Qui l'a déjà vaincue la voit quand même (si le gardien ne l'a pas vaincue), mais garde son arche.
+- **Le dragon à plumes** : il menace celui qui approche de son aire, chasse et crache sur le plus proche ; ses boules de feu partent chez tous et brûlent chacun chez lui. Son vol, son battement, son grondement, sa gorge qui rougeoit se voient chez tous. La viande tendue par un suiveur le nourrit chez le gardien.
+- **Le Silencieux** entend **tous** les joueurs (chacun dit son bruit dans ses positions) : il hurle, charge le plus bruyant, et sa prise est encaissée chez celui qu'il saisit (le coup qui laisse à peine debout, le recul, la secousse). **Le Mille-gueules** sent les pas de tous sur la terre meuble : la terre se fend sous celui qu'il vise, il jaillit, frappe tous ceux qui sont là ; sa tête et ses quinze anneaux sont aux mêmes places chez tous. Les offrandes d'un suiveur comptent chez le gardien.
+- **Les plantes** : cueillie par un joueur, une plante rare ou légendaire l'est pour tous, et repousse au même moment (le nouveau venu l'apprend en arrivant). L'épique attaque le plus proche, crache son venin chez tous ; abattue, son butin va à qui l'a abattue.
+- **Le village** : les villageois sont aux mêmes places, font les mêmes métiers, rentrent dormir ensemble ; celui à qui parle un joueur d'en face s'arrête et le regarde.
+- **Les nomades du Seuil** : la caravane est celle du gardien, qui la fait venir près de l'un des joueurs ; tous la voient, leur parlent et troquent (l'amitié, les savoirs, la rancune restent à chacun : celui qui les frappe est celui dont ils se souviendront).
+- **L'escouade** vient pour l'île (près de l'un des joueurs, au hasard) et vise le plus proche ; tous voient le portail s'ouvrir, les automates sortir et sauter d'un portail à l'autre.
+- **Le vesseron farceur** se cache du joueur le plus proche, lui lance ses boules ; son rire, ses spores, sa couleur de chapeau sont les mêmes chez tous.
+- **L'oglodon** se souvient de chaque joueur : la confiance de sa colonie envers un suiveur compte chez le gardien.
+
+**Le souterrain** : un gardien par étage. Les machines sont les mêmes chez tous ceux de l'étage (mêmes numéros), visent le plus proche ; une machine abattue l'est pour tous. La salle du gardien se referme dès que quelqu'un y entre ; les plaques claquent sous les pas de chacun (chacun encaisse les fléchettes qu'il voit) ; la vapeur bat à l'horloge du monde, la même vague pour tous. Les coffres restent à chacun : ce qu'on trouve en bas est à soi.
+
+**Les gestes sur le monde** (`fgeste`) : le Souffle repousse les bêtes chez le gardien ; l'Appel refusé fâche la bête chez lui ; puiser à la fourmilière la vide pour tous (et sa colonie charge) ; une baie ou un poisson tendu nourrit la bête chez lui ; parler à un villageois ou à un nomade l'arrête. Le nectar de la fourmilière est le même pour tous. Un rodéo : la bête se voit sous son cavalier ; s'il tombe, elle retourne à la faune du gardien.
+
+**Ce que fait l'autre se voit** : sa canne, son bouchon, sa ligne, et les ombres des poissons qu'il fait nager près de lui ; sa marmite posée ; la flèche qu'il décoche, en vol (elle ne blesse rien chez les autres : c'est chez lui que le coup compte) ; l'éclat de ses sorts ; la dalle de l'Ancrage, sur laquelle on peut monter.
+
+**L'onglet Bêta** › Mesures : la ligne s'appelle **Île partagée** (« vous faites vivre l'île · suivi par Bob · 104 bêtes », sous terre « l'étage »). Coupée, on retrouve ses propres bêtes, son ciel, ses nomades. Faire venir des nomades ou une escouade depuis l'onglet, chez un suiveur, le demande au gardien.
+
+**Ce que ça coûte (mesuré, à deux, contre le faux serveur Realtime)** : **pas un message de plus**. Le ciel, le monde (fourmilière, caravane, escouade) et les sacs des bêtes à part voyagent dans les positions que le gardien envoyait déjà ; les ombres des poissons nagent seules chez l'autre vers leur but, sans presser l'envoi. Les rares événements (une flèche, un sort, une cueillette, une offrande) ne comptent pas.
+
+| | Île partagée coupée | Île partagée |
+|---|---|---|
+| Tous deux immobiles | 2,5 msg/s (avant : 2,7) | 7,5 msg/s (avant : 7,3) |
+| Tous deux en mouvement | 12,5 msg/s | 13 à 14,5 msg/s |
+| Taille d'une position | 0,3 à 0,55 Ko (avec les ombres des poissons, au bord de l'eau) | 1,4 à 2,2 Ko en moyenne, 2,9 Ko au plus |
+
+Les données grossissent un peu (une trentaine de Mo par heure à deux, au lieu d'une quinzaine) : le quota gratuit de 5 Go suffit pour environ 150 à 180 heures de jeu à deux par mois. Le quota de messages, lui, ne bouge pas (voir section 57).
+
+**Testé** avec deux navigateurs, sur une île de niveau 10 qui a tout (ossuaire, terres creuses, sylve, village, dragon, Tisseuse) : les 33 bêtes à part sont les mêmes chez les deux, aux mêmes places (écart médian 0 à 0,2 case), dans le même état. Alice fait venir l'orage : Bob le voit venir, et l'éclair. Alice pose son campement : Bob le voit ; elle le reprend : il disparaît. Bob cueille une plante rare : chez Alice aussi, avec la même repousse. Bob s'approche : la plante épique s'arme et le mord, la Tisseuse s'éveille, le vise au laser et lui envoie son mortier, le Silencieux l'entend courir, hurle et le charge, le Mille-gueules jaillit sous lui, le dragon le prend en chasse et crache (Bob voit neuf boules de feu). Bob parle à un villageois, à une nomade : ils s'arrêtent chez Alice. Alice fait venir une caravane, puis une escouade : Bob les voit, avec les mêmes gens et les mêmes automates. Sous terre, à l'étage 2 : mêmes machines, une tourelle vise Bob (onze tirs), les portes de la salle du gardien se ferment chez les deux, la vapeur bat ensemble. Bob pêche : Alice voit sa canne, son bouchon et ses ombres ; sa marmite, sa flèche, son rodéo (puis le coursier rendu à l'île). Seul sur son île, à trois, les amis, la faune de départ, le Korlaz : rien n'a bougé. Au passage, un vieux défaut corrigé : la Tisseuse qui avait tiré au mortier ne disait plus « elle chancelle » en mourant, et sa part pouvait tarder.
+

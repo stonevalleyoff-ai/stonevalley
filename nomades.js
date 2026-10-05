@@ -14,7 +14,9 @@
 //    alors, et ne revient pas avant vingt minutes. Un nomade tué ne revient jamais.
 //  Ce fichier est chargé AVANT le script du jeu, comme donjon.js : il ne déclare que des fonctions
 //  et son propre état (tout est préfixé nm / NM), et ne touche au monde qu'une fois appelé par le jeu.
-//  Les caravanes sont propres à chaque joueur : elles ne passent pas par le réseau.
+//  Sur une île à plusieurs, la caravane est celle du gardien de la faune (faune.js) : il la fait venir,
+//  près de l'un des joueurs ; les autres en ont un double (NM.car.miroir) pour leur parler et troquer.
+//  L'amitié, les savoirs, la rancune restent à chacun.
 // ============================================================
 const NM = {
   car: null,            // la caravane sur l'île : { arche, gens, betes, centre, fin, hostile, trocs }
@@ -70,12 +72,18 @@ function nmAppliquer(d) {
 function nmMaj(dt) {
   const C = NM.car;
   if (C && !beasts.includes(C.arche)) { nmFermer(); NM.car = null; NM.prochain = t + 480 + Math.random() * 600; }
+  if (typeof fauneSuiveur === 'function' && fauneSuiveur()) {   // la caravane est celle du gardien : on n'en tient que la parole
+    if (NM.parle && (NM.parle.dead || Math.hypot(NM.parle.x - P.x, NM.parle.y - P.y) > 3.6 || (NM.car && NM.car.hostile))) nmFermer();
+    if (NM.prochain !== null) NM.prochain = Math.max(NM.prochain, t + 120);
+    return;
+  }
+  if (C && C.miroir) C.miroir = false;                    // devenu gardien : la caravane d'en face est la nôtre
   if (NM.prochain === null) NM.prochain = t + 150 + Math.random() * 300;
   if (!NM.car) { if (t > NM.prochain) nmVenir(false); }
   else nmCaravane(dt);
   if (NM.parle && (NM.parle.dead || Math.hypot(NM.parle.x - P.x, NM.parle.y - P.y) > 3.6 || (NM.car && NM.car.hostile))) nmFermer();
 }
-function nmVenir(force) {
+function nmVenir(force, pour) {
   if (NM.car) return false;
   const raid = typeof raidIci === 'function' && raidIci();
   if (!force && ((typeof djIci === 'function' && djIci()) || raid || Date.now() < NM.moi.rancune || P.pv <= 0)) { NM.prochain = t + 120; return false; }
@@ -83,23 +91,24 @@ function nmVenir(force) {
   const vivants = NM_GENS.filter(g => !NM.moi.morts.includes(g.nom));
   const qui = ['marchand', 'dresseur', 'conteur'].map(r => { const L = vivants.filter(g => g.role === r); return L[Math.random() * L.length | 0]; }).filter(Boolean);
   if (!qui.length) return false;
-  // la halte : un replat sec, à 12-18 cases du joueur
+  // la halte : un replat sec, à 12-18 cases d'un joueur de l'île (au hasard, quand on est plusieurs)
+  const Js = typeof joueursFaune === 'function' ? joueursFaune() : [P], J = pour || (Js.length ? Js[Math.random() * Js.length | 0] : P);
   let lieu = null;
   for (let k = 0; k < 80 && !lieu; k++) {
-    const a = Math.random() * 6.2832, r = 12 + Math.random() * 6, x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+    const a = Math.random() * 6.2832, r = 12 + Math.random() * 6, x = J.x + Math.cos(a) * r, y = J.y + Math.sin(a) * r;
     if (x < 6 || y < 6 || x > WS - 6 || y > WS - 6) continue;
     let ok = true; const h = hAt(x | 0, y | 0);
     for (let dy = -2; dy <= 2 && ok; dy++) for (let dx = -2; dx <= 2 && ok; dx++) {
       const i = (x | 0) + dx, j = (y | 0) + dy;
       if (hAt(i, j) <= SEA || eauAt(i, j) || vide(i, j) || Math.abs(hAt(i, j) - h) > 1) ok = false;
     }
-    if (ok && Math.abs(h - P.z) < 4) lieu = [(x | 0) + .5, (y | 0) + .5];
+    if (ok && Math.abs(h - J.z) < 4) lieu = [(x | 0) + .5, (y | 0) + .5];
   }
   if (!lieu) { NM.prochain = t + 60; return false; }
   const arche = naitre(specById.arche_nomade, lieu[0], lieu[1]);
-  arche.dir = arche.dirT = Math.atan2(P.y - lieu[1], P.x - lieu[0]) - Math.PI / 2; arche.ouv = 0; arche.camo = 1; arche.pv = 1;
+  arche.dir = arche.dirT = Math.atan2(J.y - lieu[1], J.x - lieu[0]) - Math.PI / 2; arche.ouv = 0; arche.camo = 1; arche.pv = 1;
   beasts.push(arche);
-  const vers = Math.atan2(P.y - lieu[1], P.x - lieu[0]);
+  const vers = Math.atan2(J.y - lieu[1], J.x - lieu[0]);
   const centre = [lieu[0] + Math.cos(vers) * 2.6, lieu[1] + Math.sin(vers) * 2.6];
   // la bête du dresseur : une espèce au hasard, parmi toutes, sauf les automates et les machines d'en bas
   const esp = SPEC.filter(sp => !automate(sp) && !sp.donjon && !sp.pnj);
@@ -119,7 +128,8 @@ function nmCaravane(dt) {
   if (!C.ferme && A.ouv >= 1 && C.sortis < C.qui.length && t > (C.sortieT || 0)) {
     const g = C.qui[C.sortis++], b = naitre(specById.nomade, A.x, A.y);
     b.nm = g; b.pv = 1; b.dir = b.dirT = Math.atan2(C.centre[1] - A.y, C.centre[0] - A.x);
-    const a = Math.atan2(P.y - C.centre[1], P.x - C.centre[0]) + (C.sortis - 2) * 1.25, r = 1.7;   // en arc, face à l'arrivant
+    const Q = typeof joueurPour === 'function' ? joueurPour(b) : P;
+    const a = Math.atan2(Q.y - C.centre[1], Q.x - C.centre[0]) + (C.sortis - 2) * 1.25, r = 1.7;   // en arc, face à l'arrivant
     b.poste = [C.centre[0] + Math.cos(a) * r, C.centre[1] + Math.sin(a) * r];
     beasts.push(b); C.gens.push(b); C.sortieT = t + .9;
     if (g.role === 'dresseur') {
@@ -135,17 +145,24 @@ function nmCaravane(dt) {
     if (!reste.length || t > C.fin + 40) { C.ferme = true; if (A.ouv <= 0) { A.dead = 1; nmFermer(); NM.car = null; NM.prochain = t + 480 + Math.random() * 600; } }
   }
 }
-function nmHostile() {
+// distant : c'est un joueur d'en face qui les a fâchés — ils se défendent, mais c'est lui qu'ils
+// gardent en mémoire (chez lui, nmFache)
+function nmHostile(distant) {
   const C = NM.car; if (!C || C.hostile) return;
   C.hostile = true; C.hostileFin = t + 25;
-  for (const b of C.gens) NM.moi.amis[b.nm.nom] = (NM.moi.amis[b.nm.nom] || 0) - 3;
-  NM.moi.rancune = Date.now() + 20 * 60e3;
+  if (!distant) nmFache();
   nmFermer();
   say('les nomades se défendent', 2.2);
 }
-function nmMort(b) {
-  if (b.nm && !NM.moi.morts.includes(b.nm.nom)) NM.moi.morts.push(b.nm.nom);
-  nmHostile();
+function nmFache() {
+  const C = NM.car; if (!C || C.fache) return;
+  C.fache = true;
+  for (const b of C.gens) if (b.nm) NM.moi.amis[b.nm.nom] = (NM.moi.amis[b.nm.nom] || 0) - 3;
+  NM.moi.rancune = Date.now() + 20 * 60e3;
+}
+function nmMort(b, distant) {
+  if (!distant && b.nm && !NM.moi.morts.includes(b.nm.nom)) NM.moi.morts.push(b.nm.nom);
+  nmHostile(distant);
 }
 function nmButin(b) {
   if (b.pnjSuit) return;
@@ -162,17 +179,21 @@ function majNomade(b, dt) {
   const C = NM.car;
   if (!C) { b.dead = 1; return; }
   if (b.sp.arche) { b.pv = 1; b.colere = 0; return; }
-  if (b.pv <= 0) { mourirBete(b, 'combat'); if (!b.pnjSuit) nmMort(b); else nmHostile(); return; }
-  if (b.colere > 0 && !C.hostile) nmHostile();
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y), dz = Math.abs(P.z - b.z);
+  const distant = !!b.tueDistant || !!b.colereD;         // le coup venait d'en face
+  if (b.pv <= 0) { mourirBete(b, 'combat'); if (!b.pnjSuit) nmMort(b, distant); else nmHostile(distant); return; }
+  if (b.colere > 0 && !C.hostile) nmHostile(distant);
+  // le joueur le plus proche, d'ici ou d'en face (faune.js) ; et celui qui lui parle
+  const J = typeof JC !== 'undefined' && JC ? JC : P;
+  const dJ = Math.hypot(J.x - b.x, J.y - b.y), dz = Math.abs(J.z - b.z);
   const maitre = b.pnjSuit && !b.pnjSuit.dead ? b.pnjSuit : null;
   let tx = b.x, ty = b.y, vit = 0, sprint = 1;
-  b.parle = NM.parle === b;
-  if (C.hostile && dJ < 14 && P.pv > 0) {
+  const lui = b.parleD > b.t && b.parleJ ? Autres.get(b.parleJ) : null, Qp = NM.parle === b ? P : lui;
+  b.parle = !!Qp;
+  if (C.hostile && dJ < 14 && J.pv > 0) {
     // ils se défendent : au contact, un coup de bâton — la bête, à sa façon
     const prof = b.pnjSuit ? (COMBAT[b.sp.id] || COMBAT.defense) : NM_COUP;
-    if (!b.as && b.t >= (b.pret || 0) && dJ < prof.portee + .3 && dz < 1.4) lancerAssaut(b, P, prof);
-    else { tx = P.x; ty = P.y; vit = b.sp.spd; sprint = 1.25; }
+    if (!b.as && b.t >= (b.pret || 0) && dJ < prof.portee + .3 && dz < 1.4) lancerAssaut(b, J, prof);
+    else { tx = J.x; ty = J.y; vit = b.sp.spd; sprint = 1.25; }
     b.etat = 'défendre';
   } else if (C.depart) {
     tx = C.arche.x; ty = C.arche.y; vit = b.sp.spd * .8;
@@ -185,7 +206,7 @@ function majNomade(b, dt) {
       tx = m.x + Math.cos(a) * r; ty = m.y + Math.sin(a) * r;
       const d = Math.hypot(tx - b.x, ty - b.y);
       vit = d > .5 ? b.sp.spd * Math.min(1, .3 + d * .3) : 0;
-      if (!vit) b.dirT = Math.atan2(P.y - b.y, P.x - b.x) * (dJ < 5 ? 1 : 0) + (dJ < 5 ? 0 : b.dir);
+      if (!vit) b.dirT = Math.atan2(J.y - b.y, J.x - b.x) * (dJ < 5 ? 1 : 0) + (dJ < 5 ? 0 : b.dir);
     }
     b.etat = 'suivre';
   } else {
@@ -193,7 +214,7 @@ function majNomade(b, dt) {
     if (!b.flane || b.t > b.flaneT) { const a = Math.random() * 6.2832; b.flane = [b.poste[0] + Math.cos(a) * .6, b.poste[1] + Math.sin(a) * .6]; b.flaneT = b.t + 6 + Math.random() * 8; }
     const cible = dJ < 7 || b.parle ? b.poste : b.flane, d = Math.hypot(cible[0] - b.x, cible[1] - b.y);
     if (d > .35 && !b.parle) { tx = cible[0]; ty = cible[1]; vit = b.sp.spd * (d > 3 ? .9 : .45); }
-    else b.dirT = dJ < 7 || b.parle ? Math.atan2(P.y - b.y, P.x - b.x) : b.dirT;
+    else { const Q = Qp || J; b.dirT = dJ < 7 || b.parle ? Math.atan2(Q.y - b.y, Q.x - b.x) : b.dirT; }
     // le premier signe : il lève la main quand vous approchez
     if (dJ < 6 && !b.salue) { b.salue = true; b.salutT = b.t; }
     b.etat = b.parle ? 'parle' : 'halte';
@@ -526,6 +547,7 @@ const NM_DIALOGUES = {
 function nmParler(b) {
   const C = NM.car; if (!C || C.hostile) return;
   NM.parle = b; b.salutT = b.t; nmUI().classList.add('ouvert');
+  if (typeof fauneGeste === 'function' && b.num !== undefined) fauneGeste('parle', { n: b.num, on: 1 });   // chez le gardien aussi, il s'arrête
   const e = document.getElementById('nm-dial');
   e.querySelector('.nm-nom').textContent = b.nm.nom;
   e.querySelector('.nm-role').textContent = nmRole(b.nm) + ' du Seuil';
@@ -570,6 +592,7 @@ function nmEcrire(txt) {
 }
 function nmFinirTexte() { if (NM.frappe) { clearInterval(NM.frappe); NM.frappe = null; } if (NM.ui) NM.ui.querySelector('.nm-dit').textContent = NM.texte; }
 function nmFermer() {
+  if (NM.parle && NM.parle.num !== undefined && typeof fauneGeste === 'function') fauneGeste('parle', { n: NM.parle.num, on: 0 });
   if (NM.frappe) { clearInterval(NM.frappe); NM.frappe = null; }
   NM.parle = null; NM.garde = null; NM.choix = null;
   if (NM.ui) NM.ui.classList.remove('ouvert');

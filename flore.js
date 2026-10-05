@@ -16,6 +16,10 @@
 // et la légendaire repoussent ; l'épique, il faut d'abord l'abattre). Les ingrédients rejoignent le
 // garde-manger : rares (rareté « rare »), légendaires et épiques (« légendaire », « épique »), plus
 // nourrissants, et chacun porte un effet.
+// Partagées entre les joueurs d'une île (voir LISEZ-MOI, section 58) : la plante cueillie l'est pour tous
+// (« fcueille », et l'état de l'île donné au nouveau venu) ; l'épique est une bête du gardien de la faune :
+// elle attaque le joueur le plus proche, d'ici ou d'en face, et chez les autres n'est qu'une marionnette.
+// Abattue, son butin va à qui l'a abattue.
 // Le jeu (index.html) appelle floreIle(), majPlante, osPlante, cueillirPlante ; FLORE_SPEC et
 // FLORE_PRODUITS sont versés dans SPEC et dans les ingrédients.
 const FL_FORMES_R = ['etoile', 'clochettes', 'eventail', 'spirale', 'orbe', 'arbuste'], FL_FORMES_L = ['colosse', 'saule', 'meduse', 'lumiere'];
@@ -52,7 +56,8 @@ for (const [bio, pal, noms] of FL_BIOMES) {
     const id = 'fl' + bio + '_' + i, [part, fam] = FL_PART[forme], tag = FL_TAGS[(bio + i) % FL_TAGS.length];
     FLORE_RARES.push({ id, n, bio, rang, forme, pal, ingr: 'p_' + id });
     const dejaNomme = n.toLowerCase().startsWith(part.toLowerCase()), ni = dejaNomme ? n : part + ' ' + flElide(n);   // « Orbe des aigles », pas « Orbe d'orbe des aigles »
-    FLORE_PRODUITS.push([id, ni, ni.toLowerCase(), fam, rang === 'rare' ? 3 : rang === 'leg' ? 5 : 6, tag, pal[2].slice()]);
+    const court = n.charAt(0).toLowerCase() + n.slice(1);    // sous l'icône et dans le nom des plats : la plante, sans la partie
+    FLORE_PRODUITS.push([id, ni, court, fam, rang === 'rare' ? 3 : rang === 'leg' ? 5 : 6, tag, pal[2].slice()]);
   });
 }
 const FLORE_SPEC = [
@@ -86,10 +91,14 @@ function floreIle() {
   }
 }
 // ---------- la vie : le vent, la repousse, et l'épique qui attaque ----------
-function majPlante(b, dt) {
+function majPlante(b, dt, marionnette) {
   b.t += dt; if (b.hit > 0) b.hit -= dt; b.vx = b.vy = 0;
   const pl = b.pl; if (!pl) return;
   if (b.dead) {
+    // le butin : à qui l'a abattue. Chez le gardien, pas si le dernier coup venait d'en face ; chez un
+    // suiveur, seulement si c'est lui qui vient de la frapper
+    const moi = marionnette ? maintenant() - (b.coupT ?? -99) < 2.5 : !b.tueDistant;
+    if (!b.butin && !moi) b.butin = true;
     if (!b.butin) { b.butin = true; const n = 2; metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); say(`${pl.n} est vaincue · +${n} ${INGR[pl.ingr].n.toLowerCase()} (épique)`, 3.5); burst(b.x, b.y, b.z + 1, 24, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac(); }
     b.dead = 1; return;
   }
@@ -101,20 +110,31 @@ function majPlante(b, dt) {
   }
   if (pl.rang === 'arbuste' || pl.forme === 'arbuste') if (!b.cueillie && dJ < 25 && Math.random() < dt * .8) parts.push({ x: b.x + (Math.random() - .5) * 1.4, y: b.y + (Math.random() - .5) * 1.4, z: b.z + 1.3, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, vz: -.1, g: .3, life: 3, age: 0, col: 'rgb(' + pl.pal[2].join(',') + ')', tl: .05 });
   if (pl.rang !== 'epique') return;
-  // l'épique : elle guette, s'arme (on le voit), frappe ; puis elle se remet
-  const R = pl.forme === 'cracheuse' ? 9 : pl.forme === 'fouetteuse' ? 4.2 : 3.4, vu = P.pv > 0 && dJ < R && Math.abs(P.z - b.z) < 3 && !sousAbri();
-  b.cible = Math.atan2(P.y - b.y, P.x - b.x);
+  if (marionnette) {                                       // chez un suiveur : le gardien dit quand elle s'arme et frappe
+    if (b.etat === 'arme') b.armeT = (b.armeT || 0) + dt;
+    else if (b.etat === 'frappe') { if (b.etatNeuf && pl.forme !== 'cracheuse') SON.jouer(pl.forme === 'gueule' ? 'pilon' : 'tir', {}, b.x, b.y, b.z + 1); b.frappeT = (b.frappeT || 0) + dt; }
+    if (b.etatNeuf && b.etat === 'arme') b.armeT = 0;
+    return;
+  }
+  // l'épique : elle guette, s'arme (on le voit), frappe ; puis elle se remet. Elle vise le joueur le plus
+  // proche, d'ici ou d'en face
+  const J = typeof JC !== 'undefined' && JC ? JC : P, dK = Math.hypot(J.x - b.x, J.y - b.y);
+  const R = pl.forme === 'cracheuse' ? 9 : pl.forme === 'fouetteuse' ? 4.2 : 3.4, vu = J.pv > 0 && dK < R && Math.abs(J.z - b.z) < 3 && !abriDe(J);
+  b.cible = Math.atan2(J.y - b.y, J.x - b.x);
   if (b.etat === 'arme') {
     b.armeT += dt;
     if (b.armeT > (pl.forme === 'cracheuse' ? .9 : .6)) {
-      b.etat = 'frappe'; b.frappeT = 0; b.vise = [P.x, P.y, P.z];
+      b.etat = 'frappe'; b.frappeT = 0; b.vise = [J.x, J.y, J.z];
       if (pl.forme === 'cracheuse') {                        // le venin, en cloche
-        const ox = b.x, oy = b.y, oz = b.z + 1.5, d = Math.max(1, dJ), vol = Math.max(.7, Math.min(1.3, .5 + d * .08)), cx = P.x + (P.vx || 0) * vol * .5, cy = P.y + (P.vy || 0) * vol * .5;
-        TIRS.push({ x: ox, y: oy, z: oz, vx: (cx - ox) / vol, vy: (cy - oy) / vol, vz: (P.z + .5 - oz) / vol + TIR_G * vol * .5, de: b, deg: .04, age: 0, c: pl.pal[3].slice(), spore: true, vol });
+        const ox = b.x, oy = b.y, oz = b.z + 1.5, d = Math.max(1, dK), vol = Math.max(.7, Math.min(1.3, .5 + d * .08)), cx = J.x + (J.vx || 0) * vol * .5, cy = J.y + (J.vy || 0) * vol * .5;
+        TIRS.push({ x: ox, y: oy, z: oz, vx: (cx - ox) / vol, vy: (cy - oy) / vol, vz: (J.z + .5 - oz) / vol + TIR_G * vol * .5, de: b, deg: .04, age: 0, c: pl.pal[3].slice(), spore: true, vol });
+        if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
         SON.jouer('crachat', {}, ox, oy, oz);
-      } else if (dJ < R + .3) {
-        porterCoup(b, P, pl.forme === 'gueule' ? .12 : .09); P.vx += Math.cos(b.cible) * 6; P.vy += Math.sin(b.cible) * 6;
-        burst(P.x, P.y, P.z + .8, 10, '#c83030'); SON.jouer(pl.forme === 'gueule' ? 'pilon' : 'tir', {}, b.x, b.y, b.z + 1);
+      } else if (dK < R + .3) {
+        const kb = [Math.cos(b.cible) * 6, Math.sin(b.cible) * 6, 0];
+        if (typeof frapperJoueur === 'function') frapperJoueur(b, J, pl.forme === 'gueule' ? .12 : .09, { kb });
+        else { porterCoup(b, P, pl.forme === 'gueule' ? .12 : .09); P.vx += kb[0]; P.vy += kb[1]; }
+        burst(J.x, J.y, J.z + .8, 10, '#c83030'); SON.jouer(pl.forme === 'gueule' ? 'pilon' : 'tir', {}, b.x, b.y, b.z + 1);
       }
     }
   } else if (b.etat === 'frappe') { b.frappeT += dt; if (b.frappeT > 1.3) b.etat = 'guette'; }
@@ -133,6 +153,7 @@ function cueillirPlante(b) {
   if (b.cueillie) { say(pl.n + ' a déjà été cueillie · elle repousse', 2); return; }
   const n = pl.rang === 'rare' ? 1 + (Math.random() < .5 ? 1 : 0) : 1;
   metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); b.cueillie = true; b.repousseT = t + (pl.rang === 'rare' ? 600 : 1800);
+  if (b.num !== undefined && RS.ouvert && Autres.size && Compte.uid) diffuser(canalIle(), 'fcueille', { u: Compte.uid, n: b.num, r: Math.round(b.repousseT - t) });
   say(`${FL_RANG[pl.rang]} · ${pl.n} · +${n} ${INGR[pl.ingr].n.toLowerCase()}`, 3);
   burst(b.x, b.y, b.z + (pl.rang === 'leg' ? 2 : .8), pl.rang === 'leg' ? 30 : 14, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac();
 }
@@ -287,3 +308,13 @@ function osPlante(f) {
   return B;
 }
 function dessinPlante(d, sp) { d.ligne(8, 15, 8, 7, [90, 140, 60]); d.rect(5, 3, 11, 7, [240, 170, 220]); d.net(8, 5, [255, 240, 140]); }
+// Une plante cueillie par un joueur d'en face : elle l'est ici aussi, et repousse au même moment.
+function cueillieAilleurs(n, reste) {
+  const b = beasts.find(o => o.num === n && o.sp.plante && o.pl && o.pl.rang !== 'epique');
+  if (!b || !Number.isFinite(reste)) return;
+  const fin = t + Math.max(0, Math.min(1800, reste));
+  b.repousseT = b.cueillie && b.repousseT > fin ? b.repousseT : fin; b.cueillie = true;
+  burst(b.x, b.y, b.z + (b.pl.rang === 'leg' ? 2 : .8), 8, 'rgb(' + b.pl.pal[3].join(',') + ')');
+}
+// Pour le nouveau venu : les plantes déjà cueillies ici, et dans combien de temps elles repoussent.
+const plantesCueillies = () => beasts.filter(o => o.sp.plante && o.pl && o.cueillie && o.num !== undefined && o.repousseT > t).flatMap(o => [o.num, Math.round(o.repousseT - t)]);

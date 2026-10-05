@@ -107,9 +107,11 @@ function majVillageois(b, dt) {
   if (b.pv <= 0) { mourirBete(b, 'combat'); VL.gens = VL.gens.filter(g => g !== b); VL.alerte = t + 60; return; }
   if (b.t - (b.peurT ?? -99) > 20) b.pv = Math.min(1, b.pv + dt * .01);
   b.ph = (b.ph || 0) + dt * (b.vit || 0) * 1.1;
-  b.parle = VL.parle === b; const dJ = Math.hypot(P.x - b.x, P.y - b.y);
+  // il parle : avec vous, ou avec un joueur d'en face (faune.js) ; il s'arrête et regarde qui lui parle
+  const lui = b.parleD > b.t && b.parleJ ? Autres.get(b.parleJ) : null;
+  b.parle = VL.parle === b || !!lui; const dJ = Math.hypot(P.x - b.x, P.y - b.y);
   b.salut = !b.parle && dJ < 4 && !vlNuit() && b.etat !== 'fuir' && b.etat !== 'combat' ? 1 : 0;
-  if (b.parle) { b.dirT = Math.atan2(P.y - b.y, P.x - b.x); b.vit = 0; vlTourner(b, dt); return; }
+  if (b.parle) { const Q = VL.parle === b ? P : lui; b.dirT = Math.atan2(Q.y - b.y, Q.x - b.x); b.vit = 0; vlTourner(b, dt); return; }
   const M = b.maison, porte = vlPorte(M), nuit = vlNuit(), repas = vlRepas(), menace = vlMenace(b);
   // la peur, et le courage des chasseurs
   if (menace && (b.metier === 'chasseur' && b.pv > .35 ? false : true) && Math.hypot(menace.x - b.x, menace.y - b.y) < 9) { b.etat = 'fuir'; b.fuitT = b.t + 6; VL.alerte = t + 30; b.cache && (b.cache = false); }
@@ -298,6 +300,7 @@ function vlDit(b, sujet) {
 function vlParler(b) {
   if (b.dead || b.cache) return;
   VL.parle = b; b.salutT = b.t; vlUI().classList.add('ouvert');
+  if (typeof fauneGeste === 'function' && b.num !== undefined) fauneGeste('parle', { n: b.num, on: 1 });   // chez le gardien aussi, il s'arrête
   VL.ui.querySelector('.nm-nom').textContent = b.nm.nom; VL.ui.querySelector('.nm-role').textContent = VL_DIT_METIER[b.metier] + ' du village';
   VL.ui.style.setProperty('--nm-lueur', 'rgb(' + b.nm.clair.join(',') + ')');
   vlNoeud(b.metier === 'enfant' ? ['Bonjour ! T\'es qui, toi ?', 'Tu viens d\'où ?', 'Oh, un étranger !'][Math.random() * 3 | 0] : (vlNuit() ? 'Qui va là, à cette heure ?' : ['Bonjour, voyageur.', 'Tiens, une tête nouvelle.', 'Sois le bienvenu.'][Math.random() * 3 | 0]));
@@ -319,7 +322,9 @@ function vlEcrire(txt) {
   const p = VL.ui.querySelector('.nm-dit'); VL.texte = txt; let i = 0; if (VL.frappe) clearInterval(VL.frappe); p.textContent = '';
   VL.frappe = setInterval(() => { i += 2; p.textContent = txt.slice(0, i); if (i >= txt.length) { clearInterval(VL.frappe); VL.frappe = null; } }, 16);
 }
-function vlFermer() { if (VL.frappe) { clearInterval(VL.frappe); VL.frappe = null; } VL.parle = null; VL.choix = null; if (VL.ui) VL.ui.classList.remove('ouvert'); }
+function vlFermer() {
+  if (VL.parle && VL.parle.num !== undefined && typeof fauneGeste === 'function') fauneGeste('parle', { n: VL.parle.num, on: 0 });
+  if (VL.frappe) { clearInterval(VL.frappe); VL.frappe = null; } VL.parle = null; VL.choix = null; if (VL.ui) VL.ui.classList.remove('ouvert'); }
 function vlUI() {
   if (VL.ui) return VL.ui;
   const d = document.createElement('div'); d.id = 'vl-dial';

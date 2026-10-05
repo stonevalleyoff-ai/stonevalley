@@ -8,8 +8,11 @@
 //  vapeur, et la salle du gardien se referme sur qui y entre.
 //  Façon roguelike : ce qu'on ramasse en bas n'est à soi qu'une fois remonté. Le monte-charge de
 //  chaque étage remonte avec le butin ; terrassé, on se réveille près de la trappe, sans lui.
-//  Tous les joueurs d'une île ont le même souterrain et se voient étage par étage ; chacun garde
-//  ses coffres et ses machines.
+//  Tous les joueurs d'une île ont le même souterrain et se voient étage par étage. Les machines d'un
+//  étage sont partagées comme la faune d'en haut (faune.js) : un gardien par étage les fait vivre, elles
+//  visent le joueur le plus proche ; une machine abattue l'est pour tous ceux qui sont là. Les portes de la
+//  salle du gardien se ferment sur qui y entre, les plaques claquent sous les pas de chacun. Les coffres,
+//  eux, restent à chacun : ce qu'on trouve en bas est à soi.
 //  Ce fichier est chargé AVANT le script du jeu : il ne déclare que des fonctions et son propre
 //  état (tout est préfixé dj / DJ), et ne touche au monde qu'une fois appelé par le jeu.
 // ============================================================
@@ -184,7 +187,7 @@ function djPeupler() {
     if (st.vaincus.includes(k)) return null;
     const sp = specById[id]; if (!sp || !sol(x, y)) return null;
     const b = naitre(sp, x, y, sp.mat * 2);
-    b.djIdx = k; b.djSalle = salle; b.ph = R() * 6.28; b.home = [x, y];
+    b.djIdx = k; b.num = 100000 + k; b.djSalle = salle; b.ph = R() * 6.28; b.home = [x, y];   // son numéro : le même chez tous ceux de l'étage (au-delà de ceux des plantes)
     b.dir = b.dirT = dir ?? R() * 6.28; b.pv = 1;
     beasts.push(b); return b;
   };
@@ -286,19 +289,21 @@ function djPeupler() {
 //  CE QUI BOUGE À CHAQUE IMAGE : portes, vapeur, plaques, et les armes
 // ============================================================
 const DJ_VAP = { per: 3.4, on: 1.2 };
-const djVapeurOn = gr => ((t + gr.ph) % DJ_VAP.per) < DJ_VAP.on;
+const djVapeurOn = gr => (((typeof horlogeLaser === 'function' ? horlogeLaser() : t) + gr.ph) % DJ_VAP.per) < DJ_VAP.on;   // l'horloge du monde : la même vague pour tous
 const djDansSalle = (q, x, y, m = 0) => x >= q.x + m && x < q.x + q.w - m && y >= q.y + m && y < q.y + q.h - m;
 function djPortes(q, fermer) {
   if (!!q.fermee === fermer) return;
   q.fermee = fermer;
   for (const i of q.portes) {
     const x = i % WS + .5, y = (i / WS | 0) + .5;
-    if (fermer && Math.hypot(P.x - x, P.y - y) < .9) continue;       // on ne ferme pas sur quelqu'un
+    if (fermer && djJoueurs().some(Q => Math.hypot(Q.x - x, Q.y - y) < .9)) continue;       // on ne ferme pas sur quelqu'un
     Hgt[i] = fermer ? DJ_Z0 + DJ_MUR : DJ_Z0; signalDecor('dalle', i);
   }
   SON.jouer('clank', { vol: 1 }, q.cx, q.cy, DJ_Z0 + 1);
   say(fermer ? 'les portes se referment · le gardien ne vous laissera pas sortir' : 'les portes se rouvrent', 3);
 }
+// Ceux de l'étage : soi, et les joueurs d'en face (le canal de l'île est celui de l'étage).
+const djJoueurs = () => [P, ...(typeof Autres !== 'undefined' ? Autres.values() : [])].filter(Q => Q.pv > 0);
 function djMajMonde(dt) {
   // les armes du donjon marchent partout : la chaleur retombe, les traits s'effacent
   if (t - DJ.dernierTir > .8) DJ.chaleur = Math.max(0, DJ.chaleur - dt * .45);   // il ne refroidit qu'au repos
@@ -315,7 +320,7 @@ function djMajMonde(dt) {
     if (q.role !== 'garde' && q.role !== 'horloge') return;
     const vivant = beasts.some(b => b.djSalle === s && b.sp.id === 'gardien' && !b.dead);
     if (!vivant) { if (q.fermee) djPortes(q, false); return; }
-    if (!q.fermee && djDansSalle(q, P.x, P.y, 1.2) && P.pv > 0) djPortes(q, true);
+    if (!q.fermee && djJoueurs().some(Q => djDansSalle(q, Q.x, Q.y, 1.2))) djPortes(q, true);
   });
   // la vapeur : les grilles soufflent par rangées, en vague
   const cx = P.x | 0, cy = P.y | 0;
@@ -331,7 +336,7 @@ function djMajMonde(dt) {
   }
   // les plaques : un déclic, puis trois fléchettes du bout du couloir
   for (const pl of DJ.plaques) {
-    const sur = Math.abs(P.x - pl.x) < .6 && Math.abs(P.y - pl.y) < .6 && P.z < DJ_Z0 + .4;
+    const sur = djJoueurs().some(Q => Math.abs(Q.x - pl.x) < .6 && Math.abs(Q.y - pl.y) < .6 && Q.z < DJ_Z0 + .4);   // sous les pas de chacun
     if (sur && t - pl.t > 2.5) { pl.t = t; pl.arme = t + .35; SON.jouer('clic', {}, pl.x, pl.y, DJ_Z0); }
     if (pl.arme && t >= pl.arme) {
       pl.arme = 0;
@@ -342,7 +347,7 @@ function djMajMonde(dt) {
         const ox = pl.x + ux * (d - .6), oy = pl.y + uy * (d - .6), src = { x: ox, y: oy, z: DJ_Z0, sp: { sz: 1, oeil: [255, 140, 60] } };
         for (let k = 0; k < 3; k++) {
           const tz = DJ_Z0 + .45 + (k - 1) * .25, vol = (d - .6) / 18;
-          TIRS.push({ x: ox, y: oy, z: tz, vx: -ux * 18, vy: -uy * 18, vz: TIR_G * vol * .5, de: src, deg: .07, age: -k * .08, c: [255, 150, 60] });
+          TIRS.push({ x: ox, y: oy, z: tz, vx: -ux * 18, vy: -uy * 18, vz: TIR_G * vol * .5, de: src, deg: .07, age: -k * .08, c: [255, 150, 60], fantome: Autres.size > 0 });   // à plusieurs, chacun encaisse ce qu'il voit (et les machines n'en souffrent nulle part)
         }
         SON.jouer('tir', { vol: .7 }, ox, oy, DJ_Z0 + .5);
       }
@@ -571,33 +576,34 @@ function djMajBete(b, dt) {
   if (b.dead) { b.dead += dt; chute(b, dt); return; }
   b.faim = 0; b.soif = 0; b.nrj = 1;
   if (b.pv <= 0) { mourirBete(b, 'brisé'); return; }
-  const dJ = Math.hypot(P.x - b.x, P.y - b.y);
-  const vu = P.pv > 0 && dJ < sp.vue && Math.abs(P.z - b.z) < 3 && voitCible(b, P);
-  if (vu) { if (!(b.t < (b.alerte || 0))) SON.jouer('vise', { vol: .6 }, b.x, b.y, b.z + .6); b.alerte = b.t + 6; b.derniere = [P.x, P.y]; }
-  if (b.hit > .2) { b.alerte = b.t + 6; b.derniere = [P.x, P.y]; }   // frappée, elle sait d'où ça vient
+  const J = typeof JC !== 'undefined' && JC ? JC : P;     // le joueur le plus proche de l'étage (faune.js)
+  const dJ = Math.hypot(J.x - b.x, J.y - b.y);
+  const vu = J.pv > 0 && dJ < sp.vue && Math.abs(J.z - b.z) < 3 && voitCible(b, J);
+  if (vu) { if (!(b.t < (b.alerte || 0))) SON.jouer('vise', { vol: .6 }, b.x, b.y, b.z + .6); b.alerte = b.t + 6; b.derniere = [J.x, J.y]; }
+  if (b.hit > .2) { b.alerte = b.t + 6; b.derniere = [J.x, J.y]; }   // frappée, elle sait d'où ça vient
   const chasse = b.t < (b.alerte || 0);
   if (sp.corps === 'tourelle') {
     b.vx = b.vy = 0;
     if (vu) {
-      b.dirT = Math.atan2(P.y - b.y, P.x - b.x); b.etat = 'viser';
+      b.dirT = Math.atan2(J.y - b.y, J.x - b.x); b.etat = 'viser';
       const T = sp.tir;
-      if (dJ <= T.portee && dJ > 1 && b.t - (b.lastAtk || -9) >= T.cadence && b.t > (b.pret || .8)) tirer(b, P);
+      if (dJ <= T.portee && dJ > 1 && b.t - (b.lastAtk || -9) >= T.cadence && b.t > (b.pret || .8)) tirer(b, J);
     } else { b.etat = chasse ? 'guet' : 'veiller'; b.dirT = b.dir + Math.sin(b.t * .7 + b.ph) * dt * 1.2; }
   } else {
     const C = DJ_COMBAT[sp.corps];
     let tx = b.home[0], ty = b.home[1], vit = 0;
     b.etat = chasse ? 'assaut' : 'garder';
-    if (chasse) { const c = vu ? [P.x, P.y] : b.derniere || b.home; tx = c[0]; ty = c[1]; vit = sp.spd; }
+    if (chasse) { const c = vu ? [J.x, J.y] : b.derniere || b.home; tx = c[0]; ty = c[1]; vit = sp.spd; }
     else if (Math.hypot(tx - b.x, ty - b.y) > 1.2) vit = sp.spd * .45;
     else if (sp.corps === 'araignee') {                      // au repos, elle soigne les machines blessées alentour
       const m = beasts.find(o => o !== b && !o.dead && o.sp.donjon && o.pv < 1 && Math.hypot(o.x - b.x, o.y - b.y) < 5);
       if (m) { tx = m.x; ty = m.y; vit = sp.spd * .6; if (Math.hypot(m.x - b.x, m.y - b.y) < 1.2) { vit = 0; m.pv = Math.min(1, m.pv + dt * .06); if (Math.random() < dt * 4) burst(m.x, m.y, m.z + .5, 1, '#8cff9c'); } }
     }
-    if (!b.as && vu && dJ < C.portee + .4 && b.t >= (b.pret || 0) && Math.abs(P.z - b.z) < 1.4) lancerAssaut(b, P, C);
+    if (!b.as && vu && dJ < C.portee + .4 && b.t >= (b.pret || 0) && Math.abs(J.z - b.z) < 1.4) lancerAssaut(b, J, C);
     if (b.as) majAssaut(b, dt);
     else if (b.etourdi > 0) { b.etourdi -= dt; const k = Math.max(0, 1 - dt * 3); b.vx *= k; b.vy *= k; }
     else if (vit > 0 && Math.hypot(tx - b.x, ty - b.y) > (chasse ? 1.1 : .5)) pasVersBete(b, tx, ty, vit, dt);
-    else { b.vx *= Math.max(0, 1 - dt * 6); b.vy *= Math.max(0, 1 - dt * 6); if (vu) b.dirT = Math.atan2(P.y - b.y, P.x - b.x); }
+    else { b.vx *= Math.max(0, 1 - dt * 6); b.vy *= Math.max(0, 1 - dt * 6); if (vu) b.dirT = Math.atan2(J.y - b.y, J.x - b.x); }
     const pas = Math.max(1, Math.min(8, Math.ceil(Math.hypot(b.vx, b.vy) * dt / .35)));
     for (let k = 0; k < pas; k++) { const r = pasBete(b, b.x + b.vx * dt / pas, b.y + b.vy * dt / pas, false); if (r === 0) { b.vx *= -.3; b.vy *= -.3; break; } }
     b.x = Math.max(2, Math.min(WS - 3, b.x)); b.y = Math.max(2, Math.min(WS - 3, b.y));
