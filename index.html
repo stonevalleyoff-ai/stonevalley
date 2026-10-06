@@ -219,6 +219,7 @@
   #cases .ic{position:absolute;left:8px;top:8px;width:32px;height:32px;}
   #cases kbd,#combat kbd,#bsac kbd{position:absolute;left:5px;top:3px;font-size:9px;font-family:inherit;color:#8d9ab4;display:none;}
   #cases em{position:absolute;right:3px;bottom:1px;font-size:9px;font-style:normal;color:#8fc4ff;}
+  #cases button.plat em{font-size:11px;font-weight:700;color:#fff;text-shadow:1px 1px 0 #000,-1px 1px 0 #000,1px -1px 0 #000,-1px -1px 0 #000;}
   @media (hover:hover) and (pointer:fine){ #cases kbd,#combat kbd,#bsac kbd{display:block;} }
   /* Le combat, en bas à droite : sauter, frapper, et l'action du moment. */
   #combat{right:calc(10px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:172px;height:160px;}
@@ -5408,6 +5409,15 @@ function icone(id) {
 }
 // Toutes les vignettes vont dans une feuille de style, écrite une fois : le panneau, réécrit à
 // chaque changement, n'y fait plus référence que par un nom de classe.
+// Une vignette née après la feuille (un plat cuisiné, à la couleur de son ingrédient) s'y ajoute d'une règle.
+const iconesPosees = new Set();
+function poserIcone(id) {
+  if (iconesPosees.has(id)) return;
+  const st = document.getElementById && document.getElementById('sac-icones');
+  if (!st || !document.createTextNode) return;          // pas encore de feuille : elle la prendra en naissant
+  const u = icone(id); iconesPosees.add(id);
+  if (u) st.appendChild(document.createTextNode(`\n.ic-${id}{background-image:url(${u});}`));
+}
 function feuilleIcones() {
   if (document.getElementById('sac-icones') || !document.createElement) return;
   const st = document.createElement('style');
@@ -5416,6 +5426,7 @@ function feuilleIcones() {
   st.textContent = (grain ? `#sac{--grain:url(${grain});}\n` : '')
     + Object.keys(DESSINS).map(id => { const u = icone(id); return u ? `.ic-${id}{background-image:url(${u});}` : ''; }).join('\n');
   if (document.head && document.head.appendChild) document.head.appendChild(st);
+  for (const id in DESSINS) iconesPosees.add(id);
 }
 
 // ============================================================
@@ -5510,7 +5521,8 @@ const maintenantSac = () => performance.now() / 1000;
 // ---------- onglet Sac ----------
 function pageSac() {
   // la sélection doit toujours désigner quelque chose de réel
-  if (choixSac && !choixSac.startsWith('vide:') && !P.objets[choixSac]) choixSac = null;
+  if (choixSac && !choixSac.startsWith('vide:') && !P.objets[choixSac]
+      && !(estPlat(choixSac) && (partsPlat(choixSac) > 0 || P.raccourcis.includes(choixSac)))) choixSac = null;
   const equip = EMPLACEMENTS.map(e => {
     const id = P.equip[e.id], o = id && objet(id);
     const choisi = o ? choixSac === id : choixSac === 'vide:' + e.id;
@@ -5532,6 +5544,8 @@ function pageSac() {
         attr: ` data-choix="${o.id}"`, label: o.n + (P.equip[o.emp] === o.id ? ', porté' : '') })).join('')}</div>`
     : `<div class="vide-texte">Rien n'a encore été fabriqué.<button class="btn" data-onglet="etabli">Ouvrir l'établi</button></div>`;
   const cases = P.raccourcis.map((id, k) => {
+    if (estPlat(id)) return `<div class="emplacement">` + caseObjet(icPlat(id), { nb: partsPlat(id), choisie: choixSac === id,
+      attr: ` data-choix="${ESC(id)}"`, label: `Case ${k + 1} : ${nomPlat(id)}` }) + `<span>${k + 1}</span></div>`;
     const o = id && P.objets[id] && objet(id);
     return `<div class="emplacement">` + (o
       ? caseObjet(id, { choisie: choixSac === id, attr: ` data-choix="${id}"`, label: `Case ${k + 1} : ${o.n}` })
@@ -5546,12 +5560,13 @@ function pageSac() {
         return L.length ? `<h3>Garde-manger</h3><div class="rangee">` + L.map(id =>
           `<div class="emplacement">${caseObjet(icIngr(id), { nb: sacIngr(id), attr: ` data-cru="${id}"`, label: INGR[id].n + (INGR[id].fam === 'viande' ? ' : à cuire' : ' : manger cru') })}<span>${ESC(INGR[id].court)}</span></div>`).join('')
           + `</div><p class="note" style="margin:4px 2px 0">Un appui : on mange cru (la viande, jamais). Pour cuisiner : onglet Cuisine, près d'un feu.</p>` : ''; })()
-    + blocPlats() + `</div>`
+    + `</div>`
     + `<div class="col"><h3>Matières</h3>${noteReserve()}<div class="rangee">${matieres}</div>`
-    + `<h3>Objets</h3>${grille}${ficheSac()}</div></div>`;
+    + `<h3>Objets</h3>${grille}${grillePlats()}${ficheSac()}</div></div>`;
 }
 function ficheSac() {
   if (!choixSac) return possedeRien() ? '' : `<div class="fiche calme">Toucher un objet pour le voir ici.</div>`;
+  if (estPlat(choixSac)) return fichePlat(choixSac);
   if (choixSac.startsWith('vide:')) {
     const emp = choixSac.slice(5), e = EMPLACEMENTS.find(x => x.id === emp);
     const dispo = OBJETS.filter(o => o.emp === emp && P.objets[o.id]);
@@ -5576,7 +5591,7 @@ function ficheSac() {
     + (autre ? `<span class="note">à la place de ${ESC(autre.n)}</span>` : '')
     + `</div>${gestesCases(o)}</div></div>`;
 }
-// Mettre un objet dans l'une des cinq cases, ou l'en retirer : la case qui le porte est enfoncée.
+// Mettre un objet (ou une pile de plats) dans l'une des cinq cases, ou l'en retirer : la case qui le porte est enfoncée.
 const gestesCases = o => `<div class="gestes cases"><span class="note">Case :</span>`
   + [0, 1, 2, 3, 4].map(k => `<button class="btn" data-rac="${k}" aria-pressed="${P.raccourcis[k] === o.id}"`
     + ` title="${P.raccourcis[k] === o.id ? 'Retirer de la case ' + (k + 1) : 'Mettre en case ' + (k + 1)}">${k + 1}</button>`).join('') + `</div>`;
@@ -6232,7 +6247,7 @@ function clicSac(b) {
   else if (d.souscuisine) { sousCuisine = d.souscuisine; majSac(); }
   else if (d.voir) { filtreEtabli = d.voir; choixEtabli = null; choisirOnglet('etabli'); }
   else if (d.voirsac) { choixSac = d.voirsac; choisirOnglet('sac'); }
-  else if (d.rac !== undefined && choixSac && P.objets[choixSac]) { assignerRaccourci(choixSac, +d.rac); casesSig = ''; majSac(); }
+  else if (d.rac !== undefined && choixSac && (P.objets[choixSac] || estPlat(choixSac))) { assignerRaccourci(choixSac, +d.rac); casesSig = ''; majSac(); }
   else if (d.fa) {
     const avant = P.objets[d.fa], fl = P.fleches, li = P.liens, bm = P.baumes;
     fabriquer(d.fa);
@@ -14563,18 +14578,21 @@ function preparer(ids) {
   return { c: cle, n, q, soin: Math.round(soinF * 100) / 100, tag, d: uniq ? 0 : d, ...(uniq ? { u } : {}), so: souffle || pu >= 3 ? 1 : 0, col: main.c, pu, ...(pu >= 3 ? { rv: pu >= 4 ? .02 : .01, rd: pu >= 4 ? 90 : 60 } : {}) };
 }
 // ---------- ce qui se garde ----------
-// Un plat sort chaud et ne se garde pas : on le mange, ou on le donne à une compagne près du feu, tout
-// de suite ; sinon il est perdu (sac fermé, feu quitté, autre plat cuisiné). Certains font plusieurs
-// parts et vont au sac : ceux « d'un moment » se gâtent en vingt minutes de jeu, ceux « de longue
-// conservation » tiennent. Une part vaut la moitié du plat entier (vie, durée de l'effet).
-const GARDE_MOMENT = 20 * 60;
+// Tout plat va au sac (PLATS_AU_SAC) : c'est un objet, avec sa vignette, qu'on met dans une case du
+// bord droit. Un plat « chaud » fait une part et se garde dix minutes de jeu ; certains font plusieurs
+// parts : ceux « d'un moment » se gâtent en vingt minutes, ceux « de longue conservation » tiennent.
+// Une part vaut la moitié du plat entier (vie, durée de l'effet).
+// PLATS_AU_SAC à false : la règle d'avant — un plat chaud ne se garde pas, on le mange ou on le donne
+// à une compagne près du feu tout de suite, sinon il est perdu.
+const PLATS_AU_SAC = true;
+const GARDE_MOMENT = 20 * 60, GARDE_CHAUD = 10 * 60;
 const CONSERVE = { ragout: [3, 0], soupe: [3, 0], bois: [3, 0], mt: [2, 0], tourte: [2, 1], confiture: [2, 1], sirop: [2, 1],
   caramel: [1, 1], pain: [2, 1], galette: [2, 1], 'r:lune': [3, 0], 'r:ambre': [4, 1], 'r:horlogers': [4, 0],
   'r:lanterne': [2, 1], 'r:braise': [3, 0], 'r:premiers': [3, 1] };
-const conserve = c => CONSERVE[c.startsWith('r:') ? c : c.split(':')[0]] || null;   // [parts, longue] ; null : se mange chaud
+const conserve = c => CONSERVE[c.startsWith('r:') ? c : c.split(':')[0]] || null;   // [parts, longue] ; null : un plat chaud
 const dureeTxt = s => { const m = Math.ceil(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min'; };
 const gardeTxt = p => ((p.parts || 1) > 1 ? p.parts + ' parts · ' : '') + (p.g === undefined ? 'longue conservation' : 'se garde encore ' + dureeTxt(p.g));
-const conserveTxt = c => { const k = conserve(c); return !k ? 'se mange chaud' : (k[0] > 1 ? k[0] + ' parts · ' : '') + (k[1] ? 'longue conservation' : 'se garde ' + dureeTxt(GARDE_MOMENT)); };
+const conserveTxt = c => { const k = conserve(c); return !k ? (PLATS_AU_SAC ? 'se garde ' + dureeTxt(GARDE_CHAUD) : 'se mange chaud') : (k[0] > 1 ? k[0] + ' parts · ' : '') + (k[1] ? 'longue conservation' : 'se garde ' + dureeTxt(GARDE_MOMENT)); };
 const effetTxt = p => !p.tag ? '' : EFFETS_UNIQUES.has(p.tag) ? ' · ' + (p.tag === 'coeur' ? 'un cœur en plus' : EFFETS[p.tag] + ' +' + Math.round((p.u || 0) * 100) + ' %') : ' · ' + EFFETS[p.tag] + (ROMAIN[p.pu || 1] || '') + ' ' + Math.round(p.d / 60 * 10) / 10 + ' min';
 const valeurTxt = p => `+${Math.round(p.soin * 100)} % de vie${p.so ? ' · souffle' : ''}${effetTxt(p)}${p.rv ? ' · régénération ' + Math.round(p.rv * 100) + ' %/s ' + p.rd + ' s' : ''}`;
 let servi = null, gateT = 0;                          // le plat chaud, tant qu'on ne l'a ni mangé ni donné
@@ -14665,9 +14683,9 @@ function cuire() {
   const plat = preparer(marmiteSel), ids = marmiteSel.slice();
   for (const id of marmiteSel) oterIngr(id);
   marmiteSel = [];
-  const cs = conserve(plat.c);
-  if (cs) {                                           // plusieurs parts, ou longue conservation : au sac
-    plat.parts = cs[0]; if (!cs[1]) plat.g = GARDE_MOMENT;
+  const chaud = !conserve(plat.c), cs = conserve(plat.c) || (PLATS_AU_SAC ? [1, 0] : null);
+  if (cs) {                                           // au sac : une part chaude, plusieurs parts, ou longue conservation
+    plat.parts = cs[0]; if (!cs[1]) plat.g = chaud ? GARDE_CHAUD : GARDE_MOMENT;
     if (plat.parts > 1) { plat.soin = Math.round(plat.soin * 50) / 100; plat.d = Math.round(plat.d / 2); }
     P.plats.unshift(plat); if (P.plats.length > PLATS_MAX) P.plats.length = PLATS_MAX;
   } else { if (servi) gaspiller(); servi = plat; }  // chaud : à manger ou donner tout de suite
@@ -14801,10 +14819,97 @@ function blocServi() {
     + (L.length ? `<div class="servi-a">` + L.map((c, k) => `<button class="btn" data-donner="${k}">Donner à ${ESC(c.comp ? c.comp.nom : c.sp.n)}</button>`).join('') + `</div>` : '')
     + `<p class="note" style="margin:4px 2px 8px">Il ne se garde pas : mangez-le, ou donnez-le à une compagne près du feu. Sac fermé ou feu quitté, il est perdu.</p>`;
 }
+// ---------- les plats, des objets du sac ----------
+// Une pile = les plats de même recette, même effet, même niveau : « plat:<recette>~<effet>~<niveau> ».
+// C'est ce nom qu'on range dans une case du bord droit ; la case garde sa pile même vide (on la
+// retrouve en recuisinant). On mange d'abord la part la plus près de se gâter.
+const PLAT_FORME = { ragout: 'bol', soupe: 'bol', bois: 'bol', voyageur: 'bol', 'r:lune': 'bol', 'r:braise': 'bol',
+  grillade: 'broche', brochette: 'broche', sucre: 'broche', fleurs: 'broche', mt: 'broche', tourte: 'tourte', 'r:ambre': 'tourte',
+  confiture: 'pot', compote: 'pot', caramel: 'pot', 'r:lanterne': 'pot', sirop: 'flacon', infusion: 'tasse',
+  pain: 'pain', galette: 'pain', 'r:premiers': 'pain', poelee: 'poele', roti: 'poele', salade: 'salade', 'r:horlogers': 'festin', 'r:serum': 'fiole' };
+const EFFET_COUL = { nuit: [120, 140, 255], braise: [255, 120, 50], vif: [255, 220, 80], fort: [230, 60, 60], robuste: [150, 150, 160], souffle: [120, 220, 255],
+  surplus: [255, 110, 140], coeur: [255, 60, 90], second: [170, 240, 255], repousse: [190, 120, 60], invisible: [220, 220, 245], cueilleur: [120, 200, 90],
+  saut: [255, 170, 220], plume: [245, 245, 245], silence: [100, 110, 130], epines: [90, 150, 60], vampire: [150, 30, 60], apprivoiseur: [255, 190, 120],
+  antidote: [80, 220, 170], gel: [150, 210, 255], meute: [240, 150, 40] };
+function estPlat(id) { return typeof id === 'string' && id.startsWith('plat:'); }
+function idPlat(p) { return 'plat:' + p.c + '~' + (p.tag || '') + '~' + (p.tag ? p.pu || 1 : 0); }
+function lirePlat(id) { const q = id.slice(5).split('~'); return { cle: q[0], tag: EFFETS[q[1]] ? q[1] : null, pu: +q[2] || 1 }; }
+function partsPlat(id) { let n = 0; for (const p of P.plats) if (idPlat(p) === id) n += p.parts || 1; return n; }
+function prochainPlat(id) {                              // l'indice de la part qu'on mange d'abord
+  let k = -1; P.plats.forEach((p, i) => { if (idPlat(p) === id && (k < 0 || (p.g ?? 1e9) <= (P.plats[k].g ?? 1e9))) k = i; });
+  return k;
+}
+function pilesPlats() { const M = new Map(); for (const p of P.plats) { const id = idPlat(p); M.set(id, (M.get(id) || 0) + (p.parts || 1)); } return [...M]; }
+function nomPlat(id) { const k = prochainPlat(id), r = P.recettes[lirePlat(id).cle]; return k >= 0 ? P.plats[k].n : r ? r.n : 'Plat'; }
+function effetPlat(id) { const q = lirePlat(id); return q.tag ? EFFETS[q.tag] + (EFFETS_UNIQUES.has(q.tag) ? '' : ROMAIN[q.pu] || '') : ''; }
+function couleurPlat(id) {
+  const k = prochainPlat(id); if (k >= 0 && Array.isArray(P.plats[k].col)) return P.plats[k].col;
+  const r = P.recettes[lirePlat(id).cle], m = r && r.i ? r.i.map(x => INGR[x]).filter(Boolean).sort((a, b) => b.r - a.r)[0] : null;
+  return m ? m.c : [196, 130, 80];
+}
+// La vignette d'un plat : sa forme (bol, broche, tourte, pot, flacon, tasse, pain, poêle, salade, festin,
+// fiole), à la couleur de son ingrédient principal, et un petit losange à la couleur de son effet.
+function icPlat(id) {
+  const q = lirePlat(id), c = couleurPlat(id).map(v => Math.max(0, Math.min(255, v | 0)) & 0xf8);
+  const f = PLAT_FORME[q.cle.startsWith('r:') ? q.cle : q.cle.split(':')[0]] || 'bol';
+  const ic = 'plat_' + f + '_' + ((c[0] << 13) | (c[1] << 5) | (c[2] >> 3)).toString(36) + (q.tag ? '_' + q.tag : '');
+  if (!DESSINS[ic]) DESSINS[ic] = d => dessinPlat(d, f, c, q.tag);
+  poserIcone(ic); return ic;
+}
+function dessinPlat(d, forme, c, tag) {
+  const f = c.map(v => v * .68 | 0), cl = c.map(v => Math.min(255, v + 46)), terre = [196, 150, 104], terreF = [150, 106, 70];
+  const croute = [214, 166, 92], crouteC = [238, 200, 128], verre = [200, 226, 236], vapeur = [236, 240, 246];
+  const fume = () => { d.net(6, 3, vapeur); d.net(7, 2, vapeur); d.net(6, 1, vapeur); d.net(10, 3, vapeur); d.net(9, 2, vapeur); };
+  switch (forme) {
+    case 'broche': d.ligne(2, 14, 14, 2, PIX.boisC); d.disque(5, 11, 2.3, c); d.disque(8.5, 7.5, 2.3, cl); d.disque(12, 4, 2.1, c); d.net(4, 10, cl); d.net(11, 3, cl); break;
+    case 'tourte': d.rect(2, 9, 13, 12, croute); d.rect(3, 13, 12, 13, terreF); d.rect(3, 6, 12, 8, crouteC); d.rect(5, 5, 10, 5, crouteC);
+      d.rect(10, 9, 13, 11, c); d.net(6, 7, f); d.net(8, 6, f); d.net(10, 7, f); break;
+    case 'pot': d.rect(4, 6, 11, 13, c); d.rect(5, 14, 10, 14, f); d.rect(5, 5, 10, 5, verre); d.rect(4, 2, 11, 4, PIX.papier); d.rect(3, 4, 12, 4, PIX.ficelle);
+      d.rect(6, 9, 9, 11, PIX.papier); d.net(5, 7, cl); d.net(5, 8, cl); break;
+    case 'flacon': d.disque(8, 10.5, 4.4, c); d.rect(7, 3, 8, 6, verre); d.rect(6, 5, 9, 5, verre); d.rect(7, 1, 8, 2, PIX.bois); d.net(6, 9, cl); d.net(6, 10, cl); d.net(7, 8, cl); break;
+    case 'tasse': d.rect(3, 7, 10, 12, PIX.os); d.rect(4, 13, 9, 13, PIX.pierre); d.rect(4, 7, 9, 8, c); d.rect(11, 8, 12, 8, PIX.os); d.rect(13, 9, 13, 10, PIX.os); d.rect(11, 11, 12, 11, PIX.os); fume(); break;
+    case 'pain': { const m = croute.map((v, j) => (v * .65 + c[j] * .35) | 0);
+      d.rect(2, 8, 13, 12, m); d.rect(3, 6, 12, 7, m); d.rect(4, 5, 11, 5, m); d.rect(3, 13, 12, 13, terreF);
+      d.ligne(5, 6, 4, 9, crouteC); d.ligne(8, 6, 7, 9, crouteC); d.ligne(11, 6, 10, 9, crouteC); break; }
+    case 'poele': d.disque(7, 9.5, 5.2, [70, 72, 80]); d.disque(7, 9.5, 3.7, c); d.net(6, 8, cl); d.net(8, 10, f); d.net(5, 10, cl); d.ligne(11, 6, 14, 3, PIX.boisF, 2); break;
+    case 'salade': d.rect(2, 9, 13, 10, terre); d.rect(3, 11, 12, 12, terre); d.rect(5, 13, 10, 13, terreF);
+      d.disque(5, 7, 2, c); d.disque(8, 6, 2.2, cl); d.disque(11, 7, 2, c); d.net(7, 8, PIX.fibreC); d.net(10, 5, PIX.fibreC); d.net(4, 6, PIX.fibre); break;
+    case 'festin': d.rect(1, 12, 14, 13, PIX.or); d.rect(3, 14, 12, 14, terreF); d.disque(8, 9, 4.2, c); d.rect(3, 12, 13, 12, PIX.or);
+      d.net(6, 7, cl); d.net(7, 6, cl); d.disque(3.5, 10.5, 1.2, PIX.fibre); d.disque(12.5, 10.5, 1.2, PIX.baie); fume(); break;
+    case 'fiole': d.rect(6, 5, 9, 13, verre); d.rect(6, 9, 9, 13, c); d.rect(5, 14, 10, 14, PIX.pierre); d.rect(6, 2, 9, 4, PIX.bois); d.net(7, 10, cl); d.net(7, 11, cl); d.ligne(11, 3, 13, 1, PIX.pierreC); break;
+    default: d.rect(3, 6, 12, 7, c); d.rect(4, 5, 11, 5, cl); d.net(6, 6, cl); d.net(10, 7, f);            // le bol fumant
+      d.rect(2, 8, 13, 9, terre); d.rect(3, 10, 12, 11, terre); d.rect(5, 12, 10, 12, terreF); fume();
+  }
+  const e = tag && EFFET_COUL[tag];                    // le losange de l'effet, en haut à gauche
+  if (e) { const s = e.map(v => v * .55 | 0); d.net(2, 0, s); d.net(1, 1, s); d.net(3, 1, s); d.net(0, 2, s); d.net(4, 2, s); d.net(1, 3, s); d.net(3, 3, s); d.net(2, 4, s);
+    d.net(2, 1, e); d.net(1, 2, e); d.net(2, 2, e.map(v => Math.min(255, v + 60))); d.net(3, 2, e); d.net(2, 3, e); }
+}
+// La fiche d'une pile, dans le sac : ce qu'elle vaut, ce qu'il en reste, la manger, la ranger dans une case.
+function fichePlat(id) {
+  const k = prochainPlat(id), p = k >= 0 ? P.plats[k] : null, n = partsPlat(id), ef = effetPlat(id);
+  if (!p) return `<div class="fiche" id="sac-fiche">${caseObjet(icPlat(id), { taille: 'grande', inerte: true, vide: true })}`
+    + `<div class="fiche-texte"><h4>${ESC(nomPlat(id))}</h4><p>${ef ? ESC(ef) + ' · ' : ''}il n'en reste plus au sac. La case le retrouvera dès qu'il sera cuisiné de nouveau.</p>`
+    + `${gestesCases({ id })}</div></div>`;
+  return `<div class="fiche" id="sac-fiche">${caseObjet(icPlat(id), { taille: 'grande', inerte: true, nb: n })}`
+    + `<div class="fiche-texte"><h4>${ESC(p.n)} <span style="color:#ffd27d">${etoiles(p.q)}</span></h4>`
+    + `<p>${valeurTxt(p)}${(p.parts || 1) > 1 ? ' par part' : ''}</p>`
+    + `<p class="note">${n} part${n > 1 ? 's' : ''} au sac · ${p.g === undefined ? 'longue conservation' : 'se garde encore ' + dureeTxt(p.g)}</p>`
+    + `<div class="gestes"><button class="btn principal" data-plat="${k}">${p.c === 'r:serum' ? 'Injecter' : 'Manger'}</button></div>${gestesCases({ id })}</div></div>`;
+}
+// Les piles du sac, en cases : sous la vignette, l'effet (ou le nom du plat s'il n'en a pas).
+function grillePlats() {
+  const L = pilesPlats(); if (!L.length) return '';
+  const total = L.reduce((s, q) => s + q[1], 0);
+  return `<h3>Plats <span class="compte">${total} part${total > 1 ? 's' : ''}</span></h3><div class="rangee">` + L.map(([id, n]) => {
+    const nom = nomPlat(id), ef = effetPlat(id);
+    return `<div class="emplacement">${caseObjet(icPlat(id), { nb: n, choisie: choixSac === id, attr: ` data-choix="${ESC(id)}"`,
+      label: nom + (ef ? ' · ' + ef : '') + ' · ' + n + ' part' + (n > 1 ? 's' : '') })}<span>${ESC(ef || nom)}</span></div>`; }).join('')
+    + `</div><p class="note" style="margin:4px 2px 0">Toucher un plat : le manger, ou le ranger dans une case du bord droit.</p>`;
+}
 function blocPlats() {
   if (!P.plats.length) return '';
   return `<h3>Au sac <span class="compte">${P.plats.reduce((s, p) => s + (p.parts || 1), 0)} parts</span></h3>`
-    + P.plats.slice(0, 20).map((p, k) => `<div class="obj"><div style="flex:1;min-width:0"><div class="n">${ESC(p.n)} <span style="color:#ffd27d">${etoiles(p.q)}</span></div>`
+    + P.plats.slice(0, 20).map((p, k) => `<div class="obj">${caseObjet(icPlat(idPlat(p)), { taille: 'mini', inerte: true })}<div style="flex:1;min-width:0"><div class="n">${ESC(p.n)} <span style="color:#ffd27d">${etoiles(p.q)}</span></div>`
       + `<div class="d">${valeurTxt(p)}${(p.parts || 1) > 1 ? ' par part' : ''}</div><div class="d">${gardeTxt(p)}</div></div>`
       + `<button data-plat="${k}">${p.c === 'r:serum' ? 'Injecter' : 'Manger'}</button></div>`).join('');
 }
@@ -14814,7 +14919,7 @@ function blocRecettes() {
   const L = Object.entries(P.recettes).sort((a, b) => (b[1].e ? 1 : 0) - (a[1].e ? 1 : 0));
   let h = `<h3>Livre de recettes <span class="compte">${L.length} trouvée${L.length > 1 ? 's' : ''}</span></h3>`;
   if (!L.length) h += `<p class="note" style="margin:2px 2px 8px">Aucune encore. Au feu du campement, ou à la marmite : on met ce qu'on veut, il en sort toujours un plat.</p>`;
-  for (const [cle, r] of L.slice(0, 80)) h += `<div class="obj${r.e ? ' epi' : ''}"><div style="flex:1;min-width:0"><div class="n">${ESC(r.n)} <span style="color:#ffd27d">${etoiles(r.q)}</span></div>`
+  for (const [cle, r] of L.slice(0, 80)) h += `<div class="obj${r.e ? ' epi' : ''}">${caseObjet(icPlat('plat:' + cle + '~~0'), { taille: 'mini', inerte: true })}<div style="flex:1;min-width:0"><div class="n">${ESC(r.n)} <span style="color:#ffd27d">${etoiles(r.q)}</span></div>`
     + `<div class="d">${conserveTxt(cle)} · préparé ${r.f} fois${cle.startsWith('r:') ? ' · remarquable' : ''}</div>`
     + `<div class="d ingr">${r.i ? ingrTxt(r.i) : '<span>refaites-le pour noter ses ingrédients</span>'}</div></div>`
     + (r.i ? `<button class="epingle" data-epingle="${ESC(cle)}" aria-pressed="${r.e ? 'true' : 'false'}" title="${r.e ? 'Désépingler' : 'Épingler'}" aria-label="${r.e ? 'Désépingler' : 'Épingler'}">${EPINGLE}</button>`
@@ -16601,6 +16706,11 @@ function assignerRaccourci(id, k) {
   P.raccourcis[k] = id;
 }
 function utiliser(k) {
+  if (estPlat(P.raccourcis[k])) {                        // un plat : on en mange une part
+    const id = P.raccourcis[k], i = prochainPlat(id);
+    if (i < 0) { say('plus de ' + nomPlat(id).toLowerCase() + ' · à cuisiner de nouveau', 1.8); return; }
+    mangerPlat(i); casesSig = ''; return;
+  }
   const id = P.raccourcis[k], o = id && objet(id);
   if (!o || !P.objets[id]) { say('case ' + (k + 1) + ' vide · à garnir depuis le sac', 1.6); return; }
   if (o.emp === 'grimoire') { P.equip.grimoire = id; lancerSort(); }
@@ -16616,11 +16726,18 @@ function utiliser(k) {
 let casesSig = '';
 function majCases() {
   const el = document.getElementById('cases'); if (!el) return;
-  const sig = P.raccourcis.map(id => { const o = id && objet(id); if (!o || !P.objets[id]) return '-';
+  const sig = P.raccourcis.map(id => { if (estPlat(id)) return id + '#' + partsPlat(id);
+    const o = id && objet(id); if (!o || !P.objets[id]) return '-';
     return id + (P.equip[o.emp] === id ? '*' : '') + (o.emp === 'grimoire' && manaDispo() < coutSort(o) ? '!' : ''); }).join(',') + '|' + (essai ? 0 : P.sac.eclat);
   if (sig === casesSig) return;
   casesSig = sig; feuilleIcones();
   el.innerHTML = P.raccourcis.map((id, k) => {
+    if (estPlat(id)) {                                   // un plat : sa vignette, et ce qu'il en reste
+      const n = partsPlat(id), ef = effetPlat(id);
+      const lab = `Case ${k + 1} : ${nomPlat(id)}` + (ef ? ' · ' + ef : '') + (n ? ` · ${n} part${n > 1 ? 's' : ''}` : ' · à cuisiner de nouveau');
+      return `<button class="plat${n ? '' : ' faible'}" data-case="${k}" aria-label="${ESC(lab)}" title="${ESC(lab)}"><kbd>${k + 1}</kbd>`
+        + `<i class="ic ic-${icPlat(id)}"></i><em>${n}</em></button>`;
+    }
     const o = id && P.objets[id] && objet(id);
     if (!o) return `<button class="vide" data-case="${k}" aria-label="Case ${k + 1} : vide"><kbd>${k + 1}</kbd></button>`;
     const faible = o.emp === 'grimoire' && manaDispo() < coutSort(o);
@@ -18296,6 +18413,7 @@ function appliquer(d, vivantes) {
   const rc = Array.isArray(d.raccourcis) ? d.raccourcis : null;
   P.raccourcis = [null, null, null, null, null];
   if (rc) for (let k = 0; k < CASES; k++) { const id = rc[k], o = typeof id === 'string' && objet(id);
+    if (typeof id === 'string' && /^plat:[\w:.-]{1,40}~[a-z]{0,14}~[0-4]$/.test(id) && !P.raccourcis.includes(id)) { P.raccourcis[k] = id; continue; }   // une pile de plats
     if (o && !enSerie(o) && P.objets[id] && !P.raccourcis.includes(id)) P.raccourcis[k] = id; }
   else remplirRaccourcis();
   // le guide : une étape, et deux drapeaux ; une sauvegarde d'avant le guide le reprend au début,
