@@ -21,23 +21,31 @@
   .ui{position:fixed;z-index:2;pointer-events:none;}
   /* Le HUD : une carte sombre au coin, comme les avis — les jauges, puis ce qu'on a, puis où l'on en est. */
   #hud{top:calc(60px + env(safe-area-inset-top));left:calc(12px + env(safe-area-inset-left));width:236px;box-sizing:border-box;
-    padding:9px 11px 10px;border-radius:12px;background:linear-gradient(180deg,rgba(28,32,46,.8),rgba(14,17,26,.8));
+    padding:9px 11px 11px;border-radius:12px;background:linear-gradient(180deg,rgba(28,32,46,.8),rgba(14,17,26,.8));
     border:1px solid rgba(190,205,230,.18);box-shadow:0 6px 18px rgba(0,0,0,.35);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
     font-family:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;font-size:13px;font-weight:600;line-height:1.45;color:#dfe4ee;}
   #hud b{color:#ffd27d;font-weight:800;}
-  /* la goutte, pendue sous la carte, au centre : pointe vers le haut, bout arrondi. ˄ replie la carte
-     (elle ne garde que les jauges), ˅ la déplie. */
-  #hudPli{pointer-events:auto;position:absolute;top:calc(100% - 2px);left:50%;transform:translateX(-50%);width:34px;height:34px;
-    padding:0;border:0;background:none;cursor:pointer;color:#aab4c8;display:flex;align-items:center;justify-content:center;
-    isolation:isolate;-webkit-tap-highlight-color:transparent;}
-  #hudPli::before{content:'';position:absolute;left:5px;top:5px;width:24px;height:24px;box-sizing:border-box;z-index:-1;
-    border-radius:50% 0 50% 50%;transform:rotate(-45deg);background:rgba(16,19,29,.88);
-    border:1px solid rgba(190,205,230,.22);box-shadow:0 4px 10px rgba(0,0,0,.35);}
-  #hudPli svg{display:block;width:12px;height:12px;transition:transform .2s ease;}
-  #hud.plie #hudPli svg{transform:rotate(180deg);}
+  /* Trois languettes de la carte elle-même, sur son bord bas : la cloche du journal (à gauche), la goutte
+     (au centre : ˄ replie la carte, qui ne garde que les jauges, ˅ la déplie) et l'empreinte des compagnes
+     (à droite). Chacune est une demi-lune qui sort du bord, du même fond et du même liseré, sans trait
+     entre les deux. */
+  #hudPli,#bnotif,#bcomp{pointer-events:auto;position:absolute;top:calc(100% - 16px);width:38px;height:34px;padding:0;border:0;background:none;
+    cursor:pointer;color:#aab4c8;display:flex;align-items:center;justify-content:center;isolation:isolate;-webkit-tap-highlight-color:transparent;}
+  #hudPli{left:50%;transform:translateX(-50%);}
+  #bnotif{left:6px;}
+  #bcomp{right:6px;}
+  /* la demi-lune : un disque centré sur le bord, dont on ne garde que la moitié qui dépasse */
+  #hudPli::before,#bnotif::before,#bcomp::before{content:'';position:absolute;left:3px;top:1px;width:32px;height:32px;box-sizing:border-box;z-index:-1;
+    border-radius:50%;background:rgba(14,17,26,.8);border:1px solid rgba(190,205,230,.18);clip-path:inset(16px -2px -2px -2px);
+    backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);}
+  /* et le liseré de la carte s'efface là où la languette s'y attache */
+  #hudPli::after,#bnotif::after,#bcomp::after{content:'';position:absolute;left:4px;top:16px;width:30px;height:1px;z-index:-1;background:rgb(14,17,26);}
+  #hudPli svg,#bnotif svg,#bcomp svg{display:block;transform:translateY(8px);transition:transform .2s ease;}
+  #hudPli svg{width:12px;height:12px;}
+  #hud.plie #hudPli svg{transform:translateY(8px) rotate(180deg);}
   #hudPli:hover,#hudPli:focus-visible{color:#ffd27d;outline:none;}
   #hudPli:hover::before,#hudPli:focus-visible::before{border-color:rgba(255,210,125,.55);}
-  #hud.plie{width:auto;padding:7px 9px 7px 10px;}
+  #hud.plie{width:auto;padding:7px 9px 8px 10px;}
   #hud.plie #hudtxt{display:none;}
   #hud.plie #jauges{width:150px;margin-bottom:0;}
   #hudtxt .rang{display:flex;flex-wrap:wrap;align-items:center;gap:3px 10px;}
@@ -45,6 +53,7 @@
   #hudtxt .etats{gap:3px 6px;font-size:12px;} #hudtxt .etats>i{font-style:normal;color:#6f7a92;}
   #hudtxt .puce{display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
   #hudtxt .puce img{width:16px;height:16px;image-rendering:pixelated;}
+  #hudtxt .puce canvas.meteo{position:static;inset:auto;display:block;width:20px;height:20px;image-rendering:pixelated;margin:-3px 0 -3px -1px;flex:none;}
   #hudtxt .heure{color:#aab4c8;} #hudtxt .dj{color:#ffb45a;white-space:normal;}
   #hudtxt .sep{height:1px;background:rgba(190,205,230,.14);margin:7px 0 6px;}
   #hudtxt .expl{color:#8fe3ff;font-size:12.5px;line-height:1.4;} #hudtxt .expl.loin{color:#ff9a7a;}
@@ -60,7 +69,7 @@
   #msg{display:none;}
   /* sous la carte du HUD (et sa goutte), à sa largeur : le plus récent en haut, contre la carte, l'ancien
      dessous, pâli. Top, left et width sont posés par placerAvis() ; sans place dessous, à droite de la carte. */
-  #avis{z-index:20;top:50%;left:calc(12px + env(safe-area-inset-left));width:236px;
+  #avis{z-index:9;top:50%;left:calc(12px + env(safe-area-inset-left));width:236px;
     display:flex;flex-direction:column;align-items:stretch;gap:6px;}
   .avis{max-width:100%;box-sizing:border-box;padding:7px 11px 8px;border-radius:12px;text-align:left;transform-origin:top center;
     background:linear-gradient(180deg,rgba(28,32,46,.9),rgba(14,17,26,.9));border:1px solid rgba(255,210,125,.32);
@@ -75,6 +84,94 @@
   .avis .ic{width:18px;height:18px;image-rendering:pixelated;vertical-align:-4px;margin-right:5px;}
   .avis .d .ic{width:16px;height:16px;vertical-align:-3px;margin-right:4px;}
   @media (max-width:560px),(max-height:480px){.avis{padding:6px 9px 7px}.avis .t{font-size:14px}.avis .d{font-size:12.5px}}
+  /* La cloche du journal : son chiffre, les événements pas encore lus. */
+  #bnotif svg,#bcomp svg{width:13px;height:13px;}
+  #bnotif b,#bcomp b{position:absolute;top:10px;right:-6px;min-width:15px;height:15px;padding:0 3px;box-sizing:border-box;border-radius:8px;
+    background:#e8584a;color:#fff;font:800 10px/15px "Nunito",system-ui,sans-serif;text-align:center;}
+  #bnotif b:empty,#bcomp b:empty{display:none;}
+  #bnotif:hover,#bnotif:focus-visible,#bnotif[aria-expanded="true"],#bcomp:hover,#bcomp:focus-visible,#bcomp[aria-expanded="true"]{color:#ffd27d;outline:none;}
+  #bnotif:hover::before,#bnotif:focus-visible::before,#bnotif[aria-expanded="true"]::before,
+  #bcomp:hover::before,#bcomp:focus-visible::before,#bcomp[aria-expanded="true"]::before{border-color:rgba(255,210,125,.55);}
+  /* Le journal : ce qui s'est passé (les événements) et ce qu'on a récolté (regroupé), du plus récent
+     au plus ancien. Il se pose sous la carte des jauges, à la place des avis. */
+  #journal,#compvol{position:fixed;z-index:15;left:calc(12px + env(safe-area-inset-left));top:120px;width:min(340px,calc(100vw - 24px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    display:none;flex-direction:column;box-sizing:border-box;border-radius:12px;background:linear-gradient(180deg,rgba(28,32,46,.97),rgba(14,17,26,.97));
+    border:1px solid rgba(190,205,230,.22);box-shadow:0 10px 30px rgba(0,0,0,.5);color:#dfe4ee;
+    font-family:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;pointer-events:auto;}
+  #journal.on,#compvol.on{display:flex;}
+  #journal .tete,#compvol .tete{display:flex;align-items:center;gap:6px;padding:8px 6px 0 12px;}
+  #journal h2,#compvol h2{margin:0;flex:1;font-size:15px;font-weight:800;color:#ffd27d;letter-spacing:.2px;}
+  #journal .fermer,#compvol .fermer{width:34px;height:34px;border:0;border-radius:8px;background:none;color:#aab4c8;font-size:16px;cursor:pointer;}
+  #journal .fermer:hover,#journal .fermer:focus-visible,#compvol .fermer:hover,#compvol .fermer:focus-visible{color:#ffd27d;outline:none;background:rgba(255,255,255,.05);}
+  #journal .filtres{display:flex;gap:5px;padding:6px 10px 8px;border-bottom:1px solid rgba(190,205,230,.12);}
+  #journal .filtres button{font:700 12px/1 "Nunito",system-ui,sans-serif;padding:6px 10px;border-radius:14px;cursor:pointer;
+    border:1px solid rgba(190,205,230,.2);background:rgba(255,255,255,.03);color:#aab4c8;}
+  #journal .filtres button[aria-pressed="true"]{background:rgba(255,210,125,.15);border-color:rgba(255,210,125,.5);color:#ffd27d;}
+  #journal ol,#compvol ol{list-style:none;margin:0;padding:4px 6px 8px;overflow-y:auto;overscroll-behavior:contain;}
+  #journal li{display:grid;grid-template-columns:40px 1fr;gap:4px;padding:6px;border-radius:8px;font-size:13px;line-height:1.35;}
+  #journal li+li{border-top:1px solid rgba(190,205,230,.06);}
+  #journal li time{color:#6f7a92;font-size:11px;padding-top:2px;font-variant-numeric:tabular-nums;}
+  #journal li .t{font-weight:800;color:#ffd27d;}
+  #journal li .d{font-size:12px;font-weight:600;color:#aab4c8;}
+  #journal li.res .t{color:#c9e79a;}
+  #journal li .x{color:#8d9ab4;font-weight:700;font-size:11.5px;margin-left:4px;}
+  #journal li.neuf{background:rgba(255,210,125,.07);}
+  #journal .ic{width:16px;height:16px;image-rendering:pixelated;vertical-align:-3px;margin-right:4px;}
+  #journal .vide,#compvol .vide{padding:20px 14px;color:#8d9ab4;font-size:13px;text-align:center;line-height:1.45;}
+  /* Le volet des compagnes : chacune, sa vie, et ses ordres d'un appui (dessinés) — sa mission (récolte,
+     défense) et son comportement (autonome, avec vous, au campement). */
+  #compvol h2{white-space:nowrap;}
+  #compvol .compte{font-size:12px;font-weight:700;color:#8d9ab4;margin-left:6px;}
+  #compvol .rappel{display:flex;align-items:center;gap:5px;padding:5px 9px;border-radius:14px;border:1px solid rgba(190,205,230,.22);
+    background:rgba(255,255,255,.04);color:#cfd6e4;font:700 12px/1 "Nunito",system-ui,sans-serif;cursor:pointer;}
+  #compvol .rappel[hidden]{display:none;}
+  #compvol .rappel img{width:16px;height:16px;image-rendering:pixelated;}
+  #compvol .rappel:hover,#compvol .rappel:focus-visible{border-color:rgba(255,210,125,.5);color:#ffd27d;outline:none;}
+  #compvol ol{padding-top:6px;border-top:1px solid rgba(190,205,230,.12);margin-top:8px;}
+  #compvol li{padding:7px 6px 8px;border-radius:9px;}
+  #compvol li+li{border-top:1px solid rgba(190,205,230,.07);}
+  #compvol .id{display:grid;grid-template-columns:30px 1fr auto;gap:8px;align-items:center;}
+  #compvol .bete{width:30px;height:30px;image-rendering:pixelated;border-radius:7px;background:rgba(255,255,255,.04);}
+  #compvol .bete.ko{filter:grayscale(1) brightness(.7);}
+  #compvol .nom{font-size:13.5px;font-weight:800;color:#e8e2d4;line-height:1.2;}
+  #compvol .nom small{font-size:11.5px;font-weight:600;color:#8d9ab4;margin-left:5px;}
+  #compvol .vie{display:flex;align-items:center;gap:6px;margin-top:3px;}
+  #compvol .vie .br{flex:1;height:6px;border-radius:3px;background:rgba(0,0,0,.45);overflow:hidden;}
+  #compvol .vie .br i{display:block;height:100%;border-radius:3px;background:linear-gradient(90deg,#e8584a,#ff8a7a);transition:width .25s;}
+  #compvol .vie .br i.bas{background:linear-gradient(90deg,#c22a2a,#ff5a4a);}
+  #compvol .vie em{font-style:normal;font-size:11px;font-weight:700;color:#aab4c8;min-width:30px;text-align:right;font-variant-numeric:tabular-nums;}
+  #compvol .etat{font-size:11.5px;font-weight:600;color:#8d9ab4;margin-top:2px;}
+  #compvol .act{font:700 11.5px/1 "Nunito",system-ui,sans-serif;padding:7px 9px;border-radius:9px;cursor:pointer;
+    border:1px solid rgba(190,205,230,.22);background:rgba(255,255,255,.04);color:#cfd6e4;white-space:nowrap;}
+  #compvol .act.principal{border-color:rgba(255,210,125,.55);color:#ffd27d;background:rgba(255,210,125,.1);}
+  #compvol .act:disabled{opacity:.4;cursor:default;}
+  #compvol .ordres{display:flex;gap:10px;margin:7px 0 0 38px;flex-wrap:wrap;}
+  #compvol .grp{display:flex;gap:3px;padding:2px;border-radius:10px;background:rgba(0,0,0,.25);}
+  #compvol .ordre{width:32px;height:30px;padding:0;border-radius:8px;border:1px solid transparent;background:none;cursor:pointer;
+    display:flex;align-items:center;justify-content:center;}
+  #compvol .ordre img{width:20px;height:20px;image-rendering:pixelated;opacity:.55;}
+  #compvol .ordre:hover img,#compvol .ordre:focus-visible img{opacity:.9;}
+  #compvol .ordre:focus-visible{outline:none;border-color:rgba(190,205,230,.4);}
+  #compvol .ordre[aria-pressed="true"]{background:rgba(255,210,125,.16);border-color:rgba(255,210,125,.55);}
+  #compvol .ordre[aria-pressed="true"] img{opacity:1;}
+  #compvol .ordre:disabled{cursor:default;} #compvol .ordre:disabled img{opacity:.2;}
+  #compvol .dit{font-size:11.5px;color:#8d9ab4;margin:5px 0 0 38px;line-height:1.35;}
+  /* Les petits retours (« pas assez de mana », « confiance 40 % ») : une ligne, en bas au centre. */
+  #bref{z-index:11;left:50%;bottom:calc(64px + env(safe-area-inset-bottom));max-width:min(520px,calc(100vw - 32px));box-sizing:border-box;
+    padding:5px 12px 6px;border-radius:14px;background:rgba(10,12,18,.62);color:#e4e8f0;text-align:center;
+    font:600 13px/1.35 "Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;text-shadow:0 1px 1px rgba(0,0,0,.6);
+    opacity:0;transform:translate(-50%,6px);transition:opacity .2s ease,transform .2s ease;}
+  #bref.vu{opacity:1;transform:translate(-50%,0);}
+  #bref.menu{bottom:calc(12px + env(safe-area-inset-bottom));background:rgba(10,12,18,.9);}
+  @media (hover:none),(max-width:760px){#bref{bottom:calc(200px + env(safe-area-inset-bottom));font-size:12.5px;}}
+  /* Ce qu'on récolte : un « +2 » et son icône montent au-dessus du personnage, et s'effacent. */
+  #gains{position:fixed;inset:0;z-index:9;pointer-events:none;overflow:hidden;}
+  .gain{position:absolute;display:flex;align-items:center;gap:3px;white-space:nowrap;transform:translate(-50%,-100%);
+    font:800 15px/1 "Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;color:#ffe9a8;
+    text-shadow:0 1px 0 #000,0 0 5px rgba(0,0,0,.85);animation:gainMonte 1.3s ease-out forwards;}
+  .gain img{width:18px;height:18px;image-rendering:pixelated;filter:drop-shadow(0 1px 1px rgba(0,0,0,.8));}
+  @keyframes gainMonte{0%{opacity:0;margin-top:8px}14%{opacity:1;margin-top:0}70%{opacity:1}100%{opacity:0;margin-top:-34px}}
+  @media (prefers-reduced-motion:reduce){.gain{animation:gainFond 1.3s ease-out forwards}@keyframes gainFond{0%,70%{opacity:1}100%{opacity:0}}}
   /* L'encoche et la barre d'accueil des iPhone : on écarte les boutons des bords sûrs. */
   #rot{top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));display:flex;gap:8px;}
   #rot button,#pad button{pointer-events:auto;background:rgba(22,26,38,.72);
@@ -109,7 +206,7 @@
     #boussole{top:calc(56px + env(safe-area-inset-top));width:calc(100vw - 28px - env(safe-area-inset-left) - env(safe-area-inset-right));}
     /* sur téléphone : plus serrée, et jamais sous la fiche de la cible, rangée à droite (166 px avec ses marges) */
     #hud{top:calc(98px + env(safe-area-inset-top)) !important;width:min(236px, calc(100vw - 206px - env(safe-area-inset-left) - env(safe-area-inset-right)));
-      padding:8px 9px 9px;font-size:12px;}
+      padding:8px 9px 10px;font-size:12px;}
     #hud.plie #jauges{width:144px;}   /* les chiffres (♥3, mana) tiennent dans la carte */
   }
   /* Les cinq cases, au bord droit : un appui utilise ce qu'elles portent. */
@@ -464,6 +561,8 @@
   @media (max-width:350px){                         /* les plus petits écrans : 320 px */
     #sac .sac-rail button{font-size:10px;}
     .jauges .vies{display:none;}
+    #bnotif{left:1px;} #bcomp{right:1px;}                 /* la carte est étroite : les trois languettes s'écartent */
+    #compvol .rappel span{display:none;}
   }
   @media (max-height:440px){
     .filtres{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:8px 0 4px;padding-bottom:2px;}
@@ -497,10 +596,16 @@
   <div class="jg" id="j-vie"><span>Vie</span><span class="br"><i></i></span><em></em></div>
   <div class="jg" id="j-mana"><span>Mana</span><span class="br"><i></i></span><em></em></div>
   <div class="jg" id="endu"><span>Souffle</span><span class="br"><i></i></span><em></em></div>
-</div><div id="hudtxt"></div></div>
+</div><div id="hudtxt"></div><button id="bnotif" type="button" aria-expanded="false" aria-controls="journal" aria-label="Journal" title="Journal (J)"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.6c-2.2 0-3.6 1.6-3.6 3.8v2.4L2.2 9.9h9.6l-1.2-2.1V5.4C10.6 3.2 9.2 1.6 7 1.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.6 11.4c.3.7.8 1 1.4 1s1.1-.3 1.4-1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><b></b></button><button id="bcomp" type="button" aria-expanded="false" aria-controls="compvol" aria-label="Compagnes" title="Compagnes (K)"><svg viewBox="0 0 14 14" aria-hidden="true"><ellipse cx="7" cy="9.6" rx="3" ry="2.6" fill="currentColor"/><circle cx="2.6" cy="6.2" r="1.35" fill="currentColor"/><circle cx="5.2" cy="3.4" r="1.35" fill="currentColor"/><circle cx="8.8" cy="3.4" r="1.35" fill="currentColor"/><circle cx="11.4" cy="6.2" r="1.35" fill="currentColor"/></svg><b></b></button></div>
 <div class="ui" id="boussole" aria-hidden="true"><canvas id="bous"></canvas></div>
 <div id="cible" hidden></div>
 <div class="ui" id="msg" aria-hidden="true"></div><div class="ui" id="avis" role="status" aria-live="polite"></div>
+<div class="ui" id="bref" aria-live="polite"></div><div id="gains" aria-hidden="true"></div>
+<div id="journal" role="dialog" aria-labelledby="journal-titre"><div class="tete"><h2 id="journal-titre">Journal</h2><button class="fermer" type="button" aria-label="Fermer le journal" title="Fermer (J)">✕</button></div>
+  <div class="filtres" role="group" aria-label="Montrer"><button type="button" data-jf="tout" aria-pressed="true">Tout</button><button type="button" data-jf="evt" aria-pressed="false">Événements</button><button type="button" data-jf="res" aria-pressed="false">Ressources</button></div>
+  <ol></ol></div>
+<div id="compvol" role="dialog" aria-labelledby="compvol-titre"><div class="tete"><h2 id="compvol-titre">Compagnes<span class="compte"></span></h2><button class="rappel" type="button" data-cv="siffler" hidden></button><button class="fermer" type="button" aria-label="Fermer" title="Fermer (K)">✕</button></div>
+  <ol></ol></div>
 <button class="ui" id="bv" style="pointer-events:auto;top:10px;left:14px;padding:0 14px;height:40px;background:rgba(22,26,38,.72);border:1px solid rgba(190,205,230,.28);color:#cfd6e4;border-radius:10px;font:inherit;font-size:13px;cursor:pointer;position:fixed;">1re P.</button>
 <div class="ui" id="rot"><button id="bpe" title="Vue en perspective" aria-pressed="false">3D</button><button id="ed">▽</button><button id="eu">△</button><button id="rl">⟲</button><button id="rr">⟳</button></div>
 <div class="ui" id="cases" aria-label="Raccourcis"></div>
@@ -536,7 +641,7 @@
     <div class="gestes"><button id="retour-non">Fermer</button><button class="principal" id="retour-oui">Envoyer</button></div>
   </div>
 </div>
-<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · B ÉTABLI · V VUE · Q/E PIVOTER · R/F INCLINER · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
+<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · B ÉTABLI · J JOURNAL · K COMPAGNES · V VUE · Q/E PIVOTER · R/F INCLINER · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
 <script src="donjon.js"></script>
 <script src="nomades.js"></script>
@@ -5148,6 +5253,21 @@ const DESSINS = {
     d.disque(8, 8, 6.4, PIX.cuir); d.disque(8, 8, 5.1, PIX.papier);
     d.ligne(8, 4, 8, 7, PIX.rouge); d.ligne(8, 9, 8, 12, PIX.gris); d.net(8, 8, PIX.nuit);
   },
+  mode_autonome: d => {                                              // un sentier qui tourne, et sa flèche : à sa guise
+    d.rect(1, 12, 6, 13, PIX.papier); d.rect(5, 7, 6, 13, PIX.papier); d.rect(5, 7, 10, 8, PIX.papier); d.rect(9, 4, 10, 8, PIX.papier);
+    d.rect(9, 1, 10, 3, PIX.or); d.rect(8, 2, 11, 3, PIX.or); d.rect(7, 3, 12, 3, PIX.or);
+    d.net(2, 14, PIX.fibreC); d.net(12, 10, PIX.fibreC); d.net(3, 9, PIX.fibreC);
+  },
+  mode_joueur: d => {                                                // vous, et une patte à vos côtés : dans vos pas
+    d.disque(5, 3.5, 2.1, PIX.cuirC); d.rect(3, 6, 7, 10, PIX.bleu); d.rect(3, 11, 4, 14, PIX.cuir); d.rect(6, 11, 7, 14, PIX.cuir);
+    d.disque(12.5, 12.6, 1.9, PIX.or); d.rect(10, 9, 10, 10, PIX.or); d.rect(12, 8, 13, 9, PIX.or); d.rect(15, 9, 15, 10, PIX.or);
+  },
+  mode_camp: d => {                                                  // la tente, et son feu : au campement
+    for (let y = 2; y <= 12; y++) { const h = (y - 2) * .5; d.ligne(6 - h, y, 6 + h, y, y < 5 ? PIX.fibreC : PIX.fibre); }
+    for (let y = 7; y <= 12; y++) { const h = (y - 7) * .35; d.ligne(6 - h, y, 6 + h, y, PIX.boisF); }
+    d.rect(0, 13, 15, 13, PIX.bois); d.rect(12, 12, 15, 12, PIX.boisF);
+    d.disque(13.5, 10.3, 1.4, PIX.or); d.net(13, 8, PIX.orC);
+  },
   role_repos: d => {                                                 // un croissant de lune, et un z
     d.disque(7, 9, 5.4, PIX.orC); d.disque(9.8, 7, 4.6, null);
     for (const [x, y] of [[11, 1], [12, 1], [13, 1], [12, 2], [11, 3], [12, 3], [13, 3]]) d.net(x, y, PIX.papier);
@@ -6043,6 +6163,9 @@ function ouvrirSac(v, onglet) {
     if (camPrise()) document.exitPointerLock();      // sinon les clics n'atteignent pas le panneau
   }
   document.getElementById('sac').classList.toggle('on', sacOuvert);
+  avisMenu(sacOuvert);                                 // les événements attendent qu'on le referme
+  if (sacOuvert && Journal.ouvert) ouvrirJournal(false);
+  if (sacOuvert && CV.ouvert) ouvrirCompagnes(false);
   majSac();
   const actif = document.activeElement;
   if (sacOuvert) { const b = document.getElementById('onglet-' + ongletSac); if (b && b.focus) b.focus(); }
@@ -6960,15 +7083,284 @@ function respawn() {
 }
 let msgT = 0;
 // ---------- les avis ----------
-// Ce que le jeu vous dit tient dans une carte, sous celle du HUD et à sa largeur : la première phrase
-// (jusqu'au premier « · ») en titre, doré, chaque suite sur sa ligne, plus petite. Deux cartes au plus :
-// la plus récente en haut, contre la goutte, la précédente dessous, pâlie. Le même avis ne se répète pas : il se prolonge ; un
-// avis qui ne change que d'un nombre (« confiance 40 % ») remplace le précédent. La durée tient
-// compte de la longueur : de quoi le lire. #msg garde le dernier texte brut (pour les bancs).
-const AVIS_MAX = 2, avisVus = [];
-// Sous la goutte du HUD, à la largeur de la carte (repliée, elle rétrécit : les avis aussi). Plus bas
-// commencent le sac et le stick : s'il n'y a pas la place d'un avis au-dessus d'eux, la colonne passe à
-// droite de la carte, en haut.
+// Trois sortes d'avis, et le journal qui les garde :
+//  - LES ÉVÉNEMENTS (evt) : une escouade arrive, la Tisseuse s'éveille, quelqu'un arrive sur l'île, une
+//    compagne tombe, un pillage… Une carte, une seule à la fois, sous celle des jauges, à sa largeur :
+//    la première phrase (jusqu'au premier « · ») en titre, doré, chaque suite sur sa ligne. Jamais par-dessus
+//    le sac : menu ouvert, l'événement attend qu'on le ferme. Le même avis ne se répète pas : il se
+//    prolonge ; un avis qui ne change que d'un nombre remplace le précédent.
+//  - LES GAINS (res) : « +2 bois », « +1 éclat · +2 ferraille » — pas de carte : un « +2 » et son icône
+//    montent au-dessus du personnage, et s'effacent.
+//  - LES PETITS RETOURS (info) : tout le reste (« pas assez de mana », « confiance 40 % », « traqueur ·
+//    60 % ») : une ligne fine, en bas au centre, qui s'efface vite.
+// Les événements et les gains vont au journal (la cloche sous les jauges, ou J), les gains regroupés.
+// On peut forcer la sorte : say(texte, durée, 'evt' | 'res' | 'info'). #msg garde le dernier texte brut
+// (pour les bancs).
+const AVIS_MAX = 1, avisVus = [], avisAttente = [];
+// Ce qui fait un événement : reconnu à ses mots (un seul endroit à tenir), ou à sa durée (quatre secondes
+// et plus, c'est qu'il faut le lire).
+const AVIS_EVT = [/est sur cette île/, /^cap sur une autre île/, /^campement posé/, /^de retour/, /^pendant votre absence/, /^repos au feu/,
+  /^le campement de /, /a pillé votre campement|^\d+ pillages/, /^butin emporté|^le butin|^trop tard : la visite|^vous repartez les mains vides/,
+  /gardienne à terre|n'a plus de gardienne/, /portail s'ouvre/, /escouade est brisée/, /^la tisseuse/i, /seuil s'ouvre/,
+  /nomades se défendent/, /^technique apprise/, /biome/, /île des automates/, /korlaz/i, /sérum/,
+  /tombée sous les coups/, /est dompté/, / · liée/, /rallumé à votre nom/, /est à terre · /, /est assommée/, /là-bas$/,
+  /variante rare|extrêmement rare/, /remise sur pied/, /reprenez vos esprits/, /vous saisit/, /vous avez pêché/,
+  /votre ami/, /décliné|décline votre/, /rejoint le groupe|quitte le groupe|rejoignez le groupe|vous rejoindrez/i,
+  /centre des automates/i, /portes se re/, /^coffre ouvert|^une arme d'en bas/, /brame monte/,
+  /^guide terminé|^étape \d+ réussie|^bienvenue/, /personnage/, /impossible d'écrire/, /réinitialisée/i, /affichage simplifié/i,
+  /tinte : /, /est vaincue/, /gardée au journal/, /· mémoire \d+ graine/, /^jeté à terre · /];
+const GAIN = /^\+\s?(\d+)\s+([^%\d\s].*)$/;           // « +2 bois », pas « +35 % de vie »
+const gainsDe = s => String(s).split(' · ').map(x => GAIN.exec(x.trim())).filter(Boolean).map(m => ({ n: +m[1], nom: m[2].trim() }));
+function sorteAvis(s, d) {
+  if (AVIS_EVT.some(r => r.test(s))) return 'evt';
+  if (gainsDe(s).length) return 'res';
+  return (d || 0) >= 4 ? 'evt' : 'info';
+}
+function say(s, d, k) {
+  s = String(s); document.getElementById('msg').textContent = s; msgT = d || 2;
+  try {
+    const sorte = k || sorteAvis(s, d);
+    if (sorte !== 'info') journaliser(s, sorte);
+    if (sorte === 'res') return gainFlottant(s);
+    if (sorte === 'info') return ligneBreve(s, d);
+    carteAvis(s, d);
+  } catch (e) { /* un avis ne doit jamais arrêter le jeu */ }
+}
+function carteAvis(s, d) {
+  if (sacOuvert) {                                       // le menu est ouvert : il attendra qu'on le ferme
+    avisAttente.push({ s, d, q: Date.now() }); if (avisAttente.length > 3) avisAttente.shift();
+    return;
+  }
+  const box = document.getElementById('avis'); if (!box) return;
+  const [tete, ...reste] = s.split(' · ');
+  const cle = tete.replace(/[\d\s%.,:+− -]+/g, '').toLowerCase();
+  let a = avisVus.find(v => v.cle === cle);
+  if (a) { avisVus.splice(avisVus.indexOf(a), 1); avisVus.unshift(a); box.prepend(a.el); a.el.classList.add('vu'); }
+  else {
+    const el = document.createElement('div'); el.className = 'avis';
+    a = { cle, el }; avisVus.unshift(a); box.prepend(el);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('vu')));
+    while (avisVus.length > AVIS_MAX) retirerAvis(avisVus[avisVus.length - 1], true);
+  }
+  a.el.innerHTML = `<div class="t">${gainIcone(tete)}${ESC(phrase(tete))}</div>` + reste.map(x => `<div class="d">${gainIcone(x)}${ESC(phrase(x))}</div>`).join('');
+  clearTimeout(a.minu);
+  a.minu = setTimeout(() => retirerAvis(a), Math.min(7, Math.max(d || 2, 1.2 + s.length * .045)) * 1000);
+  avisVus.forEach((v, k) => v.el.classList.toggle('vieux', k > 0));
+  placerAvis();
+}
+// Le sac s'ouvre : la carte s'efface (elle est au journal) ; il se ferme : le dernier événement de
+// l'attente, s'il est encore frais, s'affiche.
+function avisMenu(ouvert) {
+  if (ouvert) { for (const a of avisVus.slice()) retirerAvis(a, true); return; }
+  const e = avisAttente.pop(); avisAttente.length = 0;
+  if (e && Date.now() - e.q < 12000) carteAvis(e.s, e.d);
+}
+// La ligne des petits retours : une seule, la dernière ; dans le menu, tout en bas.
+let brefMinu = 0;
+function ligneBreve(s, d) {
+  const el = document.getElementById('bref'); if (!el) return;
+  el.textContent = s.split(' · ').map(phrase).join(' · ');
+  el.classList.toggle('menu', !!sacOuvert); el.classList.add('vu');
+  clearTimeout(brefMinu);
+  brefMinu = setTimeout(() => el.classList.remove('vu'), Math.min(4.5, Math.max(d || 1.6, 1 + s.length * .035)) * 1000);
+}
+// Les gains, au-dessus du personnage. Deux gains du même bois à moins d'une seconde n'en font qu'un, qui
+// grossit (+2, +4, +6…) ; plusieurs ressources d'un coup s'empilent.
+const gainsVus = new Map(), gainsCases = [];        // une case par ligne de la colonne : rien ne se recouvre
+function versEcran(x, y, z) {
+  if (mode === 'fps') return null;                       // en première personne, on ne se voit pas
+  if (mode === 'iso' && isoGL && G3.ok && !G3.perdu) return G3.ecran ? G3.ecran(x, y, z) : null;
+  return proj(x, y, z);
+}
+function gainFlottant(s) {
+  const box = document.getElementById('gains'); if (!box || sacOuvert) return;
+  const L = gainsDe(s); if (!L.length) return;
+  const p = versEcran(P.x, P.y, P.z + 1.75 + (P.selle || 0)) || [Wd / 2, Hd * .6];
+  const now = performance.now();
+  L.slice(0, 4).forEach(g => {
+    const cle = g.nom.toLowerCase().replace(/s$/, ''), vu = gainsVus.get(cle);
+    let n = g.n, k = -1;
+    if (vu && now - vu.q < 900 && vu.el.isConnected) { n += vu.n; vu.el.remove(); k = vu.k; }   // le même gain, aussitôt : il grossit, à sa place
+    if (k < 0) { k = 0; while (gainsCases[k] && gainsCases[k] > now) k++; }
+    gainsCases[k] = now + 1300;
+    const el = document.createElement('div'); el.className = 'gain';
+    const ic = gainIcone('+' + n + ' ' + g.nom);
+    el.innerHTML = '+' + n + (ic || ' ' + ESC(g.nom));
+    el.style.left = Math.round(p[0]) + 'px'; el.style.top = Math.round(p[1] - k * 22) + 'px';
+    box.appendChild(el); setTimeout(() => el.remove(), 1400);
+    gainsVus.set(cle, { el, n, q: now, k });
+  });
+}
+
+// ---------- le journal ----------
+// Les événements, et les gains regroupés par ressource (une minute de coupes de bois fait « +12 bois »).
+// Gardé dans la page tant qu'on la garde : le passage d'une île à l'autre ne l'efface pas.
+const JOURNAL_CLE = 'stone_valley:journal', JOURNAL_MAX = 150;
+const Journal = { L: [], filtre: 'tout', ouvert: false, nonLus: 0, luJusqua: 0 };
+try {
+  const d = JSON.parse(sessionStorage.getItem(JOURNAL_CLE) || 'null');
+  if (d && Array.isArray(d.L)) { Journal.L = d.L.filter(e => e && (e.k === 'evt' || e.k === 'res')).slice(0, JOURNAL_MAX); Journal.nonLus = d.n | 0; Journal.luJusqua = +d.lu || 0; }
+} catch (e) { /* le journal repartira de zéro */ }
+let journalMinu = 0;
+function sauverJournal() {
+  clearTimeout(journalMinu);
+  journalMinu = setTimeout(() => { try { sessionStorage.setItem(JOURNAL_CLE, JSON.stringify({ L: Journal.L, n: Journal.nonLus, lu: Journal.luJusqua })); } catch (e) { /* tant pis */ } }, 500);
+}
+function journaliser(s, k) {
+  const now = Date.now();
+  if (k === 'res') {
+    for (const g of gainsDe(s)) {
+      const cle = g.nom.toLowerCase().replace(/s$/, '');
+      const e = Journal.L.slice(0, 12).find(e => e.k === 'res' && e.cle === cle && now - e.q < 60000);
+      if (e) {
+        e.n += g.n; e.q = now; if (/s$/.test(g.nom)) e.nom = g.nom;
+        Journal.L.splice(Journal.L.indexOf(e), 1); Journal.L.unshift(e);
+      } else Journal.L.unshift({ q: now, k, cle, nom: g.nom, n: g.n });
+    }
+  } else {
+    const e = Journal.L[0];
+    if (e && e.k === k && e.s === s && now - e.q < 30000) { e.x = (e.x || 1) + 1; e.q = now; }
+    else Journal.L.unshift({ q: now, k, s });
+    if (!Journal.ouvert) Journal.nonLus++;
+  }
+  if (Journal.L.length > JOURNAL_MAX) Journal.L.length = JOURNAL_MAX;
+  majCloche(); sauverJournal();
+  if (Journal.ouvert) dessinerJournal();
+}
+function majCloche() {
+  const b = document.querySelector('#bnotif b'); if (!b) return;
+  b.textContent = Journal.nonLus ? (Journal.nonLus > 9 ? '9+' : String(Journal.nonLus)) : '';
+  const bt = document.getElementById('bnotif');
+  bt.setAttribute('aria-label', Journal.nonLus ? 'Journal · ' + Journal.nonLus + ' nouveau' + (Journal.nonLus > 1 ? 'x' : '') : 'Journal');
+}
+const heureJ = q => { const d = new Date(q); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+function dessinerJournal() {
+  const el = document.getElementById('journal'); if (!el) return;
+  const f = Journal.filtre, L = Journal.L.filter(e => f === 'tout' || e.k === f).slice(0, 120);
+  el.querySelectorAll('[data-jf]').forEach(b => b.setAttribute('aria-pressed', b.dataset.jf === f ? 'true' : 'false'));
+  const ol = el.querySelector('ol');
+  if (!L.length) { ol.innerHTML = `<li class="vide">${f === 'res' ? 'Rien récolté pour l\'instant.' : 'Rien encore. Ce qui arrive sur l\'île et ce que vous récoltez s\'inscrit ici.'}</li>`; return; }
+  ol.innerHTML = L.map(e => {
+    const neuf = e.q > Journal.luJusqua ? ' neuf' : '';
+    if (e.k === 'res') { const g = '+' + e.n + ' ' + e.nom; return `<li class="res${neuf}"><time>${heureJ(e.q)}</time><div class="t">${gainIcone(g)}${ESC(g)}</div></li>`; }
+    const [tete, ...reste] = e.s.split(' · ');
+    return `<li class="evt${neuf}"><time>${heureJ(e.q)}</time><div><div class="t">${gainIcone(tete)}${ESC(phrase(tete))}${e.x > 1 ? `<span class="x">×${e.x}</span>` : ''}</div>`
+      + reste.map(x => `<div class="d">${gainIcone(x)}${ESC(phrase(x))}</div>`).join('') + '</div></li>';
+  }).join('');
+}
+// Il s'ouvre sous la carte des jauges (à la place des avis), jusqu'au bas de l'écran au plus.
+function placerJournal(id = 'journal') {
+  const el = document.getElementById(id), h = document.getElementById('hud'); if (!el || !h) return;
+  const r = h.getBoundingClientRect(), haut = Math.round(r.bottom + 24);
+  el.style.top = haut + 'px'; el.style.maxHeight = Math.max(160, innerHeight - haut - 12) + 'px';
+}
+function ouvrirJournal(v) {
+  const el = document.getElementById('journal'); if (!el) return;
+  v = v === undefined ? !Journal.ouvert : !!v;
+  if (v && sacOuvert) ouvrirSac(false);
+  if (v && CV.ouvert) ouvrirCompagnes(false);           // un volet à la fois
+  if (!v && Journal.ouvert) Journal.luJusqua = Date.now();   // ce qu'on a vu n'est plus « neuf »
+  Journal.ouvert = v; el.classList.toggle('on', v);
+  document.getElementById('bnotif').setAttribute('aria-expanded', v ? 'true' : 'false');
+  if (v) { Journal.nonLus = 0; majCloche(); placerJournal(); dessinerJournal(); el.querySelector('ol').scrollTop = 0; for (const a of avisVus.slice()) retirerAvis(a, true); }
+  sauverJournal();
+}
+document.getElementById('bnotif').addEventListener('click', e => { e.stopPropagation(); ouvrirJournal(); });
+document.getElementById('journal').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.classList.contains('fermer')) ouvrirJournal(false);
+  else if (b.dataset.jf) { Journal.filtre = b.dataset.jf; dessinerJournal(); }
+});
+// un appui ailleurs (le jeu, les boutons) le referme
+addEventListener('pointerdown', e => {
+  if (Journal.ouvert && !e.target.closest('#journal') && !e.target.closest('#bnotif')) ouvrirJournal(false);
+  if (CV.ouvert && !e.target.closest('#compvol') && !e.target.closest('#bcomp')) ouvrirCompagnes(false);
+}, true);
+addEventListener('resize', () => { if (Journal.ouvert) placerJournal(); if (CV.ouvert) placerJournal('compvol'); });
+majCloche();
+
+// ---------- le volet des compagnes ----------
+// La troisième languette (l'empreinte, ou K) : chaque compagne, sa vie, où elle est, et ses ordres d'un
+// appui — sa mission (récolte, défense) et son comportement (autonome, avec vous, au campement) —, la
+// sortir, la rentrer, la relever. Le sifflet en tête, s'il est porté. Les jauges bougent sans tout
+// redessiner ; la liste se refait quand une compagne sort, rentre, tombe ou change d'ordre.
+const CV = { ouvert: false, sig: '', majT: 0 };
+const icOrdre = id => { const u = icone(id); return u ? `<img src="${u}" alt="">` : ''; };
+function sigCompagnes() {
+  return P.compagnes.map(c => [c.id, c.nom, c.esp, c.dehors ? 1 : 0, c.ko ? 1 : 0, c.aucamp ? 1 : 0, c.role, c.mode, recolteDe(c)].join(':')).join('|')
+    + '#' + enJeu() + (P.camp ? 'c' : '') + (porte('accessoire') && porte('accessoire').id === 'sifflet' ? 's' : '') + (P.baumes > 0 || essai ? 'b' : '');
+}
+function dessinerCompagnes() {
+  const el = document.getElementById('compvol'); if (!el) return;
+  CV.sig = sigCompagnes();
+  el.querySelector('.compte').textContent = P.compagnes.length ? enJeu() + '/' + EN_JEU_MAX + ' en jeu' : '';
+  const rp = el.querySelector('.rappel'), sif = porte('accessoire') && porte('accessoire').id === 'sifflet';
+  rp.hidden = !sif || !P.compagnes.some(c => c.dehors);
+  rp.innerHTML = icOrdre('sifflet') + '<span>Rappeler</span>';
+  rp.title = 'Un coup de sifflet : celles qui sont dehors accourent (H)';
+  const ol = el.querySelector('ol');
+  if (!P.compagnes.length) {
+    ol.innerHTML = `<li class="vide">Aucune compagne. Offrez des baies à une bête (G) : quand sa confiance est entière, elle se lie à un lien d'éclat libre${P.liens ? '' : ' — il s\'en fabrique un à l\'établi'}.</li>`;
+    return;
+  }
+  ol.innerHTML = P.compagnes.map(c => {
+    const sp = specById[c.esp], id = c.id, pv = Math.max(0, Math.min(1, valeurComp(c, 'pv') || 0));
+    const ou = c.ko ? 'assommée' : c.aucamp ? 'au campement' : c.dehors ? 'dehors' : 'dans le sac';
+    const act = c.ko ? `<button class="act principal" data-cv="relever" data-cid="${id}"${P.baumes > 0 || essai ? '' : ' disabled'} title="Un baume de relève la remet sur pied">Relever</button>`
+      : c.aucamp ? '' : c.dehors ? `<button class="act" data-cv="rentrer" data-cid="${id}">Rentrer</button>`
+      : `<button class="act principal" data-cv="sortir" data-cid="${id}"${enJeu() >= EN_JEU_MAX ? ' disabled title="Six compagnes en jeu au plus"' : ''}>Sortir</button>`;
+    const bouton = (cle, o, ic, actif, dis, titre) => `<button class="ordre" data-cv="${cle}" data-v="${o}" data-cid="${id}" aria-pressed="${actif}"`
+      + `${dis ? ' disabled' : ''} title="${ESC(titre)}" aria-label="${ESC(titre)}">${icOrdre(ic)}</button>`;
+    const roles = ROLES.map(r => bouton('role', r.id, r.ic, c.role === r.id, false, 'Mission : ' + r.n.toLowerCase()
+      + (r.id === 'recolte' ? ' (' + NOM_APT[recolteDe(c)].toLowerCase() + ')' : ''))).join('');
+    const modes = MODES.map(m => bouton('mode', m.id, 'mode_' + m.id, (c.mode || 'joueur') === m.id, m.id === 'camp' && !P.camp,
+      'Comportement : ' + m.n.toLowerCase() + (m.id === 'camp' && !P.camp ? ' (posez d\'abord un campement)' : ''))).join('');
+    return `<li data-cid="${id}"><div class="id"><img class="bete${c.ko ? ' ko' : ''}" src="${icone('bete_' + c.esp)}" alt="">`
+      + `<div><div class="nom">${ESC(c.nom)}<small>${ESC(sp.n)}</small></div>`
+      + `<div class="vie"><span class="br"><i data-cvpv="${id}" class="${pv < .3 ? 'bas' : ''}" style="width:${Math.round(pv * 100)}%"></i></span><em data-cvpc="${id}">${c.ko ? 'K.O.' : Math.round(pv * 100) + '\u202f%'}</em></div>`
+      + `<div class="etat">${ou} · ${nomRole(c.role)}${c.role === 'recolte' ? ' (' + NOM_APT[recolteDe(c)].toLowerCase() + ')' : ''} · ${nomMode(c.mode || 'joueur')}</div></div>${act}</div>`
+      + `<div class="ordres"><div class="grp" role="group" aria-label="Mission">${roles}</div><div class="grp" role="group" aria-label="Comportement">${modes}</div></div></li>`;
+  }).join('');
+}
+// Les jauges seules, quatre fois par seconde ; et la languette dit « ! » quand une compagne dehors est en danger.
+function majCompagnesVolet() {
+  const now = performance.now();
+  if (now - CV.majT < 250) return;
+  CV.majT = now;
+  const danger = P.compagnes.some(c => c.dehors && c.b && c.b.pv < .3);
+  const bd = document.querySelector('#bcomp b'); if (bd && bd.textContent !== (danger ? '!' : '')) bd.textContent = danger ? '!' : '';
+  if (!CV.ouvert) return;
+  if (sigCompagnes() !== CV.sig) { dessinerCompagnes(); return; }
+  const el = document.getElementById('compvol');
+  for (const c of P.compagnes) {
+    const pv = Math.max(0, Math.min(1, valeurComp(c, 'pv') || 0)), i = el.querySelector(`[data-cvpv="${c.id}"]`), e = el.querySelector(`[data-cvpc="${c.id}"]`);
+    if (i) { i.style.width = Math.round(pv * 100) + '%'; i.classList.toggle('bas', pv < .3); }
+    if (e) e.textContent = c.ko ? 'K.O.' : Math.round(pv * 100) + '\u202f%';
+  }
+}
+function ouvrirCompagnes(v) {
+  const el = document.getElementById('compvol'); if (!el) return;
+  v = v === undefined ? !CV.ouvert : !!v;
+  if (v && sacOuvert) ouvrirSac(false);
+  if (v && Journal.ouvert) ouvrirJournal(false);
+  CV.ouvert = v; el.classList.toggle('on', v);
+  document.getElementById('bcomp').setAttribute('aria-expanded', v ? 'true' : 'false');
+  if (v) { placerJournal('compvol'); dessinerCompagnes(); el.querySelector('ol').scrollTop = 0; for (const a of avisVus.slice()) retirerAvis(a, true); }
+}
+document.getElementById('bcomp').addEventListener('click', e => { e.stopPropagation(); ouvrirCompagnes(); });
+document.getElementById('compvol').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b || b.disabled) return;
+  if (b.classList.contains('fermer')) { ouvrirCompagnes(false); return; }
+  const k = b.dataset.cv, c = compagneDe(b.dataset.cid);
+  if (k === 'siffler') siffler();
+  else if (!c) return;
+  else if (k === 'role') changerRole(c, b.dataset.v);
+  else if (k === 'mode') changerOrdre(c, 'mode', b.dataset.v);
+  else if (k === 'sortir') sortirCompagne(c);
+  else if (k === 'rentrer') rentrerCompagne(c);
+  else if (k === 'relever') releverCompagne(c);
+  majSac(); dessinerCompagnes();
+});
 function placerAvis() {
   const box = document.getElementById('avis'), h = document.getElementById('hud'), b = document.getElementById('hudPli');
   if (!box || !h) return;
@@ -7015,25 +7407,6 @@ function gainIcone(seg) {
   const u = id && icone(id);
   return u ? `<img class="ic" src="${u}" alt="">` : '';
 }
-function say(s, d) {
-  s = String(s); document.getElementById('msg').textContent = s; msgT = d || 2;
-  const box = document.getElementById('avis'); if (!box) return;
-  const [tete, ...reste] = s.split(' · ');
-  const cle = tete.replace(/[\d\s%.,:+− -]+/g, '').toLowerCase();
-  let a = avisVus.find(v => v.cle === cle);
-  if (a) { avisVus.splice(avisVus.indexOf(a), 1); avisVus.unshift(a); box.prepend(a.el); a.el.classList.add('vu'); }
-  else {
-    const el = document.createElement('div'); el.className = 'avis';
-    a = { cle, el }; avisVus.unshift(a); box.prepend(el);
-    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('vu')));
-    while (avisVus.length > AVIS_MAX) retirerAvis(avisVus[avisVus.length - 1], true);
-  }
-  a.el.innerHTML = `<div class="t">${gainIcone(tete)}${ESC(phrase(tete))}</div>` + reste.map(x => `<div class="d">${gainIcone(x)}${ESC(phrase(x))}</div>`).join('');
-  clearTimeout(a.minu);
-  a.minu = setTimeout(() => retirerAvis(a), Math.min(7, Math.max(d || 2, 1.2 + s.length * .045)) * 1000);
-  avisVus.forEach((v, k) => v.el.classList.toggle('vieux', k > 0));
-  placerAvis();
-}
 
 // ---------- entrées ----------
 const K = {}; let stick = { x: 0, y: 0 }, actQ = false, jumpQ = false, nourrir = false, agirQ = false, lacheQ = false, sortQ = false, sifflerQ = false;
@@ -7061,13 +7434,15 @@ const TOUCHES = {
   KeyI:   () => ouvrirSac(),
   Tab:    () => ouvrirSac(true),                     // dans le sac, Tab passe d'un bouton à l'autre
   KeyB:   () => ouvrirSac(!(sacOuvert && ongletSac === 'etabli'), 'etabli'),
-  Escape: () => ouvrirSac(false),
+  Escape: () => { if (Journal.ouvert) ouvrirJournal(false); else if (CV.ouvert) ouvrirCompagnes(false); else ouvrirSac(false); },
+  KeyJ:   () => ouvrirJournal(),                     // le journal : ce qui s'est passé, ce qu'on a récolté
+  KeyK:   () => ouvrirCompagnes(),                   // le volet des compagnes : leur vie, leurs ordres
 };
 // 1 à 5 : les onglets, dans l'ordre du rail
 // sac fermé, 1 à 5 : les cinq cases
 ONGLETS.forEach((o, i) => { if (toucheOnglet(i)) TOUCHES['Digit' + toucheOnglet(i)] = () => { if (sacOuvert) choisirOnglet(o.id); else if (i < CASES) utiliser(i); }; });
 // seules touches actives, sac ouvert
-const SAC_SEUL = { KeyI:1, KeyB:1, Escape:1 };
+const SAC_SEUL = { KeyI:1, KeyB:1, Escape:1, KeyJ:1, KeyK:1 };
 ONGLETS.forEach((o, i) => { if (toucheOnglet(i)) SAC_SEUL['Digit' + toucheOnglet(i)] = 1; });
 addEventListener('keydown', e => {
   if (document.getElementById('retour').classList.contains('ouvert')) return;   // le panneau du mot : les touches sont à lui
@@ -15839,6 +16214,8 @@ function drawHud() {
   if (t - hudT < .1 && t >= hudT) return;
   hudT = t;
   majEndu(); majJauges(); majCases(); majAction(); majCible(); majGuide();
+  dessinerIconeMeteo();
+  majCompagnesVolet();
   if (!hudPliPret) { hudPliPret = true; plierHud(plieParDefaut()); }   // la carte repliée ou non, une fois la partie chargée
   const hh = ((horloge * 24) | 0).toString().padStart(2, '0');
   const mm = (((horloge * 24) % 1 * 60) | 0).toString().padStart(2, '0');
@@ -15881,6 +16258,82 @@ function drawHud() {
     + ligneEpingles() + expl + ligneGuide()
     + tech;
   if (html !== hudDernier) { const el = document.getElementById('hudtxt'); if (el) el.innerHTML = html; hudDernier = html; }
+  // l'icône du temps ne fait pas partie du texte : elle passe d'une réécriture à l'autre sans s'interrompre
+  const ph = document.querySelector('#hudtxt .puce.heure');
+  if (ph && ICONE_METEO.parentNode !== ph) ph.prepend(ICONE_METEO);
+}
+// ============================================================
+//  L'ICÔNE DU TEMPS QU'IL FAIT
+//  Dans la carte des jauges, devant l'heure : une petite image en pixels qui vit avec le ciel. Le
+//  soleil le jour (orangé à l'aube et au soir, bas sur l'horizon), la lune la nuit et ses étoiles par
+//  ciel clair ; les nuages viennent avec la couverture (un voile, puis un nuage, gris, noir à l'orage)
+//  et dérivent avec le vent ; la pluie tombe (en biais quand il vente), la neige en altitude ; et
+//  l'éclair claque au même instant que dans le ciel de l'île. Tout suit le fondu du temps (Meteo.m),
+//  et c'est le même ciel pour tous les joueurs de l'île (faune.js). Redessinée dix fois par seconde.
+// ============================================================
+const ICONE_METEO = document.createElement('canvas');
+ICONE_METEO.width = ICONE_METEO.height = 20; ICONE_METEO.className = 'meteo'; ICONE_METEO.setAttribute('aria-hidden', 'true');
+function dessinerIconeMeteo() {
+  const c = ICONE_METEO, g = c.getContext('2d'); if (!g) return;
+  if (!c.isConnected || djIci()) return;                // carte repliée, souterrain : rien à dessiner
+  const N = 20, T = performance.now() / 1000;
+  g.clearRect(0, 0, N, N);
+  const px = (x, y, col, a = 1) => { if (x < 0 || y < 0 || x >= N || y >= N || a <= 0) return; g.globalAlpha = Math.min(1, a); g.fillStyle = col; g.fillRect(x | 0, y | 0, 1, 1); };
+  const disque = (cx, cy, r, col, a) => { for (let y = Math.floor(cy - r); y <= cy + r; y++) for (let x = Math.floor(cx - r); x <= cx + r; x++) if ((x + .5 - cx) ** 2 + (y + .5 - cy) ** 2 <= r * r) px(x, y, col, a); };
+  const poids = k => (Meteo.de === k ? 1 - Meteo.m : 0) + (Meteo.vers === k ? Meteo.m : 0);
+  const couv = met('nuages'), pluie = met('pluie'), orage = poids('orage'), vent = Math.min(2.4, Meteo.vent || 0);
+  const flash = Meteo.flash || 0;
+  // le froid : la même règle que la pluie qui tombe autour de vous (neige en altitude, et sur la neige)
+  const froid = Math.max(hAt(P.x | 0, P.y | 0), plaT(P.x | 0, P.y | 0)) > MAXH * .56 || bAt(P.x | 0, P.y | 0) === 7;
+  // 1. l'astre
+  const hs = hauteurSoleil(), jour = hs > -.05, nuage = couv > .3;
+  const ax = nuage ? 7 : 10, ay = (nuage ? 7 : 9) + Math.round((1 - Math.min(1, Math.abs(hs) * 1.6)) * 3);   // bas sur l'horizon à l'aube, au soir
+  if (couv < .97) {
+    if (jour) {
+      const bas = Math.max(0, 1 - hs * 2.2);              // à l'aube et au soir, il rougit
+      const coeur = bas > .5 ? '#ffb35a' : '#ffd27d', clair = bas > .5 ? '#ffd6a0' : '#fff0b8', rayon = bas > .5 ? '#ff9a4a' : '#ffbf4a';
+      disque(ax, ay, 3.6, coeur); disque(ax - .8, ay - .8, 1.6, clair);
+      if (couv < .75) for (let k = 0; k < 8; k++) {      // les rayons, qui tournent doucement
+        const a = k * Math.PI / 4 + T * .6, r = 5.4 + (k % 2) * .8;
+        px(Math.round(ax - .5 + Math.cos(a) * r), Math.round(ay - .5 + Math.sin(a) * r), rayon, (1 - couv) * 1.3);
+      }
+    } else {
+      disque(ax, ay, 3.6, '#e4ecfb'); disque(ax - 1, ay + .6, 1.1, '#c3cde4');   // la lune, et une mer sombre
+      g.globalCompositeOperation = 'destination-out'; disque(ax + 1.7, ay - 1.3, 3.1, '#000'); g.globalCompositeOperation = 'source-over';   // le croissant
+      if (couv < .5) for (const [x, y, p] of [[15, 3, 0], [17, 8, 2.1], [12, 1, 4.2]]) {   // les étoiles, qui scintillent
+        const s = .5 + .5 * Math.sin(T * 2.3 + p); px(x, y, '#fff8d8', (1 - couv * 1.6) * (.35 + .65 * s));
+      }
+    }
+  }
+  // 2. les nuages : un voile, puis un nuage qui grossit, gris, puis noir ; ils dérivent avec le vent
+  if (couv > .25) {
+    const k = Math.min(1, (couv - .25) / .55), dx = Math.sin(T * (.4 + vent * .35)) * (.6 + vent * .4);
+    const col = orage > .4 ? '#5d6476' : couv > .7 ? '#9aa3b6' : '#e3e8f2', ombre = orage > .4 ? '#434a5a' : couv > .7 ? '#7c8599' : '#c3cad8';
+    const a = .45 + k * .55, cx = 11 + dx, r = .7 + k * .3;
+    // chaque nuage est une forme : des bosses et un ventre plat, peints une seule fois (sans se repasser)
+    const dans = (L, x, y) => L.some(q => q.length === 3 ? (x + .5 - q[0]) ** 2 + (y + .5 - q[1]) ** 2 <= q[2] * q[2] : x >= q[0] && x <= q[2] && y >= q[1] && y <= q[3]);
+    const peindre = (L, col, bas) => { for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) if (dans(L, x, y)) px(x, y, bas && !dans(L, x, y + 1) ? bas : col, a); };
+    if (couv > .82) peindre([[cx - 5.5, 7.5, 2.6], [cx - 2.8, 6.5, 3], [cx - 7.5, 7.5, cx - 1, 9.5, 0]], ombre);   // le second, derrière, plus sombre
+    peindre([[cx - 3.5, 11.5, 2.6 * r], [cx, 9.5, 3.6 * r], [cx + 3.6, 11, 2.8 * r], [Math.floor(cx - 5 * r), 11, cx + 5.5 * r, 13, 0]], col, ombre);   // le dessous, plus sombre
+  }
+  // 3. ce qui tombe : la pluie (en biais au vent), ou la neige en altitude
+  if (pluie > .05) {
+    const n = Math.round(2 + pluie * 5), pente = Math.min(1, vent * .35);
+    for (let i = 0; i < n; i++) {
+      const x0 = 5 + ((i * 7.3) % 11), v = froid ? 3.5 : 14, ph = (T * v / 6 + i * .37) % 1;
+      const y = 14 + ph * 6, x = x0 - ph * pente * 3;
+      if (froid) px(Math.round(x + Math.sin(T * 3 + i) * .6), Math.round(y), '#ffffff', .95);
+      else { px(Math.round(x), Math.round(y), '#8fc4ff', .95); px(Math.round(x + pente * .5), Math.round(y) - 1, '#8fc4ff', .5); }
+    }
+  }
+  // 4. l'éclair, quand il claque dans le ciel de l'île
+  if (flash > .12 && orage + pluie > .3) {
+    const L = [[12, 12], [11, 13], [11, 14], [10, 15], [12, 15], [11, 16], [10, 17], [9, 18]];
+    for (const [x, y] of L) px(x, y, '#ffe866', Math.min(1, flash * 1.5));
+    g.globalAlpha = Math.min(.35, flash * .4); g.fillStyle = '#ffffff'; g.fillRect(0, 0, N, N);
+  }
+  g.globalAlpha = 1;
+  c.title = METEO[Meteo.vers].n;
 }
 let mesures = false;                               // les chiffres du moteur : dans les réglages
 var hudPliPret = false;
@@ -17606,7 +18059,12 @@ void main() { o = uC; }`;
     if (!best.t || best.bt !== best.verT) construire(best, 't');
     else construire(best, 'f');
   }
-  return Object.assign(etat, { dessiner, prechauffer, stats, tr, colonne, tampon, get distVue() { return distVue; }, gl });
+  // un point du monde, à l'écran (en pixels CSS), d'après la dernière image : pour poser un « +2 » au-dessus du joueur
+  function ecran(x, y, z) {
+    const cx = M[0] * x + M[4] * y + M[8] * z + M[12], cy = M[1] * x + M[5] * y + M[9] * z + M[13], cw = M[3] * x + M[7] * y + M[11] * z + M[15] || 1;
+    return [(cx / cw + 1) / 2 * Wd, (1 - cy / cw) / 2 * Hd];
+  }
+  return Object.assign(etat, { dessiner, prechauffer, stats, tr, colonne, tampon, get distVue() { return distVue; }, gl, ecran });
 })();
 
 // ============================================================

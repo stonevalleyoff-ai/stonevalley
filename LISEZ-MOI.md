@@ -1162,3 +1162,50 @@ Les données grossissent un peu (une trentaine de Mo par heure à deux, au lieu 
 
 **Testé** avec deux navigateurs, sur une île de niveau 10 qui a tout (ossuaire, terres creuses, sylve, village, dragon, Tisseuse) : les 33 bêtes à part sont les mêmes chez les deux, aux mêmes places (écart médian 0 à 0,2 case), dans le même état. Alice fait venir l'orage : Bob le voit venir, et l'éclair. Alice pose son campement : Bob le voit ; elle le reprend : il disparaît. Bob cueille une plante rare : chez Alice aussi, avec la même repousse. Bob s'approche : la plante épique s'arme et le mord, la Tisseuse s'éveille, le vise au laser et lui envoie son mortier, le Silencieux l'entend courir, hurle et le charge, le Mille-gueules jaillit sous lui, le dragon le prend en chasse et crache (Bob voit neuf boules de feu). Bob parle à un villageois, à une nomade : ils s'arrêtent chez Alice. Alice fait venir une caravane, puis une escouade : Bob les voit, avec les mêmes gens et les mêmes automates. Sous terre, à l'étage 2 : mêmes machines, une tourelle vise Bob (onze tirs), les portes de la salle du gardien se ferment chez les deux, la vapeur bat ensemble. Bob pêche : Alice voit sa canne, son bouchon et ses ombres ; sa marmite, sa flèche, son rodéo (puis le coursier rendu à l'île). Seul sur son île, à trois, les amis, la faune de départ, le Korlaz : rien n'a bougé. Au passage, un vieux défaut corrigé : la Tisseuse qui avait tiré au mortier ne disait plus « elle chancelle » en mourant, et sa part pouvait tarder.
 
+
+## 59. Des avis plus discrets, et un journal
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-25`).
+
+Les cartes d'avis encombraient l'écran (deux à la fois, une à chaque coup de hache) et passaient par-dessus le menu. Les avis sont maintenant de trois sortes :
+
+- **Les événements** — une escouade arrive, la Tisseuse s'éveille, quelqu'un arrive sur l'île, une caravane, une demande d'ami, une compagne qui tombe, un pillage, un biome découvert, une prise de pêche… — gardent leur carte, **là où elle était**, sous les jauges, mais **une seule à la fois**. Elle ne passe plus jamais devant le menu : s'il est ouvert, l'événement attend qu'on le referme (et s'affiche alors s'il a moins de douze secondes).
+- **Les ressources gagnées** (« +2 bois », « +1 éclat · +2 ferraille ») ne font plus de carte : un **« +2 » et son icône montent au-dessus du personnage** et s'effacent en une seconde. Deux coups rapprochés sur le même arbre n'en font qu'un, qui grossit ; plusieurs ressources d'un coup s'empilent sans se recouvrir. En première personne, ils montent au milieu de l'écran.
+- **Les petits retours** (« pas assez de mana », « trop tôt », « confiance 40 % », « traqueur · 60 % »…) : **une ligne fine en bas, au centre**, au-dessus des boutons sur téléphone, qui s'efface vite. Menu ouvert, elle se pose tout en bas du menu (« matières manquantes » se lit là où l'on fabrique).
+
+**Le journal.** Une **cloche**, en bas à gauche de la carte des jauges — ou la touche **J**. La cloche et la goutte qui replie la carte (au milieu) sont deux **languettes de la carte elle-même** : une demi-lune qui sort de son bord bas, du même fond et du même liseré, sans trait entre les deux. Son chiffre rouge : les événements pas encore lus. Elle ouvre le **journal** : les événements et les ressources récoltées, du plus récent au plus ancien, avec l'heure, et trois filtres — **Tout**, **Événements**, **Ressources**. Les récoltes se regroupent par ressource sur une minute (« +12 bois » plutôt que six lignes). Les lignes nouvelles depuis la dernière ouverture sont surlignées. Le journal garde les 150 dernières lignes et survit au passage d'une île à l'autre (il vit avec l'onglet du navigateur). Il se ferme par ✕, J, Échap, un appui ailleurs, ou en ouvrant le sac.
+
+**Pour qui code** : `say(texte, durée)` décide seul de la sorte (les mots d'un événement sont dans `AVIS_EVT` ; un texte qui commence par « +2 … » est un gain ; quatre secondes et plus, c'est un événement ; le reste est un petit retour). On peut la forcer : `say(texte, durée, 'evt' | 'res' | 'info')`.
+
+## 60. Le temps qu'il fait, en icône
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-26`).
+
+Dans la carte des jauges, devant l'heure, une **petite icône en pixels qui vit avec le ciel** :
+- **le soleil** le jour, ses rayons qui tournent doucement ; **orangé et bas** à l'aube et au soir ;
+- **la lune** en croissant la nuit, et des **étoiles** qui scintillent par ciel clair ;
+- **les nuages** viennent avec la couverture : un voile clair, puis un nuage qui cache l'astre, gris sous la pluie, **noir à l'orage** (un second nuage derrière) ; ils dérivent plus vite quand il vente ;
+- **la pluie** tombe sous le nuage, en biais quand le vent forcit ; **la neige** à sa place quand on est en altitude ou sur la neige (la même règle que les gouttes autour du personnage) ;
+- **l'éclair** claque dans l'icône au même instant que dans le ciel de l'île.
+
+Tout suit le fondu d'un temps à l'autre, et c'est le même ciel pour tous les joueurs de l'île (section 58). L'icône est redessinée dix fois par seconde, à part du texte de la carte : elle ne coûte rien à la mise en page. Sous terre, elle laisse la place à l'étage du Centre des automates.
+
+## 61. Les compagnes, d'un coup d'œil
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-27`).
+
+Une **troisième languette** sur le bord bas de la carte des jauges, **à droite** : une empreinte de patte (ou la touche **K**). Les trois languettes ont la même forme — la cloche du journal à gauche, la goutte qui replie la carte au milieu, l'empreinte à droite. Un **« ! » rouge** s'y allume quand une compagne dehors passe sous 30 % de vie.
+
+Elle ouvre, sous la carte, le **volet des compagnes** : « Compagnes · 3/6 en jeu », et pour chacune —
+
+- son **portrait**, son **nom** et son espèce ;
+- sa **vie** : une jauge et le pourcentage, qui bougent en direct (rouge vif sous 30 %, « K.O. » si elle est à terre) ;
+- **où elle en est** : dehors, dans le sac, au campement ou assommée, avec sa mission et son comportement en clair (« dehors · récolte (bois) · autonome ») ;
+- un bouton **Sortir**, **Rentrer** ou **Relever** (un baume de relève ; grisé s'il n'y en a pas) ;
+- deux rangées de **boutons dessinés**, l'ordre en cours surligné d'or :
+  - la **mission** : le panier de pousses (récolte, dans son aptitude) ou le bouclier (défense) ;
+  - le **comportement** : le sentier qui tourne (autonome, à sa guise), le personnage et sa patte (avec vous), la tente et son feu (au campement — grisé tant qu'il n'y a pas de campement posé).
+
+En tête du volet, **Rappeler** donne le coup de sifflet (si le sifflet est porté et qu'une compagne est dehors). Un appui sur un bouton change l'ordre tout de suite, comme dans l'onglet Compagnes du sac — c'est le même code (`changerOrdre`, `changerRole`, `sortirCompagne`, `rentrerCompagne`, `releverCompagne`). Le volet se ferme par ✕, K, Échap, un appui ailleurs ; il ne s'ouvre jamais en même temps que le journal ni que le sac. La liste ne se redessine que lorsqu'une compagne sort, rentre, tombe ou change d'ordre ; les jauges, elles, se mettent à jour quatre fois par seconde.
+
+Trois nouvelles icônes en pixels pour les comportements : `mode_autonome`, `mode_joueur`, `mode_camp`.
