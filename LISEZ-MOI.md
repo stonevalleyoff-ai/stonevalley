@@ -477,6 +477,7 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 | grand souffle | la course essouffle deux fois moins | nectar, sève, figue, cerf, carillonneur, mousse céleste, Josué, lune-de-fond |
 
 - **Six plats remarquables** se découvrent en cherchant ; le carnet donne un indice pour chacun (Soupe de lune, Tarte d'ambre, Festin des Horlogers, Gelée-lanterne, Bouillon de braise, Pain des premiers jours).
+- *(Règle remplacée par la section 64 : tout plat va maintenant au sac ; un plat chaud s'y garde dix minutes.)*
 - **Servi chaud** : la plupart des plats ne se gardent pas. Il faut le **manger** ou le **donner à une compagne près du feu** (à 14 pas du campement ou de la marmite) tout de suite. Fermer le sac, quitter le feu ou cuisiner autre chose, et il est perdu (« a refroidi »).
 - **Ce qui va au sac** : certains plats font plusieurs parts, et/ou se conservent. Une part vaut **la moitié du plat entier** (vie, durée de l'effet). Ceux « d'un moment » se gâtent en **20 minutes de jeu** ; ceux de **longue conservation** tiennent.
 
@@ -491,7 +492,7 @@ Un moteur, à la façon d'un Zelda : on met ce qu'on veut dans la marmite (jusqu
 | Tarte d'ambre | 4 | longue |
 | Pain des premiers jours | 3 | longue |
 | Gelée-lanterne | 2 | longue |
-| tout le reste (grillade, brochette, compote, infusion, poêlée, rôti, salade, plat du voyageur…) | 1 | chaud |
+| tout le reste (grillade, brochette, compote, infusion, poêlée, rôti, salade, plat du voyageur…) | 1 | chaud — depuis la section 64 : au sac, 10 min |
 
 - **Le garde-manger suit la règle des matières** (viandes, produits de la flore, poissons ; baies et nectar en sont déjà) : au **retour d'expédition**, ce qu'en porte le sac passe au **cellier du coffre**, dans la même part que les matières (les cœurs perdus en coûtent autant) ; **la chute** (trois cœurs perdus sans campement planté) le vide ; il se **répartit** au campement (section 35) ; **près du feu**, la cuisine compte le cellier et y puise d'abord ; une compagne **au campement** y dépose ce qu'elle trouve. Le pillage ne touche pas le cellier. Pour régler : `P.cellier`, `sacIngr`, `metSacIngr`.
 - **Manger** : le plat servi, ou une part du sac (onglet Cuisine ou Sac). Le garde-manger se mange aussi cru : un appui (moitié moins de vie ; la viande, jamais).
@@ -1236,3 +1237,58 @@ Trois nouvelles icônes en pixels pour les comportements : `mode_autonome`, `mod
 - Au passage : le bouton **Y aller** (et les autres boutons principaux des lignes du sac) était doré sur fond sombre, avec un texte sombre : presque illisible. Il est de nouveau doré et lisible.
 
 Testé : une graine visée « Sylve fongique », on y va, l'île a bien sa sylve (3 700 cases) et sa tourbière ; les visées Caldeira, Terres creuses, Village, Terre des automates et Korlaz trouvent chacune leur graine.
+
+
+## 64. Les plats sont des objets : une vignette, une place au sac, une case du bord droit
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-30`).
+
+**Tout plat va au sac.** Un plat « chaud » (grillade, brochette, compote, infusion, poêlée, rôti, salade, plat du voyageur…) n'est plus perdu si on ne le mange pas au feu : il fait **une part** et **se garde dix minutes** de jeu (`GARDE_CHAUD`). Les plats à plusieurs parts gardent leurs vingt minutes, ceux de longue conservation tiennent toujours. Le livre de recettes dit « se garde 10 min » au lieu de « se mange chaud ». Donner un plat à une compagne se fait toujours avec G, près d'elle. *Pour revenir à la règle d'avant (§ 28) : `PLATS_AU_SAC = false` dans `index.html` — le « servi chaud » et ses boutons sont restés dans le code.*
+
+**Une vignette par plat** (`icPlat`, `dessinPlat`) : onze formes — le **bol** fumant (ragoût, soupe, plat du voyageur, soupe de lune, bouillon de braise), la **broche** (grillade, brochette, terre et mer), la **tourte**, le **pot** (confiture, compote, caramel, gelée-lanterne), le **flacon** (sirop), la **tasse** (infusion), le **pain** (pain, galette), la **poêle** (poêlée, rôti), la **salade**, le **festin** (Festin des Horlogers), la **fiole** (sérum) — à la **couleur de l'ingrédient principal**, avec un petit **losange à la couleur de l'effet** en haut à gauche (rouge : coups puissants, pâle : invisible, vert d'eau : antidote… `EFFET_COUL`). Les vignettes naissent à la demande et s'ajoutent à la feuille des icônes (`poserIcone`). On les voit dans le sac, sur la barre, dans la liste « Au sac » de la Cuisine et dans le livre de recettes.
+
+**Au sac** (onglet Sac, colonne de droite, sous les Objets) : la rangée **Plats**. Une case par **pile** — les plats de même recette, même effet et même niveau s'empilent (`plat:<recette>~<effet>~<niveau>`) —, avec le nombre de parts ; dessous, l'effet (« invisible II »), ou le nom du plat s'il n'en a pas. Toucher une pile ouvre sa **fiche** : nom, étoiles, ce que vaut une part, ce qu'il reste et combien de temps, **Manger** (ou Injecter), et **Case : 1 2 3 4 5**, comme pour un équipement.
+
+**Dans une case du bord droit** (touches 1 à 5) : la vignette du plat et son nombre de parts. Un appui **mange une part**, celle qui est la plus près de se gâter. La pile vide, **la case garde le plat**, grisé à 0 : elle le retrouve dès qu'on le recuisine ; un appui dit « plus de… · à cuisiner de nouveau ». On l'enlève d'une case depuis sa fiche (toucher la case dans « Cases du bord droit »). Les cases de plats sont gardées dans la sauvegarde.
+
+Testé : cinq plats cuisinés, dont un chaud (au sac, 10 min) et deux ragoûts identiques (une pile de 6 parts) ; rangés en cases 2 et 3 depuis leur fiche ; la case 2 mange une part (6 → 5, la vie remonte) ; la case 3 applique l'effet du plat puissant ; pile finie, la case reste, grisée, puis se regarnit en recuisinant ; les cases reviennent après rechargement ; un plat qui se gâte laisse sa case. Vérifié à l'écran sur ordinateur et à la taille d'un téléphone.
+
+Pour régler : `PLATS_AU_SAC`, `GARDE_CHAUD`, `PLAT_FORME` (la forme de chaque recette), `EFFET_COUL`, `dessinPlat`, `fichePlat`, `grillePlats`.
+
+
+## 65. Le campement s'améliore sans fin, garde son niveau, et son portail donne le choix
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-32`).
+
+**Le défaut** : le niveau était écrit sur le campement posé (`P.camp.niv`). Le reprendre le remettait au niveau 1. Il tient maintenant au personnage (`P.campNiv`) : repris, au sac, replanté ailleurs, il le garde. Une sauvegarde d'avant reprend le niveau du campement posé ; un niveau déjà perdu ne se retrouve pas seul : **Bêta → Le campement** (−1, +1, +5) le rétablit, et ce réglage est gardé (hors du mode essai).
+
+**Sans limite** (`coutCamp`, `COUT_CAMP`) : chaque niveau coûte **60 % de plus** que le précédent. Niveau 2 : 24 éclats, 30 pierres. Niveau 3 : 38 éclats, 48 pierres, 8 os (l'os entre au niveau 3, le bois au niveau 5). Niveau 5 : 98 éclats. Niveau 10 : 1 031. Niveau 15 : 10 809. Niveau 20 : 113 337. Le sac ne tient pas plus d'un million par matière : chaque prix s'arrête à 900 000 (vers le niveau 25), pour que rien ne ferme.
+
+**L'allure, par paliers** (`campOs(ennemi, autre, niv)`, `palierCamp`) — ce qui luit se voit la nuit, et le feu éclaire 8 % plus loin par palier :
+
+| Niveau | Nom | Ce qui change |
+|---|---|---|
+| 2 | Campement gravé | runes sur les piliers du portail, clef de voûte qui luit, lanterne au mât, deux pierres du feu gravées |
+| 3 | Campement d'éclat | le voile du portail devient une nappe vive, cristaux au pied de l'arche et sur le plancher, le portail éclaire |
+| 5 | Camp fortifié | socle de pierre, tente plus haute et galonnée, second mât et son fanion, tonneau, seuil devant l'arche |
+| 8 | Bastion d'éclat | quatre bornes d'éclat (deux obélisques côté portail), parapet crénelé avec sa porte, feu plus grand au cœur d'éclat |
+| 12 | Sanctuaire du portail | anneau de lumière qui tourne au-dessus du camp, arche double avec cœur d'éclat et flèche |
+| 20 | Citadelle du portail | trois cristaux en orbite, trait de lumière au-dessus de l'arche ; puis un cristal de plus tous les dix niveaux (huit au plus, niveau 70) |
+
+Les autres joueurs voient le vrai niveau (le message de position porte le niveau en 5e case de `cp`), sans le portail, comme avant.
+
+**Le journal** : 1 graine en mémoire, puis 3, puis 6, puis une de plus par niveau, jusqu'à 12 (niveau 9).
+
+**Le portail du campement propose** (`propositions`, `corpsPortail`, `partirPropose`) — onglet Campement → Partir, dès le niveau 2. Les arches des îles, elles, tirent toujours au hasard.
+- **Le nombre d'îles** : autant que le niveau, de 2 à 8.
+- **Ce qu'il en dit** (`detailPortail`, `DETAIL_NIV`, `apercuIle`) : d'abord flou, puis de plus en plus net. Niveau 2 : une **note de danger** seule, de « paisible » à « mortelle » — elle tient déjà compte de tout (prédateurs, automates tireurs, terreurs, état de l'île) sans rien nommer. Niveau 3 : les **biomes rares**. Niveau 5 : le **bestiaire** (les bêtes à craindre en rouge, et leur compte). Niveau 7 : l'**état de l'île** (Korlaz, ou « sain » ; `ETATS_NOMS` pour les états à venir). Ce que le portail ne lit pas encore s'affiche flouté, avec le niveau de campement qui le découvre. Aux explorations 10, 15, 20…, il rappelle la Tisseuse de fer.
+- **Relancer** : une relance par départ au niveau 9, puis une de plus à chaque niveau.
+- **Chercher un biome** : dès le niveau 10, on choisit un biome permis à l'exploration visée (Tourbière… Village, Terre des automates, Korlaz) ; la première île le porte, puis une de plus tous les trois niveaux (les huit au niveau 31).
+- Les îles proposées obéissent aux règles du portail (île signée, permise au niveau, gardée s'il le faut). Elles se tirent de l'île, de l'exploration et d'un compteur (`P.portailT`) : fermer le sac ou recharger la page ne les change pas ; elles changent quand on part ou qu'on relance.
+- Chaque île a son bouton **Partir**, à confirmer d'un second appui. Une île choisie n'est jamais détournée vers un pillage ; le groupe d'expédition est prévenu comme avant.
+
+**Côté base** (fait le 6 octobre 2026, migration `vp_campement_niveau_sans_borne`) : la table `vp_campements` et la fonction `vp_camp_publier` bornaient le niveau publié à 3 ; elles le bornent maintenant à 999, comme le jeu. Qui pille un campement le voit à son vrai niveau.
+
+Testé : campement amélioré jusqu'au niveau 3 (matières débitées au bon prix, refus sans matières), repris puis reposé (niveau 3 gardé), sauvegarde relue, ancienne sauvegarde migrée ; propositions valides et stables aux niveaux 1 à 14, relance et vœu de chaque biome (moins de 5 ms) ; départ vers une île choisie (arrivée sur la bonne graine, exploration +1, campement et niveau gardés) puis retour ; vues de jour et de nuit à chaque palier ; panneau sur téléphone ; aperçu d'une île à Korlaz aux quatre degrés de précision (la note ne change pas d'un degré à l'autre).
+
+Pour régler : `CAMP_PALIERS`, `CAMP_NOMS`, `COUT_CAMP`, `memoireCamp`, `choixPortail`, `detailPortail`, `relancesPortail`, `voeuxPortail`, `cristauxCamp`, `apercuIle`.

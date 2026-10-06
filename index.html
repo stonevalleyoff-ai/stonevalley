@@ -458,6 +458,12 @@
     background:#1b2130;border:1px solid #394154;white-space:nowrap;}
   #sac .obj button:hover{background:#232a3a;}
   #sac .obj button:disabled{opacity:.38;cursor:default;}
+  #sac .obj button.alerte{background:#2a1618;border-color:var(--braise);color:var(--braise);}
+  #sac .dgr{color:var(--braise);font-weight:600;} #sac .obj.ile{align-items:flex-start;} #sac .obj.ile .d i{font-style:normal;opacity:.7;}
+  #sac .risque{display:inline-block;margin-left:7px;padding:1px 7px;border-radius:9px;font-size:10.5px;font-weight:650;border:1px solid currentColor;vertical-align:1px;}
+  #sac .risque.r0{color:#8fd9a0;} #sac .risque.r1{color:#b8c87c;} #sac .risque.r2{color:#ffd27d;} #sac .risque.r3{color:#f0a868;} #sac .risque.r4{color:var(--braise);}
+  #sac .obj .tp-viser button[aria-pressed="true"]{border-color:var(--or);color:var(--or);}
+  #sac .flou{filter:blur(2.6px);opacity:.5;letter-spacing:-1px;user-select:none;}
   .touches{display:grid;grid-template-columns:max-content 1fr;gap:4px 18px;margin:0;}
   .touches dt{color:var(--texte);font-weight:600;}
   .touches dd{margin:0;color:var(--texte2);}
@@ -2275,6 +2281,8 @@ P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.baumes = 0; P.arc = 
 // dehors ou rentrée dans le sac. Autant de compagnes que de liens, six au plus.
 P.liens = 0; P.compagnes = [];
 P.camp = null;                  // le campement posé : { graine, x, y, z, niv }
+P.campNiv = 1;                  // le niveau du campement : il tient au personnage, posé comme au sac
+P.portailT = 0; P.portailR = 0; P.portailVoeu = '';   // le portail du campement : son tirage, ses relances faites, le biome cherché
 P.journal = { gardees: [], visites: [] };   // les graines tenues en mémoire, et les expéditions
 P.pseudo = null;                // le nom vu par les autres joueurs ; sans lui, l'adresse fait foi
 P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ déjà payé en travail
@@ -3696,7 +3704,7 @@ function poserCampement() {
   if (P.camp) { say('un campement est déjà posé · le reprendre d\'abord', 2.5); return false; }
   const q = placeCamp(P.x, P.y);
   if (!q) { say('il faut un sol plat et dégagé', 2.5); return false; }
-  q.niv = 1;
+  q.niv = nivCamp();                                   // il garde ses améliorations
   q.expl = profondeur();                               // planté ici, il fait de ce niveau votre chez-vous
   P.camp = q; P.objets.foyer = 1;                      // la pierre de foyer vient avec
   P.exp.sortie = 0; P.exp.coeurs = 0;                  // on est chez soi : l'expédition est close
@@ -3712,7 +3720,7 @@ function reprendreCampement() {
   for (const c of P.compagnes) if (c.mode === 'camp') { c.mode = 'joueur'; c.aucamp = 0; if (c.b) { c.b.mode = 'joueur'; c.b.gite = [c.b.x, c.b.y]; } }
   burst(P.camp.x, P.camp.y, P.camp.z + .5, 18, '#8b95aa');
   P.camp = null; delete P.objets.foyer;
-  say('campement repris', 2.2); majSac();
+  say(nivCamp() > 1 ? 'campement repris · il garde son niveau ' + nivCamp() : 'campement repris', 2.6); majSac();
 }
 // Voyager campement au sac : on l'emporte au niveau suivant, où il se replante. Pas de chez-soi
 // entre-temps — pas de pierre de foyer, pas de retour —, et trois cœurs perdus avant de l'avoir
@@ -3734,6 +3742,7 @@ function voyagerVers(g, pos, mot, niv) {
     Raid.fini = true;
   }
   debrancher('changement d\'île');                   // on prévient avant de disparaître
+  P.portailR = 0;                                    // un nouveau départ : les relances du portail reviennent
   const d = photo();
   d.graine = g; d.pos = pos || null; d.sol = null;
   d.raid = raidPart ? raidPhoto(raidPart) : null; raidPart = null;
@@ -3795,6 +3804,8 @@ function ouvrirPortail() {
   if (!P.camp && !campAuSac()) { say('il faut un campement, posé ou dans le sac', 3); return false; }
   if (!auCamp() && !auPortailIle()) { say('il faut être devant un portail', 2.5); return false; }
   if (chercheRaid) return false;                     // le portail hésite déjà
+  // au campement, passé le premier niveau, le portail propose ses îles : on choisit dans le panneau
+  if (auCamp() && choixPortail(nivCamp()) > 1) { choixCamp = 'portail'; ouvrirSac(true, 'camp'); return false; }
   // une fois sur douze, avec un compte, il mène au campement d'un autre joueur
   if (Compte.dedans && !essai && !(typeof coopCible === 'function' && coopCible()) && Math.random() < probaRaid()) { chercherRaid(); return true; }
   return portailNormal();
@@ -3839,7 +3850,7 @@ function raidLu(r) {
   const ko = (Array.isArray(r.ko) ? r.ko : []).filter(i => Number.isInteger(i) && i >= 0 && i < 6);
   return { jeton: r.jeton, graine: g, x, y, z: Math.max(-8, Math.min(64, z)),
     pseudo: String(r.pseudo || '').replace(/[<>]/g, '').slice(0, 18).trim() || 'quelqu\'un',
-    niv: Math.max(1, Math.min(3, Number(r.niv_camp ?? r.niv) | 0 || 1)), coffre, gardiennes, ko,
+    niv: Math.max(1, Math.min(CAMP_MAX, Number(r.niv_camp ?? r.niv) | 0 || 1)), coffre, gardiennes, ko,
     part: Math.max(0, Math.min(RAID_MAX, Number(r.part) || 0)), fini: !!r.fini, place: !!r.place,
     depuis: Number.isFinite(r.depuis) ? r.depuis : Date.now(), echecs: 0 };
 }
@@ -3989,7 +4000,7 @@ function gardiennesCamp() {
 function campPublic() {
   if (!P.camp) return null;
   return { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100, y: Math.round(P.camp.y * 100) / 100, z: P.camp.z,
-    niv_ile: P.camp.expl || 0, niv_camp: P.camp.niv || 1, pseudo: pseudo(), coffre: Object.assign({}, P.coffre), gardiennes: gardiennesCamp() };
+    niv_ile: P.camp.expl || 0, niv_camp: nivCamp(), pseudo: pseudo(), coffre: Object.assign({}, P.coffre), gardiennes: gardiennesCamp() };
 }
 function majPillage() {
   if (!Compte.dedans || essai || !Sauve.pret || PILL.envoi) return;
@@ -4483,7 +4494,7 @@ function majDistant(d) {
   j.ground = !d.air; j.lum = !!d.l; j.selle = Math.max(0, Math.min(2, +d.m || 0)); j.vu = maintenant();
   gesteDistant(j, d);
   const cp = Array.isArray(d.cp) && d.cp.length >= 3 && d.cp.slice(0, 3).every(Number.isFinite) ? d.cp : null;
-  j.camp = cp && !(cp[3] && raidIci()) ? { x: cp[0], y: cp[1], z: cp[2], graine: SEED, autre: j.u, pille: !!cp[3] } : null;   // son campement (ou celui qu'il pille), vu d'ici
+  j.camp = cp && !(cp[3] && raidIci()) ? { x: cp[0], y: cp[1], z: cp[2], graine: SEED, autre: j.u, pille: !!cp[3], niv: Math.max(1, Math.min(CAMP_MAX, cp[4] | 0)) } : null;   // son campement (ou celui qu'il pille), vu d'ici
   if (typeof fauneDistant === 'function') fauneDistant(j, d);   // gardien ou suiveur, et les bêtes qu'il fait vivre
   // ses compagnes sorties : des bêtes fantômes, dessinées et frappables, mais sans vie propre
   const l = Array.isArray(d.c) ? d.c.slice(0, COMPAGNES_RESEAU) : [];
@@ -4657,7 +4668,7 @@ function majReseau(dt) {
           // l'arme portée, le dernier geste (compteur, nom, âge, durée, outil ou arme), la bande de l'arc
           w: P.equip.arme || '', b: P.arc === null ? null : r2(Math.min(1, P.arc / ARC_TEMPS)),
           g: P.evt && t - P.evt.t0 < Math.max(P.evt.dur, .6) ? [P.evt.n, P.evt.nom, r2(t - P.evt.t0), r2(P.evt.dur), P.evt.o] : null },
-          { cp: campIci() ? [r2(P.camp.x), r2(P.camp.y), r2(P.camp.z)] : raidIci() ? [r2(Raid.x), r2(Raid.y), r2(Raid.z), 1] : 0 },   // son campement, s'il est sur cette île (ou celui qu'il pille)
+          { cp: campIci() ? [r2(P.camp.x), r2(P.camp.y), r2(P.camp.z), 0, nivCamp()] : raidIci() ? [r2(Raid.x), r2(Raid.y), r2(Raid.z), 1, Raid.niv || 1] : 0 },   // son campement, s'il est sur cette île (ou celui qu'il pille)
           gardes.length ? { gc: gardes.map(b => Object.assign({ e: b.sp.id, x: r2(b.x), y: r2(b.y), z: r2(b.z), v: r2(b.pv), d: r2(b.dir) }, b.variante ? { w: b.variante } : {})) } : {},
           marmiteIci() ? { mm: [r2(P.marmite.x), r2(P.marmite.y), r2(P.marmite.z)] } : {},   // sa marmite posée sur cette île
           pecheReseau(),                                // sa canne, son bouchon, ses ombres
@@ -4698,17 +4709,154 @@ function majReseau(dt) {
 //  Un campement neuf ne retient qu'une graine ; amélioré à l'éclat, il en retient trois, puis six,
 //  et son portail sait viser au lieu de tirer au hasard.
 // ============================================================
-const CAMP_NIV = [
-  { niv: 1, n: 'Campement', memoire: 1, cout: null, d: 'une graine en mémoire · portail au hasard' },
-  { niv: 2, n: 'Campement gravé', memoire: 3, cout: { eclat: 24, pierre: 30 },
-    d: 'trois graines en mémoire · le portail vise une île gardée' },
-  { niv: 3, n: 'Campement d\'éclat', memoire: 6, cout: { eclat: 60, pierre: 40, os: 8 },
-    d: 'six graines en mémoire · portail dirigé' },
-];
-const nivCamp = () => (P.camp && P.camp.niv) || 1;
-const paletteCamp = () => CAMP_NIV[Math.min(CAMP_NIV.length, nivCamp()) - 1];
-const memoireJournal = () => paletteCamp().memoire;
+// Le campement s'améliore sans fin, et son niveau tient au personnage : repris, au sac, replanté
+// ailleurs, il le garde. Chaque niveau coûte 60 % de plus que le précédent. À certains paliers
+// (2, 3, 5, 8, 12, 20, puis un cristal de plus tous les dix niveaux), le campement change d'allure.
+// Le journal retient jusqu'à douze graines, et le portail du campement devient plus précis : il
+// propose de plus en plus d'îles, en dit de plus en plus long sur chacune, se relance, puis
+// cherche un biome. Les arches des îles, elles, tirent toujours au hasard.
+const CAMP_MAX = 999, CAMP_PALIERS = [2, 3, 5, 8, 12, 20];
+const CAMP_NOMS = ['Campement', 'Campement gravé', 'Campement d\'éclat', 'Camp fortifié', 'Bastion d\'éclat', 'Sanctuaire du portail', 'Citadelle du portail'];
+const nivCamp = () => Math.max(1, Math.min(CAMP_MAX, P.campNiv | 0));
+const palierCamp = niv => CAMP_PALIERS.reduce((n, p) => n + (niv >= p ? 1 : 0), 0);   // de 0 à 6
+const nomCamp = niv => CAMP_NOMS[palierCamp(niv)];
+const cristauxCamp = niv => niv < 20 ? 0 : Math.min(8, 3 + Math.floor((niv - 20) / 10));   // ceux qui tournent autour
+const palierSuivant = niv => CAMP_PALIERS.find(p => p > niv) || (cristauxCamp(niv) < 8 ? 20 + (Math.floor((niv - 20) / 10) + 1) * 10 : 0);
+const nivDuCamp = c => c === P.camp ? nivCamp() : Math.max(1, Math.min(CAMP_MAX, (c && c.niv) | 0));   // le mien, celui d'un autre, celui qu'on pille
+const memoireCamp = niv => niv <= 1 ? 1 : niv === 2 ? 3 : Math.min(12, niv + 3);
+const memoireJournal = () => memoireCamp(nivCamp());
 const portailDirige = () => nivCamp() >= 2;
+const choixPortail = niv => niv < 2 ? 1 : Math.min(8, niv);            // les îles proposées
+// Ce que le portail lit d'une île : d'abord flou — une note de danger —, puis les biomes rares, puis le bestiaire, enfin l'état de l'île.
+const DETAIL_NIV = [2, 3, 5, 7];
+const detailPortail = niv => DETAIL_NIV.reduce((n, p) => n + (niv >= p ? 1 : 0), 0);
+const relancesPortail = niv => Math.max(0, niv - 8);                   // une de plus par niveau, à partir du neuvième
+const voeuxPortail = niv => niv < 10 ? 0 : Math.min(8, 1 + Math.floor((niv - 10) / 3));   // les îles tenues de porter le biome cherché
+// Ce qu'il faut pour atteindre `niv` : [prix de départ, niveau où la matière entre]. Le sac ne
+// tient pas plus d'un million par matière : le prix s'arrête à 900 000, pour que rien ne ferme.
+const COUT_CAMP = { eclat: [24, 2], pierre: [30, 2], os: [8, 3], bois: [40, 5] };
+function coutCamp(niv) {
+  if (niv < 2) return null;
+  const c = {};
+  for (const [r, [k, n0]] of Object.entries(COUT_CAMP)) if (niv >= n0) c[r] = Math.min(900000, Math.round(k * Math.pow(1.6, niv - n0)));
+  return c;
+}
+const enMilliers = n => String(Math.round(n)).replace(/\B(?=(\d{3})+$)/g, ' ');
+// Ce qu'apporte le niveau `niv`, par rapport à celui d'avant.
+function apportsCamp(niv) {
+  const A = [], a = niv - 1, pl = (n, m) => n + ' ' + m + (n > 1 ? 's' : '');
+  if (palierCamp(niv) > palierCamp(a)) A.push('le campement change d\'allure : ' + nomCamp(niv));
+  else if (cristauxCamp(niv) > cristauxCamp(a)) A.push('un cristal de plus tourne autour du campement');
+  if (memoireCamp(niv) > memoireCamp(a)) A.push('journal : ' + memoireCamp(niv) + ' graines en mémoire');
+  if (niv === 2) A.push('journal : on peut partir vers une île gardée');
+  if (choixPortail(niv) > choixPortail(a)) A.push('portail : ' + choixPortail(niv) + ' îles au choix');
+  if (detailPortail(niv) > detailPortail(a)) A.push('portail : il montre ' + ['', 'le danger de chaque île, de paisible à mortelle ; le reste est flou', 'les biomes rares de chaque île', 'le bestiaire de chaque île', 'l\'état de chaque île (Korlaz…)'][detailPortail(niv)]);
+  if (relancesPortail(niv) > relancesPortail(a)) A.push('portail : ' + pl(relancesPortail(niv), 'relance') + ' par départ');
+  if (niv === 10) A.push('portail : il cherche un biome de votre choix');
+  else if (voeuxPortail(niv) > voeuxPortail(a)) A.push('portail : ' + voeuxPortail(niv) + ' îles tenues de porter le biome cherché');
+  return A;
+}
+// ---------- le portail du campement : des îles au choix ----------
+// Les propositions se tirent de l'île, de l'exploration et du compteur de tirages : les mêmes tant
+// qu'on n'est pas parti ni n'a relancé — fermer le sac ou recharger la page ne les change pas.
+// Elles obéissent aux règles du portail (île signée, permise à ce niveau, gardée s'il le faut).
+let propoCache = null;
+const voeuxPossibles = niv => VISEES.filter(v => v.k === 'meca' ? niv >= NIV_MECA : v.k === 'korlaz' ? niv >= 6 && typeof etatGraine === 'function'
+  : (RARES.find(r => 'b' + r.b === v.k) || { niv: 1e9 }).niv <= niv);
+function voeuPortail() {
+  if (voeuxPortail(nivCamp()) < 1 || !P.portailVoeu) return null;
+  return voeuxPossibles(profondeur() + 1).find(v => v.k === P.portailVoeu) || null;
+}
+function propositions() {
+  const niv = profondeur() + 1, n = choixPortail(nivCamp()), v = voeuPortail(), nv = v ? Math.min(n, voeuxPortail(nivCamp())) : 0;
+  const cle = [SEED, niv, P.portailT | 0, n, v ? v.k : '', nv].join(':');
+  if (propoCache && propoCache.cle === cle) return propoCache.L;
+  let s = hash32((SEED ^ 0x70a7a11) + Math.imul(niv, 7919) + Math.imul(P.portailT | 0, 104729)) || 1;
+  const tir = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return (s / 4294967296 * 1e9) | 0; };
+  const garde = gardeRequise(niv), L = [];
+  const bon = g => g !== SEED && !L.includes(g) && signee(g) && nivGraine(g) <= niv && (!garde || tireursGraine(g, niv) >= garde);
+  for (let i = 0; i < 300000 && L.length < nv; i++) { const g = tir(); if (signee(g) && v.ok(g, niv) && bon(g)) L.push(g); }
+  const voulues = L.length;
+  for (let i = 0; i < 300000 && L.length < n; i++) { const g = tir(); if (bon(g)) L.push(g); }
+  propoCache = { cle, L, voulues };
+  return L;
+}
+// Ce que le portail sait dire d'une île, selon sa précision. La note de danger vient d'abord, seule :
+// elle tient déjà compte de tout (bêtes, automates tireurs, terreurs, état de l'île), sans rien
+// nommer. Ce qu'il ne lit pas encore reste flou, avec le niveau de campement qui le découvre.
+const ESP_EFFROI = ['silencieux', 'millegueule'];
+const dangerEspece = sp => sp.tir ? 'tir' : ESP_EFFROI.includes(sp.id) ? 'effroi' : predateur(sp) ? 'pred' : '';
+const RISQUES = ['paisible', 'calme', 'risquée', 'dangereuse', 'mortelle'];
+const ETATS_NOMS = { korlaz: 'Korlaz · roche rongée, spores neurotoxiques' };   // les états d'île (etats.js)
+function apercuIle(g, niv, det) {
+  if (det < 1) return { texte: '', risque: '' };
+  const meca = ileMecaGraine(g) && niv >= NIV_MECA, L = [], pl = (n, m) => n + ' ' + m + (n > 1 ? 's' : '');
+  const e = bestiaireGraine(g, niv), S = SPEC.filter(sp => e.has(sp.id) && !sp.boss);
+  const etat = typeof etatGraine === 'function' ? etatGraine(g, niv) : null;
+  const c = { pred: 0, tir: 0, effroi: 0 };
+  for (const sp of S) { const d = dangerEspece(sp); if (d) c[d]++; }
+  const score = c.pred + c.tir * 1.5 + c.effroi * 4 + (etat ? 2 : 0), r = score <= 0 ? 0 : score < 2 ? 1 : score < 4 ? 2 : score < 7 ? 3 : 4;
+  const flou = (nom, k, n) => nom + ' <span class="flou" aria-hidden="true">' + '███ █████ ████ ██████'.slice(0, n) + '</span> <i>campement niveau ' + DETAIL_NIV[k] + '</i>';
+  if (det >= 2) {
+    const b = meca ? ['<b>Terre des automates</b>'] : biomesGraine(g).map(k => '<b>' + ESC(rareDe(k).n) + '</b> <i>' + ESC(rareDe(k).rang) + '</i>');
+    L.push(b.length ? b.join(' · ') : 'biomes de base seulement');
+  } else L.push(flou('Biomes rares', 1, 14));
+  if (det >= 3) {
+    const D = [];
+    L.push(S.map(sp => dangerEspece(sp) ? '<b class="dgr">' + ESC(sp.n) + '</b>' : ESC(sp.n)).join(', ') || 'aucune bête');
+    if (c.pred) D.push(pl(c.pred, 'prédateur'));
+    if (c.tir) D.push(pl(c.tir, 'automate') + ' tireur' + (c.tir > 1 ? 's' : ''));
+    if (c.effroi) D.push('une terreur');
+    if (D.length) L.push('À craindre : ' + D.join(' · '));
+  } else L.push(flou('Bestiaire', 2, 21));
+  if (det >= 4) L.push('État de l\'île : ' + (etat ? '<b class="dgr">' + ESC(ETATS_NOMS[etat] || etat) + '</b>' : 'sain'));
+  else L.push(flou('État de l\'île', 3, 9));
+  return { texte: L.join('<br>'), risque: ` <span class="risque r${r}">${RISQUES[r]}</span>` };
+}
+function corpsPortail() {
+  const camp = nivCamp(), niv = profondeur() + 1, det = detailPortail(camp), L = propositions(), nv = propoCache ? propoCache.voulues : 0;
+  const reste = Math.max(0, relancesPortail(camp) - (P.portailR | 0)), v = voeuPortail();
+  const pl = (n, m) => n + ' ' + m + (n > 1 ? 's' : '');
+  let h = `<p class="note" style="margin:10px 2px 4px">Exploration ${niv} · le portail propose ${pl(L.length, 'île')}`
+    + ['', ' : il n\'en lit encore que le danger', ', avec danger et biomes rares', ', avec danger, biomes rares et bestiaire', ', avec danger, biomes rares, bestiaire et état'][det] + '.'
+    + (niv >= 10 && niv % 5 === 0 ? ' <b class="dgr">La Tisseuse de fer garde ce niveau, quelle que soit l\'île.</b>' : '')
+    + (P.groupe && P.groupeCible ? ' <b class="dgr">Votre groupe vous attend : quelle que soit l\'île choisie, le portail vous mènera auprès de ' + ESC(P.groupeCible.n) + '.</b>' : '') + `</p>`;
+  h += L.map((g, i) => {
+    const id = 'portail:' + g, conf = confirmeAct.id === id && maintenantSac() < confirmeAct.jusqua, a = apercuIle(g, niv, det);
+    return `<div class="obj ile${i < nv ? ' porte' : ''}"><div><div class="n">Île ${ESC(nomIle(g))}${a.risque}</div><div class="d">${a.texte}`
+      + `${conf ? '<br><b class="dgr">Vous quittez cette île : l\'exploration monte d\'un niveau et ne redescend plus. Encore un appui pour confirmer.</b>' : ''}</div></div>`
+      + `<button class="${conf ? 'alerte' : ''}" data-campc="${id}">${conf ? 'Confirmer' : 'Partir'}</button></div>`;
+  }).join('');
+  if (relancesPortail(camp)) h += `<div class="obj"><div><div class="n">Relancer</div><div class="d">d'autres îles, tirées de nouveau · ${reste ? pl(reste, 'relance') + ' pour ce départ' : 'plus de relance pour ce départ'}</div></div>`
+    + `<button data-camp="relance"${reste ? '' : ' disabled'}>Relancer</button></div>`;
+  if (voeuxPortail(camp)) {
+    const V = voeuxPossibles(niv), k = v ? v.k : '', q = Math.min(L.length, voeuxPortail(camp));
+    h += `<div class="obj"><div style="flex:1;min-width:0"><div class="n">Chercher un biome</div>`
+      + `<div class="d">${q > 1 ? 'les ' + q + ' premières îles le porteront' : 'la première île le portera'} · seuls ceux que cette exploration permet</div>`
+      + `<div class="tp-viser"><button data-camp="voeu:" aria-pressed="${!k}">Aucun</button>`
+      + V.map(o => `<button data-camp="voeu:${o.k}" aria-pressed="${o.k === k}" title="${ESC(o.t)}">${ESC(o.n)}</button>`).join('') + `</div></div></div>`;
+  }
+  return h;
+}
+function partirPropose(g) {
+  if (!P.camp || !auCamp()) { say('il faut être à votre campement', 2.5); return false; }
+  if (chercheRaid) return false;
+  if (!propositions().includes(g)) { say('le portail ne vise plus cette île', 2.2); return false; }
+  const niv = profondeur() + 1;
+  P.portailT = (P.portailT | 0) + 1;                   // parti : le prochain tirage sera autre
+  burst(P.x, P.y, P.z + .8, 24, '#8fe3ff'); SON.jouer('portail');
+  const r = typeof coopPortail === 'function' ? coopPortail(g, niv) : null;   // le groupe : le rendez-vous, et les autres prévenus
+  if (r) return voyagerVers(r.g, null, r.mot, r.niv);
+  return voyagerVers(g, null, 'le portail s\'ouvre sur l\'île ' + nomIle(g) + ' · exploration ' + niv);
+}
+function relancerPortail() {
+  if (!P.camp || !auCamp()) { say('il faut être à votre campement', 2.5); return false; }
+  if ((P.portailR | 0) >= relancesPortail(nivCamp())) { say('plus de relance pour ce départ', 2); return false; }
+  P.portailR = (P.portailR | 0) + 1; P.portailT = (P.portailT | 0) + 1; confirmeAct.id = '';
+  burst(P.camp.x, P.camp.y + 1.02, P.camp.z + 1, 14, '#8fe3ff');
+  say('le portail vise ailleurs', 1.6);
+  return true;
+}
 const VISITES_MAX = 24;
 // Ce que vaut une île : ses trois biomes dominants, son bestiaire, son eau, ses îles volantes.
 let compoCache = null;
@@ -4785,17 +4933,19 @@ function oublierGraine(g) {
   majSac();
 }
 function ameliorerCamp() {
-  if (!P.camp) { say('aucun campement', 2); return false; }
-  const suite = CAMP_NIV[nivCamp()];                              // le niveau suivant
-  if (!suite) { say('le campement est au plus haut', 2); return false; }
+  if (!P.camp) { say('posez d\'abord le campement', 2); return false; }
   if (!campIci() || !auCamp()) { say('il faut être à votre campement', 2.5); return false; }
+  const n = nivCamp() + 1;
+  if (n > CAMP_MAX) { say('le campement est au plus haut', 2); return false; }
+  const cout = coutCamp(n);
   if (!essai) {
-    for (const [r, n] of Object.entries(suite.cout)) if (dispo(r) < n) { say('matières manquantes', 1.8); return false; }
-    payer(suite.cout);
+    for (const [r, q] of Object.entries(cout)) if (dispo(r) < q) { say('matières manquantes', 1.8); return false; }
+    payer(cout);
   }
-  P.camp.niv = suite.niv;
-  burst(P.camp.x, P.camp.y, P.camp.z + 1, 26, '#8fe4e8');
-  say(suite.n + ' · mémoire ' + suite.memoire + ' graine' + (suite.memoire > 1 ? 's' : ''), 3);
+  const allure = palierCamp(n) > palierCamp(n - 1);
+  P.campNiv = n; P.camp.niv = n;
+  burst(P.camp.x, P.camp.y, P.camp.z + 1, allure ? 60 : 26, '#8fe4e8');
+  say((allure ? nomCamp(n) + ' · ' : 'campement · ') + 'niveau ' + n, 3);
   majSac();
   return true;
 }
@@ -5752,8 +5902,8 @@ function pageJournal() {
     + blocEnLigne()
     + `<h3>Ici <span class="compte">graine ${ESC(String(SEED))}</span></h3>${ficheGraine(ici, false)}`
     + `<h3>Mémoire du journal <span class="compte">${(j.gardees || []).length} sur ${m}</span></h3>${gardees}`
-    + (nivCamp() < CAMP_NIV.length
-      ? `<p class="note" style="margin:2px 2px 10px">Un campement amélioré (onglet Campement) retient ${CAMP_NIV[nivCamp()].memoire} graines${portailDirige() ? '' : ' et apprend au portail à viser'}.</p>` : '')
+    + (memoireCamp(nivCamp() + 1) > m
+      ? `<p class="note" style="margin:2px 2px 10px">Un campement amélioré (onglet Campement) retient ${memoireCamp(nivCamp() + 1)} graines${portailDirige() ? '' : ' et apprend au portail à viser'}.</p>` : '')
     + `<h3>Expéditions <span class="compte">${(j.visites || []).length} île${(j.visites || []).length > 1 ? 's' : ''} connue${(j.visites || []).length > 1 ? 's' : ''}</span></h3>`
     + (passees.length ? passees.map(v => ficheGraine(v, false)).join('')
       : `<p class="note" style="margin:2px 2px 0">Aucune autre île visitée. Le portail du campement en ouvre une au hasard.</p>`)
@@ -5774,7 +5924,7 @@ function pageCampement() {
       + `<button class="btn principal" data-voir="camp">Voir à l'établi</button></div></div>`);
   if (!P.camp) {
     const q = placeCamp(P.x, P.y);
-    return vide(`<p style="margin:10px 0 0">Le campement est dans le sac. Posez-le sur un sol plat et dégagé :`
+    return vide(`<p style="margin:10px 0 0">Le campement est dans le sac${nivCamp() > 1 ? ' (' + ESC(nomCamp(nivCamp())) + ', niveau ' + nivCamp() + ' : il garde ses améliorations)' : ''}. Posez-le sur un sol plat et dégagé :`
       + ` cette île deviendra la vôtre.</p>`
       + `<p style="margin:0">${q ? 'Ici, le sol convient.' : 'Ici, le sol ne convient pas : il faut neuf cases plates, sans eau ni vide.'}</p>`
       + `<button class="btn principal" data-camp="poser"${q ? '' : ' disabled'}>Poser le campement ici</button></div></div>`);
@@ -5838,31 +5988,41 @@ function pageCampement() {
       })() : '')
 ;
   const gens = P.compagnes.filter(c => c.mode === 'camp');
-  const suite = CAMP_NIV[nivCamp()], payable_ = !!suite && (essai || Object.entries(suite.cout).every(([r, n]) => dispo(r) >= n));
+  const suiteN = nivCamp() + 1, cout_ = coutCamp(suiteN), payable_ = essai || Object.entries(cout_).every(([r, n]) => dispo(r) >= n);
   const note = x => `<p class="note" style="margin:10px 2px 0">${x}</p>`;
   const arche = proche || auPortailIle();
+  const choisit = proche && choixPortail(nivCamp()) > 1;   // au campement, passé le premier niveau : des îles au choix
   const A = [
     { id: 'coffre', n: 'Coffre', ic: 'coffre', ok: true, sous: 'Réserve du campement' + (coffreTotal() ? ' · ' + coffreTotal() : ''), corps: corpsCoffre },
     { id: 'repos', n: 'Se reposer', ic: 'role_repos', ok: proche, sous: 'Au feu du campement',
       corps: note(proche ? 'Santé et souffle refaits, compagnes alentour rassasiées.' : 'Il faut être au campement.'), bouton: 'Se reposer', attr: 'data-camp="repos"' },
     { id: 'cuisine', n: 'Cuisiner', ic: 'ongletCuisine', ok: true, sous: 'La marmite du feu',
       corps: note('Viandes, poissons, fruits, racines : jusqu\'à quatre ingrédients, il en sort toujours un plat.'), bouton: 'Ouvrir la cuisine', attr: 'data-onglet="cuisine"' },
-    { id: 'portail', n: 'Partir', ic: 'portail', ok: arche, irrev: true, sous: 'Vers l\'exploration ' + (profondeur() + 1),
-      corps: note(arche ? 'Une île au hasard. La pierre de foyer vous ramènera ici.' : 'Approchez-vous d\'une arche : celle du campement, ou celle de l\'île.'),
-      bouton: 'Partir', avert: 'Vous quittez cette île, et l\'exploration monte d\'un niveau : elle ne redescend plus.' },
+    { id: 'portail', n: 'Partir', ic: 'portail', ok: arche, irrev: true,
+      sous: 'Vers l\'exploration ' + (profondeur() + 1) + (choisit ? ' · ' + choixPortail(nivCamp()) + ' îles au choix' : ''),
+      corps: choisit ? corpsPortail()
+        : note(!arche ? 'Approchez-vous d\'une arche : celle du campement, ou celle de l\'île.'
+          : proche ? 'Une île au hasard. La pierre de foyer vous ramènera ici. Amélioré, le portail du campement donne le choix de l\'île.'
+          : 'Une île au hasard : l\'arche d\'une île ne vise pas. Seul le portail du campement donne le choix.'),
+      bouton: choisit ? '' : 'Partir', avert: 'Vous quittez cette île, et l\'exploration monte d\'un niveau : elle ne redescend plus.' },
     portailDirige() ? { id: 'journal', n: 'Viser une île', ic: 'ongletJournal', ok: true, sous: 'Une île gardée au journal',
       corps: note('Le journal tient ' + (P.journal.gardees || []).length + ' graine' + ((P.journal.gardees || []).length > 1 ? 's' : '') + ' : le départ se choisit là.'),
       bouton: 'Ouvrir le journal', attr: 'data-onglet="journal"' } : null,
     { id: 'rentrer', n: 'Rentrer', ic: 'foyer', ok: !(ici && proche), irrev: !ici, sous: 'La pierre de foyer',
       corps: note(ici ? (proche ? 'Vous y êtes déjà.' : 'Vous êtes sur votre île : la pierre vous ramène au feu.') : 'De n\'importe quelle île, la pierre vous ramène au campement.'),
       bouton: 'Rentrer', attr: 'data-camp="rentrer"', avert: 'Vous quittez cette île pour votre campement.' },
-    { id: 'ameliorer', n: 'Améliorer', ic: 'marteau', ok: payable_ && proche, irrev: !!suite,
-      sous: suite ? ESC(suite.n) : ESC(paletteCamp().n) + ' · au plus haut',
-      corps: suite ? note(ESC(suite.d) + '<br>Coût : ' + Object.entries(suite.cout).map(([r, n]) => n + ' ' + RES[r]).join(' · ')
-        + (payable_ ? '' : ' · matières manquantes') + (proche ? '' : ' · il faut être au campement')) : note(ESC(paletteCamp().d)),
-      bouton: suite ? 'Améliorer' : '', avert: 'Les matières sont dépensées.' },
+    { id: 'ameliorer', n: 'Améliorer', ic: 'marteau', ok: payable_ && proche, irrev: true,
+      sous: 'Niveau ' + nivCamp() + ' → ' + suiteN + (palierCamp(suiteN) > palierCamp(nivCamp()) ? ' · ' + ESC(nomCamp(suiteN)) : ''),
+      corps: `<div class="obj"><div><div class="n">Ce qu'apporte le niveau ${suiteN}</div><div class="d">${apportsCamp(suiteN).map(x => ESC(x[0].toUpperCase() + x.slice(1))).join('<br>')}</div></div></div>`
+        + `<div class="obj"><div><div class="n">Coût</div><div class="d">`
+        + Object.entries(cout_).map(([r, n]) => { const ok = essai || dispo(r) >= n, m = n > 1 ? PLURIEL[r] || RES[r] : RES[r];
+            return ok ? enMilliers(n) + ' ' + m : '<b class="dgr">' + enMilliers(n) + ' ' + m + ' (vous : ' + enMilliers(dispo(r)) + ')</b>'; }).join(' · ')
+        + (proche ? '' : '<br>il faut être au campement') + `</div></div></div>`
+        + note('Chaque niveau coûte 60 % de plus que le précédent, sans plafond. Le niveau tient au campement : repris et replanté, il le garde.'
+          + (palierSuivant(nivCamp()) && palierSuivant(nivCamp()) !== suiteN ? ' Prochain changement d\'allure : niveau ' + palierSuivant(nivCamp()) + '.' : '')),
+      bouton: 'Améliorer', avert: 'Les matières sont dépensées.' },
     { id: 'reprendre', n: 'Reprendre', ic: 'campement', ok: ici, irrev: true, sous: 'Déplacer le campement',
-      corps: note(ici ? 'Il retourne au sac, à poser ailleurs.' : 'Il faut être sur son île.'), bouton: 'Reprendre le campement', avert: 'L\'île ne sera plus la vôtre.' },
+      corps: note(ici ? 'Il retourne au sac, à poser ailleurs. Il garde son niveau.' : 'Il faut être sur son île.'), bouton: 'Reprendre le campement', avert: 'L\'île ne sera plus la vôtre.' },
     { id: 'compagnes', n: 'Compagnes', ic: 'ongletCompagnes', ok: true, sous: gens.length ? gens.length + ' au campement' : 'Aucune au campement',
       corps: corpsComp || note('Aucune compagne ne tient le campement. « Au campement », dans ses ordres, l\'y installe.'), bouton: 'Voir les compagnes', attr: 'data-onglet="compagnes"' },
     { id: 'exploration', n: 'Exploration', ic: 'boussole', ok: true, sous: 'Île d\'exploration ' + profondeur(), corps: corpsExpl },
@@ -5874,7 +6034,7 @@ function pageCampement() {
   return `<div class="sac-corps deux camp"><div class="col">`
     + `<div class="fiche">${caseObjet('campement', { taille: 'grande', inerte: true })}`
     + `<div class="fiche-texte"><h4>Île ${ESC(nomIle(P.camp.graine))}</h4>`
-    + `<p>${ESC(paletteCamp().n)} · ${ESC(etat)}</p>`
+    + `<p>${ESC(nomCamp(nivCamp()))} · niveau ${nivCamp()} · ${ESC(etat)}</p>`
     + `<span class="genre">${ici ? 'case ' + (P.camp.x | 0) + ', ' + (P.camp.y | 0) : 'île actuelle : ' + ESC(nomIle(SEED))}</span></div></div>`
     + `<div class="tuiles">${tuiles}</div></div>`
     + `<div class="col">${detailCamp(A.find(a => a.id === choixCamp))}</div></div>`;
@@ -5892,7 +6052,8 @@ function detailCamp(a) {
     + (conf ? `<p class="note irr" style="margin:8px 2px 0">${ESC(a.avert)} Encore un appui pour confirmer.</p>` : '');
 }
 function faireCamp(id) {
-  if (id === 'portail') ouvrirPortail();
+  if (id.startsWith('portail:')) partirPropose(Number(id.slice(8)));
+  else if (id === 'portail') ouvrirPortail();
   else if (id === 'rentrer') rentrerAuCampement();
   else if (id === 'ameliorer') ameliorerCamp();
   else if (id === 'reprendre') reprendreCampement();
@@ -6037,6 +6198,9 @@ function pageBeta() {
     + ligne('Escouade d\'automates', dj ? 'pas sous terre' : Escouade ? 'une escouade est déjà là · ' + escHud().replace(/<[^>]+>/g, '').replace(' · ', '')
         : 'un portail s\'ouvre près de vous, à la force de l\'exploration ' + Math.max(NIV_ESCOUADE, profondeur()) + ' · la prochaine, d\'elle-même, dans ' + Math.ceil(Math.max(0, escAttente) / 60) + ' min',
         btn('escouade', 'Faire venir', dj || Escouade ? ' disabled' : ''))
+    + `<h3>Le campement</h3>`
+    + ligne('Niveau du campement', 'niveau ' + nivCamp() + ' · ' + ESC(nomCamp(nivCamp())) + ' · pour retrouver un niveau perdu, ou voir les paliers (2, 3, 5, 8, 12, 20) · ce réglage est gardé : hors du mode essai',
+        btn('campMoins', '−1', nivCamp() > 1 ? '' : ' disabled') + btn('campPlus', '+1') + btn('campPlus5', '+5'))
     + `<h3>Se téléporter</h3>`
     + `<div class="obj tp"><div style="flex:1;min-width:0"><div class="n">Vers une graine, à un niveau</div>`
     + `<div class="d">Île actuelle : graine ${SEED} · exploration ${profondeur()}. C'est la graine seule qui décide des biomes rares, et seule une graine sur seize peut en porter :`
@@ -6120,6 +6284,12 @@ function outilBeta(k) {
     ouvrirSac(false);
     voyagerVers(g, null, 'téléporté · graine ' + g + ' · exploration ' + n, n);
     return;
+  }
+  if (k === 'campMoins' || k === 'campPlus' || k === 'campPlus5') {
+    if (essai) { say('coupez d\'abord le mode essai : ce réglage est gardé', 2.8); return; }
+    P.campNiv = Math.max(1, Math.min(CAMP_MAX, nivCamp() + (k === 'campMoins' ? -1 : k === 'campPlus' ? 1 : 5)));
+    if (P.camp) P.camp.niv = P.campNiv;
+    say('campement · niveau ' + P.campNiv + ' · ' + nomCamp(P.campNiv), 2); majSac(); return;
   }
   const essaiAvant = ['sac', 'armes', 'plein', 'invincible', 'midi', 'minuit', 'meteo'];
   if (essaiAvant.includes(k) && !essai) entrerEssai();
@@ -6270,6 +6440,8 @@ function clicSac(b) {
     }
     else if (d.camp === 'ameliorer') ameliorerCamp();
     else if (d.camp === 'ouvrir') choisirOnglet('camp');
+    else if (d.camp === 'relance') relancerPortail();
+    else if (d.camp.startsWith('voeu:')) { P.portailVoeu = d.camp.slice(5); confirmeAct.id = ''; }
     majSac();
   }
   else if (d.rejoindre) { rejoindreJoueur(d.rejoindre); majSac(); }
@@ -6732,7 +6904,11 @@ function majFeux() {
   const vacille = (r, s) => r * (1 + .035 * Math.sin(t * 9.3 + s) + .02 * Math.sin(t * 23.1 + s * 2));
   const pousse = (x, y, z, r) => { if (Number.isFinite(x) && Number.isFinite(y)) L.push([x, y, z, r, (x - P.x) ** 2 + (y - P.y) ** 2]); };
   feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : effet('nuit') ? 6.5 + (effet('nuit') - 1) * 2.5 : RAYON.joueur]);   // un plat de lueurs : on voit la nuit
-  for (const c of campsIci()) pousse(c.x, c.y, c.z + .6, vacille(RAYON.feu, 3));
+  for (const c of campsIci()) {                        // le feu porte plus loin à chaque palier ; le portail d'éclat éclaire aussi
+    const pc = palierCamp(nivDuCamp(c));
+    pousse(c.x, c.y, c.z + .6, vacille(RAYON.feu * (1 + .08 * pc), 3));
+    if (pc >= 2 && c === P.camp) pousse(c.x, c.y + 1.02, c.z + 1.1, RAYON.arche);
+  }
   if (PortailIle) pousse(PortailIle.x, PortailIle.y, PortailIle.z + 1.2, RAYON.arche);
   if (Escouade && Escouade.k > 0) pousse(Escouade.x, Escouade.y, Escouade.z + 1.35, RAYON.arche * 1.6 * Escouade.k);
   for (const b of beasts) if (b.tame && !b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
@@ -14981,46 +15157,125 @@ const C_BOIS = [138, 90, 51], C_BOISF = [92, 58, 32], C_TOILE = [104, 150, 92], 
 const C_PIERRE = [138, 144, 156], C_PIERREF = [96, 104, 120], C_OR = [226, 176, 80];
 // L'arche d'un portail : deux piliers, un linteau, une clef, et le voile qui bat. Le campement en
 // porte une ; chaque île en porte une autre, à sa place, la même pour tous ceux qui tirent la graine.
-function portailOs() {
-  const B = [], bat = (a, b, w, h, c) => B.push({ a, b, w, h, c });
+function portailOs(niv) {
+  niv = niv || 1;                                      // celui du campement s'éclaire avec lui ; ceux des îles ne changent pas
+  const B = [], bat = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit: luit ? 1 : 0 });
   bat([-.72, 0, .06], [-.72, 0, 1.52], .28, .28, C_PIERRE);
   bat([.72, 0, .06], [.72, 0, 1.52], .28, .28, C_PIERRE);
   bat([-.86, 0, 1.62], [.86, 0, 1.62], .24, .22, C_PIERREF);
-  bat([0, 0, 1.7], [0, 0, 1.82], .18, .18, [174, 242, 245]);
+  bat([0, 0, 1.7], [0, 0, 1.82], .18, .18, [174, 242, 245], niv >= 2);
   for (let k = 0; k < 4; k++) {
     const x = -.52 + k * .348, o = Math.sin(t * 2.2 + k * .9) * .5 + .5, h = 1.36 + o * .1;
-    bat([x, 0, .12], [x, 0, h], .40, .06, [60 + o * 55, 150 + o * 65, 190 + o * 50]);
+    // d'éclat, le voile se referme en une nappe vive, dans le plan de l'arche
+    if (niv >= 3) bat([x - .2, 0, (.12 + h) / 2], [x + .2, 0, (.12 + h) / 2], .06, h - .12, [96 + o * 60, 196 + o * 50, 228 + o * 27], 1);
+    else bat([x, 0, .12], [x, 0, h], .40, .06, [60 + o * 55, 150 + o * 65, 190 + o * 50]);
   }
   return B;
 }
-function campOs(ennemi, autre) {
+// L'allure suit le niveau, par paliers : 2 gravé (runes, lanterne), 3 d'éclat (cristaux, voile
+// vif), 5 fortifié (socle de pierre, grande tente, second mât), 8 bastion (bornes d'éclat, parapet,
+// grand feu), 12 sanctuaire (anneau qui tourne, arche double), 20 citadelle (cristaux en orbite, trait
+// de lumière). Ce qui luit se voit la nuit.
+const C_ECLAT = [143, 228, 232], C_ECLATF = [86, 176, 204], C_RUNE = [190, 246, 250];
+function campOs(ennemi, autre, niv) {
+  niv = niv || 1;
+  const p = palierCamp(niv), sansPortail = ennemi || autre;
   const B = [], f = Math.sin(t * 7.3) * .5 + .5, g = Math.sin(t * 4.1 + 1.7) * .5 + .5;
-  const bat = (a, b, w, h, c) => B.push({ a, b, w, h, c });
+  const bat = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit: luit ? 1 : 0 });
+  const drap = ennemi ? [196, 58, 50] : C_OR;        // la bannière d'un autre est rouge
+  if (p >= 3) bat([-1.3, 0, -.03], [1.3, 0, -.03], 2.6, .14, C_PIERREF);   // un socle de pierre
   bat([-1.05, 0, .05], [1.05, 0, .05], 2.1, .1, C_BOISF);              // le plancher
-  // la tente : une faîtière, deux pans, et l'ombre de son entrée
-  bat([-.58, -.62, .74], [-.58, .62, .74], .09, .09, C_BOIS);
-  bat([-1.02, 0, .10], [-.58, 0, .74], 1.26, .07, C_TOILE);
-  bat([-.14, 0, .10], [-.58, 0, .74], 1.26, .07, C_TOILEF);
-  bat([-.58, -.62, .10], [-.58, -.62, .74], .1, .1, C_BOIS);
-  bat([-.58, .62, .10], [-.58, .62, .74], .1, .1, C_BOIS);
+  // la tente : une faîtière, deux pans, et l'ombre de son entrée — plus haute et plus large, fortifiée
+  const tx = -.58, th = p >= 3 ? .94 : .74, tw = p >= 3 ? .52 : .44, tl = p >= 3 ? .66 : .62;
+  bat([tx, -tl, th], [tx, tl, th], .09, .09, C_BOIS);
+  bat([tx - tw, 0, .10], [tx, 0, th], tl * 2 + .02, .07, C_TOILE);
+  bat([tx + tw, 0, .10], [tx, 0, th], tl * 2 + .02, .07, C_TOILEF);
+  bat([tx, -tl, .10], [tx, -tl, th], .1, .1, C_BOIS);
+  bat([tx, tl, .10], [tx, tl, th], .1, .1, C_BOIS);
+  if (p >= 3) bat([tx, -tl - .04, th + .06], [tx, tl + .04, th + .06], .13, .05, drap);   // un galon sur la faîtière
   // le feu : son cercle de pierres, deux bûches croisées, et la flamme qui monte
+  const fs = p >= 4 ? 1.35 : 1;
   for (let k = 0; k < 6; k++) {
     const a = k / 6 * 6.2832, x = .55 + Math.cos(a) * .34, y = -.5 + Math.sin(a) * .34;
     bat([x, y, .08], [x, y, .16], .17, .17, k % 2 ? C_PIERRE : C_PIERREF);
+    if (p >= 1 && k % 3 === 1) bat([x, y, .16], [x, y, .185], .08, .08, C_RUNE, 1);   // deux pierres gravées
   }
   bat([.34, -.68, .14], [.76, -.32, .14], .11, .11, C_BOISF);
   bat([.34, -.32, .14], [.76, -.68, .14], .11, .11, C_BOISF);
-  bat([.55, -.5, .16], [.55, -.5, .34 + f * .10], .17, .17, [246, 150, 52]);
-  bat([.55, -.5, .20], [.53 + f * .04, -.5, .46 + f * .12], .10, .10, [255, 206, 108]);
-  bat([.55, -.5, .26], [.57 - g * .04, -.48, .54 + g * .10], .055, .055, [255, 238, 176]);
+  bat([.55, -.5, .16], [.55, -.5, .16 + (.18 + f * .10) * fs], .17 * fs, .17 * fs, [246, 150, 52]);
+  bat([.55, -.5, .20], [.53 + f * .04, -.5, .20 + (.26 + f * .12) * fs], .10 * fs, .10 * fs, [255, 206, 108]);
+  bat([.55, -.5, .26], [.57 - g * .04, -.48, .26 + (.28 + g * .10) * fs], .055 * fs, .055 * fs, [255, 238, 176]);
+  if (p >= 4) bat([.55, -.5, .30], [.55, -.5, .64 + g * .12], .04, .04, [190, 244, 255], 1);   // un cœur d'éclat dans la flamme
   // deux caisses, une bannière
   bat([-.88, .82, .06], [-.54, .82, .06], .34, .36, C_BOIS);
   bat([-.5, .86, .06], [-.28, .86, .06], .22, .24, C_BOISF);
   bat([1.0, .78, .06], [1.0, .78, 1.2], .08, .08, C_BOIS);
-  bat([1.0, .78, 1.12], [1.0, .42, 1.06], .05, .34, ennemi ? [196, 58, 50] : C_OR);   // la bannière d'un autre est rouge
-  if (ennemi || autre) return B;                    // et son portail ne s'ouvre que pour lui
-  // le portail du campement : la même arche que celles des îles, posée en lisière
-  for (const o of portailOs()) bat([o.a[0], o.a[1] + 1.02, o.a[2]], [o.b[0], o.b[1] + 1.02, o.b[2]], o.w, o.h, o.c);
+  bat([1.0, .78, 1.12], [1.0, .42, 1.06], .05, .34, drap);
+  if (p >= 1) {                                       // gravé : une lanterne pendue au mât
+    bat([1.0, .78, .9], [.74, .78, .9], .04, .04, C_BOISF);
+    bat([.76, .78, .85], [.76, .78, .9], .03, .03, C_BOISF);
+    bat([.76, .78, .8], [.76, .78, .85], .17, .17, C_PIERREF);
+    bat([.76, .78, .62], [.76, .78, .8], .13, .13, [255, 214, 130], 1);
+  }
+  if (p >= 2) {                                       // d'éclat : une gerbe de cristaux sur le plancher
+    bat([.92, .14, .1], [.95, .17, .56 + g * .02], .13, .13, C_ECLAT, 1);
+    bat([.82, .22, .1], [.74, .3, .36], .09, .09, C_ECLATF, 1);
+    bat([1.0, .02, .1], [1.08, -.08, .32], .08, .08, C_ECLAT, 1);
+  }
+  if (p >= 3) {                                       // fortifié : un second mât, son fanion, un tonneau
+    bat([-.96, -.92, .06], [-.96, -.92, 1.42], .08, .08, C_BOIS);
+    bat([-.96, -.92, 1.34], [-.6, -.92, 1.28], .05, .3, drap);
+    bat([-.42, -.9, .1], [-.42, -.9, .46], .25, .25, C_BOIS);
+    bat([-.42, -.9, .2], [-.42, -.9, .25], .27, .27, C_PIERREF);
+    bat([-.42, -.9, .34], [-.42, -.9, .39], .27, .27, C_PIERREF);
+  }
+  if (p >= 4) for (const [x, y] of [[-1.18, -1.18], [1.18, -1.18], [-1.18, 1.18], [1.18, 1.18]]) {   // bastion : quatre bornes d'éclat
+    const haut = !sansPortail && y > 0 ? 1.02 : .6;    // deux obélisques de part et d'autre du portail
+    bat([x, y, 0], [x, y, haut], .24, .24, C_PIERRE);
+    bat([x, y, haut], [x, y, haut + .06], .3, .3, C_PIERREF);
+    bat([x, y, haut + .06], [x, y, haut + .3 + g * .03], .13, .13, C_ECLAT, 1);
+  }
+  if (p >= 4) {                                       // et un parapet crénelé entre elles : l'ouest, l'est, le sud avec sa porte
+    const mur = (a, b) => {
+      bat([a[0], a[1], .16], [b[0], b[1], .16], .14, .32, C_PIERREF);
+      const n = Math.max(2, Math.round(Math.hypot(b[0] - a[0], b[1] - a[1]) / .3));
+      for (let k = 0; k <= n; k += 2) { const u = k / n, x = a[0] + (b[0] - a[0]) * u, y = a[1] + (b[1] - a[1]) * u; bat([x, y, .32], [x, y, .43], .16, .16, C_PIERRE); }
+    };
+    mur([-1.18, -1.04], [-1.18, 1.04]); mur([1.18, -1.04], [1.18, 1.04]);
+    mur([-1.04, -1.18], [-.42, -1.18]); mur([.42, -1.18], [1.04, -1.18]);
+  }
+  if (p >= 5) {                                       // sanctuaire : un anneau de lumière tourne au-dessus
+    const R = .85, n = 10, z = 2.35 + Math.sin(t * 1.1) * .06;
+    for (let k = 0; k < n; k++) {
+      const a = t * .45 + k / n * 6.2832, a2 = a + 6.2832 / n * .62;
+      bat([Math.cos(a) * R, -.1 + Math.sin(a) * R, z], [Math.cos(a2) * R, -.1 + Math.sin(a2) * R, z], .07, .05, k % 2 ? C_ECLAT : C_RUNE, 1);
+    }
+  }
+  for (let k = 0, n = cristauxCamp(niv); k < n; k++) {  // citadelle : des cristaux en orbite, un de plus tous les dix niveaux
+    const a = -t * .3 + k / n * 6.2832, x = Math.cos(a) * 1.8, y = Math.sin(a) * 1.8, z = 1.55 + Math.sin(t * 1.3 + k * 1.7) * .2;
+    bat([x, y, z - .15], [x, y, z + .15], .13, .13, C_ECLAT, 1);
+    bat([x, y, z - .25], [x, y, z + .25], .06, .06, C_RUNE, 1);
+  }
+  if (sansPortail) return B;                          // et son portail ne s'ouvre que pour lui
+  // le portail du campement : la même arche que celles des îles, posée en lisière — et ce que le niveau y ajoute
+  const py = 1.02;
+  for (const o of portailOs(niv)) bat([o.a[0], o.a[1] + py, o.a[2]], [o.b[0], o.b[1] + py, o.b[2]], o.w, o.h, o.c, o.luit);
+  if (p >= 1) for (const px of [-.72, .72]) for (const z of [.42, .78, 1.14]) {   // des runes sur les piliers, vues de chaque face
+    bat([px, py, z], [px, py, z + .15], .30, .09, C_RUNE, 1);
+    bat([px, py, z], [px, py, z + .15], .09, .30, C_RUNE, 1);
+  }
+  if (p >= 2) for (const c of [-1, 1]) {              // des cristaux au pied
+    bat([c * .98, py, .04], [c * 1.04, py - .03, .44], .11, .11, C_ECLAT, 1);
+    bat([c * .93, py + .1, .04], [c * .88, py + .17, .27], .08, .08, C_ECLATF, 1);
+  }
+  if (p >= 3) bat([-.6, py, .08], [.6, py, .08], .5, .07, C_PIERRE);   // un seuil
+  if (p >= 5) {                                       // l'arche double : un second linteau, un cœur d'éclat, une flèche
+    for (const c of [-1, 1]) bat([c * .6, py, 1.73], [c * .6, py, 2.0], .16, .16, C_PIERRE);
+    bat([-.76, py, 2.06], [.76, py, 2.06], .22, .13, C_PIERREF);
+    bat([0, py, 1.84], [0, py, 1.99], .24, .24, C_ECLAT, 1);
+    bat([0, py, 2.13], [0, py, 2.46 + g * .05], .11, .11, C_RUNE, 1);
+  }
+  if (p >= 6) bat([0, py, 2.5], [0, py, 5.2 + f * .5], .05, .05, C_RUNE, 1);   // un trait de lumière
   return B;
 }
 function emitPortailIle(view, out) {
@@ -15033,10 +15288,10 @@ function emitPortailIle(view, out) {
   }
 }
 function emitCamp(view, out) {
-  for (const c of campsIci()) for (const o of campOs(c === Raid || c.pille, c !== P.camp)) {   // la bannière rouge : le campement qu'on pille
+  for (const c of campsIci()) for (const o of campOs(c === Raid || c.pille, c !== P.camp, nivDuCamp(c))) {   // la bannière rouge : le campement qu'on pille
     const A = [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], Bb = [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]];
     const cle = view.kEnt && view.kEnt((A[0] + Bb[0]) / 2, (A[1] + Bb[1]) / 2);
-    emitLimb(A, Bb, o.w, o.h, o.c, view, out, cle, rangSol(c.z, false));
+    emitLimb(A, Bb, o.w, o.h, o.c, view, out, cle, rangSol(c.z, false), o.luit ? 1 : undefined);
   }
   djEmit(view, out);                                    // le donjon, sa trappe, et les traits des armes d'en bas
   ogEmit(view, out);                                    // la fourmilière des oglodons
@@ -18077,9 +18332,9 @@ void main() { o = uC; }`;
     }
     for (const c of campsIci()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {
       const hc = L_FIXE + 256 * horizAt(c.x, c.y);
-      for (const o of campOs(c === Raid || c.pille, c !== P.camp))
+      for (const o of campOs(c === Raid || c.pille, c !== P.camp, nivDuCamp(c)))
         boite(TD, [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]],
-          o.w, o.h, o.c, 0, 0, hc, 0, 0, 0);
+          o.w, o.h, o.c, o.luit ? 1 : 0, 0, o.luit ? L_FIXE : hc, 0, 0, 0);
     }
     for (const o of djDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const o of marmiteDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
@@ -18356,8 +18611,9 @@ function photo() {
     parti: P.parti || null, solde: P.solde || null,
     vies: lives,
     camp: P.camp ? { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100,
-                     y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: P.camp.niv || 1,
+                     y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: nivCamp(),
                      expl: P.camp.expl || 0 } : null,
+    campNiv: nivCamp(), portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     coffre: Object.assign({}, P.coffre),
     pillages: P.pillages.slice(0, 5),
@@ -18386,7 +18642,7 @@ function photo() {
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
 const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.cellier, P.plats.map(p => p.parts).join(), P.recettes, P.marmite, P.objets, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.pillages.length, djIci() ? [DJ.e, DJ.etat.ouverts.length, DJ.etat.vaincus.length] : 0, raidIci() ? [Raid.fini, Raid.ko.length, Math.round(Raid.part * 100)] : 0, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
-  P.camp ? [P.camp.graine, P.camp.x, P.camp.y, P.camp.niv] : 0,
+  P.camp ? [P.camp.graine, P.camp.x, P.camp.y] : 0, P.campNiv, P.portailT, P.portailR, P.portailVoeu,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
   P.liens, P.compagnes.map(c => [c.id, c.nom, c.role, c.mode, c.aucamp ? 1 : 0, c.dehors ? 1 : 0, c.ko ? 1 : 0, Math.round((c.b ? c.b.pv : c.pv) * 10)])]);
 
@@ -18475,8 +18731,14 @@ function appliquer(d, vivantes) {
   const c = d.camp;
   P.camp = (c && Number.isInteger(c.graine) && Number.isFinite(c.x) && Number.isFinite(c.y) && Number.isFinite(c.z)
     && c.x > 1 && c.y > 1 && c.x < WS - 1 && c.y < WS - 1)
-    ? { graine: c.graine, x: c.x, y: c.y, z: nb(c.z, -8, 64, 0), niv: nb(c.niv, 1, CAMP_NIV.length, 1) | 0,
+    ? { graine: c.graine, x: c.x, y: c.y, z: nb(c.z, -8, 64, 0), niv: nb(c.niv, 1, CAMP_MAX, 1) | 0,
         expl: nb(c.expl, 0, 99, 0) | 0 } : null;
+  // le niveau tient au personnage ; une sauvegarde d'avant le portait sur le campement posé
+  P.campNiv = (nb(d.campNiv, 1, CAMP_MAX, 0) | 0) || (c ? nb(c.niv, 1, CAMP_MAX, 1) | 0 : 0) || 1;
+  if (P.camp) P.camp.niv = P.campNiv;
+  { const o = d.portail && typeof d.portail === 'object' ? d.portail : {};
+    P.portailT = nb(o.t, 0, 1e9, 0) | 0; P.portailR = nb(o.r, 0, 1e4, 0) | 0;
+    P.portailVoeu = typeof o.v === 'string' && /^[a-z0-9]{1,12}$/.test(o.v) ? o.v : ''; }
   if (!P.camp) delete P.objets.foyer; else P.objets.foyer = 1;
   // le journal : des graines entières, des chiffres bornés, et pas plus que ce qu'on peut tenir
   const fiche = v => (v && Number.isInteger(v.g)) ? {
@@ -19059,7 +19321,7 @@ globalThis.__ISO = { P, proj, depth, hAt, blockH, floorUnder, blockedAt, camPris
   proj, TW, ZH, get TH(){return TH}, get TZ(){return TZ}, get camX(){return camX}, get camY(){return camY}, get camZ(){return camZ}, masqueHaut, masqueBiome, masqueFlanc, formeFlore, get FC(){return FC}, signalDecor, Flo, get textures(){return textures}, set textures(v){textures=v},
   Sauve, SUPA, SEED, graineSauvee, photo, appliquer, signature, synchroniser, envoyer, adopter,
   campIci, placeCamp, emitCamp, VIEW_ISO, appliquer, composerIle, noterVisite, garderGraine, oublierGraine,
-  ameliorerCamp, partirVers, memoireJournal, portailDirige, nivCamp, CAMP_NIV, pageJournal, poserCampement, reprendreCampement, ouvrirPortail, rentrerAuCampement,
+  ameliorerCamp, partirVers, memoireJournal, portailDirige, nivCamp, coutCamp, propositions, pageJournal, poserCampement, reprendreCampement, ouvrirPortail, rentrerAuCampement,
   seReposer, voyagerVers, nomIle, campOs, pageCampement, auCamp,
   RS, Autres, betesLoin, EnLigne, brancher, debrancher, majReseau, recevoir, diffuser, majDistant, ouvrirCanal,
   cibleLoin, frapperLoin, encaisser, rejoindreJoueur, pseudo, teinteDe, sousAbri, blocEnLigne,
