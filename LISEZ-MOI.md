@@ -1209,3 +1209,30 @@ Elle ouvre, sous la carte, le **volet des compagnes** : « Compagnes · 3/6 en j
 En tête du volet, **Rappeler** donne le coup de sifflet (si le sifflet est porté et qu'une compagne est dehors). Un appui sur un bouton change l'ordre tout de suite, comme dans l'onglet Compagnes du sac — c'est le même code (`changerOrdre`, `changerRole`, `sortirCompagne`, `rentrerCompagne`, `releverCompagne`). Le volet se ferme par ✕, K, Échap, un appui ailleurs ; il ne s'ouvre jamais en même temps que le journal ni que le sac. La liste ne se redessine que lorsqu'une compagne sort, rentre, tombe ou change d'ordre ; les jauges, elles, se mettent à jour quatre fois par seconde.
 
 Trois nouvelles icônes en pixels pour les comportements : `mode_autonome`, `mode_joueur`, `mode_camp`.
+
+## 62. Toujours en 3D, plus près du personnage
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-28`).
+
+- **Plus de boutons de caméra** en haut à droite (3D, ▽ △ pour incliner, ⟲ ⟳ pour pivoter). La vue est **toujours en 3D** (perspective). On tourne toujours la caméra en glissant sur l'écran, on zoome en pinçant à deux doigts (ou molette, + et −), et au clavier Q/E pivotent, R/F inclinent. Le bouton en haut à gauche passe de la 3D à la 1re personne (« 1re P. ») et revient (« 3D ») ; V fait de même. Sans carte graphique, le jeu retombe sur l'isométrie dessinée, comme avant.
+- **L'œil est bien plus près** : six cases du personnage au lieu de quatorze. Le zoom l'approche jusqu'à trois cases ou le recule jusqu'à vingt. Sur téléphone en portrait, le champ de vision est resserré (il dépassait cent degrés, le personnage n'y était qu'un point) : le personnage y paraît environ deux fois et demie plus grand qu'avant.
+- **Une falaise derrière le personnage** ne colle plus la caméra à son dos : l'œil **monte** juste ce qu'il faut pour passer par-dessus, vite, et redescend doucement quand la voie se dégage.
+- Sur téléphone, la **boussole remonte** à côté du bouton de vue (la place des boutons de caméra), et la carte des jauges et la fiche de la cible remontent d'autant.
+- **Les boutons d'action** (Action, Attaquer, Saut) sont **collés au bord droit**, alignés sur les cases. **Les cinq cases** descendent un peu (40 px sous le milieu de l'écran), sans jamais toucher les boutons d'action. Sur un écran bas (téléphone en paysage), les cases restent au milieu du bord et les boutons d'action se rangent à leur gauche, comme avant.
+- L'aide (Réglages) et la ligne des touches suivent : le zoom, J (journal), K (compagnes).
+
+## 63. Bêta · Se téléporter : les biomes rares, enfin
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-29`).
+
+**Le défaut** : dans l'onglet Bêta, « Se téléporter » menait presque toujours sur une île aux biomes de base. Deux raisons :
+- les biomes rares ne dépendent que de la **graine**, et seule une graine « signée » sur seize peut en porter. Le bouton **Au hasard** tirait n'importe quel nombre : une île sur vingt seulement (5 %) avait un biome rare, quel que soit le niveau tapé ;
+- le champ **Graine** est prérempli avec l'île où l'on est : « Y aller » sans changer la graine ramène sur la même île, seulement à un autre niveau.
+
+**La correction** :
+- **Au hasard** tire maintenant comme le portail : une île permise au niveau tapé. Au niveau 0, c'est un départ, sans biome rare (voulu). Au niveau 3, deux îles sur trois ont un biome rare ; dès le niveau 8, trois sur quatre.
+- Sous les champs, une ligne dit **ce que porte la graine** au niveau tapé : ses biomes rares, la Terre des automates, le Korlaz, ou « les biomes de base seulement », et le niveau à partir duquel le portail la donnerait. Elle se met à jour pendant qu'on tape.
+- **Viser un biome** : un bouton par biome (Tourbière, Canyon d'ocre, Sylve fongique, Champs de cristal, Caldeira de cendre, Ossuaire, Terres creuses, Village, Terre des automates, Korlaz). Un appui cherche une graine qui le porte, remplit la graine et le niveau (au moins celui que le biome demande), et l'on n'a plus qu'à appuyer sur **Y aller**.
+- Au passage : le bouton **Y aller** (et les autres boutons principaux des lignes du sac) était doré sur fond sombre, avec un texte sombre : presque illisible. Il est de nouveau doré et lisible.
+
+Testé : une graine visée « Sylve fongique », on y va, l'île a bien sa sylve (3 700 cases) et sa tourbière ; les visées Caldeira, Terres creuses, Village, Terre des automates et Korlaz trouvent chacune leur graine.

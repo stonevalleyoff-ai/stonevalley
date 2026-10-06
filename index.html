@@ -173,20 +173,15 @@
   @keyframes gainMonte{0%{opacity:0;margin-top:8px}14%{opacity:1;margin-top:0}70%{opacity:1}100%{opacity:0;margin-top:-34px}}
   @media (prefers-reduced-motion:reduce){.gain{animation:gainFond 1.3s ease-out forwards}@keyframes gainFond{0%,70%{opacity:1}100%{opacity:0}}}
   /* L'encoche et la barre d'accueil des iPhone : on écarte les boutons des bords sûrs. */
-  #rot{top:calc(10px + env(safe-area-inset-top));right:calc(12px + env(safe-area-inset-right));display:flex;gap:8px;}
-  #rot button,#pad button{pointer-events:auto;background:rgba(22,26,38,.72);
+  #pad button{pointer-events:auto;background:rgba(22,26,38,.72);
     border:1px solid rgba(190,205,230,.28);color:#cfd6e4;border-radius:10px;
     font:inherit;font-size:15px;cursor:pointer;backdrop-filter:blur(3px);}
-  #rot button{width:40px;height:40px;}
   #pad{left:0;right:0;bottom:calc(20px + env(safe-area-inset-bottom));display:flex;justify-content:space-between;
     padding:0 calc(18px + env(safe-area-inset-right)) 0 calc(18px + env(safe-area-inset-left));align-items:flex-end;}
   #stick{pointer-events:auto;width:118px;height:118px;border-radius:50%;
     border:1px solid rgba(190,205,230,.22);background:rgba(22,26,38,.4);position:relative;}
   #knob{position:absolute;width:46px;height:46px;border-radius:50%;left:36px;top:36px;
     background:rgba(200,215,240,.5);border:1px solid rgba(255,255,255,.35);}
-  #rot button:active{background:rgba(255,210,125,.35);}
-  #rot #bpe{font-size:12px;font-weight:700;letter-spacing:.5px;}
-  #rot #bpe[aria-pressed="true"]{background:rgba(255,210,125,.32);border-color:rgba(255,210,125,.7);color:#ffe2a8;}
   /* Les jauges du coin : vie, mana, souffle. Le souffle pâlit quand il est plein. */
   #jauges{display:grid;gap:5px;margin-bottom:8px;}
   .jg{display:flex;align-items:center;gap:7px;font-size:11px;letter-spacing:.3px;color:#aab4c8;}
@@ -203,14 +198,17 @@
     border:1px solid rgba(190,205,230,.22);overflow:hidden;}
   #boussole canvas{position:static;inset:auto;width:100%;height:100%;}
   @media (max-width:760px){
-    #boussole{top:calc(56px + env(safe-area-inset-top));width:calc(100vw - 28px - env(safe-area-inset-left) - env(safe-area-inset-right));}
+    #boussole{top:calc(13px + env(safe-area-inset-top));left:auto;right:calc(14px + env(safe-area-inset-right));transform:none;
+      width:calc(100vw - 112px - env(safe-area-inset-left) - env(safe-area-inset-right));}
     /* sur téléphone : plus serrée, et jamais sous la fiche de la cible, rangée à droite (166 px avec ses marges) */
-    #hud{top:calc(98px + env(safe-area-inset-top)) !important;width:min(236px, calc(100vw - 206px - env(safe-area-inset-left) - env(safe-area-inset-right)));
+    #hud{top:calc(60px + env(safe-area-inset-top)) !important;width:min(236px, calc(100vw - 206px - env(safe-area-inset-left) - env(safe-area-inset-right)));
       padding:8px 9px 10px;font-size:12px;}
     #hud.plie #jauges{width:144px;}   /* les chiffres (♥3, mana) tiennent dans la carte */
   }
-  /* Les cinq cases, au bord droit : un appui utilise ce qu'elles portent. */
-  #cases{right:calc(10px + env(safe-area-inset-right));top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;}
+  /* Les cinq cases, au bord droit : un appui utilise ce qu'elles portent. Un peu sous le milieu de
+     l'écran, mais jamais sur les boutons d'action, qui tiennent le coin en dessous (178 px avec leur marge). */
+  #cases{right:calc(10px + env(safe-area-inset-right));top:min(calc(50% + 40px),calc(100% - 326px - env(safe-area-inset-bottom)));
+    transform:translateY(-50%);display:flex;flex-direction:column;gap:6px;}
   #cases button{pointer-events:auto;position:relative;width:48px;height:48px;padding:0;border-radius:10px;cursor:pointer;
     background:rgba(22,26,38,.72);border:1px solid rgba(190,205,230,.28);backdrop-filter:blur(3px);}
   #cases button.vide{opacity:.35;}
@@ -223,7 +221,13 @@
   #cases em{position:absolute;right:3px;bottom:1px;font-size:9px;font-style:normal;color:#8fc4ff;}
   @media (hover:hover) and (pointer:fine){ #cases kbd,#combat kbd,#bsac kbd{display:block;} }
   /* Le combat, en bas à droite : sauter, frapper, et l'action du moment. */
-  #combat{right:calc(68px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:172px;height:160px;}
+  #combat{right:calc(10px + env(safe-area-inset-right));bottom:calc(18px + env(safe-area-inset-bottom));width:172px;height:160px;}
+  /* écran bas (téléphone en paysage) : pas la hauteur pour empiler les cases sur les boutons ; les cases
+     reprennent le milieu du bord, les boutons se rangent à leur gauche */
+  @media (max-height:600px){
+    #cases{top:50%;}
+    #combat{right:calc(68px + env(safe-area-inset-right));}
+  }
   #combat button,#bsac{pointer-events:auto;position:absolute;background:rgba(22,26,38,.72);border:1px solid rgba(190,205,230,.28);
     color:#cfd6e4;font-family:inherit;cursor:pointer;backdrop-filter:blur(3px);letter-spacing:1px;padding:0;}
   #bj{right:0;bottom:0;width:78px;height:78px;border-radius:50%;font-size:12px;}
@@ -240,7 +244,7 @@
   @media (max-width:760px){
     /* sur téléphone, la boussole est plus bas et prend toute la largeur : la fiche se range à droite,
        sous elle, et le texte du HUD se resserre à gauche tant qu'elle est là */
-    #cible{top:calc(96px + env(safe-area-inset-top));left:auto;right:calc(14px + env(safe-area-inset-right));transform:none;width:148px;}
+    #cible{top:calc(58px + env(safe-area-inset-top));left:auto;right:calc(14px + env(safe-area-inset-right));transform:none;width:148px;}
   }
   #cible b{font-weight:600;color:#ffd68a;} #cible.lie b{color:#e8a0a8;} #cible.meca b{color:#8fe3ff;}
   #cible .br{height:6px;margin:4px 0 3px;border-radius:3px;background:rgba(0,0,0,.4);overflow:hidden;}
@@ -295,6 +299,11 @@
   #sac .tp-champs label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--texte2);}
   #sac .tp-champs input{width:9.5em;padding:6px 8px;border-radius:8px;border:1px solid var(--trait);background:#121622;color:var(--texte);font:inherit;font-size:13px;}
   #sac .tp-champs label:nth-child(2) input{width:5em;}
+  #sac .tp-info{margin-top:7px;font-size:12px;color:var(--texte2);line-height:1.4;}
+  #sac .tp-info b{color:var(--or);font-weight:700;}
+  #sac .tp-viser{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}
+  #sac .tp-viser span{width:100%;font-size:11px;color:var(--texte2);}
+  #sac .obj .tp-viser button{padding:5px 9px;font-size:12px;border-radius:14px;}
   #sac .pl button{padding:4px 0;border-radius:7px;font-size:15px;line-height:1;background:#1c2230;border:1px solid var(--trait);color:var(--texte);cursor:pointer;}
   #sac .pl button:disabled{opacity:.35;cursor:default;}
   #sac .servi-a{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;}
@@ -508,7 +517,9 @@
   #sac .amis .obj > div:first-child{min-width:0;}
   #sac .amis .obj.porte{padding-left:12px;}
   #sac .amis .gestes-ligne{display:flex;flex:none;gap:6px;align-items:center;}
-  #sac .amis .obj button.principal{background:var(--or);border-color:var(--or);color:#2a1d05;}
+  #sac .obj button.principal{background:var(--or);border-color:var(--or);color:#2a1d05;}   /* « Y aller », « Sortir »… : lisibles partout */
+  #sac .obj button.principal:hover{background:#ffdd9a;}
+  #sac .obj button.principal:disabled{background:#161b27;border-color:#2c3344;color:#687186;}
   #sac .amis .obj button.principal:hover{background:#ffdd9a;}
   #sac .amis .obj button.discret{background:none;border-color:transparent;color:var(--texte2);}
   #sac .amis .obj button.discret:hover{color:var(--braise);border-color:#4a3036;}
@@ -607,7 +618,6 @@
 <div id="compvol" role="dialog" aria-labelledby="compvol-titre"><div class="tete"><h2 id="compvol-titre">Compagnes<span class="compte"></span></h2><button class="rappel" type="button" data-cv="siffler" hidden></button><button class="fermer" type="button" aria-label="Fermer" title="Fermer (K)">✕</button></div>
   <ol></ol></div>
 <button class="ui" id="bv" style="pointer-events:auto;top:10px;left:14px;padding:0 14px;height:40px;background:rgba(22,26,38,.72);border:1px solid rgba(190,205,230,.28);color:#cfd6e4;border-radius:10px;font:inherit;font-size:13px;cursor:pointer;position:fixed;">1re P.</button>
-<div class="ui" id="rot"><button id="bpe" title="Vue en perspective" aria-pressed="false">3D</button><button id="ed">▽</button><button id="eu">△</button><button id="rl">⟲</button><button id="rr">⟳</button></div>
 <div class="ui" id="cases" aria-label="Raccourcis"></div>
 <div class="ui" id="combat">
   <button id="bact" class="vide"><kbd>C</kbd><b>ACTION</b><span></span></button>
@@ -641,7 +651,7 @@
     <div class="gestes"><button id="retour-non">Fermer</button><button class="principal" id="retour-oui">Envoyer</button></div>
   </div>
 </div>
-<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · B ÉTABLI · J JOURNAL · K COMPAGNES · V VUE · Q/E PIVOTER · R/F INCLINER · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
+<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · B ÉTABLI · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
 <script src="donjon.js"></script>
 <script src="nomades.js"></script>
@@ -669,7 +679,7 @@ const TW0 = 34, ZH0 = 25.4;               // demi-largeur au sol, et hauteur d'u
 let TW = TW0, ZH = ZH0;
 // Le zoom : il grossit la vue de dessus (et rapproche l'œil en perspective). En reculant, la brume
 // recule d'autant, pour ne pas noyer ce qu'on vient de gagner.
-const ZOOM_MIN = .6, ZOOM_MAX = 2.2;
+const ZOOM_MIN = .6, ZOOM_MAX = 2.2, ZOOM_MIN_3D = .3;   // la 3D recule plus loin : elle ne dessine pas plus pour autant
 let zoom = 1, zoomT = 1;
 let BRU0 = 11, BRU1 = 30;                // la brume de la vue de dessus : où elle commence, où elle culmine
 let TH = 17, TZ = 22;                     // recalculés depuis l'inclinaison
@@ -695,10 +705,12 @@ let Wd = 0, Hd = 0, dpr = 1;
 // lesquels refaire, sans relire toute l'île à chaque image.
 let crochetDecor = null;
 let isoGL = true;                                    // l'isométrie passe aussi par la carte graphique
-// La vue de dessus en perspective : la même caméra (angle, inclinaison, suivi du joueur), mais un
-// œil posé en orbite à quatorze cases, qui voit fuir le décor. Carte graphique seulement.
-let perspIso = (() => { try { return localStorage.getItem('stone_valley:persp') === '1'; } catch (e) { return false; } })();
-const TIERCE_D = 14;
+// La vue de dessus est toujours en perspective (3D) : la même caméra (angle, inclinaison, suivi du
+// joueur), avec un œil posé en orbite à six cases du personnage, qui voit fuir le décor. Le zoom
+// l'approche jusqu'à trois cases ou le recule jusqu'à vingt. Sans carte graphique, on retombe
+// sur l'isométrie dessinée au canvas.
+let perspIso = true;
+const TIERCE_D = 6;
 function signalDecor(quoi, i) { if (crochetDecor) crochetDecor(quoi, i); }
 
 // ============================================================
@@ -6012,11 +6024,15 @@ function pageBeta() {
         btn('escouade', 'Faire venir', dj || Escouade ? ' disabled' : ''))
     + `<h3>Se téléporter</h3>`
     + `<div class="obj tp"><div style="flex:1;min-width:0"><div class="n">Vers une graine, à un niveau</div>`
-    + `<div class="d">Île actuelle : graine ${SEED} · exploration ${profondeur()}. Graine 0 et niveau 0 : un départ. La Tisseuse de fer garde les niveaux 10, 15, 20…`
-    + ` La partie suit : on arrive à ce niveau d'exploration, sauvegardé (le mode essai se coupe).</div>`
+    + `<div class="d">Île actuelle : graine ${SEED} · exploration ${profondeur()}. C'est la graine seule qui décide des biomes rares, et seule une graine sur seize peut en porter :`
+    + ` « Au hasard » tire donc comme le portail, une île permise au niveau choisi (au niveau 0, un départ : aucun biome rare). Pour un biome précis, visez-le en dessous.`
+    + ` La Tisseuse de fer garde les niveaux 10, 15, 20… La partie suit : on arrive à ce niveau d'exploration, sauvegardé (le mode essai se coupe).</div>`
     + `<div class="tp-champs"><label>Graine<input type="number" inputmode="numeric" min="0" step="1" data-tp="g" value="${tpGraine ?? SEED}"></label>`
     + `<label>Niveau<input type="number" inputmode="numeric" min="0" max="99" step="1" data-tp="n" value="${tpNiv ?? profondeur()}"></label>`
-    + `<button data-beta="tpHasard" title="Une graine au hasard">Au hasard</button><button class="btn principal" data-beta="tp">Y aller</button></div></div></div>`
+    + `<button data-beta="tpHasard" title="Une île au hasard, comme le portail la tirerait à ce niveau">Au hasard</button><button class="btn principal" data-beta="tp">Y aller</button></div>`
+    + `<div class="tp-info" data-tpinfo>${infoGraine(tpGraine ?? SEED, tpNiv ?? profondeur())}</div>`
+    + `<div class="tp-viser"><span>Viser un biome (la graine et le niveau se remplissent) :</span>`
+    + VISEES.map(v => `<button data-beta="tpv:${v.k}" title="${ESC(v.t)}">${v.n}</button>`).join('') + `</div></div></div>`
     + `<h3>Centre des automates</h3>`
     + (djTest ? ligne('Descente d\'essai en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · rien de ce qu\'on trouve ici n\'est gardé', btn('quitterDj', 'Remonter'), true)
       : dj ? ligne('Vraie descente en cours', 'étage ' + DJ.e + ' sur ' + DJ.n + ' · on ne la quitte que par le monte-charge (ou terrassé)', '')
@@ -6043,9 +6059,44 @@ function pageBeta() {
 }
 // Les outils : chacun passe d'abord en mode essai (sauf la descente d'essai, qui a ses propres règles).
 let tpGraine = null, tpNiv = null;                     // ce qu'on a tapé dans « Se téléporter » (onglet Bêta)
+// Ce que porte une graine, au niveau choisi : ses biomes rares, l'île des automates, le Korlaz — et
+// le niveau à partir duquel le portail la donnerait.
+function infoGraine(g, n) {
+  g = Number(g); n = Number(n);
+  if (!Number.isInteger(g) || g < 0 || g > 4294967295 || !Number.isInteger(n) || n < 0) return 'graine ou niveau invalide';
+  const L = [], meca = ileMecaGraine(g) && n >= NIV_MECA;
+  if (meca) L.push('<b>Terre des automates</b>');
+  else for (const b of biomesGraine(g)) L.push('<b>' + rareDe(b).n + '</b>');
+  if (typeof etatGraine === 'function' && etatGraine(g, n)) L.push('<b>Korlaz</b>');
+  const ng = nivGraine(g);
+  return 'Cette graine : ' + (L.length ? L.join(' · ') : signee(g) ? 'les biomes de base seulement' : 'les biomes de base seulement (elle ne peut pas porter de biome rare)')
+    + (ileMecaGraine(g) && !meca ? ' · terre des automates à l\'exploration ' + NIV_MECA : '')
+    + (ng > n ? ' · le portail ne la donnerait qu\'à l\'exploration ' + ng : '');
+}
+// Viser un biome : une graine qui le porte, et le niveau qu'il demande (au moins celui qu'on a tapé).
+const VISEES = [
+  ...RARES.map(r => ({ k: 'b' + r.b, n: r.n, t: r.n + ' · ' + r.rang + ' · dès l\'exploration ' + r.niv + ' · ' + r.d,
+    ok: (g, n) => signee(g) && biomesGraine(g).includes(r.b) && !(ileMecaGraine(g) && n >= NIV_MECA), niv: g => nivGraine(g) })),
+  { k: 'meca', n: 'Terre des automates', t: 'l\'île des automates · dès l\'exploration ' + NIV_MECA, ok: g => ileMecaGraine(g), niv: () => NIV_MECA },
+  { k: 'korlaz', n: 'Korlaz', t: 'la roche rongée et ses spores · dès l\'exploration 6', ok: (g, n) => typeof etatGraine === 'function' && etatGraine(g, n) === 'korlaz', niv: () => 6 },
+];
+function viserBiome(k) {
+  const v = VISEES.find(o => o.k === k); if (!v) return;
+  const n0 = Number(tpNiv ?? profondeur()) || 0;
+  for (let i = 0; i < 400000; i++) {
+    const g = (Math.random() * 1e9) | 0; if (g === SEED) continue;
+    const n = Math.max(n0, k === 'korlaz' ? 6 : 0, v.niv(g));
+    if (!v.ok(g, n)) continue;
+    tpGraine = g; tpNiv = Math.min(99, n);
+    say(v.n + ' · graine ' + g + ' · exploration ' + tpNiv + ' · « Y aller »', 3, 'info');
+    return;
+  }
+  say('aucune graine trouvée pour ' + v.n + ' · réessayez', 2.4, 'info');
+}
 function outilBeta(k) {
   if (k === 'faune') { if (typeof fauneBascule === 'function') fauneBascule(); majSac(); return; }
-  if (k === 'tpHasard') { tpGraine = (Math.random() * 4294967296) >>> 0; majSac(); return; }
+  if (k === 'tpHasard') { tpGraine = tirerGraine(Number(tpNiv ?? profondeur()) || 0, SEED); majSac(); return; }   // comme le portail
+  if (k.startsWith('tpv:')) { viserBiome(k.slice(4)); majSac(); return; }
   if (k === 'tp') {
     const g = Number(tpGraine ?? SEED), n = Number(tpNiv ?? profondeur());
     if (!Number.isInteger(g) || g < 0 || g > 4294967295) { say('graine : un entier de 0 à 4 294 967 295', 2.4); return; }
@@ -6078,8 +6129,8 @@ function pageReglages() {
   const touches = [['Z Q S D, W A S D, flèches', 'marcher'], ['Maj', 'courir, tant qu\'il reste du souffle'], ['Espace', 'sauter'],
     ['C', 'l\'action du moment : récolter, nourrir, franchir, ouvrir le campement'], ['X', 'attaquer : frapper, ou bander l\'arc et relâcher'],
     ['1 à 5', 'utiliser une case : sort, sifflet, lanterne, arme, outil'], ['G', 'offrir une baie'], ['H', 'siffler : les compagnes accourent'], ['N', 'boire du nectar d\'oglodon'],
-    ['Q, E', 'pivoter la vue'], ['R, F', 'incliner la vue'],
-    ['V', 'isométrie ou 1re personne'], ['I ou Tab', 'ouvrir ou fermer le sac'], ['B', 'ouvrir l\'établi'],
+    ['Q, E', 'pivoter la vue (ou glisser sur l\'écran)'], ['R, F', 'incliner la vue'], ['+, −, molette', 'zoomer (ou pincer à deux doigts)'],
+    ['V', 'vue 3D ou 1re personne'], ['J', 'le journal'], ['K', 'les compagnes'], ['I ou Tab', 'ouvrir ou fermer le sac'], ['B', 'ouvrir l\'établi'],
     ['1 à 9, 0', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
     ['Clic droit', 'en 1re personne, prendre ou rendre la caméra'], ['Clic gauche', 'attaquer, caméra prise']];
   return `<div class="sac-corps lignes">`
@@ -7471,16 +7522,13 @@ function setMode(m) {
   mode = m;
   if (m === 'fps') { yaw = ang + Math.PI * .75; pitch = -0.05; }   // on repart dans l'axe où l'on regardait
   else { angT = ang = Math.round((yaw - Math.PI * .75) / (Math.PI / 4)) * (Math.PI / 4); }
-  document.getElementById('rot').style.display = m === 'fps' ? 'none' : 'flex';
-  document.getElementById('bv').textContent = m === 'fps' ? 'ISO' : '1re P.';
-  say(m === 'fps' ? 'PREMIÈRE PERSONNE' : 'VUE ISOMÉTRIQUE', 1.4);
+  document.getElementById('bv').textContent = m === 'fps' ? '3D' : '1re P.';
+  say(m === 'fps' ? 'PREMIÈRE PERSONNE' : 'VUE 3D', 1.4);
 }
 function look(dx, dy) {
   yaw += dx; pitch = Math.max(-1.15, Math.min(1.15, pitch - dy));
 }
 function setElev(i) { elevIdx = Math.max(0, Math.min(ELEVS.length - 1, i)); elevT = ELEVS[elevIdx].a; say('VUE ' + ELEVS[elevIdx].n, 1.2); }
-document.getElementById('rl').onclick = () => angT += Math.PI / 4;
-document.getElementById('rr').onclick = () => angT -= Math.PI / 4;
 document.getElementById('bv').onclick = () => setMode(mode === 'iso' ? 'fps' : 'iso');
 // Le HUD se replie d'une flèche : il ne garde que les jauges. Le choix se garde, dans ce navigateur.
 // Sans choix gardé : déplié, sauf sur téléphone une fois le guide fini.
@@ -7531,7 +7579,7 @@ addEventListener('pointerlockchange', () => { if (!camPrise()) { agirQ = false; 
 // tracé en canvas ne sait trier qu'aux huitièmes de tour : sans carte graphique, on s'y range
 // en lâchant.
 // Deux doigts : on pince pour zoomer. La molette et les touches + et − font de même.
-const zoomer = k => { zoomT = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomT * k)); };
+const zoomer = k => { zoomT = Math.max(perspIso && isoGL && G3.ok && !G3.perdu ? ZOOM_MIN_3D : ZOOM_MIN, Math.min(ZOOM_MAX, zoomT * k)); };
 {
   let id = null, lx = 0, ly = 0;
   const doigts = new Map();                            // les pointeurs posés sur la vue
@@ -7563,17 +7611,6 @@ const zoomer = k => { zoomT = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, zoomT * k));
   };
   cv.addEventListener('pointerup', fin); cv.addEventListener('pointercancel', fin);
 }
-function majBoutonPersp() { const b = document.getElementById('bpe'); if (b) b.setAttribute('aria-pressed', String(perspIso)); }
-majBoutonPersp();
-document.getElementById('bpe').onclick = () => {
-  if (!(G3.ok && !G3.perdu)) { say('la perspective demande la carte graphique', 2.2); return; }
-  perspIso = !perspIso; if (perspIso) isoGL = true;
-  try { localStorage.setItem('stone_valley:persp', perspIso ? '1' : '0'); } catch (e) { /* tant pis : le réglage vaut pour la partie */ }
-  majBoutonPersp();
-  say(perspIso ? 'VUE EN PERSPECTIVE' : 'VUE ISOMÉTRIQUE', 1.4);
-};
-document.getElementById('eu').onclick = () => setElev(elevIdx + 1);
-document.getElementById('ed').onclick = () => setElev(elevIdx - 1);
 document.getElementById('bj').addEventListener('pointerdown', e => { e.preventDefault(); jumpQ = true; });
 document.getElementById('batt').addEventListener('pointerdown', e => { e.preventDefault(); agirQ = true; });
 document.getElementById('bact').addEventListener('pointerdown', e => { e.preventDefault(); actQ = true; actTenu = true; });
@@ -7585,7 +7622,11 @@ document.getElementById('bsac').onclick = () => ouvrirSac();
 document.getElementById('sac').addEventListener('input', e => {       // le curseur glisse : les chiffres suivent
   if (e.target && e.target.dataset && e.target.dataset.coopsaisie && typeof COOP !== 'undefined') { COOP.saisie = e.target.value; return; }
   const tp = e.target && e.target.dataset && e.target.dataset.tp;
-  if (tp) { const v = e.target.value.trim(); if (tp === 'g') tpGraine = v === '' ? null : Math.floor(Number(v)); else tpNiv = v === '' ? null : Math.floor(Number(v)); return; }
+  if (tp) {
+    const v = e.target.value.trim(); if (tp === 'g') tpGraine = v === '' ? null : Math.floor(Number(v)); else tpNiv = v === '' ? null : Math.floor(Number(v));
+    const inf = document.querySelector('#sac [data-tpinfo]'); if (inf) inf.innerHTML = infoGraine(tpGraine ?? SEED, tpNiv ?? profondeur());
+    return;
+  }
   const r = e.target && e.target.dataset && e.target.dataset.partage; if (!r) return;
   const v = +e.target.value, q = s => e.target.parentNode.querySelector(s);
   q('[data-ps]').textContent = v; q('[data-pc]').textContent = +e.target.max - v;
@@ -16853,20 +16894,40 @@ function cameraFPS() {
 }
 // L'œil en orbite : il regarde le joueur dans l'axe de la vue de dessus, à l'inclinaison choisie.
 // Une paroi ou une île volante entre les deux le rapproche, pour ne jamais voir un mur à la place.
-function cameraTierce() {
-  const az = Math.atan2(Math.sin(ang) - Math.cos(ang), -(Math.cos(ang) + Math.sin(ang)));
-  const cp = Math.cos(-elev), sp = Math.sin(-elev);
-  const tx = camX, ty = camY, tz = camZ + .9;
-  const dx = Math.cos(az) * cp, dy = Math.sin(az) * cp, dz = sp;
-  const Dmax = Math.max(5, Math.min(26, TIERCE_D / zoom));
-  let D = Dmax;
+// Jusqu'où l'œil recule-t-il, sous l'inclinaison `el`, avant qu'un relief ou une dalle ne lui barre la vue ?
+function rayonTierce(az, el, Dmax, tx, ty, tz) {
+  const cp = Math.cos(-el), dx = Math.cos(az) * cp, dy = Math.sin(az) * cp, dz = Math.sin(-el);
   for (let s2 = 1.5; s2 <= Dmax; s2 += .4) {
     const x = tx - dx * s2, y = ty - dy * s2, z = tz - dz * s2, i = x | 0, j = y | 0;
     const pt = plaT(i, j), pb = plaB(i, j);
-    if (hAt(i, j) > z - .45 || (pt && z > pb - .45 && z < pt + .45)) { D = Math.max(2.2, s2 - .6); break; }
+    if (hAt(i, j) > z - .45 || (pt && z > pb - .45 && z < pt + .45)) return Math.max(2.2, s2 - .6);
   }
+  return Dmax;
+}
+// Une falaise derrière le personnage : plutôt que de coller l'œil à son dos, on le fait monter, juste
+// ce qu'il faut pour passer par-dessus (vite), et il redescend doucement quand la voie se dégage.
+let elevBute = 0;
+function cameraTierce() {
+  const az = Math.atan2(Math.sin(ang) - Math.cos(ang), -(Math.cos(ang) + Math.sin(ang)));
+  const tx = camX, ty = camY, tz = camZ + .9;
+  const Dmax = Math.max(3, Math.min(24, TIERCE_D / zoom)), ELEV_MAX = Math.PI * .42;
+  let but = 0;
+  if (rayonTierce(az, elev, Dmax, tx, ty, tz) < Dmax * .85) {
+    but = Math.max(0, ELEV_MAX - elev);
+    for (let k = 1; k <= 8; k++) {
+      const e = Math.min(ELEV_MAX, elev + k * .07);
+      if (rayonTierce(az, e, Dmax, tx, ty, tz) >= Dmax * .85) { but = e - elev; break; }
+    }
+  }
+  elevBute += (but - elevBute) * (but > elevBute ? .25 : .05);
+  const el = elev + elevBute;
+  const cp = Math.cos(-el), sp = Math.sin(-el);
+  const dx = Math.cos(az) * cp, dy = Math.sin(az) * cp, dz = sp;
+  const D = rayonTierce(az, el, Dmax, tx, ty, tz);
+  // La focale : en paysage, la largeur décide ; en portrait (téléphone), la hauteur la relève, sans quoi
+  // le champ s'ouvrirait à plus de cent degrés et le personnage n'y serait qu'un point.
   FC = { ex: tx - dx * D, ey: ty - dy * D, ez: tz - dz * D, cy: Math.cos(az), sy: Math.sin(az), cp, sp,
-         F: Math.min(Wd, Hd * 1.5) * .82, D };
+         F: Math.max(Math.min(Wd, Hd * 1.5) * .82, Hd * .62), D };
 }
 // La boîte [x0,x1]×[y0,y1]×[z0,z1] a-t-elle une chance d'être vue ? On prend son coin le plus
 // favorable face à chaque plan : le plan proche, puis les quatre bords du cadre. `marge`
