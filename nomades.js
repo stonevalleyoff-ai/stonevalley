@@ -323,7 +323,7 @@ function nmOs(f) {
 function nmArche(f) {
   const k = Math.max(.02, f.ouv || 0);
   return portailOs().map(o => {
-    const voile = o.w > .35 && o.h < .08;
+    const voile = Math.min(o.w, o.h) < .08 && Math.max(o.w, o.h) > .3;   // une lame mince et large : le voile
     const c = voile ? [150 + o.c[2] * .3 | 0, 110 + o.c[1] * .3 | 0, 235] : o.c;
     const s = z => z * (voile ? k : Math.min(1, k * 1.6));
     return { a: [o.a[0] * .9, o.a[1], s(o.a[2]) * .9], b: [o.b[0] * .9, o.b[1], s(o.b[2]) * .9], w: o.w * .9, h: o.h * .9, c };

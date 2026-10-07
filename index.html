@@ -476,6 +476,21 @@
   .qte{font-variant-numeric:tabular-nums;font-weight:650;}
   .ingredients li.manque .qte{color:var(--braise);}
   .sac-corps.lignes{max-width:780px;}
+  .caracs{margin:0 0 4px;font-size:12.5px;}
+  .caracs .tete,#sac .caracs button{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.8fr) 4.6em minmax(0,.8fr);gap:6px;align-items:center;
+    width:100%;padding:8px 4px;text-align:left;border-bottom:1px solid var(--trait);}
+  .caracs .tete{color:var(--texte2);font-size:10.5px;letter-spacing:.03em;padding-top:2px;}
+  #sac .caracs button{background:none;border-width:0 0 1px;border-radius:0;color:var(--texte);}
+  #sac .caracs button b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #sac .caracs button .pts{color:var(--texte2);letter-spacing:1px;font-size:11px;}
+  #sac .caracs button.plus .pts,#sac .caracs button.plus .tot{color:var(--or);}
+  #sac .caracs button.on{background:linear-gradient(90deg,rgba(255,210,125,.10),transparent 70%);box-shadow:inset 3px 0 0 var(--or);}
+  #sac .caracs button:disabled{opacity:.45;cursor:default;}
+  #sac .caracs button:focus-visible{outline:2px solid var(--or);outline-offset:-2px;}
+  #sac .obj.etape{padding:7px 2px;} #sac .obj.etape.porte{padding-left:12px;}
+  #sac .obj .fait{color:var(--pousse);font-weight:600;font-size:12px;white-space:nowrap;} #sac .obj .attend{color:var(--or);font-size:12px;white-space:nowrap;}
+  #sac .alch h4{margin:8px 0 5px;font-size:11.5px;font-weight:600;color:var(--texte2);}
+  #sac .alch .fin h4{margin:14px 0 2px;font-size:12.5px;color:var(--texte);}
   #sac .obj{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 2px;
     border-bottom:1px solid var(--trait);}
   #sac .obj.porte{background:linear-gradient(90deg,rgba(255,210,125,.10),transparent 70%);
@@ -601,6 +616,7 @@
     .sac-tete h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .sac-corps.deux,.sac-corps.etabli{display:block;overflow:auto;padding-bottom:18px;}
     .sac-corps.deux>.col{overflow:visible;padding-bottom:0;}
+    .sac-corps.deux.alch{display:flex;flex-direction:column;} .sac-corps.deux.alch>.col{display:contents;} .sac-corps.alch .fin{order:9;}
     .sac-corps.amis>.col+.col{margin-top:8px;}
     .jauges{gap:6px;}
     .jauges .barre{width:36px;}
@@ -2342,6 +2358,8 @@ P.denrees = {}; P.cellier = {}; P.bossVaincus = []; P.plats = []; P.recettes = {
 P.marmite = null; P.effets = {};                 // la marmite posée { g, x, y, z }, et les effets des plats : { effet: fin }
 P.objets = {};                                   // ce qui a déjà été fabriqué
 P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.baumes = 0; P.arc = null;
+P.soins = {};                                         // les soins préparés : { id: nombre }
+P.defense = { mur: 0, tours: 0 };                     // les deux branches de la défense
 // Les compagnes. Un lien d'éclat est une place : chaque bête liée en occupe un, qu'elle soit
 // dehors ou rentrée dans le sac. Autant de compagnes que de liens, six au plus.
 P.liens = 0; P.compagnes = [];
@@ -2354,6 +2372,7 @@ P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ
 // Le coffre du campement : ce qui y est déposé ne risque plus rien. Le sac, lui, voyage.
 P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, baies: 0, spore: 0 };
 P.modules = {};                                       // les modules créés au campement : { id: niveau }
+P.alchimie = {}; P.chaudron = null;                   // les rangs acquis par potion { caractéristique: rang } ; la potion en cours { c, e, f }
 P.pillages = [];                                      // les derniers pillages subis : qui, quoi, quand
 // L'expédition en cours : les sauts faits depuis le campement, et les cœurs perdus en route.
 // Elle se lit avant le peuplement de l'île, sinon la première fournée de bêtes ignorerait
@@ -2416,8 +2435,22 @@ const OBJETS = [
   { id:'lien', et:1,    n:"Lien d'éclat",       emp:'lien', lot:1, fil:'compagnes', get cout() { return coutLien(P.liens); },
     d:'retient une bête apprivoisée · chaque lien coûte deux fois et demie le précédent' },
   // le baume : le lien ramène une compagne à terre, il ne la soigne pas — c'est lui qui la relève
-  { id:'baume',   n:'Baume de relève',    emp:'baume', lot:1, fil:'compagnes', cout:{fibre:14,os:4},
+  { id:'baume', ts:1, n:'Baume de relève',    emp:'baume', lot:1, fil:'compagnes', cout:{fibre:14,os:4},
     d:'remet sur pied une compagne assommée · se prépare d\'avance' },
+  // les soins : préparés à la table de soin (ts : le niveau qu'il faut), comptés comme les flèches.
+  // cible 'gens' : soi, ou l'équipier à portée ; cible 'compagne' : une bête liée.
+  { id:'bandage',     ts:1, n:'Bandage',       emp:'soin', lot:2, cible:'gens', pv:.35, cout:{fibre:12},
+    d:'pour soi, ou pour un équipier à portée : +35 % de vie' },
+  { id:'cataplasme',  ts:2, n:'Cataplasme',    emp:'soin', lot:1, cible:'gens', pv:.65, purge:1, cout:{fibre:14,baies:6},
+    d:'pour soi ou un équipier : +65 % de vie · chasse le poison et la brûlure' },
+  { id:'elixir',      ts:3, n:'Élixir de vie', emp:'soin', lot:1, cible:'gens', pv:1, purge:1, coeur:1, cout:{eclat:14,fibre:20,os:6},
+    d:'pour soi ou un équipier : toute la vie · chasse le poison et la brûlure · rend un cœur perdu' },
+  { id:'onguent',     ts:1, n:'Onguent',       emp:'soin', fil:'compagnes', lot:2, cible:'compagne', pv:.5, cout:{fibre:8,baies:4},
+    d:'pour une compagne blessée : +50 % de vie' },
+  { id:'onguentfort', ts:2, n:'Onguent fort',  emp:'soin', fil:'compagnes', lot:1, cible:'compagne', pv:1, repu:1, cout:{fibre:12,baies:6,os:3},
+    d:'pour une compagne : toute sa vie, et la voilà rassasiée' },
+  { id:'baumevie',    ts:3, n:'Baume de vie',  emp:'soin', fil:'compagnes', lot:1, cible:'compagne', pv:1, releve:1, repu:1, cout:{eclat:8,fibre:14,os:6},
+    d:'relève une compagne à terre, toute sa vie rendue · soigne aussi une compagne debout' },
   // armures : réduction des dégâts reçus
   { id:'tunique', n:'Tunique de fibre',   emp:'armure', red:.25, cout:{fibre:40},              d:'−25 % de dégâts' },
   { id:'cuirasse', et:1,n:"Cuirasse d'os",      emp:'armure', red:.45, cout:{os:10,fibre:32,bois:20},  d:'−45 % de dégâts' },
@@ -2456,7 +2489,7 @@ const OBJETS = [
     d:'ramène à votre campement, de n\'importe quelle île · coûte du mana : dix éclats par exploration d\'écart, de 20 à 100' },
 ];
 // Ce qui se refait autant qu'on veut, au lieu de se fabriquer une fois pour toutes.
-const enSerie = o => o.emp === 'munition' || o.emp === 'lien' || o.emp === 'baume';
+const enSerie = o => o.emp === 'munition' || o.emp === 'lien' || o.emp === 'baume' || o.emp === 'soin';
 // Fabriqué une fois pour toutes — la ceinture ne l'est qu'à son dernier niveau.
 const acheve = o => !enSerie(o) && !!P.objets[o.id] && !(o.emp === 'ceinture' && nivCeinture() < CEINTURE_MAX);
 const campIci = () => !!P.camp && P.camp.graine === SEED;
@@ -2843,7 +2876,7 @@ function coupRecolte(nd) {
   if (!e) {
     const mult = nd.sp.res === 'eclat' ? rendement() * .6 : rendement();
     const tn = teinteNoeud(nd);                        // une druse lavande ou dorée rend davantage
-    const n = Math.round((Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0)) * (1 + .5 * effet('cueilleur')));   // récolte abondante
+    const n = arrondiAlch((Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0)) * (1 + .5 * effet('cueilleur')));   // récolte abondante
     // un outil de haut rang abat plus vite : un coup de moins à partir de la serpe
     const c = Math.max(1, Math.min(n, (COUPS_FORME[nd.sp.forme] || 2) - (nivOutil() >= 3 ? 1 : 0)));
     e = { reste: n, coups: c, total: c, choc: 0, tn };
@@ -3717,6 +3750,8 @@ function majFleches(dt) {
       f.vx *= kk; f.vy *= kk; f.vz *= kk;
       const nx = f.x + f.vx * h, ny = f.y + f.vy * h, nz = f.z + f.vz * h;
       if (impactFleche(f, nx, ny, nz)) { f.x = nx; f.y = ny; f.z = nz; fini = true; break; }
+      if (Raid && !f.fantome) { const o = flecheOuvrage(f.x, f.y, nx, ny, nz); if (o) { frapperOuvrage(o, f.deg * Math.min(1, Math.hypot(f.vx, f.vy, f.vz) / ARC_VMAX)); fini = true; break; } }   // la porte, une tour du campement qu'on pille
+      if (MURS.length && f.de !== null) { const m = murTir(f.x, f.y, nx, ny, nz); if (m && (f.fantome || !allieDuCamp(m))) { burst(nx, ny, nz, 5, '#c8ccd6'); fini = true; break; } }   // le mur de pierre d'un autre
       f.x = nx; f.y = ny; f.z = nz;
     }
     if (fini && !f.plantee) FLECHES.splice(k, 1);       // fichée dans une bête : perdue
@@ -3786,27 +3821,27 @@ const MODULES = [   // a : l'angle sur l'anneau, compté depuis l'entrée ; pret
   { id: 'coffre',   n: 'Coffre',            a: -36,  d: 'la réserve du campement, à l\'abri des expéditions', pret: 1 },
   { id: 'portail',  n: 'Portail',           a: 144,  d: 'choisir son île, en lire l\'aperçu, repartir vers une île gardée', pret: 1 },
   { id: 'cuisine',  n: 'Cuisine',           a: -72,  d: 'la marmite du campement : de deux à quatre ingrédients', pret: 1 },
-  { id: 'soin',     n: 'Table de soin',     a: -108, d: 'se soigner' },
-  { id: 'alchimie', n: 'Table d\'alchimie', a: -144, d: 'les potions' },
+  { id: 'soin',     n: 'Table de soin',     a: -108, d: 'bandages, onguents, élixirs : pour soi, ses compagnes, ses équipiers', pret: 1 },
+  { id: 'alchimie', n: 'Table d\'alchimie', a: -144, d: 'les potions : elles améliorent le personnage pour de bon', pret: 1 },
   { id: 'biblio',   n: 'Bibliothèque',      a: 180,  d: 'la magie' },
-  { id: 'defense',  n: 'Défense',           a: 108,  d: 'tenir les pillards et les bêtes à distance' },
+  { id: 'defense',  n: 'Défense',           a: 108,  d: 'un rempart sur la bordure, des tours aux coins : contre les bêtes et les étrangers', pret: 1 },
 ];
 const MODULE = {}; for (const m of MODULES) MODULE[m.id] = m;
 // Une place de l'anneau : où, et tournée vers le feu d'un quart de tour à la fois.
 const placeAnneau = a => { const r = a * Math.PI / 180; return [Math.cos(r) * CAMP_ANNEAU, Math.sin(r) * CAMP_ANNEAU, ((Math.round((a + 180) / 90) % 4) + 4) % 4]; };
 const aModule = id => (P.modules[id] | 0) > 0;
 // Le niveau d'un module : 0 tant qu'il n'est pas créé. Celui du portail est tenu à part (P.campNiv).
-const MODULE_MAX = { etabli: 3, cuisine: 3, coffre: 1 };
+const MODULE_MAX = { etabli: 3, cuisine: 3, soin: 3, alchimie: 3, coffre: 1 };
 const maxModule = id => id === 'portail' ? CAMP_MAX : MODULE_MAX[id] || 1;
 const nivModule = id => !aModule(id) ? 0 : id === 'portail' ? nivCamp() : Math.min(maxModule(id), P.modules[id] | 0);
 const nivEtabli = () => nivModule('etabli'), nivCuisine = () => nivModule('cuisine');
 const lieuModule = (c, id) => { const q = placeAnneau(MODULE[id].a); return [c.x + q[0], c.y + q[1]]; };
 // Ce qu'on dit de ses modules aux autres joueurs de l'île, en un nombre : 2 le coffre, puis deux bits
-// pour le niveau de l'établi, deux pour celui de la cuisine. Le portail ne s'ouvre que pour soi.
-const modsDits = () => (aModule('coffre') ? 2 : 0) | (nivEtabli() << 2) | (nivCuisine() << 4);
-const modsLus = v => { v |= 0; const m = {}; if (v & 2) m.coffre = 1; if ((v >> 2) & 3) m.etabli = (v >> 2) & 3; if ((v >> 4) & 3) m.cuisine = (v >> 4) & 3; return m; };
-const MODS_RAID = { coffre: 1 };                       // le campement qu'on pille : on y vient pour son coffre
-const modsDuCamp = c => c === P.camp ? P.modules : c === Raid ? MODS_RAID : (c && c.mods) || {};
+// pour le niveau de l'établi, deux pour celui de la cuisine, deux pour la table de soin, deux pour le rempart, deux pour les tours, deux pour la table d'alchimie. Le portail ne s'ouvre que pour soi.
+const modsDits = () => (aModule('coffre') ? 2 : 0) | (nivEtabli() << 2) | (nivCuisine() << 4) | (nivModule('soin') << 6) | (nivMur() << 8) | (nivTours() << 10) | (nivModule('alchimie') << 12);
+const modsLus = v => { v |= 0; const m = {}; if (v & 2) m.coffre = 1; if ((v >> 2) & 3) m.etabli = (v >> 2) & 3; if ((v >> 4) & 3) m.cuisine = (v >> 4) & 3; if ((v >> 6) & 3) m.soin = (v >> 6) & 3; if ((v >> 8) & 3) m.mur = (v >> 8) & 3; if ((v >> 10) & 3) m.tours = (v >> 10) & 3; if ((v >> 12) & 3) m.alchimie = (v >> 12) & 3; return m; };
+const MODS_RAID = { coffre: 1 }, MODS_RAID_DEF = { coffre: 1, defense: 1 };   // le campement qu'on pille : on y vient pour son coffre
+const modsDuCamp = c => c === P.camp ? P.modules : c === Raid ? (Raid.mur || Raid.tours ? MODS_RAID_DEF : MODS_RAID) : (c && c.mods) || {};
 const CAMP_R = 3.9;                                    // portée : tout le rond du campement
 const ditModules = () => { const n = MODULES.filter(m => aModule(m.id)).length; return n ? 'Camp de base · ' + n + ' module' + (n > 1 ? 's' : '') : 'Camp de base'; };
 const auCamp = () => campIci() && (P.x - P.camp.x) ** 2 + (P.y - P.camp.y) ** 2 < CAMP_R * CAMP_R
@@ -3973,7 +4008,7 @@ function travailAbsence(liste, depuis) {
     if (!r.aucamp || r.ko) continue;
     r.faim = Math.min(r.faim, .2); r.soif = Math.min(r.soif, .2); r.nrj = 1;   // le feu les a tenues
     if (r.role !== 'recolte' || !aModule('coffre')) continue;   // sans coffre, rien à engranger
-    const k = recolteDe(r), cf = coefApt(r.esp, k);
+    const k = recolteDe(r), cf = coefApt(r.esp, k) * (1 + .1 * potComp(r, 'recolte'));
     if (!specById[r.esp] || !cf) continue;
     let tot = 0;
     if (k === 'peche') {                                 // la sterne pêche pour le campement : au cellier
@@ -3984,9 +4019,12 @@ function travailAbsence(liste, depuis) {
     { let n = Math.floor(min * (k === 'os' ? 1.5 : 4) * cf), k2 = k;
       if (k === 'baies' && specById[r.esp].nectar && n > 0) { k2 = 'nectar'; n = Math.max(1, Math.round(n * .5)); }   // l'oglodon en fait du nectar, comme sur place
       if (n > 0) { gain[k2] = (gain[k2] || 0) + n; tot += n; } }
+    { const rk = potComp(r, 'comp');                    // les trouvailles d'une Douce, au cellier
+      if (tot && rk && compDe(r) === 'doux') { const nf = Math.floor(min / 20 * rk + Math.random());
+        for (let j = 0; j < nf; j++) { const id = trouvaille(rk); if (id) { P.cellier[id] = (P.cellier[id] || 0) + 1; gain.trouvailles = (gain.trouvailles || 0) + 1; } } } }
     if (tot) qui.push(r.nom || specById[r.esp].n);
   }
-  for (const k in gain) if (k !== 'poissons') { const R = reserveDe(k); R[k] = (R[k] || 0) + gain[k]; }   // le nectar : au cellier
+  for (const k in gain) if (k !== 'poissons' && k !== 'trouvailles') { const R = reserveDe(k); R[k] = (R[k] || 0) + gain[k]; }   // le nectar : au cellier
   const total = Object.values(gain).reduce((a2, n) => a2 + n, 0);
   bilanAbsence = { min: Math.round(min), gain, qui, total, quand: Date.now() };
   if (total) say('pendant votre absence · ' + total + ' au coffre · ' + qui.join(', '), 4.5);
@@ -4021,6 +4059,8 @@ function portailNormal() {
 //  douze heures de bouclier et prévient le pillé, qui le déduit à son retour.
 // ============================================================
 const RAID_P = 1 / 12, RAID_TAUX = .01, RAID_MAX = .2, RAID_R = 2.4, RAID_ZONE = 11, RAID_DUREE = 18 * 60e3;
+// Ce que tiennent la porte et une tour du campement visité (en dégâts d'arme), et ce que blesse un carreau, par niveau.
+const PORTE_RAID = [0, 3, 8, 18], TOUR_RAID = [0, 1.5, 3, 5], TOUR_RAID_DEG = [0, .06, .08, .1], TOUR_RAID_N = [0, 1, 2, 4];
 let Raid = null, raidPart = null, chercheRaid = false;
 const raidIci = () => !!Raid && Raid.graine === SEED;
 const probaRaid = () => typeof globalThis.__RAID_P === 'number' ? globalThis.__RAID_P : RAID_P;
@@ -4040,15 +4080,20 @@ function raidLu(r) {
   const gardiennes = (Array.isArray(r.gardiennes) ? r.gardiennes : []).filter(o => o && specById[o.esp] && !coursier(specById[o.esp]))
     .slice(0, 6).map(o => ({ esp: o.esp, pv: Math.max(.05, Math.min(1, Number(o.pv) || 1)), v: varianteSure(o.v) }));
   const ko = (Array.isArray(r.ko) ? r.ko : []).filter(i => Number.isInteger(i) && i >= 0 && i < 6);
+  const borne = v => Math.max(0, Math.min(3, Number(v) | 0)), mur = borne(r.niv_mur ?? r.mur), tours = borne(r.niv_tours ?? r.tours);
+  const reste = (v, max) => Number.isFinite(v) ? Math.max(0, Math.min(max, v)) : max;
+  const tk = []; for (let k = 0; k < TOUR_RAID_N[tours]; k++) tk.push(reste(Array.isArray(r.tk) ? r.tk[k] : NaN, TOUR_RAID[tours]));
   return { jeton: r.jeton, graine: g, x, y, z: Math.max(-8, Math.min(64, z)),
     pseudo: String(r.pseudo || '').replace(/[<>]/g, '').slice(0, 18).trim() || 'quelqu\'un',
     niv: Math.max(1, Math.min(CAMP_MAX, Number(r.niv_camp ?? r.niv) | 0 || 1)), coffre, gardiennes, ko,
     part: Math.max(0, Math.min(RAID_MAX, Number(r.part) || 0)), fini: !!r.fini, place: !!r.place,
-    depuis: Number.isFinite(r.depuis) ? r.depuis : Date.now(), echecs: 0 };
+    depuis: Number.isFinite(r.depuis) ? r.depuis : Date.now(), echecs: 0,
+    mur, tours, porte: reste(r.porte, PORTE_RAID[mur]), tk };
 }
 const raidPhoto = (R = Raid) => ({ jeton: R.jeton, graine: R.graine, x: R.x, y: R.y, z: R.z, pseudo: R.pseudo,
   niv: R.niv, coffre: R.coffre, gardiennes: R.gardiennes, ko: R.ko, part: Math.round(R.part * 1000) / 1000,
-  fini: R.fini, place: R.place, depuis: R.depuis });
+  fini: R.fini, place: R.place, depuis: R.depuis,
+  mur: R.mur, tours: R.tours, porte: Math.round(R.porte * 100) / 100, tk: R.tk.map(v => Math.round(v * 100) / 100) });
 async function chercherRaid() {
   chercheRaid = true;
   say('le portail hésite…', 2.5); burst(P.x, P.y, P.z + .8, 16, '#ff9a7a');
@@ -4092,8 +4137,10 @@ function preparerRaid() {
     beasts.push(b);
   });
   const reste = n - Raid.ko.length;
+  const nT = Raid.tk.filter(v => v > 0).length;
   say('le campement de ' + Raid.pseudo + (reste > 0 ? ' · ' + reste + ' gardienne' + (reste > 1 ? 's' : '') : ' · sans gardienne')
-    + ' · au coffre, un centième par seconde', 5);
+    + (Raid.mur ? ' · ' + MUR_NOM[Raid.mur] : '') + (nT ? ' · ' + nT + ' tour' + (nT > 1 ? 's' : '') : '')
+    + (Raid.mur && Raid.porte > 0 ? ' · forcez la porte, puis au coffre : un centième par seconde' : ' · au coffre, un centième par seconde'), Raid.mur || nT ? 6.5 : 5);
 }
 function majRaid(dt) {
   if (!raidIci()) return;
@@ -4101,7 +4148,8 @@ function majRaid(dt) {
   if (Raid.fini || Raid.envoi) return;
   if (Date.now() - Raid.depuis > RAID_DUREE) { emporter('temps'); return; }   // avant que la base ne ferme la visite
   const [cx, cy] = coffreRaid();
-  const auCoffre = Math.hypot(P.x - cx, P.y - cy) < RAID_R && Math.abs(P.z - Raid.z) < 2 && P.pv > 0;
+  const auCoffre = Math.hypot(P.x - cx, P.y - cy) < RAID_R && Math.abs(P.z - Raid.z) < 2 && P.pv > 0
+    && (!Raid.mur || dansRond(Raid, P.x, P.y));         // derrière un rempart, le coffre ne se vide que de l'intérieur
   if (auCoffre && P.hurt <= 0 && Raid.part < RAID_MAX) {           // un coup reçu fait lâcher prise un instant
     const p0 = Math.floor(Raid.part * 100 + 1e-6);
     Raid.part = Math.min(RAID_MAX, Raid.part + RAID_TAUX * dt);
@@ -4192,7 +4240,7 @@ function gardiennesCamp() {
 function campPublic() {
   if (!P.camp) return null;
   return { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100, y: Math.round(P.camp.y * 100) / 100, z: P.camp.z,
-    niv_ile: P.camp.expl || 0, niv_camp: aModule('portail') ? nivCamp() : 1, pseudo: pseudo(), coffre: aModule('coffre') ? Object.assign({}, P.coffre) : {}, gardiennes: gardiennesCamp() };
+    niv_ile: P.camp.expl || 0, niv_camp: aModule('portail') ? nivCamp() : 1, niv_mur: nivMur(), niv_tours: nivTours(), pseudo: pseudo(), coffre: aModule('coffre') ? Object.assign({}, P.coffre) : {}, gardiennes: gardiennesCamp() };
 }
 function majPillage() {
   if (!Compte.dedans || essai || !Sauve.pret || PILL.envoi) return;
@@ -4328,8 +4376,8 @@ const COGNE = 1.2;
 const VIT_MARCHE = 4.2, VIT_COURSE = 5.8, VIT_EPUISE = 3.2;   // la marche au pas de l'ancien sprint, le sprint plus vif encore
 const ENDU_COURSE = 8, ENDU_REPRISE = .12, ENDU_REPOS = .24, ENDU_SEUIL = .35;
 const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1);   // l'escouade est blindée
-const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.6, effet('robuste') * .2));   // peau dure : −20 % par niveau, −60 % au plus
-const degJoueur = (deg, b) => deg / danger() / robuste(b) * (1 + effet('fort') * .25);   // coups puissants : +25 % par niveau
+const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.6, effet('robuste') * .2)) * vieK();   // peau dure : −20 % par niveau, −60 % au plus
+const degJoueur = (deg, b) => deg / danger() / robuste(b) * forceK();   // coups puissants : +25 % par niveau
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
 function capEsp(sp) {
   if (sp.biome) return especesIle.has(sp.id) ? sp.cap : 0;   // un Tellurien : autant que son sol en nourrit
@@ -4347,10 +4395,10 @@ const auSac = r => r === 'baies' ? P.baies : r === 'nectar' ? P.denrees.nectar |
 const reserveDe = r => r === 'nectar' ? P.cellier : P.coffre;
 const metSac = (r, v) => { const n = Math.max(0, v | 0); if (r === 'baies') P.baies = n; else if (r === 'nectar') { if (n) P.denrees.nectar = n; else delete P.denrees.nectar; } else P.sac[r] = n; };
 const coffreTotal = () => COFFRE_R.reduce((s, r) => s + (P.coffre[r] || 0), 0);
-// La réserve commune : près de son campement — dans l'abri, à sept cases du feu — le sac et le
+// La réserve commune : près de son campement — à sept cases du feu — le sac et le
 // coffre ne font qu'un. On fabrique, on améliore, on nourrit sans rien déplacer. On puise d'abord
 // au coffre : le sac, c'est ce qu'on emporte en expédition.
-const reserveCommune = () => aModule('coffre') && !!prsCamp(P.x, P.y);
+const reserveCommune = () => aModule('coffre') && campIci() && (P.x - P.camp.x) ** 2 + (P.y - P.camp.y) ** 2 < RESERVE_R * RESERVE_R;
 const dispo = r => auSac(r) + (reserveCommune() ? (reserveDe(r)[r] || 0) : 0);
 function puiser(r, n) {
   if (reserveCommune()) { const R = reserveDe(r), c = Math.min(n, R[r] || 0); R[r] = (R[r] || 0) - c; if (!R[r] && R === P.cellier) delete R[r]; n -= c; }
@@ -4495,7 +4543,8 @@ const PAS_RESEAU = 1 / 5;
 // une nouvelle toutes les 1,5 s suffit à dire qu'on est toujours là. Seul sur l'île, personne
 // n'écoute, mais chaque envoi compte : une balise toutes les 2 s, pour être trouvé.
 const GARDE_RESEAU = 1.5, BALISE_RESEAU = 2, ICI_RESEAU = 6;
-const ABRI = 7;                                      // pas de coups si près d'un campement
+const ABRI = 4;                                      // l'abri : le rond de son campement (au-delà, c'est la défense qui protège)
+const RESERVE_R = 7;                                 // la réserve commune, elle, porte toujours à sept cases du feu
 const REPIT = 5;                                     // à l'arrivée sur une île, on ne prend rien
 let arriveeLe = 0;                                   // l'instant où cette île a commencé
 // Chaque joueur a sa teinte, tirée de son compte : deux silhouettes ne se confondent pas.
@@ -4651,6 +4700,8 @@ function recevoir(m) {
   if (typeof fauneEvenement === 'function' && fauneEvenement(evt, d)) return;   // la faune partagée (faune.js)
   if (evt === 'pos') majDistant(d);
   else if (evt === 'coup') encaisser(d);
+  else if (evt === 'soin') etreSoigne(d);                 // un équipier nous soigne
+  else if (evt === 'glu') etreEnglue(d);                  // la boule visqueuse d'une compagne d'en face
   else if (evt === 'parti') effacerDistant(d.u);
   else if (evt === 'coupe') {
     const i = d.i | 0;
@@ -4816,20 +4867,21 @@ function frapperLoin(c, deg) {
 function encaisser(d) {
   if (d.a !== Compte.uid) return;
   const deg = Math.max(0, Math.min(1, +d.d || 0));
+  if (deg) Agresseurs.set(d.u, t + 30);                // qui frappe devient, trente secondes, une cible pour les tours
   if (!deg || sousAbri()) return;
   const qui = String(d.n || 'quelqu\'un').slice(0, 18);
   const i = d.c | 0;
   if (d.c >= 0) {
     const sorties = P.compagnes.filter(c => c.dehors && c.b);
     const c = sorties[i]; if (!c || !c.b) return;
-    c.b.pv = Math.max(0, c.b.pv - deg / robuste(c.b)); c.b.hit = .25; c.b.alarm = 1;
+    c.b.pv = Math.max(0, c.b.pv - deg / robuste(c.b) * (1 - .06 * potComp(c, 'defense'))); c.b.hit = .25; c.b.alarm = 1;
     burst(c.b.x, c.b.y, c.b.z + .4, 9, '#ffb0a0');
     if (c.b.pv <= 0) { assommer(c.b, 'coup'); say(c.nom + ' est tombée sous les coups de ' + qui, 3); }
     return;
   }
   if (P.hurt > 0) return;                              // encore sonné : ce coup-là ne compte pas
   P.hurt = 1.0; P.dernierCoup = t;
-  P.pv = Math.max(0, P.pv - deg * (1 - ((porte('armure') || {}).red || 0)));
+  P.pv = Math.max(0, P.pv - deg * (1 - ((porte('armure') || {}).red || 0)) * vieK());
   const a = Math.random() * 6.283;
   P.vx = Math.cos(a) * 5; P.vy = Math.sin(a) * 5; P.vz = 3.6; P.recul = .3;
   burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
@@ -4946,7 +4998,7 @@ function coutCamp(niv) {
   return c;
 }
 const enMilliers = n => String(Math.round(n)).replace(/\B(?=(\d{3})+$)/g, ' ');
-const ditCout = cout => Object.entries(cout).map(([r, n]) => { const ok = essai || dispo(r) >= n, m = n > 1 ? PLURIEL[r] || RES[r] : RES[r];
+const ditCout = cout => Object.entries(cout).map(([r, n]) => { const ok = essai || dispo(r) >= n, m = n > 1 ? PLURIEL[r] || RES[r] || r : RES[r] || r;
   return ok ? enMilliers(n) + ' ' + m : '<b class="dgr">' + enMilliers(n) + ' ' + m + ' (vous : ' + enMilliers(dispo(r)) + ')</b>'; }).join(' · ');
 function ditPortail(niv) {
   const A = [choixPortail(niv) > 1 ? choixPortail(niv) + ' îles au choix' : 'une île au hasard'], d = detailPortail(niv), r = relancesPortail(niv), v = voeuxPortail(niv);
@@ -4964,6 +5016,9 @@ const COUT_MODULE = {
   coffre:  [{ bois: 30, fibre: 12 }],
   portail: [{ pierre: 40, eclat: 10 }],
   cuisine: [{ pierre: 24, bois: 16, fibre: 8 }, { pierre: 40, os: 10, eclat: 8 }, { pierre: 70, eclat: 30, os: 20 }],
+  soin:    [{ fibre: 30, bois: 16, os: 6 }, { fibre: 50, os: 14, eclat: 10 }, { fibre: 80, eclat: 36, os: 24 }],
+  alchimie: [{ pierre: 40, bois: 20, eclat: 20 }, { pierre: 60, eclat: 50, os: 20 }, { ferraille: 30, eclat: 90, pierre: 100 }],
+  defense: [{ bois: 30, pierre: 20, fibre: 10 }],
 };
 const coutModule = (id, niv) => id === 'portail' && niv > 1 ? coutCamp(niv) : (COUT_MODULE[id] || [])[niv - 1] || null;
 function creerModule(id) {
@@ -4982,6 +5037,9 @@ function creerModule(id) {
   burst(q[0], q[1], P.camp.z + .8, 44, id === 'portail' ? '#8fe4e8' : '#ffd27d'); SON.jouer('niveau');
   say(id === 'etabli' ? 'établi créé · bien plus à fabriquer, et les autres modules'
     : id === 'cuisine' ? 'cuisine créée · deux ingrédients par plat'
+    : id === 'soin' ? 'table de soin créée · bandages et onguents'
+    : id === 'alchimie' ? 'table d\'alchimie créée · les potions améliorent le personnage pour de bon'
+    : id === 'defense' ? 'poste de garde créé · le rempart et les tours s\'y commandent'
     : id === 'portail' ? 'portail créé' + (nivCamp() > 1 ? ' · il retrouve son niveau ' + nivCamp() : ' · il s\'améliore pour viser')
     : 'coffre créé' + (coffreTotal() + cellierTotal() ? ' · ' + (coffreTotal() + cellierTotal()) + ' en réserve vous y attendaient' : ' · le stock du campement est ouvert'), 3.5);
   majSac();
@@ -5002,7 +5060,9 @@ function ameliorerModule(id) {
   P.modules[id] = n;
   const q = lieuModule(P.camp, id);
   burst(q[0], q[1], P.camp.z + .8, 36, '#ffd27d'); SON.jouer('niveau');
-  say(id === 'etabli' ? 'établi · niveau ' + n + ' · de nouvelles fabrications' : 'cuisine · niveau ' + n + ' · ' + (n + 1) + ' ingrédients par plat', 3);
+  say(id === 'etabli' ? 'établi · niveau ' + n + ' · de nouvelles fabrications' : id === 'soin' ? 'table de soin · niveau ' + n + ' · des soins plus forts'
+    : id === 'alchimie' ? 'table d\'alchimie · niveau ' + n + ' · les potions jusqu\'au rang ' + [0, 2, 3, 5][n]
+    : 'cuisine · niveau ' + n + ' · ' + (n + 1) + ' ingrédients par plat', 3);
   majSac();
   return true;
 }
@@ -5234,7 +5294,7 @@ const dalles = [];                                // dalles conjurées, avec leu
 // En mode essai, rien ne se paie.
 const JAUGE_MANA = 100;                                      // cent éclats remplissent la jauge, comme les cent points d'avant
 const manaDispo = () => essai ? Infinity : (P.sac.eclat || 0);
-const coutSort = o => Math.max(1, Math.round((o.mana || 0) * (1 - ((porte('armure') || {}).sort || 0)) * (biomeIci === 12 ? .5 : 1)));   // le manteau, les champs de cristal
+const coutSort = o => Math.max(1, Math.round((o.mana || 0) * (1 - ((porte('armure') || {}).sort || 0)) * (biomeIci === 12 ? .5 : 1) * (1 - .08 * rangAlch('mana'))));   // le manteau, les champs de cristal
 const coutFoyer = () => Math.min(100, Math.max(20, 10 * ecart()));   // dix éclats par exploration d'écart, de 20 à 100
 const eclats = n => n + ' éclat' + (n > 1 ? 's' : '');
 function payerMana(n) {
@@ -5322,11 +5382,14 @@ const payable = o => essai || Object.entries(o.cout).every(([r, n]) => dispo(r) 
 // À la main, ou à l'établi : ce qui demande l'établi se fabrique au campement, près de lui, s'il a
 // le niveau. Rend la raison du refus, ou rien.
 const etabliDe = o => o.et | 0;
+const ATELIERS = { etabli: ['un établi', 'il', 'à l\'établi', 'Établi'], soin: ['une table de soin', 'elle', 'à la table de soin', 'Table de soin'] };
+const atelierDe = o => o.ts ? ['soin', o.ts | 0] : o.et ? ['etabli', o.et | 0] : null;   // [module, niveau], ou rien : à la main
 function verrouFab(o) {
-  const n = etabliDe(o);
-  if (!n || essai) return '';
-  if (nivEtabli() < n) return nivEtabli() ? 'il faut un établi de niveau ' + n : 'il faut un établi : il se crée au campement';
-  if (!campIci() || !auCamp()) return 'à fabriquer à l\'établi, au campement';
+  const a = atelierDe(o);
+  if (!a || essai) return '';
+  const [id, n] = a, M = ATELIERS[id];
+  if (nivModule(id) < n) return nivModule(id) ? 'il faut ' + M[0] + ' de niveau ' + n : 'il faut ' + M[0] + ' : ' + M[1] + ' se crée au campement';
+  if (!campIci() || !auCamp()) return 'à fabriquer ' + M[2] + ', au campement';
   return '';
 }
 function toutFabriquer() {
@@ -5352,6 +5415,9 @@ function fabriquer(id) {
       P.baumes += o.lot; burst(P.x, P.y, P.z + .5, 10, '#9fd08a'); SON.jouer('fabrique');
       const ko = P.compagnes.filter(c => c.ko).length;
       say('baume de relève · ' + P.baumes + ' en réserve' + (ko ? ' · à donner dans l\'onglet Compagnes' : ''), 2.4);
+    } else if (o.emp === 'soin') {
+      P.soins[o.id] = (P.soins[o.id] | 0) + o.lot; burst(P.x, P.y, P.z + .5, 10, '#9fd08a'); SON.jouer('fabrique');
+      say(o.n.toLowerCase() + (o.lot > 1 ? ' ×' + o.lot : '') + ' · ' + P.soins[o.id] + ' en réserve', 2.2);
     } else {
       P.fleches += o.lot; burst(P.x, P.y, P.z + .5, 8, '#cfd6e4'); SON.jouer('fabrique');
       say('+' + o.lot + ' flèches · ' + P.fleches, 2);
@@ -5966,8 +6032,8 @@ const EMPLACEMENTS = [
   { id: 'lumiere', n: 'Lumière', fantome: 'lanterne', vide: 'Aucune lumière' },
 ];
 const FILTRES = [['tout', 'Tout'], ['main', 'À la main'], ['outil', 'Outils'], ['arme', 'Armes'], ['armure', 'Armures'],
-  ['grimoire', 'Grimoires'], ['compagnes', 'Compagnes'], ['camp', 'Campement'], ['munition', 'Flèches']];
-const dansFiltre = (o, f) => f === 'tout' || o.emp === f || o.fil === f || (f === 'main' && !etabliDe(o));
+  ['grimoire', 'Grimoires'], ['soin', 'Soins'], ['compagnes', 'Compagnes'], ['camp', 'Campement'], ['munition', 'Flèches']];
+const dansFiltre = (o, f) => f === 'tout' || o.emp === f || o.fil === f || (f === 'main' && !atelierDe(o)) || (f === 'soin' && !!o.ts);
 let sacOuvert = false;
 let ongletSac = 'sac', choixSac = null, choixEtabli = null, filtreEtabli = 'tout';
 let choixComp = null, confirmeLibere = { id: null, jusqua: 0 };
@@ -5985,6 +6051,7 @@ function caracteristiques(o) {
   if (o.emp === 'armure') { c.push(['Dégâts reçus', '−' + Math.round(o.red * 100) + ' %']); if (o.sort) c.push(['Coût des sorts', '−' + Math.round(o.sort * 100) + ' %']); }
   if (o.emp === 'grimoire') c.push(['Coût du sort', o.mana + ' mana (' + eclats(o.mana) + ')']);
   if (o.emp === 'munition') c.push(['Par lot', o.lot], ['En réserve', P.fleches]);
+  if (o.emp === 'soin') c.push(['En réserve', P.soins[o.id] | 0], ['Pour', o.cible === 'gens' ? 'soi, un équipier' : 'une compagne'], ['Vie', '+' + Math.round(o.pv * 100) + ' %']);
   if (o.emp === 'baume') c.push(['En réserve', P.baumes], ['Assommées', P.compagnes.filter(c => c.ko).length], ['Relève', 'à 60 %']);
   if (o.emp === 'lien') c.push(['Liens', P.liens], ['Libres', liensLibres()], ['En jeu', 'six au plus'], ['Celui-ci', 'n° ' + (P.liens + 1)],
     ['Le suivant', coutLien(P.liens + 1).eclat + ' éclat' + (coutLien(P.liens + 1).eclat > 1 ? 's' : '')]);
@@ -6006,9 +6073,9 @@ function avancement(o) {
 }
 // « 16 éclats », « 3 bois » : le pluriel des matières
 const PLURIEL = { fibre: 'fibres', bois: 'bois', pierre: 'pierres', os: 'os', eclat: 'éclats', ferraille: 'ferraille', baies: 'baies', nectar: 'nectar', spore: 'spores de Korlaz' };
-const quantite = (r, n) => `${n} ${RES_AVENIR[r] ? nomRes(r, n) : n > 1 ? PLURIEL[r] || RES[r] : RES[r]}`;
+const quantite = (r, n) => `${n} ${RES_AVENIR[r] ? nomRes(r, n) : n > 1 ? PLURIEL[r] || RES[r] || r : RES[r] || r.replace(/s$/, '')}`;
 const nomEmp = emp => (EMPLACEMENTS.find(e => e.id === emp) || { n: 'Réserve' }).n.toLowerCase();
-const genreObjet = o => o.emp === 'munition' ? 'Munition' : o.emp === 'ceinture' ? 'Ceinture' : o.emp === 'lien' || o.emp === 'baume' ? 'Compagnes'
+const genreObjet = o => o.emp === 'soin' ? (o.cible === 'compagne' ? 'Soin · compagnes' : 'Soin') : o.emp === 'munition' ? 'Munition' : o.emp === 'ceinture' ? 'Ceinture' : o.emp === 'lien' || o.emp === 'baume' ? 'Compagnes'
   : nomEmp(o.emp).replace(/^./, c => c.toUpperCase());
 
 // ---------- une case ----------
@@ -6027,7 +6094,8 @@ const maintenantSac = () => performance.now() / 1000;
 function pageSac() {
   // la sélection doit toujours désigner quelque chose de réel
   if (choixSac && !choixSac.startsWith('vide:') && !P.objets[choixSac]
-      && !(estPlat(choixSac) && (partsPlat(choixSac) > 0 || P.raccourcis.includes(choixSac)))) choixSac = null;
+      && !(estPlat(choixSac) && (partsPlat(choixSac) > 0 || P.raccourcis.includes(choixSac)))
+      && !(estSoin(choixSac) && objet(choixSac.slice(5)) && (qteSoin(choixSac.slice(5)) > 0 || P.raccourcis.includes(choixSac)))) choixSac = null;
   const equip = EMPLACEMENTS.map(e => {
     const id = P.equip[e.id], o = id && objet(id);
     const choisi = o ? choixSac === id : choixSac === 'vide:' + e.id;
@@ -6053,6 +6121,8 @@ function pageSac() {
     const i = k % CASES + 1;
     if (estPlat(id)) return `<div class="emplacement">` + caseObjet(icPlat(id), { nb: partsPlat(id), choisie: choixSac === id,
       attr: ` data-choix="${ESC(id)}"`, label: `Case ${i} : ${nomPlat(id)}` }) + `<span>${i}</span></div>`;
+    if (estSoin(id) && objet(id.slice(5))) return `<div class="emplacement">` + caseObjet(id.slice(5), { nb: qteSoin(id.slice(5)), choisie: choixSac === id,
+      attr: ` data-choix="${id}"`, label: `Case ${i} : ${objet(id.slice(5)).n}` }) + `<span>${i}</span></div>`;
     const o = id && P.objets[id] && objet(id);
     return `<div class="emplacement">` + (o
       ? caseObjet(id, { choisie: choixSac === id, attr: ` data-choix="${id}"`, label: `Case ${i} : ${o.n}` })
@@ -6075,11 +6145,12 @@ function pageSac() {
           + `</div><p class="note" style="margin:4px 2px 0">Un appui : on mange cru (la viande, jamais) ; le nectar se boit (ou N) : +35 % de vie. Pour cuisiner : onglet Campement, volet Cuisine, près d'un feu.</p>` : ''; })()
     + `</div>`
     + `<div class="col"><h3>Matières</h3>${noteReserve()}<div class="rangee">${matieres}</div>`
-    + `<h3>Objets</h3>${grille}${grillePlats()}${ficheSac()}</div></div>`;
+    + `<h3>Objets</h3>${grille}${grilleSoins()}${grillePlats()}${ficheSac()}</div></div>`;
 }
 function ficheSac() {
   if (!choixSac) return possedeRien() ? '' : `<div class="fiche calme">Toucher un objet pour le voir ici.</div>`;
   if (estPlat(choixSac)) return fichePlat(choixSac);
+  if (estSoin(choixSac)) return ficheSoin(choixSac);
   if (choixSac.startsWith('vide:')) {
     const emp = choixSac.slice(5), e = EMPLACEMENTS.find(x => x.id === emp);
     const dispo = OBJETS.filter(o => o.emp === emp && P.objets[o.id]);
@@ -6135,7 +6206,7 @@ function pageEtabli() {
     const cn = o.emp === 'ceinture' ? nivCeinture() : 0;      // la ceinture déjà faite, à améliorer
     const etat = fait ? (o.emp === 'ceinture' ? 'Niveau ' + CEINTURE_MAX + ' · au plus haut' : P.equip[o.emp] === o.id ? 'Dans le sac, porté' : 'Dans le sac')
       : pret ? (cn ? 'Niveau ' + cn + ' · prête à améliorer' : 'Prêt à fabriquer')
-      : ver ? (nivEtabli() < etabliDe(o) ? 'Établi niveau ' + etabliDe(o) : 'À l\'établi, au campement')
+      : ver ? (nivModule(atelierDe(o)[0]) < atelierDe(o)[1] ? ATELIERS[atelierDe(o)[0]][3] + ' niveau ' + atelierDe(o)[1] : 'Au campement, ' + ATELIERS[atelierDe(o)[0]][2])
       : (cn ? 'Niveau ' + cn + ' · il manque ' : 'Il manque ') + av.manque.map(([r, n]) => quantite(r, n)).join(', ');
     const cl = ['recette', fait ? 'faite' : pret ? 'faisable' : ver ? 'verrou' : '', choixEtabli === o.id ? 'choisie' : ''].filter(Boolean).join(' ');
     return `<li><button class="${cl}" data-recette="${o.id}">`
@@ -6179,7 +6250,7 @@ function detailRecette() {
       + `<button class="btn" data-eq="${o.id}">${porte_ ? 'Retirer' : 'Porter'}</button>`
       + `<button class="btn" data-voirsac="${o.id}">Voir dans le sac</button>`;
   } else {
-    const libelle = o.emp === 'munition' ? `Fabriquer ${o.lot} flèches` : o.emp === 'lien' ? 'Fabriquer un lien' : o.emp === 'baume' ? 'Préparer un baume' : o.emp === 'ceinture' && nivCeinture() ? 'Améliorer' : 'Fabriquer';
+    const libelle = o.emp === 'munition' ? `Fabriquer ${o.lot} flèches` : o.emp === 'lien' ? 'Fabriquer un lien' : o.emp === 'baume' ? 'Préparer un baume' : o.emp === 'soin' ? 'Préparer' + (o.lot > 1 ? ' ×' + o.lot : '') : o.emp === 'ceinture' && nivCeinture() ? 'Améliorer' : 'Fabriquer';
     gestes = `<button class="btn principal" data-fa="${o.id}"${pret ? '' : ' disabled'}>${libelle}</button>`
       + (pret ? (o.emp === 'ceinture' ? `<span class="note">${nivCeinture() ? 'une barre de cinq cases de plus' : 'ouvre les cinq cases du bord droit'}</span>`
                  : !enSerie(o) ? `<span class="note">l'objet sera porté aussitôt</span>`
@@ -6189,7 +6260,7 @@ function detailRecette() {
       + (o.emp === 'lien' && P.liens ? `<button class="btn" data-onglet="compagnes">Voir les compagnes</button>` : '');
   }
   return `<div class="detail" id="sac-fiche"><div class="fiche haute">${caseObjet(o.id, { taille: 'grande', inerte: true, porte: fait && P.equip[o.emp] === o.id })}`
-    + `<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}</p><span class="genre">${genreObjet(o)}</span>${o.offert ? '' : ` <span class="genre">${etabliDe(o) ? 'établi niveau ' + etabliDe(o) : 'à la main'}</span>`}</div></div>`
+    + `<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}</p><span class="genre">${genreObjet(o)}</span>${o.offert ? '' : ` <span class="genre">${atelierDe(o) ? ATELIERS[atelierDe(o)[0]][3].toLowerCase() + ' niveau ' + atelierDe(o)[1] : 'à la main'}</span>`}</div></div>`
     + caracteristiques(o)
     + `<h3>Il faut</h3><ul class="ingredients">${ingr}</ul>`
     + (!fait && Object.keys(o.cout).some(r => RES_AVENIR[r]) ? `<p class="note" style="margin:6px 2px 0">La matière inconnue vient d'un biome qui n'existe pas encore : ce niveau attendra.</p>` : '')
@@ -6308,16 +6379,16 @@ function pageJournal() {
 // choisie décide du volet, et chaque volet retient la sienne.
 let confirmeCamp = 0;
 let voletCamp = 'camp';
-const VOLETS_CAMP = [['camp', 'Camp', 'ongletCamp'], ['cuisine', 'Cuisine', 'ongletCuisine'], ['portail', 'Portail', 'portail'], ['journal', 'Journal', 'ongletJournal']];
-const CASES_VOLET = { camp: ['repos', 'modetabli', 'coffre', 'ameliorer', 'modcuisine', 'modules', 'reprendre', 'compagnes', 'pillage'], portail: ['portail', 'gardees', 'rentrer', 'exploration'] };
+const VOLETS_CAMP = [['camp', 'Camp', 'ongletCamp'], ['cuisine', 'Cuisine', 'ongletCuisine'], ['alchimie', 'Alchimie', 'alambic'], ['portail', 'Portail', 'portail'], ['journal', 'Journal', 'ongletJournal']];
+const CASES_VOLET = { camp: ['repos', 'modetabli', 'coffre', 'ameliorer', 'modcuisine', 'modsoin', 'modalchimie', 'moddefense', 'modules', 'reprendre', 'compagnes', 'pillage'], portail: ['portail', 'gardees', 'rentrer', 'exploration'] };
 const choixVolet = { camp: 'repos', portail: 'portail' };
-const ongletDe = id => id === 'cuisine' || id === 'journal' ? (voletCamp = id, 'camp') : id;
+const ongletDe = id => id === 'cuisine' || id === 'journal' || id === 'alchimie' ? (voletCamp = id, 'camp') : id;
 function pageCampement() {
   if (!VOLETS_CAMP.some(v => v[0] === voletCamp)) voletCamp = 'camp';
   if (CASES_VOLET[voletCamp]) for (const v in CASES_VOLET) if (CASES_VOLET[v].includes(choixCamp)) voletCamp = v;   // la case choisie décide
   const barre = `<div class="volets" role="tablist" aria-label="Volets du campement">` + VOLETS_CAMP.map(([id, n, ic]) =>
     `<button role="tab" class="${voletCamp === id ? 'on' : ''}" data-voletcamp="${id}" aria-selected="${voletCamp === id}">${img(ic)}<span>${n}</span></button>`).join('') + `</div>`;
-  return barre + (voletCamp === 'cuisine' ? pageCuisine() : voletCamp === 'journal' ? pageJournal() : voletCases(voletCamp));
+  return barre + (voletCamp === 'cuisine' ? pageCuisine() : voletCamp === 'alchimie' ? pageAlchimie() : voletCamp === 'journal' ? pageJournal() : voletCases(voletCamp));
 }
 // L'exploration en cours : le niveau, le danger, ce qui rentrera au coffre, l'arche de l'île, le dernier retour.
 function blocExploration() {
@@ -6421,19 +6492,40 @@ function voletCases(volet) {
     return { id: cid, n: m.n, ic, ok: proche && payable({ cout: c }), irrev: true, sous: 'Niveau ' + n + ' sur ' + max,
       corps: bloc('Ce qu\'' + F.il + ' sait faire', F.sait(n)) + bloc('Ce qu\'apporte le niveau ' + (n + 1), F.niv(n + 1)) + ligneCout(c), bouton: 'Améliorer ' + F.le, avert: 'Les matières sont dépensées.' };
   };
-  const fabNiv = k => OBJETS.filter(o => etabliDe(o) === k && !o.offert).map(o => o.n).join(', ');
+  const fabNiv = k => OBJETS.filter(o => etabliDe(o) === k && !o.ts && !o.offert).map(o => o.n).join(', ');
+  const soinNiv = k => OBJETS.filter(o => o.ts === k).map(o => o.n + (o.cible === 'compagne' || o.emp === 'baume' ? ' (compagne)' : '')).join(', ');
   const note = x => `<p class="note" style="margin:10px 2px 0">${x}</p>`;
   const pc = aModule('portail'), arche = (proche && pc) || auPortailIle();
   const choisit = proche && pc && choixPortail(nivCamp()) > 1;   // au portail du campement, passé le premier niveau : des îles au choix
   const A = [
     caseMod('etabli', 'modetabli', 'ongletEtabli', { court: 'bien plus à fabriquer', le: 'l\'établi', il: 'il',
-      creer: ['la plupart des fabrications : ' + fabNiv(1), 'les autres modules se créent grâce à lui : coffre, portail, cuisine', 'il s\'améliore deux fois : les objets d\'éclat, puis ceux de ferraille', 'à la main, sans lui : ' + fabNiv(0)],
-      sait: n => [1, 2, 3].filter(k => k <= n).map(k => 'niveau ' + k + ' : ' + fabNiv(k)).concat('la création des modules : coffre, portail, cuisine'),
+      creer: ['la plupart des fabrications : ' + fabNiv(1), 'les autres modules se créent grâce à lui : coffre, portail, cuisine, table de soin, défense', 'il s\'améliore deux fois : les objets d\'éclat, puis ceux de ferraille', 'à la main, sans lui : ' + fabNiv(0)],
+      sait: n => [1, 2, 3].filter(k => k <= n).map(k => 'niveau ' + k + ' : ' + fabNiv(k)).concat('la création des modules : coffre, portail, cuisine, table de soin, défense'),
       niv: n => [fabNiv(n)] }),
     caseMod('cuisine', 'modcuisine', 'marmite', { court: 'la marmite du campement', le: 'la cuisine', il: 'elle',
       creer: ['une marmite au campement : on y cuisine avec deux ingrédients', 'elle s\'améliore deux fois : trois ingrédients, puis quatre', 'le feu de camp seul ne cuisine pas ; la marmite portable (établi) cuisine partout, à deux ingrédients'],
       sait: n => [(n + 1) + ' ingrédients par plat'],
       niv: n => [(n + 1) + ' ingrédients par plat' + (n >= 3 ? ' : toutes les recettes du livre' : '')] }),
+    caseMod('soin', 'modsoin', 'tablesoin', { court: 'bandages, onguents, élixirs', le: 'la table de soin', il: 'elle',
+      creer: ['des soins à préparer d\'avance, comptés au sac : ' + soinNiv(1), 'ceux des gens servent à soi, ou à l\'équipier à portée ; ils se rangent dans les cases', 'ceux des compagnes se donnent depuis leur onglet', 'elle s\'améliore deux fois : des soins plus forts'],
+      sait: n => [1, 2, 3].filter(k => k <= n).map(k => 'niveau ' + k + ' : ' + soinNiv(k)),
+      niv: n => [soinNiv(n)] }),
+    (o => { if (aModule('alchimie')) o.corps += `<div class="obj"><div><div class="n">Vos caractéristiques, les recettes</div><div class="d">la fiche du personnage et le chaudron sont dans le volet Alchimie</div></div><button data-voletcamp="alchimie">Ouvrir</button></div>`; return o; })(
+    caseMod('alchimie', 'modalchimie', 'alambic', { court: 'les potions du personnage', le: 'la table d\'alchimie', il: 'elle',
+      creer: ['des potions qui améliorent le personnage pour de bon : ' + ALCH.map(a => a.n.toLowerCase()).join(', '), 'cinq rangs par caractéristique ; au niveau 1, la table prépare les rangs 1 et 2', 'chaque potion a sa recette, à verser dans l\'ordre, et sa chance de réussite ; si elle tourne, tout est perdu', 'elle s\'améliore deux fois : le rang 3, puis les rangs 4 et 5, et de meilleures chances'],
+      sait: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : ' + (n > 1 ? '+' + ALCH_TABLE * (n - 1) + ' points' : 'celle de la recette')],
+      niv: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : +' + ALCH_TABLE + ' points de plus'] })),
+    !aModule('defense') ? caseMod('defense', 'moddefense', 'tourdef', { court: 'rempart et tours', le: 'le poste de garde', il: 'il',
+        creer: ['un poste de garde : c\'est de là qu\'on bâtit et qu\'on améliore la défense', 'le rempart, sur la bordure du rond : ' + MUR_DIT.slice(1).join(' ; '), 'les tours, aux coins : ' + TOURS_DIT.slice(1).join(' ; '),
+          'l\'abri du feu ne couvre que le rond du campement : au-delà, c\'est elle qui protège'], sait: () => [], niv: () => [] })
+      : { id: 'moddefense', n: 'Défense', ic: 'tourdef', ok: true, sous: 'Rempart ' + nivMur() + ' sur 3 · tours ' + nivTours() + ' sur 3',
+          corps: [['mur', 'Le rempart', nivMur(), MUR_DIT], ['tours', 'Les tours', nivTours(), TOURS_DIT]].map(([b, titre, n, DIT]) => {
+              const c = n < 3 ? COUT_DEFENSE[b][n] : null, cid = 'def:' + b, conf = confirmeAct.id === cid && maintenantSac() < confirmeAct.jusqua, maj = x => ESC(x[0].toUpperCase() + x.slice(1));
+              return `<h3>${titre} <span class="compte">niveau ${n} sur 3</span></h3>`
+                + `<div class="obj"><div><div class="n">${n ? 'Aujourd\'hui' : 'Pas encore bâti'}</div><div class="d">${n ? maj(DIT[n]) : b === 'mur' ? 'Rien ne ferme le rond : les bêtes y entrent' : 'Rien ne tire sur ce qui rôde'}</div></div></div>`
+                + (c ? `<div class="obj"><div><div class="n">Niveau ${n + 1}</div><div class="d">${maj(DIT[n + 1])}<br>${ditCout(c)}${proche ? '' : '<br>il faut être au campement'}</div></div>`
+                    + `<button class="${conf ? 'alerte' : ''}" data-campc="${cid}"${proche && payable({ cout: c }) ? '' : ' disabled'}>${conf ? 'Confirmer' : n ? 'Améliorer' : 'Bâtir'}</button></div>` : ''); }).join('')
+            + note('Le rempart s\'ouvre à l\'entrée : la porte laisse passer ceux du campement et leur groupe. Les tours tirent sur les bêtes hostiles et sur un joueur qui vient de frapper ; une bête qu\'elles abattent ne laisse pas de butin. Les matières sont dépensées au second appui.') },
     aModule('coffre') ? { id: 'coffre', n: 'Coffre', ic: 'coffre', ok: true, sous: 'Réserve du campement' + (coffreTotal() ? ' · ' + coffreTotal() : ''), corps: corpsCoffre }
     : { id: 'coffre', n: 'Coffre', ic: 'coffre', ok: proche && aModule('etabli') && payable({ cout: coutModule('coffre', 1) }), irrev: true, sous: 'À créer · le stock du campement',
         corps: `<div class="obj"><div><div class="n">Ce qu'il apporte</div><div class="d">Une réserve : ce qu'on y dépose ne repart pas en expédition`
@@ -6446,11 +6538,11 @@ function voletCases(volet) {
       corps: note(proche ? 'Santé et souffle refaits, compagnes alentour rassasiées.' : 'Il faut être au campement.'), bouton: 'Se reposer', attr: 'data-camp="repos"' },
     { id: 'modules', n: 'Modules', ic: 'ongletEtabli', ok: true, sous: MODULES.filter(m => aModule(m.id)).length + ' sur ' + MODULES.length + ' emplacements occupés',
       corps: `<div class="obj"><div><div class="n">Camp de base</div><div class="d">une tente pour la couchette, un feu : on s'y repose, et l'île reste la vôtre</div></div></div>`
-        + MODULES.map(m => { const n = nivModule(m.id), max = maxModule(m.id), cible = { portail: 'ameliorer', etabli: 'modetabli', cuisine: 'modcuisine' }[m.id] || m.id;
+        + MODULES.map(m => { const n = nivModule(m.id), max = maxModule(m.id), cible = { portail: 'ameliorer', etabli: 'modetabli', cuisine: 'modcuisine', soin: 'modsoin', alchimie: 'modalchimie', defense: 'moddefense' }[m.id] || m.id;
             return `<div class="obj"><div><div class="n">${ESC(m.n)} · ${n ? 'installé' + (max > 1 ? ' · niveau ' + n + ' sur ' + max : '') : m.pret ? 'à créer' : 'à venir'}</div>`
               + `<div class="d">${ESC(m.d)}</div></div>`
               + (m.pret ? `<button data-choixcamp="${cible}">${n ? 'Voir' : 'Créer'}</button>` : '') + `</div>`; }).join('')
-        + note('Huit emplacements entourent le feu, marqués de piquets. L\'établi se crée d\'abord, à la main ; le coffre, le portail et la cuisine grâce à lui. Les autres modules viendront.') },
+        + note('Huit emplacements entourent le feu, marqués de piquets. L\'établi se crée d\'abord, à la main ; le coffre, le portail, la cuisine, la table de soin et la défense grâce à lui. Les autres modules viendront.') },
     { id: 'portail', n: 'Partir', ic: 'portail', ok: arche, irrev: true,
       sous: 'Vers l\'exploration ' + (profondeur() + 1) + (choisit ? ' · ' + choixPortail(nivCamp()) + ' îles au choix' : ''),
       corps: choisit ? corpsPortail()
@@ -6531,6 +6623,10 @@ function faireCamp(id) {
   else if (id === 'coffre') creerModule('coffre');
   else if (id === 'modetabli') { if (aModule('etabli')) ameliorerModule('etabli'); else creerModule('etabli'); }
   else if (id === 'modcuisine') { if (aModule('cuisine')) ameliorerModule('cuisine'); else creerModule('cuisine'); }
+  else if (id === 'modsoin') { if (aModule('soin')) ameliorerModule('soin'); else creerModule('soin'); }
+  else if (id === 'modalchimie') { if (aModule('alchimie')) ameliorerModule('alchimie'); else creerModule('alchimie'); }
+  else if (id === 'moddefense') creerModule('defense');
+  else if (id.startsWith('def:')) ameliorerDefense(id.slice(4));
   else if (id === 'reprendre') reprendreCampement();
 }
 // Le pillage, vu du campement : ses gardiennes, la règle, et ce qu'on vous a pris.
@@ -6607,10 +6703,12 @@ function ficheCompagne(c) {
       : (c.ko ? `<button class="btn principal" data-relever="${id}"${P.baumes > 0 || essai ? '' : ' disabled'}>Relever · 1 baume</button>` : '')
       + `<button class="btn${c.ko ? '' : ' principal'}" data-sortir="${id}"${c.ko || enJeu() >= EN_JEU_MAX ? ' disabled' : ''}>Sortir</button>`)
     + (automate(sp) ? '' : `<button class="btn" data-nourrirc="${id}"${dispo('baies') > 0 && faim >= .05 ? '' : ' disabled'}>Nourrir · 1 baie</button>`)
+    + (c.aucamp && !campIci() ? '' : OBJETS.filter(o => o.emp === 'soin' && o.cible === 'compagne' && qteSoin(o.id) > 0 && (!c.ko || o.releve))
+        .map(o => `<button class="btn" data-soinc="${o.id}" data-cid="${id}" title="${ESC(o.d)}">${ESC(o.n)} · ${qteSoin(o.id)}</button>`).join(''))
     + `<button class="btn ${confirme ? 'alerte' : 'discret'}" data-liberer="${id}">${confirme ? 'Confirmer' : 'Libérer'}</button>`;
   return `<div class="fiche haute" id="sac-fiche">`
     + caseObjet('bete_' + c.esp, { taille: 'grande', inerte: true, lie: c.dehors && !c.ko, ko: c.ko })
-    + `<div class="fiche-texte"><h4>${ESC(c.nom)}</h4><p>${ESC(sp.n)} · ${ESC(sp.metier)}</p>`
+    + `<div class="fiche-texte"><h4>${ESC(c.nom)}</h4><p>${ESC(sp.n)} · ${ESC(sp.metier)}</p>${ditPotions(c)}`
     + `<span class="genre" data-val="${id}:ou">${ESC(ouEstCompagne(c))}</span></div></div>`
     + `<div class="besoins">${jauge('pv', 'Santé', 'vie')}${automate(sp) ? jauge('nrj', 'Charge', 'nrj')
         : jauge('faim', 'Faim', 'faim') + jauge('soif', 'Soif', 'soif') + jauge('nrj', 'Énergie', 'nrj')}</div>`
@@ -6624,7 +6722,7 @@ function ficheCompagne(c) {
     + (confirme ? `<p class="note manque">Encore un clic : ${ESC(c.nom)} retourne à l'île, et le lien redevient libre.</p>` : '')
     + (c.ko ? `<p class="note${P.baumes > 0 || essai ? '' : ' manque'}">À terre, elle ne se remettra pas seule. `
       + (P.baumes > 0 || essai ? `Un baume la relève, à 60 % de sa santé (${essai ? '∞' : P.baumes} en réserve).`
-        : `Il faut un baume de relève : il se prépare à l'atelier (${coutTexte(objet('baume'))}).`) + `</p>` : '');
+        : `Il faut un baume de relève : il se prépare à la table de soin (${coutTexte(objet('baume'))}).`) + `</p>` : '');
 }
 // Les jauges bougent sans cesse : on ne touche qu'à leur largeur et à leur texte.
 let jaugesT = 0;
@@ -6677,7 +6775,8 @@ function pageBeta() {
     + ligne('Niveau du portail', 'niveau ' + nivCamp() + ' · il ne compte qu\'avec le module Portail · pour retrouver un niveau perdu, ou voir ses paliers (2, 3, 5, 8, 10, 12) · ce réglage est gardé : hors du mode essai',
         btn('campMoins', '−1', nivCamp() > 1 ? '' : ' disabled') + btn('campPlus', '+1') + btn('campPlus5', '+5'))
     + ligne('Modules du campement', 'créer, monter ou retirer sans rien payer : chaque appui passe au niveau suivant, puis retire · ' + ESC(ditModules().toLowerCase()) + ' · ce réglage est gardé : hors du mode essai',
-        btn('modEtabli', 'Établi ' + nivEtabli() + '/3') + btn('modCoffre', aModule('coffre') ? 'Coffre : oui' : 'Coffre : non') + btn('modPortail', aModule('portail') ? 'Portail : oui' : 'Portail : non') + btn('modCuisine', 'Cuisine ' + nivCuisine() + '/3'))
+        btn('modEtabli', 'Établi ' + nivEtabli() + '/3') + btn('modCoffre', aModule('coffre') ? 'Coffre : oui' : 'Coffre : non') + btn('modPortail', aModule('portail') ? 'Portail : oui' : 'Portail : non') + btn('modCuisine', 'Cuisine ' + nivCuisine() + '/3') + btn('modSoin', 'Soin ' + nivModule('soin') + '/3') + btn('modAlchimie', 'Alchimie ' + nivModule('alchimie') + '/3') + btn('alchRang', 'Potions : rang ' + rangAlch('vie') + '/5') + btn('compRang', 'Compagnes : potions ' + (P.compagnes[0] ? potComp(P.compagnes[0], 'recolte') : 0) + '/5', P.compagnes.length ? '' : ' disabled')
+        + btn('modDefense', aModule('defense') ? 'Défense : oui' : 'Défense : non') + btn('defMur', 'Rempart ' + nivMur() + '/3', aModule('defense') ? '' : ' disabled') + btn('defTours', 'Tours ' + nivTours() + '/3', aModule('defense') ? '' : ' disabled'))
     + `<h3>Se téléporter</h3>`
     + `<div class="obj tp"><div style="flex:1;min-width:0"><div class="n">Vers une graine, à un niveau</div>`
     + `<div class="d">Île actuelle : graine ${SEED} · exploration ${profondeur()}. C'est la graine seule qui décide des biomes rares, et seule une graine sur seize peut en porter :`
@@ -6762,9 +6861,24 @@ function outilBeta(k) {
     voyagerVers(g, null, 'téléporté · graine ' + g + ' · exploration ' + n, n);
     return;
   }
-  if (k === 'modPortail' || k === 'modCoffre' || k === 'modEtabli' || k === 'modCuisine') {
+  if (k === 'defMur' || k === 'defTours') {
     if (essai) { say('coupez d\'abord le mode essai : ce réglage est gardé', 2.8); return; }
-    const id = { modPortail: 'portail', modCoffre: 'coffre', modEtabli: 'etabli', modCuisine: 'cuisine' }[k], max = id === 'portail' ? 1 : maxModule(id);   // le portail a ses propres boutons de niveau
+    const b = k === 'defMur' ? 'mur' : 'tours'; P.defense[b] = ((P.defense[b] | 0) + 1) % 4;
+    say((b === 'mur' ? 'rempart' : 'tours') + ' · niveau ' + P.defense[b], 2); majSac(); return;
+  }
+  if (k === 'compRang') {
+    const n = ((P.compagnes[0] ? potComp(P.compagnes[0], 'recolte') : 0) + 1) % (ALCH_MAX + 1);
+    for (const c of P.compagnes) c.pot = n ? potLue({ recolte: n, defense: n, comp: compDe(c) ? n : 0 }) : null;
+    P.chaudron = null; say('compagnes · potions au rang ' + n + (n ? ' · compétence au rang ' + Math.min(COMP_MAX, n) : ''), 2.4); majSac(); return;
+  }
+  if (k === 'alchRang') {
+    const n = (rangAlch('vie') + 1) % (ALCH_MAX + 1); P.alchimie = {}; P.chaudron = null;
+    if (n) for (const a of ALCH) P.alchimie[a.id] = n;
+    say('potions · toutes les caractéristiques au rang ' + n, 2); majSac(); return;
+  }
+  if (k === 'modPortail' || k === 'modCoffre' || k === 'modEtabli' || k === 'modCuisine' || k === 'modSoin' || k === 'modAlchimie' || k === 'modDefense') {
+    if (essai) { say('coupez d\'abord le mode essai : ce réglage est gardé', 2.8); return; }
+    const id = { modPortail: 'portail', modCoffre: 'coffre', modEtabli: 'etabli', modCuisine: 'cuisine', modSoin: 'soin', modAlchimie: 'alchimie', modDefense: 'defense' }[k], max = id === 'portail' ? 1 : maxModule(id);   // le portail a ses propres boutons de niveau
     const n = ((P.modules[id] | 0) + 1) % (max + 1);
     if (n) P.modules[id] = n; else delete P.modules[id];
     say('module ' + MODULE[id].n.toLowerCase() + (n ? (max > 1 ? ' · niveau ' + n : ' · créé') : ' · retiré'), 2); majSac(); return;
@@ -6777,7 +6891,7 @@ function outilBeta(k) {
   }
   const essaiAvant = ['sac', 'armes', 'plein', 'invincible', 'midi', 'minuit', 'meteo'];
   if (essaiAvant.includes(k) && !essai) entrerEssai();
-  if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; P.baumes += 5;
+  if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; P.baumes += 5; for (const o of OBJETS) if (o.emp === 'soin') P.soins[o.id] = (P.soins[o.id] | 0) + 3;
     for (const id in INGR) if (INGR[id].src === 'denree') P.denrees[id] = (P.denrees[id] || 0) + 3; else if (INGR[id].src === 'poisson') P.poissons[id] = (P.poissons[id] || 0) + 3;
     say('sac rempli · essai', 1.6); }
   else if (k === 'armes') { for (const id of ['laser', 'sniper']) { P.objets[id] = 1; rangerRaccourci(id); } P.equip.arme = 'sniper'; say('rayon de sentinelle et fusil d\'arpenteur · essai', 2); }
@@ -6906,14 +7020,22 @@ function clicSac(b) {
   else if (d.recette) { choixEtabli = d.recette; majSac(); montrerFiche(); }
   else if (d.filtre) { filtreEtabli = d.filtre; majSac(); }
   else if (d.souscuisine) { sousCuisine = d.souscuisine; majSac(); }
+  else if (d.alch) { if (!P.chaudron) alchChoix = d.alch; confirmeAct.id = ''; majSac(); }
+  else if (d.verser) { confirmeAct.id = ''; verserAlch(d.verser); majSac(); }
+  else if (d.alchtenter) { confirmeAct.id = ''; tenterAlch(); majSac(); }
+  else if (d.alchvider) {
+    if (confirmeAct.id === 'alchvider' && maintenantSac() < confirmeAct.jusqua) { confirmeAct.id = ''; viderAlch(); }
+    else { confirmeAct = { id: 'alchvider', jusqua: maintenantSac() + 5 }; setTimeout(() => { if (sacOuvert && ongletSac === 'camp') majSac(); }, 5100); }
+    majSac();
+  }
   else if (d.voir) { filtreEtabli = d.voir; choixEtabli = null; choisirOnglet('etabli'); }
   else if (d.voirsac) { choixSac = d.voirsac; choisirOnglet('sac'); }
   else if (d.voirrecette) { filtreEtabli = 'tout'; choixEtabli = d.voirrecette; choisirOnglet('etabli'); }
-  else if (d.rac !== undefined && choixSac && (P.objets[choixSac] || estPlat(choixSac))) { assignerRaccourci(choixSac, +d.rac); casesSig = ''; majSac(); }
+  else if (d.rac !== undefined && choixSac && (P.objets[choixSac] || estPlat(choixSac) || estSoin(choixSac))) { assignerRaccourci(choixSac, +d.rac); casesSig = ''; majSac(); }
   else if (d.fa) {
-    const avant = P.objets[d.fa], fl = P.fleches, li = P.liens, bm = P.baumes;
+    const avant = P.objets[d.fa], fl = P.fleches, li = P.liens, bm = P.baumes + totalSoins();
     fabriquer(d.fa);
-    if ((P.objets[d.fa] && !avant) || P.fleches > fl || P.liens > li || P.baumes > bm) { dernierFait = { id: d.fa, quand: maintenantSac() }; choixSac = P.objets[d.fa] ? d.fa : choixSac; majSac(); }
+    if ((P.objets[d.fa] && !avant) || P.fleches > fl || P.liens > li || P.baumes + totalSoins() > bm) { dernierFait = { id: d.fa, quand: maintenantSac() }; choixSac = P.objets[d.fa] ? d.fa : choixSac; majSac(); }
   }
   else if (d.choixcamp) { choixCamp = d.choixcamp; confirmeAct.id = ''; majSac(); montrerFiche(); }
   else if (d.campc) {
@@ -6954,6 +7076,8 @@ function clicSac(b) {
   else if (d.role) { const c = compagneDe(d.cid); if (c) changerRole(c, d.role); }
   else if (d.sortir) { const c = compagneDe(d.sortir); if (c) sortirCompagne(c); majSac(); }
   else if (d.relever) { const c = compagneDe(d.relever); if (c) releverCompagne(c); majSac(); }
+  else if (d.soinc) { const c = compagneDe(d.cid); if (c) soignerCompagne(c, d.soinc); majSac(); }
+  else if (d.soin) { soigner(d.soin, d.pour || undefined); majSac(); }
   else if (d.rentrer) { const c = compagneDe(d.rentrer); if (c) rentrerCompagne(c); majSac(); }
   else if (d.nourrirc) { const c = compagneDe(d.nourrirc); if (c) nourrirCompagne(c); }
   else if (d.liberer) {
@@ -7483,7 +7607,7 @@ function majBiome(dt) {
   }
   // la morsure de la salamandre brûle encore trois secondes ; les spores, elles, piquent les yeux
   if (P.brulure > t && P.pv > 0) {
-    P.pv = Math.max(0, P.pv - BRULURE * 1.2 * dt); P.dernierCoup = t;
+    P.pv = Math.max(0, P.pv - BRULURE * 1.2 * dt * vieK()); P.dernierCoup = t;
     if (Math.random() < dt * 8) burst(P.x, P.y, P.z + .5, 1, '#ffa04c');
     if (P.pv <= 0) { P.brulure = 0; terrasse(); }
   }
@@ -7500,7 +7624,7 @@ function majBiome(dt) {
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
   }
   if (biomeIci === 14 && !P.monture && P.ground && P.pv > 0 && !effet('braise')) {
-    P.pv = Math.max(0, P.pv - BRULURE * dt); P.dernierCoup = t;   // on ne se remet pas sur la braise
+    P.pv = Math.max(0, P.pv - BRULURE * dt * vieK()); P.dernierCoup = t;   // on ne se remet pas sur la braise
     if (t - braiseT > 3) { braiseT = t; say('les braises brûlent', 1.4); }
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .1, 1, '#ffa04c');
     if (P.pv <= 0) terrasse();
@@ -8368,6 +8492,7 @@ document.getElementById('sac').addEventListener('click', e => {
 function update(dt) {
   t += dt;
   majTerrasse();                                     // le rond des campements de l'île, s'il a changé
+  majMurs(); majTours(); majToursRaid();             // les remparts de l'île ; les tours de son campement, celles du campement qu'on pille
   cuisineTic(dt);                                    // le plat servi refroidit, ceux du sac se gâtent (voir LA CUISINE)
   grilleCorps();                                     // où sont les corps, pour ce tour (voir LES CORPS)
   ang += (angT - ang) * Math.min(1, dt * 9);
@@ -8429,10 +8554,10 @@ function update(dt) {
   } else {
   const court = im > .06 && veutCourir && !P.epuise && !(P.recul > 0);
   if (court && P.enduBonus > 0) { P.enduBonus = Math.max(0, P.enduBonus - dt / ENDU_COURSE); P.courseT = t; }   // le second souffle s'use d'abord
-  else if (court) { P.endu = Math.max(0, P.endu - dt / ENDU_COURSE * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * [1, .5, .3, .15, 0][effet('souffle')]); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
+  else if (court) { P.endu = Math.max(0, P.endu - dt / (ENDU_COURSE * (1 + .1 * rangAlch('souffle'))) * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * [1, .5, .3, .15, 0][effet('souffle')]); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
   else if (t - P.courseT > .5) P.endu = Math.min(1, P.endu + dt * (im > .06 ? ENDU_REPRISE : ENDU_REPOS));
   if (P.epuise && P.endu >= ENDU_SEUIL) P.epuise = false;
-  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (1 + effet('vif') * .15);   // pas vif : +15 % par niveau
+  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (1 + effet('vif') * .15) * (1 + .04 * rangAlch('vitesse'));   // pas vif : +15 % par niveau ; la potion de vitesse : +4 % par rang
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
@@ -8456,6 +8581,8 @@ function update(dt) {
     const step = (axis === 'x' ? P.vx : P.vy) * dt;
     if (!step) return;
     const nx = P.x + (axis === 'x' ? step : 0), ny = P.y + (axis === 'y' ? step : 0);
+    if (P.englue > t) { if (axis === 'x') P.vx = 0; else P.vy = 0; return; }   // englué : cloué sur place
+    if (MURS.length && murJoueur(P.x, P.y, nx, ny)) { if (axis === 'x') P.vx = 0; else P.vy = 0; return; }   // le rempart d'un campement
     if (!blockedAt(nx, ny, P.z)) {                    // la flore se règle après, en glissant (repousserFlore)
       if (!corpsBarre(nx, ny)) { P.x = nx; P.y = ny; return; }
       if (axis === 'x') P.vx = 0; else P.vy = 0; return;   // une bête : un obstacle, on glisse le long d'elle sur l'autre axe
@@ -8496,11 +8623,11 @@ function update(dt) {
   // --- vertical ---
   if (jumpQ) { P.buf = .14; jumpQ = false; }
   P.buf -= dt; P.coyote = P.ground ? .12 : P.coyote - dt;
-  if (P.buf > 0 && P.coyote > 0) { P.vz = M ? M.saut : 6.6 * (1 + .12 * effet('saut')); P.buf = 0; P.coyote = 0; P.ground = false; P.saut2 = !M; burst(P.x, P.y, P.z, M ? 8 : 4, M ? '#d9b283' : '#cfd6e4'); }
+  if (P.buf > 0 && P.coyote > 0 && !(P.englue > t)) { P.vz = M ? M.saut : 6.6 * sautK(); P.buf = 0; P.coyote = 0; P.ground = false; P.saut2 = !M; burst(P.x, P.y, P.z, M ? 8 : 4, M ? '#d9b283' : '#cfd6e4'); }
   // Second souffle en l'air : c'est lui qui ouvre le relief vertical. Un peu plus court que
   // le premier, et il repart de la vitesse courante — sauter au sommet de l'arc monte le plus
   // haut, sauter tard porte le plus loin.
-  else if (P.buf > 0 && P.saut2) { P.vz = 6.0 * (1 + .12 * effet('saut')); P.buf = 0; P.saut2 = false; burst(P.x, P.y, P.z, 7, '#a8e0d8'); }
+  else if (P.buf > 0 && P.saut2 && !(P.englue > t)) { P.vz = 6.0 * sautK(); P.buf = 0; P.saut2 = false; burst(P.x, P.y, P.z, 7, '#a8e0d8'); }
   const z0 = P.z;                                       // d'où l'on part : le pas entier compte
   P.vz -= (P.vz > 0 ? 17 : 26 * (effet('plume') ? Math.max(.2, .6 - .1 * effet('plume')) : 1)) * dt;
   if (effet('plume') && P.vz < -4) P.vz = -4;            // chute de plume : on descend en planant                    // chute plus rapide que la montée
@@ -8550,7 +8677,7 @@ function update(dt) {
   // --- l'écosystème vit sa vie, les compagnes avec lui ---
   majEcosysteme(dt);
   majEscouade(dt);                                   // l'escouade des automates, et son portail
-  majCompagnes(dt);
+  majCompagnes(dt); majCompetences(dt);
   demeler(dt);                                       // deux corps mêlés se démêlent
   // --- nourrir : la confiance vient en mangeant, et au bout on est suivi ---
   if (nourrir) {
@@ -8617,7 +8744,7 @@ function update(dt) {
     break;                                          // une retombée, une bête
   }
   // Sans soin, chaque rencontre usait le personnage pour de bon : loin des coups, on se remet.
-  if (P.pv < 1 && t - (P.dernierCoup ?? -99) > 8) P.pv = Math.min(1, P.pv + dt * .015);
+  if (P.pv < 1 && t - (P.dernierCoup ?? -99) > 8 - .8 * rangAlch('recup')) P.pv = Math.min(1, P.pv + dt * .015 * (1 + .2 * rangAlch('recup')));
 
   // --- caméra : elle suit en douceur ---
   camX += (P.x - camX) * Math.min(1, dt * 4);
@@ -10988,7 +11115,7 @@ function porterCoup(b, c, deg) {
     if (P.pv <= 0) terrasse();
     return true;
   }
-  const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .25 * effet('meute') : 1);
+  const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .25 * effet('meute') : 1) * (1 + .1 * potBete(b, 'defense')) * (1 - .06 * potBete(c, 'defense'));
   c.pv -= dgC; c.hit = .25; c.alarm = 1;   // la meute galvanisée   // sur la Tisseuse, crocs et griffes glissent
   // le bossu rend parfois le coup qu'il reçoit d'un chasseur
   if (b.sp.chasse && c.sp.riposte > .3 && Math.random() < c.sp.riposte * .5) { b.pv -= .12; b.hit = .2; }
@@ -11606,8 +11733,9 @@ function majTirs(dt) {
     for (let i = 0; i < n && !fini; i++) {
       f.vz -= TIR_G * h;
       const nx = f.x + f.vx * h, ny = f.y + f.vy * h, nz = f.z + f.vz * h;
-      fini = f.obus ? toucheObus(f, nx, ny, nz) : f.spore || f.toile ? toucheSpore(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
+      fini = f.carreau ? carreauTouche(f, nx, ny, nz) : f.glu ? gluTouche(f, nx, ny, nz) : f.obus ? toucheObus(f, nx, ny, nz) : f.spore || f.toile ? toucheSpore(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
       if (!fini && f.age > .05 && floreTouche(nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8b89a'); }   // arrêté par un arbre, une pierre
+      if (!fini && MURS.length && !f.carreau && murTir(f.x, f.y, nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8ccd6'); }   // arrêté par un mur de pierre
       f.x = nx; f.y = ny; f.z = nz;
     }
     if (f.feu && Math.random() < dt * 40) parts.push({ x: f.x, y: f.y, z: f.z, vx: (Math.random() - .5) * .6, vy: (Math.random() - .5) * .6, vz: .3, g: -.6, life: .4, age: 0, col: Math.random() < .5 ? '#ffb040' : '#ff6a24', luit: 1, tl: .1 });
@@ -11673,6 +11801,7 @@ function emitTirs(view, out) {
     const cle = cleA(f.x, f.y), rang = rangSol(f.z, false);
     if (f.feu) { emitLimb([f.x - .16, f.y, f.z], [f.x + .16, f.y, f.z], .32, .32, [255, 170, 60], view, out, cle, rang, 1); emitLimb([f.x - .09, f.y, f.z], [f.x + .09, f.y, f.z], .2, .2, [255, 236, 170], view, out, cle, rang, 1); continue; }
     if (f.toile) { emitLimb([f.x - .1, f.y, f.z], [f.x + .1, f.y, f.z], .2, .2, f.c, view, out, cle, rang, 1); continue; }
+    if (f.glu) { emitLimb([f.x - .11, f.y, f.z], [f.x + .11, f.y, f.z], .22, .22, f.c, view, out, cle, rang); continue; }   // la boule visqueuse d'une compagne
     if (f.spore) {                                      // une boule ronde, à la couleur du chapeau, qui luit
       emitLimb([f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, view, out, cle, rang, 1); continue;
     }
@@ -12753,8 +12882,14 @@ function majEcosysteme(dt) {
     JC = b.tame || !partagee(b) ? P : joueurPour(b);
     const d = (b.x - JC.x) ** 2 + (b.y - JC.y) ** 2;
     // même logique partout : seule la cadence change avec la distance au joueur (le plus proche)
+    const ox = b.x, oy = b.y;
     if (d < 3600) majBete(b, dt);
     else if ((i + tour) % 6 === 0) majBete(b, dt * 6);
+    if (MURS.length && murBete(b, ox, oy)) { b.x = ox; b.y = oy; }   // un rempart : elle n'entre pas
+    if (b.englue > t) {                                  // engluée : clouée sur place, sans assaut
+      b.x = ox; b.y = oy; b.vx = b.vy = 0; b.as = null;
+      if (Math.random() < dt * 8) parts.push({ x: b.x + (Math.random() - .5) * .5, y: b.y + (Math.random() - .5) * .5, z: b.z + .15, vx: 0, vy: 0, vz: .4, g: 1, life: .5, age: 0, col: '#9ccf5a', tl: .07 });
+    }
   }
   JC = P;
   dansEcosysteme = false;
@@ -12925,14 +13060,105 @@ function rentrerCompagne(c, ko) {
   c.b = null; c.dehors = false;
   if (ko) { c.ko = 1; c.pv = .05; }                 // à terre : elle ne se relèvera qu'avec un baume
 }
-// Assommée, une compagne ne se remet pas seule : un baume de relève (atelier) la remet sur pied.
+// Assommée, une compagne ne se remet pas seule : un baume de relève (table de soin) la remet sur pied.
 function releverCompagne(c) {
   if (!c || !c.ko) return false;
-  if (!essai && (P.baumes || 0) <= 0) { say('il faut un baume de relève · il se prépare à l\'atelier', 2.4); return false; }
+  if (!essai && (P.baumes || 0) <= 0) { say('il faut un baume de relève · il se prépare à la table de soin', 2.4); return false; }
   if (!essai) P.baumes--;
   c.ko = 0; c.pv = Math.max(c.pv, .6);
   SON.jouer('lien'); say(c.nom + ' est remise sur pied', 2);
   return true;
+}
+// ---------- les soins ----------
+// Ils se préparent à la table de soin et se comptent comme les flèches (P.soins). Ceux des gens
+// servent à soi, ou à l'équipier le plus proche ; ceux des compagnes se donnent depuis leur onglet.
+const SOIN_PAUSE = 3, SOIN_PORTEE = 3.5;
+const estSoin = id => typeof id === 'string' && id.startsWith('soin:');
+const deNom = n => (/^[aeiouyéèêàâîôû]/i.test(n) ? 'd\'' : 'de ') + n.toLowerCase();   // « plus d'élixir », « plus de bandage »
+const qteSoin = id => essai ? 9 : P.soins[id] | 0;
+const totalSoins = () => Object.values(P.soins).reduce((s, n) => s + (n | 0), 0);
+function prendreSoin(id) { if (essai) return; P.soins[id] = Math.max(0, (P.soins[id] | 0) - 1); if (!P.soins[id]) delete P.soins[id]; }
+function equipierProche() {
+  let m = null, dm = SOIN_PORTEE * SOIN_PORTEE;
+  for (const j of Autres.values()) { const d = (j.x - P.x) ** 2 + (j.y - P.y) ** 2; if (d < dm && Math.abs(j.z - P.z) < 3) { dm = d; m = j; } }
+  return m;
+}
+const besoinSoin = o => P.pv < .999 || !!(o.purge && (P.poison > t || P.brulure > t)) || !!(o.coeur && lives < 3);
+function effetSoin(o) {                               // sur soi : ce qui a servi, ou rien
+  const L = [];
+  if (o.pv && P.pv < .999) { const a = P.pv; P.pv = Math.min(1, P.pv + o.pv); L.push('+' + Math.round((P.pv - a) * 100) + ' % de vie'); }
+  if (o.purge && (P.poison > t || P.brulure > t)) { P.poison = 0; P.brulure = 0; L.push('poison et brûlure chassés'); }
+  if (o.coeur && lives < 3) { lives++; L.push('un cœur retrouvé'); }
+  return L;
+}
+// Sans cible dite : soi, si l'on en a besoin ; sinon l'équipier à portée.
+function soigner(id, cible) {
+  const o = objet(id);
+  if (!o || o.emp !== 'soin' || o.cible !== 'gens' || P.pv <= 0) return false;
+  if (qteSoin(id) <= 0) { say('plus ' + deNom(o.n) + ' · à préparer à la table de soin', 2.2); return false; }
+  if (t < (P.soinT || 0)) { say('un instant · le temps de panser', 1.2); return false; }
+  const j = equipierProche();
+  if (cible === 'equipier' || (!cible && !besoinSoin(o) && j)) {
+    if (!j) { say('aucun équipier à portée', 1.8); return false; }
+    if (j.pv >= .999 && !o.purge && !o.coeur) { say(j.nom + ' est en pleine forme', 1.8); return false; }
+    if (!(RS.ouvert && Compte.uid)) { say('hors ligne : impossible de soigner ' + j.nom, 2); return false; }
+    diffuser(canalIle(), 'soin', { u: Compte.uid, n: pseudo(), a: j.u, k: id });
+    prendreSoin(id); P.soinT = t + SOIN_PAUSE;
+    burst(j.x, j.y, j.z + .8, 14, '#9fd08a'); SON.jouer('lien');
+    say(o.n + ' · pour ' + j.nom, 2.2); casesSig = ''; if (sacOuvert) majSac();
+    return true;
+  }
+  const L = effetSoin(o);
+  if (!L.length) { say('vous êtes en pleine forme', 1.6); return false; }
+  prendreSoin(id); P.soinT = t + SOIN_PAUSE;
+  burst(P.x, P.y, P.z + .8, 14, '#9fd08a'); SON.jouer('lien');
+  say(o.n + ' · ' + L.join(' · '), 2.4); casesSig = ''; if (sacOuvert) majSac();
+  return true;
+}
+// Un équipier nous soigne : on ne croit que le nom d'un soin connu, et pas deux dans la même seconde.
+function etreSoigne(d) {
+  if (d.a !== Compte.uid || P.pv <= 0) return;
+  const o = objet(String(d.k || ''));
+  if (!o || o.emp !== 'soin' || o.cible !== 'gens' || t < (P.soinRecu || 0)) return;
+  P.soinRecu = t + 1;
+  const L = effetSoin(o), qui = String(d.n || 'quelqu\'un').replace(/[<>]/g, '').slice(0, 18);
+  burst(P.x, P.y, P.z + .8, 14, '#9fd08a'); SON.jouer('lien');
+  say(qui + ' vous soigne · ' + o.n.toLowerCase() + (L.length ? ' · ' + L.join(' · ') : ''), 3);
+}
+function soignerCompagne(c, id) {
+  const o = objet(id);
+  if (!c || !o || o.emp !== 'soin' || o.cible !== 'compagne') return false;
+  if (qteSoin(id) <= 0) { say('plus ' + deNom(o.n) + ' · à préparer à la table de soin', 2.2); return false; }
+  if (c.ko && !o.releve) { say(c.nom + ' est à terre · il lui faut un baume', 2.2); return false; }
+  const cible = c.b || c, aTerre = !!c.ko;
+  if (!aTerre && cible.pv >= .999 && !(o.repu && cible.faim >= .05)) { say(c.nom + ' est en pleine forme', 1.6); return false; }
+  prendreSoin(id);
+  c.ko = 0;
+  cible.pv = Math.min(1, Math.max(0, cible.pv) + o.pv);
+  if (o.repu) { cible.faim = 0; if (cible.soif !== undefined) cible.soif = 0; }
+  if (c.b) burst(c.b.x, c.b.y, c.b.z + .5, 12, '#9fd08a');
+  SON.jouer('lien'); say(c.nom + ' · ' + o.n.toLowerCase() + (aTerre ? ' · remise sur pied' : ' · soignée'), 2.2);
+  if (sacOuvert) majSac();
+  return true;
+}
+// Le sac : la rangée des soins, et la fiche de celui qu'on touche.
+function grilleSoins() {
+  const L = OBJETS.filter(o => o.emp === 'soin' && ((P.soins[o.id] | 0) > 0 || P.raccourcis.includes('soin:' + o.id)));
+  if (!L.length) return '';
+  return `<h3>Soins <span class="compte">${totalSoins()}</span></h3><div class="rangee">` + L.map(o =>
+    `<div class="emplacement">${caseObjet(o.id, { nb: P.soins[o.id] | 0, choisie: choixSac === 'soin:' + o.id, attr: ` data-choix="soin:${o.id}"`, label: o.n + ' : ' + (P.soins[o.id] | 0) })}<span>${ESC(o.n.split(' ')[0].toLowerCase())}</span></div>`).join('') + `</div>`;
+}
+function ficheSoin(sid) {
+  const o = objet(sid.slice(5)); if (!o) return '';
+  const n = qteSoin(o.id), gens = o.cible === 'gens', j = gens ? equipierProche() : null;
+  const gestes = gens
+    ? `<button class="btn principal" data-soin="${o.id}"${n ? '' : ' disabled'}>Utiliser</button>`
+      + `<button class="btn" data-soin="${o.id}" data-pour="equipier"${n && j ? '' : ' disabled'}>${j ? 'Soigner ' + ESC(j.nom) : 'Soigner un équipier'}</button>`
+    : `<button class="btn" data-onglet="compagnes">Voir les compagnes</button>`;
+  return `<div class="fiche" id="sac-fiche">${caseObjet(o.id, { taille: 'grande', inerte: true, nb: n, vide: !n })}`
+    + `<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}</p>`
+    + `<p class="note">${n} en réserve · ${gens ? 'rangé dans une case, il sert à soi ; à pleine vie, à l\'équipier à portée (' + Math.round(SOIN_PORTEE) + ' pas)' : 'se donne depuis l\'onglet Compagnes'}</p>`
+    + `<div class="gestes">${gestes}</div>${gens ? gestesCases({ id: sid }) : ''}</div></div>`;
 }
 function assommer(b, cause) {
   const c = b.comp; if (!c) return;
@@ -13043,6 +13269,9 @@ const giteDe = b => b.mode === 'camp' && campIci() && b.comp ? lieuCamp(b.comp) 
 function rapporter(c, res, n, ex) {
   if (!n) return;
   if (res === 'baies' && c && specById[c.esp] && specById[c.esp].nectar) { res = 'nectar'; n = Math.max(1, Math.round(n * .5)); }   // l'oglodon en fait du nectar
+  { const r = potComp(c, 'recolte'); if (r) { const v = n * (1 + .1 * r); n = Math.floor(v) + (Math.random() < v - Math.floor(v) ? 1 : 0); } }   // la potion de récolte
+  { const rk = potComp(c, 'comp');                      // la trouvaille d'une Douce : un produit rare, en plus
+    if (!ex && rk && compDe(c) === 'doux' && Math.random() < (typeof globalThis.__TROUVE === 'number' ? globalThis.__TROUVE : TROUVE[rk])) ex = trouvaille(rk); }
   const coffre = !!(c && c.mode === 'camp' && campIci() && aModule('coffre'));
   if (coffre) { const R = reserveDe(res); R[res] = (R[res] || 0) + n; }
   else metSac(res, auSac(res) + n);                      // les baies, le nectar (au garde-manger), les matières
@@ -15470,9 +15699,369 @@ DESSINS.plat = d => { d.rect(2, 9, 13, 10, [150, 120, 90]); d.rect(3, 11, 12, 12
 DESSINS.marmite = d => { d.rect(3, 6, 12, 12, [80, 76, 74]); d.rect(2, 5, 13, 6, [110, 104, 100]); d.rect(4, 7, 11, 7, [120, 170, 100]); d.ligne(1, 5, 1, 8, [110, 104, 100]); d.ligne(14, 5, 14, 8, [110, 104, 100]);
   d.rect(4, 13, 11, 14, [246, 150, 52]); d.net(6, 15, [255, 210, 110]); d.net(9, 15, [255, 210, 110]); d.ligne(6, 3, 7, 1, [236, 236, 236]); d.ligne(9, 3, 10, 1, [236, 236, 236]); };
 DESSINS.ongletCuisine = DESSINS.marmite;
+DESSINS.bandage = d => { d.rect(3, 6, 12, 11, PIX.osC); d.rect(3, 6, 12, 6, PIX.os); d.rect(3, 11, 12, 11, PIX.os); d.rect(11, 7, 12, 10, PIX.os); d.rect(5, 8, 7, 9, PIX.rougeC); d.ligne(12, 11, 14, 13, PIX.osC); };
+DESSINS.cataplasme = d => { d.disque(8, 8.5, 5.2, PIX.vert); d.disque(8, 8.5, 3.6, PIX.vertC); d.rect(7, 6, 8, 11, PIX.papier); d.rect(5, 8, 10, 9, PIX.papier); };
+DESSINS.elixir = d => { d.rect(7, 2, 8, 4, PIX.cuir); d.rect(6, 5, 9, 5, PIX.bleuC); d.rect(5, 6, 10, 13, PIX.bleuC); d.rect(6, 8, 9, 12, PIX.rouge); d.rect(6, 8, 9, 8, PIX.rougeC); d.net(7, 10, PIX.papier); };
+DESSINS.onguent = d => { d.rect(4, 8, 11, 13, PIX.pierre); d.rect(3, 7, 12, 7, PIX.pierreC); d.rect(5, 5, 10, 6, PIX.vertC); d.net(7, 4, PIX.vertC); d.net(8, 4, PIX.vertC); };
+DESSINS.onguentfort = d => { DESSINS.onguent(d); d.rect(4, 10, 11, 10, PIX.or); d.net(7, 3, PIX.orC); };
+DESSINS.baumevie = d => { d.rect(4, 8, 11, 13, PIX.cuir); d.rect(3, 7, 12, 7, PIX.boisF); d.rect(5, 5, 10, 6, PIX.eclatC); d.net(7, 4, PIX.eclatC); d.net(8, 3, PIX.eclatC); d.rect(7, 9, 8, 12, PIX.orC); d.rect(6, 10, 9, 11, PIX.orC); };
+DESSINS.tourdef = d => { d.rect(4, 12, 5, 14, PIX.boisF); d.rect(10, 12, 11, 14, PIX.boisF); d.rect(5, 7, 10, 11, PIX.pierre); d.rect(4, 5, 11, 6, PIX.pierreC); d.net(4, 4, PIX.pierreC); d.net(7, 4, PIX.pierreC); d.net(8, 4, PIX.pierreC); d.net(11, 4, PIX.pierreC); d.rect(7, 8, 8, 10, PIX.nuit); d.ligne(8, 3, 12, 1, PIX.boisC); };
+DESSINS.tablesoin = d => { d.rect(2, 8, 13, 9, PIX.papier); d.rect(2, 10, 13, 10, PIX.bois); d.rect(3, 11, 4, 14, PIX.boisF); d.rect(11, 11, 12, 14, PIX.boisF); d.rect(4, 5, 7, 7, PIX.pierre); d.ligne(8, 2, 6, 5, PIX.boisC); d.rect(9, 6, 12, 7, PIX.osC); d.net(10, 6, PIX.rougeC); };
 const icIngr = id => INGR[id].src === 'poisson' ? 'poisson_' + id : INGR[id].src === 'baie' ? 'baies' : id === 'nectar' ? 'nectar' : 'ingr_' + id;   // le nectar garde sa goutte d'ambre
 // ---------- le volet Cuisine (onglet Campement) ----------
 let sousCuisine = 'ingr';                           // l'onglet Cuisine a deux sous-onglets : les ingrédients, les recettes
+// ---------- l'alchimie : les potions, qui améliorent le personnage pour de bon ----------
+// Pas de niveau de personnage : c'est ici qu'il progresse. Huit caractéristiques, cinq rangs chacune.
+// Une potion se prépare rarement : des ingrédients rares à verser dans l'ordre, une chance de
+// réussite, et tout est perdu si elle tourne. Réussie, elle est bue sur place et le rang reste.
+const ALCH_MAX = 5, ALCH_FAUTE = 15, ALCH_TABLE = 8, ALCH_RARE = 3, ALCH_RARE_MAX = 15;
+const ALCH_NIV = [1, 1, 2, 3, 3], ALCH_CHANCE = [80, 70, 60, 50, 40];   // par rang : le niveau de table qu'il demande, sa chance de base
+const ALCH_COUT = [{ eclat: 6 }, { eclat: 12 }, { eclat: 20, spore: 4 }, { eclat: 30, spore: 8 }, { eclat: 45, spore: 12 }];
+// Les étapes d'une recette, par rang : [famille, rareté minimale]. A, B, C sont les trois familles
+// de la caractéristique ; * accepte n'importe quelle famille.
+const ALCH_MOTIF = [
+  [['A', 1], ['B', 1], ['A', 2]],
+  [['A', 2], ['B', 2], ['C', 1], ['A', 2]],
+  [['A', 3], ['B', 2], ['C', 2], ['B', 3], ['A', 2]],
+  [['A', 3], ['B', 3], ['C', 2], ['*', 4], ['A', 3]],
+  [['A', 3], ['*', 4], ['B', 3], ['C', 2], ['*', 4], ['A', 3]],
+];
+const decAlch = v => String(Math.round(v * 10) / 10).replace('.', ',');
+const ALCH = [   // v(r) : ce que vaut la caractéristique au rang r (0 : la base)
+  { id: 'vie', n: 'Vie', fam: ['douceur', 'viande', 'fruit'], d: 'la jauge tient davantage : chaque blessure en coûte moins', v: r => String(100 + 10 * r) },
+  { id: 'souffle', n: 'Souffle', fam: ['poisson', 'feuille', 'graine'], d: 'on court plus longtemps avant de s\'épuiser', v: r => decAlch(ENDU_COURSE * (1 + .1 * r)) + ' s' },
+  { id: 'mana', n: 'Mana', fam: ['fleur', 'champignon', 'douceur'], d: 'les sorts coûtent moins d\'éclats', v: r => (100 - 8 * r) + ' %' },
+  { id: 'force', n: 'Force', fam: ['viande', 'racine', 'champignon'], d: 'les coups et les flèches portent plus fort', v: r => (100 + 10 * r) + ' %' },
+  { id: 'recup', n: 'Récupération', fam: ['racine', 'viande', 'feuille'], d: 'loin des coups, la vie remonte plus tôt et plus vite', v: r => decAlch(8 - .8 * r) + ' s' },
+  { id: 'vitesse', n: 'Vitesse', fam: ['fruit', 'poisson', 'graine'], d: 'le pas et la course', v: r => (100 + 4 * r) + ' %' },
+  { id: 'saut', n: 'Saut', fam: ['feuille', 'fleur', 'fruit'], d: 'la détente', v: r => (100 + 5 * r) + ' %' },
+  { id: 'recolte', n: 'Récolte', fam: ['champignon', 'fruit', 'racine'], d: 'ce que rend chaque arbre, chaque roche', v: r => (100 + 10 * r) + ' %' },
+];
+const ALCH_PAR_ID = {}; for (const a of ALCH) ALCH_PAR_ID[a.id] = a;
+const rangAlch = k => Math.max(0, Math.min(ALCH_MAX, P.alchimie[k] | 0));
+// Ce que les rangs changent en jeu.
+const vieK = () => 1 / (1 + .1 * rangAlch('vie'));                    // la jauge tient plus : toute blessure en coûte moins
+const forceK = () => (1 + effet('fort') * .25) * (1 + .1 * rangAlch('force'));   // coups puissants (plat) et force (potion)
+const sautK = () => (1 + .12 * effet('saut')) * (1 + .05 * rangAlch('saut'));
+function arrondiAlch(v) {                                   // la récolte : la fraction en plus tombe au sort
+  const r = rangAlch('recolte'); if (!r) return Math.round(v);
+  v *= 1 + .1 * r; return Math.floor(v) + (Math.random() < v - Math.floor(v) ? 1 : 0);
+}
+// --- les recettes ---
+// Une potion vise une caractéristique du joueur ('vie') ou d'une compagne : 'c12:recolte',
+// 'c12:defense', 'c12:comp' (la compétence de son type). Les automates n'ont pas de compétence.
+const NOM_ETAPE = { viande: 'Viande', poisson: 'Poisson', fruit: 'Fruit', racine: 'Racine', graine: 'Graine', fleur: 'Fleur', feuille: 'Feuille', champignon: 'Champignon', douceur: 'Douceur', '*': 'Ingrédient au choix' };
+const COMP_MAX = 3;
+const GLU = [null, { dur: 2.5, del: 10 }, { dur: 3.5, del: 8 }, { dur: 4.5, del: 6 }];                       // la boule visqueuse : ce qu'elle cloue, son délai
+const CHARGE = [null, { deg: .22, pousse: 7 }, { deg: .3, pousse: 8.5 }, { deg: .38, pousse: 10 }];          // en selle, au galop
+const RUADE = [null, { del: 9, r: 1.9, pousse: 8, deg: .12 }, { del: 7, r: 2.1, pousse: 9.5, deg: .16 }, { del: 5, r: 2.3, pousse: 11, deg: .2 }];
+const SECOUSSE = [null, { del: 14, r: 3, et: 1.2, deg: .1 }, { del: 11, r: 3.5, et: 1.6, deg: .14 }, { del: 8, r: 4, et: 2, deg: .18 }];
+const TROUVE = [0, .08, .12, .16];                                                                         // la chance d'une trouvaille, par récolte rapportée
+const ALCH_COMP = {
+  recolte: { n: 'Récolte', fam: ['feuille', 'fruit', 'racine'], d: 'elle rapporte davantage, quoi qu\'elle récolte', v: r => (100 + 10 * r) + ' %' },
+  defense: { n: 'Défense', fam: ['viande', 'champignon', 'racine'], d: 'elle frappe plus fort et encaisse mieux : +10 % à ses coups, −6 % à ceux qu\'elle reçoit, par rang', v: r => (100 + 10 * r) + ' %' },
+};
+const COMPETENCES = {
+  rampant: { n: 'Boule visqueuse', fam: ['champignon', 'douceur', 'viande'], d: 'elle crache une boule qui englue la bête qui vous menace, ou le joueur que vous venez de frapper : cloué sur place',
+    v: r => r ? decAlch(GLU[r].dur) + ' s englué · toutes les ' + GLU[r].del + ' s' : 'pas encore apprise' },
+  coursier: { n: 'Charge et ruade', fam: ['fruit', 'feuille', 'graine'], d: 'en selle et au galop, il renverse les bêtes sur sa route ; monté ou non, il rue sur ce qui l\'approche de trop près',
+    v: r => r ? 'charge à ' + Math.round(CHARGE[r].deg * 100) + ' · ruade toutes les ' + RUADE[r].del + ' s' : 'pas encore apprise' },
+  tellurien: { n: 'Secousse', fam: ['racine', 'champignon', 'fleur'], d: 'il frappe le sol : les bêtes autour de lui sont repoussées et étourdies',
+    v: r => r ? decAlch(SECOUSSE[r].r) + ' cases · ' + decAlch(SECOUSSE[r].et) + ' s étourdies · toutes les ' + SECOUSSE[r].del + ' s' : 'pas encore apprise' },
+  doux: { n: 'Trouvaille', fam: ['fleur', 'douceur', 'graine'], d: 'en récoltant, elle déniche parfois un produit rare de la flore, de ceux qui servent aux potions',
+    v: r => r ? Math.round(TROUVE[r] * 100) + ' % par récolte rapportée' + (r >= 3 ? ' · parfois très rare' : '') : 'pas encore apprise' },
+};
+const NOM_TYPE = { rampant: 'Rampant', coursier: 'Coursier', tellurien: 'Tellurien', doux: 'Doux', automate: 'Automate' };
+const typeComp = c => { const sp = c && specById[c.esp]; return sp ? familleBete(sp) : ''; };
+const compDe = c => { const f = typeComp(c); return COMPETENCES[f] ? f : null; };
+const potComp = (c, g) => c && c.pot ? Math.max(0, Math.min(g === 'comp' ? COMP_MAX : ALCH_MAX, c.pot[g] | 0)) : 0;
+const potBete = (b, g) => b && b.tame && b.comp ? potComp(b.comp, g) : 0;
+function potLue(p) {                                        // ce qu'une sauvegarde dit des potions d'une compagne
+  if (!p || typeof p !== 'object') return null;
+  const o = {};
+  for (const [g, max] of [['recolte', ALCH_MAX], ['defense', ALCH_MAX], ['comp', COMP_MAX]]) { const n = Math.max(0, Math.min(max, Number(p[g]) | 0)); if (n) o[g] = n; }
+  return Object.keys(o).length ? o : null;
+}
+// Tout ce qu'il faut savoir de la potion k — ou rien, si elle ne vise plus personne.
+// dec : le décalage dans les tables de rang (une compétence commence au motif du rang 3).
+function potionDe(k) {
+  if (ALCH_PAR_ID[k]) { const a = ALCH_PAR_ID[k]; return { k, n: a.n, d: a.d, v: a.v, fam: a.fam, rg: rangAlch(k), max: ALCH_MAX, dec: 0, c: null, g: k }; }
+  const m = /^c(\d+):(recolte|defense|comp)$/.exec(String(k || '')); if (!m) return null;
+  const c = P.compagnes.find(o => o.id === +m[1]); if (!c) return null;
+  const g = m[2], rg = potComp(c, g);
+  if (g === 'comp') { const f = compDe(c); if (!f) return null; const C = COMPETENCES[f]; return { k, n: C.n, d: C.d, v: C.v, fam: C.fam, rg, max: COMP_MAX, dec: 2, c, g }; }
+  const a = ALCH_COMP[g]; return { k, n: a.n, d: a.d, v: a.v, fam: a.fam, rg, max: ALCH_MAX, dec: 0, c, g };
+}
+const recetteAlch = q => ALCH_MOTIF[q.rg + q.dec].map(([f, r]) => ({ fam: f === '*' ? '*' : q.fam['ABC'.indexOf(f)], r }));
+const etapeVa = (e, id) => { const i = INGR[id]; return !!i && (e.fam === '*' || i.fam === e.fam) && i.r >= e.r; };
+const ditEtape = e => NOM_ETAPE[e.fam] + ' · ' + (e.r <= 1 ? 'toute rareté' : RARETES[e.r - 1] + ' ou plus');
+const nomPotion = q => q.g === 'comp' ? 'potion d\'éveil (' + q.n.toLowerCase() + ')' : 'potion de ' + q.n.toLowerCase();
+let alchChoix = 'vie';
+const alchimieIci = () => campIci() && auCamp() && nivModule('alchimie') > 0;
+function statAlch() {
+  if (P.chaudron && !potionDe(P.chaudron.c)) P.chaudron = null;   // la compagne visée n'est plus là : ce qui était versé est perdu
+  return P.chaudron ? P.chaudron.c : potionDe(alchChoix) ? alchChoix : 'vie';
+}
+// La chance, en points : la base du rang, la table, les ingrédients plus rares que demandé, les fautes d'ordre.
+function chanceAlch(k) {
+  const q = potionDe(k), ch = P.chaudron && P.chaudron.c === k ? P.chaudron : null;
+  if (!q || q.rg >= q.max) return { base: 0, table: 0, rare: 0, fautes: 0, total: 0 };
+  const base = ALCH_CHANCE[q.rg + q.dec], table = ALCH_TABLE * (Math.max(1, nivModule('alchimie')) - 1);
+  let rare = 0, fautes = 0;
+  if (ch) { const R = recetteAlch(q); ch.e.forEach((id, i) => { if (id && INGR[id]) rare += Math.max(0, INGR[id].r - R[i].r) * ALCH_RARE; });
+    rare = Math.min(ALCH_RARE_MAX, rare); fautes = ALCH_FAUTE * ch.f; }
+  return { base, table, rare, fautes, total: Math.max(5, Math.min(95, base + table + rare - fautes)) };
+}
+// Ce qui empêche de préparer la potion q, en clair — ou rien.
+function freinAlch(q) {
+  const niv = nivModule('alchimie');
+  if (!niv) return 'il faut une table d\'alchimie : elle se crée au campement';
+  if (q.rg >= q.max) return q.n.toLowerCase() + ' · au plus haut';
+  if (niv < ALCH_NIV[q.rg + q.dec]) return 'cette potion demande la table d\'alchimie au niveau ' + ALCH_NIV[q.rg + q.dec];
+  if (!alchimieIci()) return 'il faut être à la table d\'alchimie, au campement';
+  if (q.c && q.c.ko) return q.c.nom + ' est à terre : relevez-la d\'abord';
+  return '';
+}
+// Verser un ingrédient : il prend l'étape attendue s'il lui convient ; sinon la première étape plus
+// loin qui l'accepte, et c'est une faute. Versé, il est consommé.
+function verserAlch(id) {
+  const k = statAlch(), q = potionDe(k), frein = freinAlch(q);
+  if (frein) { say(frein, 2.6); return false; }
+  if (!INGR[id] || qteIngr(id) <= 0) { say('il n\'en reste plus', 1.2); return false; }
+  const R = recetteAlch(q), ch = P.chaudron || { c: k, e: R.map(() => null), f: 0 };
+  const libre = R.map((e, i) => i).filter(i => !ch.e[i]), va = libre.filter(i => etapeVa(R[i], id));
+  if (!libre.length) { say('tout est versé · tentez la potion', 2); return false; }
+  if (!va.length) { say(INGR[id].n + ' n\'entre pas dans ce qui reste à verser', 2); return false; }
+  const i = va[0], faute = i !== libre[0];
+  ch.e[i] = id; if (faute) ch.f++;
+  P.chaudron = ch; oterIngr(id); Sauve.sale = true; SON.jouer('equipe');
+  { const p = lieuModule(P.camp, 'alchimie'); burst(p[0], p[1], P.camp.z + 1, 6, faute ? '#c08a8a' : '#c8a8e8'); }
+  say(faute ? INGR[id].n + ' · versé hors de son tour · −' + ALCH_FAUTE + ' points de chance'
+    : libre.length === 1 ? 'tout est versé · ' + chanceAlch(k).total + ' % de chance' : INGR[id].n + ' · étape ' + (i + 1) + ' sur ' + R.length, 2.2);
+  return true;
+}
+function tenterAlch() {
+  const ch = P.chaudron; if (!ch) { say('le chaudron est vide', 1.4); return false; }
+  const k = statAlch(), q = potionDe(k); if (!q) { say('le chaudron est vide', 1.4); return false; }
+  const frein = freinAlch(q); if (frein) { say(frein, 2.6); return false; }
+  if (ch.e.some(x => !x)) { say('il reste des ingrédients à verser', 1.8); return false; }
+  const cout = ALCH_COUT[q.rg + q.dec], rang = q.rg + 1;
+  if (!essai) {
+    for (const [r, n] of Object.entries(cout)) if (dispo(r) < n) { say('il manque de quoi lier la potion · ' + Object.entries(cout).map(([m, v]) => v + ' ' + (v > 1 ? PLURIEL[m] || RES[m] : RES[m])).join(' · '), 2.8); return false; }
+    payer(cout);
+  }
+  const chance = chanceAlch(k).total, de = typeof globalThis.__ALCH_DE === 'number' ? globalThis.__ALCH_DE : Math.random() * 100;
+  const p = lieuModule(P.camp, 'alchimie'), ok = de < chance;
+  P.chaudron = null; Sauve.sale = true;
+  if (ok) {
+    burst(p[0], p[1], P.camp.z + 1, 46, '#c8a8e8'); SON.jouer('niveau');
+    if (q.c) {
+      q.c.pot = Object.assign({}, q.c.pot, { [q.g]: rang });
+      if (q.c.b && q.c.dehors) burst(q.c.b.x, q.c.b.y, q.c.b.z + .8, 24, '#ffd27d');
+      say(q.g === 'comp' && rang === 1 ? 'potion réussie · ' + q.c.nom + ' apprend : ' + q.n.toLowerCase() + ' · ' + q.v(1)
+        : nomPotion(q) + ' réussie · donnée à ' + q.c.nom + ' · rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang), 5);
+    } else {
+      P.alchimie[k] = rang; burst(P.x, P.y, P.z + 1, 24, '#ffd27d');
+      say(nomPotion(q) + ' réussie · bue · ' + q.n.toLowerCase() + ' rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang - 1) + ' → ' + q.v(rang), 5);
+    }
+  } else {
+    burst(p[0], p[1], P.camp.z + 1, 30, '#6a5a7a'); SON.jouer('pilon', {}, p[0], p[1], P.camp.z + .6);
+    say('la potion tourne · tout est perdu · elle avait ' + chance + ' % de chance', 4.5);
+  }
+  majSac();
+  return ok;
+}
+function viderAlch() {
+  if (!P.chaudron) return;
+  P.chaudron = null; Sauve.sale = true; say('chaudron vidé · ce qui était versé est perdu', 2.6);
+}
+// Ce que la sauvegarde en dit : des rangs bornés ; puis, les compagnes installées, un chaudron dont
+// chaque ingrédient tient son étape.
+function alchimieLue(d) {
+  const nb = (v, a, b, def) => Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : def;
+  P.alchimie = {}; P.chaudron = null;
+  for (const a of ALCH) { const n = nb(d.alchimie && d.alchimie[a.id], 0, ALCH_MAX, 0) | 0; if (n) P.alchimie[a.id] = n; }
+}
+function chaudronLu(ch) {
+  P.chaudron = null;
+  if (!ch || typeof ch.c !== 'string' || !Array.isArray(ch.e)) return;
+  const q = potionDe(ch.c); if (!q || q.rg >= q.max) return;
+  const R = recetteAlch(q); if (ch.e.length !== R.length) return;
+  const e = ch.e.map((id, i) => typeof id === 'string' && etapeVa(R[i], id) ? id : null);
+  if (e.some(Boolean)) P.chaudron = { c: ch.c, e, f: Math.max(0, Math.min(R.length, Number(ch.f) | 0)) };
+}
+// --- les compétences des compagnes : elles s'en servent seules, quand la situation s'y prête ---
+const prenable = o => vivante(o) && !o.sp.plante && !o.sp.batiment && !o.sp.pnj && !o.sp.villageois && !o.sp.illusion && !o.cache;
+// Le coup d'une compétence : il blesse, repousse, étourdit — un gardien de portail ne se laisse que blesser.
+function frappeComp(b, o, deg, kx, ky, et) {
+  porterCoup(b, o, deg);
+  if (o.dead || !(o.pv > 0) || o.sp.boss) return;
+  o.vx = kx; o.vy = ky; o.etourdi = Math.max(o.etourdi || 0, et); o.as = null;
+}
+function engluer(o, dur) {
+  o.englue = t + dur * (o.sp && o.sp.boss ? .4 : 1); o.as = null; o.vx = o.vy = 0;
+  burst(o.x, o.y, o.z + .4, 14, '#9ccf5a');
+}
+function compGlu(b, r) {
+  if (t < (b.compT || 0)) return;
+  const G = GLU[r]; let m = menaceOrdre(b);
+  if (!m || m === P || !prenable(m) || m.englue > t) m = null;
+  if (!m) { const dz = P.designe; if (dz && dz.loin && t - dz.t < 8 && dz.o && estJoueur(dz.o) && dz.o !== P && dz.o.pv > 0 && !(dz.o.englue > t)) m = dz.o; }
+  if (!m) return;
+  const d = Math.hypot(m.x - b.x, m.y - b.y); if (d < 1.2 || d > 11 || Math.abs(m.z - b.z) > 5) return;
+  const oz = b.z + .5 * (b.sp.sz || 1), vol = Math.max(.16, d / 13), cz = m.z + (m.sp ? .4 * (m.sp.sz || 1) : .7);
+  TIRS.push({ x: b.x, y: b.y, z: oz, vx: (m.x - b.x) / vol, vy: (m.y - b.y) / vol, vz: (cz - oz) / vol + TIR_G * vol * .5, de: b, deg: 0, age: 0, c: [156, 207, 90], glu: G.dur });
+  SON.jouer('bouffee', {}, b.x, b.y, oz); b.compT = t + G.del; b.dirT = Math.atan2(m.y - b.y, m.x - b.x);
+}
+function gluTouche(f, nx, ny, nz) {
+  for (const o of beasts) if (o !== f.de && prenable(o) && toucheBete(o, nx, ny, nz)) { engluer(o, f.glu); return true; }
+  for (const j of Autres.values()) if (j.pv > 0 && (nx - j.x) ** 2 + (ny - j.y) ** 2 < .36 && nz > j.z - .1 && nz < j.z + 1.4) {
+    burst(j.x, j.y, j.z + .5, 14, '#9ccf5a');
+    if (RS.ouvert && Compte.uid && !(j.fx && j.fx.abri)) { j.englue = t + f.glu; diffuser(canalIle(), 'glu', { u: Compte.uid, n: pseudo(), a: j.u, d: f.glu }); }
+    return true;
+  }
+  return false;
+}
+function etreEnglue(d) {                                   // la compagne d'un autre nous a touché
+  if (!d || d.a !== Compte.uid || P.pv <= 0) return;
+  Agresseurs.set(d.u, t + 30);
+  if (sousAbri()) return;
+  P.englue = t + Math.max(.5, Math.min(5, +d.d || 0)); P.vx = P.vy = 0;
+  say('englué par une compagne de ' + String(d.n || 'quelqu\'un').replace(/[<>]/g, '').slice(0, 18), 2.4);
+}
+function poussiere(x, y, z, n, v) {
+  for (let k = 0; k < n; k++) { const an = k / n * 6.2832;
+    parts.push({ x, y, z: z + .08, vx: Math.cos(an) * v, vy: Math.sin(an) * v, vz: .5 + Math.random() * .5, g: 5, life: .45, age: 0, col: '#b8a88a', tl: .08 }); }
+}
+function compCoursier(b, r, v, dir) {
+  const monte = P.monture === b && !P.rodeo, cx = monte ? P.x : b.x, cy = monte ? P.y : b.y, cz = monte ? P.z : b.z;
+  if (monte && v > 5) {                                    // la charge : au galop, ce qui est devant est renversé
+    const C = CHARGE[r];
+    for (const o of beasts) {
+      if (o === b || !prenable(o) || (o.chargeT || 0) > t || Math.abs(o.z - cz) > 2) continue;
+      const dx = o.x - cx, dy = o.y - cy; if (dx * dx + dy * dy > 1.7 || dx * dir[0] + dy * dir[1] < 0) continue;
+      o.chargeT = t + 1.5; frappeComp(b, o, C.deg, dir[0] * C.pousse, dir[1] * C.pousse, .9);
+      SON.jouer('touche', { arme: 'gourdin' }, o.x, o.y, o.z + .4); poussiere(o.x, o.y, o.z, 8, 2);
+    }
+  }
+  if (t < (b.ruadeT || 0)) return;                         // la ruade : une bête hostile trop près
+  const R = RUADE[r];
+  if (!beasts.some(o => o !== b && prenable(o) && beteHostile(o) && Math.abs(o.z - cz) < 2 && (o.x - cx) ** 2 + (o.y - cy) ** 2 < 2.25)) return;
+  b.ruadeT = t + R.del;
+  for (const o of beasts) {
+    if (o === b || !prenable(o) || Math.abs(o.z - cz) > 2) continue;
+    const dx = o.x - cx, dy = o.y - cy, d = Math.hypot(dx, dy) || 1; if (d > R.r) continue;
+    frappeComp(b, o, R.deg, dx / d * R.pousse, dy / d * R.pousse, 1);
+  }
+  SON.jouer('touche', { arme: 'marteau' }, cx, cy, cz + .4); poussiere(cx, cy, cz, 12, 3);
+}
+function compSecousse(b, r) {
+  if (t < (b.compT || 0) || b.enVol) return;
+  const S = SECOUSSE[r];
+  if (!beasts.some(o => o !== b && prenable(o) && beteHostile(o) && Math.abs(o.z - b.z) < 2.5 && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 5.8)) return;
+  b.compT = t + S.del;
+  for (const o of beasts) {
+    if (o === b || !prenable(o) || o.enVol || Math.abs(o.z - b.z) > 2.5) continue;
+    const dx = o.x - b.x, dy = o.y - b.y, d = Math.hypot(dx, dy) || 1; if (d > S.r) continue;
+    frappeComp(b, o, S.deg, dx / d * 6, dy / d * 6, S.et);
+  }
+  SON.jouer('pilon', {}, b.x, b.y, b.z); poussiere(b.x, b.y, b.z, 22, 3.4); poussiere(b.x, b.y, b.z, 12, 1.8);
+  if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 144) { P.secousse = t; P.secousseK = .45; }
+}
+// Ce qu'une Douce déniche en récoltant : un produit rare de la flore ; au rang 3, parfois un très rare.
+function trouvaille(r) {
+  const L4 = r >= 3 && Math.random() < .15 ? Object.keys(INGR).filter(id => INGR[id].src === 'denree' && INGR[id].fam !== 'viande' && INGR[id].r === 4) : [];
+  const L = L4.length ? L4 : Object.keys(INGR).filter(id => id.startsWith('p_') && INGR[id].r === 3);
+  return L.length ? L[Math.floor(Math.random() * L.length)] : null;
+}
+const ditPotions = c => { const L = [], f = compDe(c); if (potComp(c, 'recolte')) L.push('récolte ' + potComp(c, 'recolte')); if (potComp(c, 'defense')) L.push('défense ' + potComp(c, 'defense'));
+  if (f && potComp(c, 'comp')) L.push(COMPETENCES[f].n.toLowerCase() + ' ' + potComp(c, 'comp')); return L.length ? `<p class="note" style="margin:2px 0 0">Potions : ${L.join(' · ')}</p>` : ''; };
+let compPrec = null;
+function majCompetences(dt) {
+  if (P.englue > t && Math.random() < dt * 14) parts.push({ x: P.x + (Math.random() - .5) * .5, y: P.y + (Math.random() - .5) * .5, z: P.z + .1, vx: 0, vy: 0, vz: .4, g: 1, life: .5, age: 0, col: '#9ccf5a', tl: .07 });
+  const d = compPrec ? Math.hypot(P.x - compPrec[0], P.y - compPrec[1]) : 0, v = dt > 0 ? d / dt : 0, dir = d > 1e-4 ? [(P.x - compPrec[0]) / d, (P.y - compPrec[1]) / d] : [0, 0];
+  compPrec = [P.x, P.y];
+  if (typeof djIci === 'function' && djIci()) return;
+  for (const c of P.compagnes) {
+    const b = c.b; if (!c.dehors || !b || b.dead || !(b.pv > 0)) continue;
+    const r = potComp(c, 'comp'), f = r ? compDe(c) : null; if (!f) continue;
+    if (f === 'rampant') compGlu(b, r);
+    else if (f === 'coursier') compCoursier(b, r, v, dir);
+    else if (f === 'tellurien') compSecousse(b, r);
+  }
+}
+// --- la page : à gauche la fiche (soi, puis les compagnes), à droite la potion et le garde-manger ---
+function pageAlchimie() {
+  const k = statAlch(), q = potionDe(k), rg = q.rg, rang = rg + 1, niv = nivModule('alchimie'), ch = P.chaudron, maj = x => ESC(x[0].toUpperCase() + x.slice(1));
+  const pts = (n, max) => '●'.repeat(n) + '○'.repeat(max - n);
+  const ligne = (id, nom, base, r, max, tot) => `<button class="${[id === k ? 'on' : '', r ? 'plus' : ''].join(' ').trim()}" data-alch="${id}"${ch && ch.c !== id ? ' disabled' : ''} aria-pressed="${id === k}"`
+    + ` aria-label="${ESC(nom + ' : base ' + base + ', ' + r + ' rang' + (r > 1 ? 's' : '') + ' de potion, total ' + tot)}">`
+    + `<b>${ESC(nom)}</b><span>${base}</span><span class="pts">${pts(r, max)}</span><span class="tot">${tot}</span></button>`;
+  const tete = `<div class="tete"><span>Caractéristique</span><span>Base</span><span>Potions</span><span>Total</span></div>`;
+  const fiche = `<div class="caracs">${tete}` + ALCH.map(o => ligne(o.id, o.n, o.v(0), rangAlch(o.id), ALCH_MAX, o.v(rangAlch(o.id)))).join('') + `</div>`
+    + `<p class="note" style="margin:6px 2px 0">La base est celle de tout personnage ; les potions s'y ajoutent pour de bon. Les plats de la cuisine, eux, passent.`
+    + (ch ? ' Le chaudron est en cours : tentez la potion ou videz-le pour en changer.' : '') + `</p>`;
+  const comps = P.compagnes.length ? P.compagnes.map(c => { const sp = specById[c.esp], f = compDe(c), ty = NOM_TYPE[typeComp(c)], id = 'c' + c.id + ':', rc = potComp(c, 'comp');
+      const L = APT_RES.map(r => [NOM_APT[r], noteApt(c.esp, r)]).concat([['Défense', noteDef(c.esp)]]).filter(x => x[1] > 0);
+      return `<h4>${ESC(c.nom)} · ${ESC(sp ? sp.n.toLowerCase() : c.esp)}${ty ? ' · ' + ty : ''}${c.ko ? ' · à terre' : ''}</h4><div class="caracs">`
+        + ligne(id + 'recolte', 'Récolte', '100 %', potComp(c, 'recolte'), ALCH_MAX, ALCH_COMP.recolte.v(potComp(c, 'recolte')))
+        + ligne(id + 'defense', 'Défense', '100 %', potComp(c, 'defense'), ALCH_MAX, ALCH_COMP.defense.v(potComp(c, 'defense')))
+        + (f ? ligne(id + 'comp', COMPETENCES[f].n, '—', rc, COMP_MAX, rc ? 'rang ' + rc : '—') : '') + `</div>`
+        + `<p class="note" style="margin:5px 2px 2px">Aptitudes de l'espèce : ${L.map(([n, v]) => n + ' ' + points(v)).join(' · ')}.${f ? '' : ' Pas de compétence : un automate n\'apprend pas par potion.'}</p>`; }).join('')
+    : `<div class="vide-texte">Aucune compagne liée.</div>`;
+  let droite;
+  const pour = q.c ? ' pour ' + ESC(q.c.nom) : '';
+  if (rg >= q.max) droite = `<h3>${ESC(q.n)}${pour} · au plus haut</h3><div class="obj"><div><div class="n">${maj(q.d)}</div><div class="d">${q.v(rg)} · ${q.max} rangs sur ${q.max}</div></div></div>`;
+  else {
+    const R = recetteAlch(q), e = ch ? ch.e : R.map(() => null), suiv = e.findIndex(x => !x), cout = ALCH_COUT[rg + q.dec], C = chanceAlch(k);
+    const payable_ = essai || Object.entries(cout).every(([r, n]) => dispo(r) >= n), frein = freinAlch(q);
+    const etapes = R.map((s, i) => `<div class="obj etape${i === suiv ? ' porte' : ''}"><div class="n">${i + 1} · ${ditEtape(s)}</div>`
+      + `<span class="${e[i] ? 'fait' : 'attend'}">${e[i] ? '✓ ' + ESC(INGR[e[i]].court) : i === suiv ? 'à verser' : ''}</span></div>`).join('');
+    const reste = R.filter((s, i) => !e[i]), tous = Object.keys(INGR).filter(id => qteIngr(id) > 0), bons = tous.filter(id => reste.some(s => etapeVa(s, id)));
+    const garde = Object.keys(NOM_FAM).map(fam => { const L = bons.filter(id => INGR[id].fam === fam); if (!L.length) return '';
+      return `<h4>${NOM_FAM[fam]}</h4><div class="rangee">` + L.map(id => `<div class="emplacement">${caseObjet(icIngr(id), { nb: qteIngr(id), attr: ` data-verser="${id}"`, label: INGR[id].n + ' · ' + RARETES[INGR[id].r - 1] + ' : verser' })}<span>${ESC(INGR[id].court)}</span></div>`).join('') + `</div>`; }).join('');
+    const sur = confirmeAct.id === 'alchvider' && maintenantSac() < confirmeAct.jusqua;
+    droite = `<h3>${maj(nomPotion(q))}${pour} · rang ${rang} sur ${q.max}</h3>`
+      + `<div class="obj"><div><div class="n">${maj(q.d)}</div><div class="d">${q.v(rg)} → ${q.v(rang)}<br>à payer en tentant : ${ditCout(cout)}${payable_ ? '' : ' · il en manque'}</div></div></div>`
+      + `<div class="obj"><div><div class="n">Chance de réussite · ${C.total} %</div><div class="d">base ${C.base}${C.table ? ' · table +' + C.table : ''}${C.rare ? ' · ingrédients rares +' + C.rare : ''}${C.fautes ? ' · fautes d\'ordre −' + C.fautes : ''}`
+      + `<br>un ingrédient plus rare que demandé ajoute ${ALCH_RARE} points par cran (${ALCH_RARE_MAX} au plus)</div></div></div>`
+      + `<h3>La recette, dans l'ordre</h3>${etapes}`
+      + `<p class="note" style="margin:8px 2px">Versé, c'est versé : l'ingrédient est consommé. Hors de son tour, il coûte ${ALCH_FAUTE} points de chance. Si la potion tourne, tout est perdu.${frein ? '<br><b>' + maj(frein) + '.</b>' : ''}</p>`
+      + (!niv && P.camp ? `<button class="btn" data-voletcamp="camp" data-casecamp="modalchimie">Créer la table d'alchimie</button> ` : '')
+      + `<button class="btn principal" data-alchtenter="1"${suiv < 0 && !frein && payable_ ? '' : ' disabled'}>Tenter la potion</button>`
+      + (ch ? ` <button class="btn" data-alchvider="1">${sur ? 'Confirmer : tout perdre' : 'Vider le chaudron'}</button>` : '')
+      + `<h3>Garde-manger</h3>`
+      + (suiv < 0 ? `<div class="vide-texte">Tout est versé.</div>`
+        : garde || `<div class="vide-texte">Rien, au garde-manger, n'entre dans ce qui reste à verser${tous.length ? ' (' + tous.length + ' ingrédient' + (tous.length > 1 ? 's' : '') + ' d\'une autre famille ou trop commun' + (tous.length > 1 ? 's' : '') + ')' : ''}.</div>`);
+  }
+  return `<div class="sac-corps deux alch"><div class="col"><div><h3>Vos caractéristiques</h3>${fiche}</div><div class="fin"><h3>Vos compagnes</h3>${comps}</div></div><div class="col">${droite}</div></div>`;
+}
+// La table d'alchimie : un plateau de pierre, le chaudron sur sa braise ; une étagère de fioles au
+// niveau 2, l'alambic de cuivre et sa fiole d'éclat au niveau 3.
+function alchimieOs(niv) {
+  const [B, bat] = osDe(), C_CUIVRE = [186, 112, 62], C_VERRE = [150, 214, 204], C_FONTE = [58, 56, 62], C_POTION = [150, 96, 190];
+  bat([0, -.5, .42], [0, .5, .42], .5, .1, C_PIERRE);
+  for (const y of [-.4, .4]) bat([0, y, .05], [0, y, .38], .14, .4, C_PIERREF);
+  bat([-.02, -.22, .47], [-.02, -.22, .52], .12, .12, [246, 150, 52], 1);
+  bat([-.02, -.22, .53], [-.02, -.22, .74], .27, .27, C_FONTE);
+  bat([-.02, -.22, .74], [-.02, -.22, .77], .2, .2, C_POTION, 1);
+  if (niv < 3) {
+    bat([.08, .2, .47], [.08, .2, .6], .09, .09, C_VERRE); bat([.08, .2, .6], [.08, .2, .68], .04, .04, C_VERRE);
+    bat([-.12, .36, .47], [-.12, .36, .58], .08, .08, [206, 120, 110]);
+  }
+  if (niv >= 2) {
+    for (const y of [-.5, .5]) bat([-.3, y, .05], [-.3, y, 1.14], .05, .05, C_BOISF);
+    bat([-.3, -.52, .86], [-.3, .52, .86], .16, .04, C_BOIS); bat([-.3, -.52, 1.12], [-.3, .52, 1.12], .16, .04, C_BOIS);
+    for (const [y, c] of [[-.34, C_POTION], [-.1, C_VERRE], [.14, [214, 178, 88]], [.36, [120, 180, 110]]]) bat([-.3, y, .88], [-.3, y, 1.0], .09, .09, c);
+  }
+  if (niv >= 3) {
+    bat([.02, .3, .47], [.02, .3, .7], .17, .17, C_CUIVRE); bat([.02, .3, .7], [.02, .3, .82], .08, .08, C_CUIVRE);
+    bat([.02, .3, .8], [.02, .04, .7], .04, .04, C_CUIVRE);
+    bat([.02, .04, .47], [.02, .04, .64], .09, .09, C_ECLAT, 1);
+  }
+  return B;
+}
+DESSINS.alambic = d => { d.rect(6, 1, 9, 2, PIX.pierreC); d.rect(7, 3, 8, 6, [150, 214, 204]); d.rect(5, 7, 10, 8, [150, 214, 204]); d.rect(3, 9, 12, 13, [150, 96, 190]); d.rect(4, 14, 11, 14, [110, 66, 150]); d.net(5, 10, [214, 170, 240]); d.net(9, 12, [214, 170, 240]); d.net(7, 5, [214, 170, 240]); };
 function pageCuisine() {
   const feu = presDuFeu();
   const cap = placesMarmite(); if (marmiteSel.length > cap) marmiteSel.length = cap;
@@ -15674,14 +16263,14 @@ function portailOs(niv) {
     const x = -.52 + k * .348, o = Math.sin(t * 2.2 + k * .9) * .5 + .5, h = 1.36 + o * .1;
     // d'éclat, le voile se referme en une nappe vive, dans le plan de l'arche
     if (niv >= 3) bat([x - .2, 0, (.12 + h) / 2], [x + .2, 0, (.12 + h) / 2], .06, h - .12, [96 + o * 60, 196 + o * 50, 228 + o * 27], 1);
-    else bat([x, 0, .12], [x, 0, h], .40, .06, [60 + o * 55, 150 + o * 65, 190 + o * 50]);
+    else bat([x, 0, .12], [x, 0, h], .06, .34, [60 + o * 55, 150 + o * 65, 190 + o * 50]);   // une boîte debout : la première largeur va selon y, la seconde selon x — celle de l'arche
   }
   return B;
 }
 // Le camp de base se dessine d'un tenant : le rond de terre battue et sa bordure de pierres, le feu
 // au centre, la tente à sa place sur l'anneau ; puis, à chaque emplacement, le module créé ou les
 // piquets qui le réservent. Les décors de niveau (runes, cristaux, anneau, arche double) tiennent
-// désormais au portail ; le rempart attend le module Défense. Ce qui luit se voit la nuit.
+// désormais au portail ; le rempart et les tours viennent avec la défense. Ce qui luit se voit la nuit.
 const C_ECLAT = [143, 228, 232], C_ECLATF = [86, 176, 204], C_RUNE = [190, 246, 250];
 const C_TERRE = [136, 108, 78], C_CENDRE = [98, 88, 80], C_CORDE = [206, 188, 148], C_OMBRE = [44, 50, 46];
 const C_OURLET = [146, 186, 120], C_LAINE = [178, 86, 62], C_LAINEF = [228, 206, 162], C_BRAISE = [226, 98, 40];
@@ -15854,20 +16443,295 @@ function cuisineOs(niv) {
   }
   return B;
 }
-// En réserve pour le module Défense : le parapet crénelé du bastion, reporté sur la bordure du rond,
-// et ses quatre bornes d'éclat. Rien ne l'appelle encore.
-function rempartOs() {
-  const [B, bat] = osDe(), g = Math.sin(t * 4.1 + 1.7) * .5 + .5;
-  for (const e of CAMP_BORD) {
+// La table de soin : une table nappée, son mortier, un rouleau de bandage, une botte d'herbes. Au
+// niveau 2 une étagère de pots ; au niveau 3 des fioles qui luisent et des simples qui sèchent.
+function soinOs(niv) {
+  const [B, bat] = osDe(), C_LINGE = [232, 226, 210], C_HERBE = [112, 170, 96];
+  bat([0, -.5, .45], [0, .5, .45], .5, .07, C_BOIS);
+  bat([0, -.52, .495], [0, .52, .495], .46, .03, C_LINGE);
+  bat([.245, -.52, .4], [.245, .52, .4], .02, .2, C_LINGE);
+  for (const y of [-.44, .44]) for (const x of [-.18, .18]) bat([x, y, .05], [x, y, .42], .06, .06, C_BOISF);
+  bat([-.04, -.28, .51], [-.04, -.28, .63], .15, .15, C_PIERRE);
+  bat([-.04, -.28, .6], [.07, -.2, .76], .04, .04, C_BOISF);
+  bat([.06, .08, .55], [.06, .3, .55], .1, .09, C_LINGE);
+  bat([-.12, .32, .53], [.06, .42, .53], .08, .04, C_HERBE);
+  if (niv >= 2) {
+    for (const y of [-.5, .5]) bat([-.3, y, .05], [-.3, y, 1.14], .05, .05, C_BOISF);
+    bat([-.3, -.52, .86], [-.3, .52, .86], .16, .04, C_BOIS); bat([-.3, -.52, 1.12], [-.3, .52, 1.12], .16, .04, C_BOIS);
+    for (const [y, c] of [[-.3, [150, 92, 70]], [0, C_HERBE], [.3, [206, 170, 96]]]) bat([-.3, y, .88], [-.3, y, 1.0], .11, .11, c);
+  }
+  if (niv >= 3) {
+    bat([.08, -.04, .51], [.08, -.04, .68], .07, .07, C_ECLAT, 1); bat([.08, -.04, .68], [.08, -.04, .72], .04, .04, C_BOISF);
+    bat([-.3, -.16, 1.14], [-.3, -.16, 1.28], .08, .08, C_ECLATF, 1); bat([-.3, .18, 1.14], [-.3, .18, 1.26], .08, .08, [226, 120, 132], 1);
+    for (const y of [-.36, .4]) bat([-.26, y, .62], [-.26, y, .84], .05, .05, C_HERBE);
+  }
+  return B;
+}
+// ---------- la défense : le rempart et les tours ----------
+// Le poste de garde créé, deux branches s'améliorent à part (P.defense). Le rempart suit la bordure
+// du rond, sa porte à l'entrée ; les tours prennent les coins. Chez un autre joueur, ses niveaux
+// viennent du message « cp » : chacun applique la même règle au même campement.
+const DEF_MAX = { mur: 3, tours: 3 };
+const COUT_DEFENSE = {
+  mur:   [{ bois: 60, fibre: 20 }, { bois: 90, pierre: 60, fibre: 30 }, { pierre: 220, eclat: 30, os: 20 }],
+  tours: [{ bois: 50, pierre: 30, os: 10 }, { bois: 80, pierre: 60, eclat: 30 }, { ferraille: 30, eclat: 60, pierre: 120 }],
+};
+const MUR_NOM = ['', 'barricade', 'palissade', 'mur de pierre'], MUR_LE = ['', 'la barricade', 'la palissade', 'le mur de pierre'];
+const MUR_DIT = ['', 'barricade de pieux : les bêtes n\'entrent plus', 'palissade : les joueurs étrangers non plus · on entre par la porte', 'mur de pierre crénelé : il arrête aussi les tirs'];
+const TOURS_DIT = ['', 'une tour · tir lent · 8 cases', 'deux tours · tir plus fort · 10 cases', 'quatre tours · longue portée · 13 cases'];
+const TOURS = [null, { n: 1, portee: 8, deg: .18, cad: 2.2, h: 1.25 }, { n: 2, portee: 10, deg: .28, cad: 1.8, h: 1.45 }, { n: 4, portee: 13, deg: .4, cad: 1.5, h: 1.65 }];
+const TOUR_COINS = [[2.5, 2.5], [-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5]];   // devant à gauche, au fond à droite, devant à droite, au fond à gauche
+const nivMur = () => aModule('defense') ? Math.max(0, Math.min(DEF_MAX.mur, P.defense.mur | 0)) : 0;
+const nivTours = () => aModule('defense') ? Math.max(0, Math.min(DEF_MAX.tours, P.defense.tours | 0)) : 0;
+const defDuCamp = c => c === P.camp ? { mur: nivMur(), tours: nivTours() } : c === Raid ? { mur: Raid.mur | 0, tours: Raid.tours | 0 } : { mur: ((c && c.mods) || {}).mur | 0, tours: ((c && c.mods) || {}).tours | 0 };
+function ameliorerDefense(b) {
+  if (!DEF_MAX[b] || !aModule('defense')) return false;
+  const n = (b === 'mur' ? nivMur() : nivTours()) + 1;
+  if (n > DEF_MAX[b]) { say((b === 'mur' ? 'le rempart' : 'les tours') + ' · au plus haut', 2); return false; }
+  if (!campIci() || !auCamp()) { say('il faut être à votre campement', 2.5); return false; }
+  const cout = COUT_DEFENSE[b][n - 1];
+  if (!essai) {
+    for (const [r, q] of Object.entries(cout)) if (dispo(r) < q) { say('matières manquantes', 1.8); return false; }
+    payer(cout);
+  }
+  P.defense[b] = n;
+  burst(P.camp.x, P.camp.y, P.camp.z + 1, 40, '#ffd27d'); SON.jouer('niveau');
+  say((b === 'mur' ? 'rempart' : 'tours') + ' · niveau ' + n + ' · ' + (b === 'mur' ? MUR_DIT : TOURS_DIT)[n], 3.5);
+  majSac();
+  return true;
+}
+// --- le rempart : qui passe, qui ne passe pas ---
+const CAMP_DANS = (() => { const S = new Set(CAMP_CASES.map(c => c[0] + ',' + c[1])); return (dx, dy) => S.has(dx + ',' + dy); })();
+const dansRond = (c, x, y) => CAMP_DANS(Math.floor(x) - Math.floor(c.x), Math.floor(y) - Math.floor(c.y));
+// La porte : les trois cases de l'entrée, entre la colonne 3 (dedans) et la colonne 4 (dehors).
+function parLaPorte(c, x0, y0, x1, y1) {
+  const a = Math.floor(y0) - Math.floor(c.y), b = Math.floor(y1) - Math.floor(c.y), u0 = Math.floor(x0) - Math.floor(c.x), u1 = Math.floor(x1) - Math.floor(c.x);
+  return a === b && Math.abs(a) <= 1 && Math.min(u0, u1) === 3 && Math.max(u0, u1) === 4;
+}
+const allieDuCamp = c => c === P.camp || (!!c.autre && !!P.groupe && (P.groupe.membres || []).some(m => m.u === c.autre));
+let MURS = [], murDit = 0;                             // les campements de l'île qui ont un rempart, relevés à chaque image
+function majMurs() { MURS = campsIci().filter(c => defDuCamp(c).mur > 0); }
+// Le joueur : la barricade s'enjambe ; dès la palissade on n'entre que par la porte, et si l'on est
+// du camp. Sortir reste libre : on ne s'enferme jamais.
+function murJoueur(x0, y0, x1, y1) {
+  for (const c of MURS) {
+    if (c === Raid) {                                  // chez celui qu'on pille : tout rempart arrête, tant que sa porte tient
+      if (Math.abs(P.z - c.z) > 3 || dansRond(c, x0, y0) || !dansRond(c, x1, y1)) continue;
+      if (!(Raid.porte > 0) && parLaPorte(c, x0, y0, x1, y1)) continue;
+      if (t > murDit) { murDit = t + 3; say(Raid.porte > 0 ? MUR_LE[Raid.mur] + ' de ' + Raid.pseudo + ' vous arrête · forcez la porte' : 'on entre par la porte forcée', 2.2); }
+      return c;
+    }
+    if (defDuCamp(c).mur < 2 || Math.abs(P.z - c.z) > 3) continue;
+    if (dansRond(c, x0, y0) || !dansRond(c, x1, y1)) continue;
+    if (allieDuCamp(c) && parLaPorte(c, x0, y0, x1, y1)) continue;
+    if (t > murDit) { murDit = t + 3; say(allieDuCamp(c) ? 'la palissade · on entre par la porte' : 'la palissade vous arrête · ce campement n\'est pas le vôtre', 2); }
+    return c;
+  }
+  return null;
+}
+// Une bête : dès la barricade elle n'entre plus — sauf les compagnes, ce qui vole, les gens, les gardiennes.
+function murBete(b, x0, y0) {
+  if (b.gardeCamp || b.sp.volant || b.enVol || b.sp.pnj) return false;
+  for (const c of MURS) {
+    if (b.tame && !(c === Raid && Raid.porte > 0)) continue;   // les compagnes passent — sauf la porte close du campement qu'on pille
+    if (Math.abs(b.z - c.z) < 3 && !dansRond(c, x0, y0) && dansRond(c, b.x, b.y)) return true;
+  }
+  return false;
+}
+// Un tir : le mur de pierre l'arrête à l'entrée du rond, s'il vole plus bas que ses créneaux.
+function murTir(x0, y0, x1, y1, z) {
+  for (const c of MURS) if (defDuCamp(c).mur >= 3 && z < c.z + 1.5 && z > c.z - 2 && !dansRond(c, x0, y0) && dansRond(c, x1, y1)) return c;
+  return null;
+}
+// La porte s'ouvre quand quelqu'un du camp s'en approche.
+function porteOuverte(c) {
+  if (c === Raid) return !(Raid.porte > 0);            // forcée : elle reste ouverte
+  const px = c.x + 3.6, py = c.y, pres = j => (j.x - px) ** 2 + (j.y - py) ** 2 < 9;
+  if (allieDuCamp(c) && pres(P)) return true;
+  if (c.autre) { const j = Autres.get(c.autre); if (j && pres(j)) return true; }
+  return false;
+}
+// --- les tours : elles tirent sur ce qui menace, à portée ---
+const Agresseurs = new Map();                          // joueur -> jusqu'à quand il reste une cible : il vient de frapper
+const tourT = [0, 0, 0, 0];
+const beteHostile = o => (predateur(o.sp) && o.etat !== 'dormir' && o.etat !== 'veille')
+  || o.colere > 0 || !!o.viseJ || !!(o.as && o.as.c && (o.as.c === P || o.as.c.tame)) || !!(o.cible && o.cible.comp) || !!o.cibleC;
+function traitTour(ox, oy, oz, q) {                    // le carreau : une flèche qu'on voit, et qui ne blesse que par la tour
+  const dx = q.x - ox, dy = q.y - oy, dz = q.z + .5 - oz, d = Math.hypot(dx, dy) || 1, v = 26, T = d / v;
+  const vx = dx / d * v, vy = dy / d * v, vz = dz / T + ARC_G * T * .5, n = Math.hypot(vx, vy, vz) || 1;
+  if (FLECHES.length < 80) FLECHES.push({ x: ox, y: oy, z: oz, vx, vy, vz, age: 0, plantee: 0, dir: [vx / n, vy / n, vz / n], deg: 0, fantome: true, de: null });
+  SON.jouer('decoche', { k: .8 }, ox, oy, oz);
+}
+function majTours() {
+  const c = P.camp, niv = nivTours(), T = TOURS[niv];
+  if (!T || !campIci() || P.pv <= 0 || (typeof djIci === 'function' && djIci())) return;
+  for (let k = 0; k < T.n; k++) {
+    if (t < tourT[k]) continue;
+    const ox = c.x + TOUR_COINS[k][0], oy = c.y + TOUR_COINS[k][1], oz = c.z + T.h + .35;
+    let cible = null, joueur = null, bd = T.portee * T.portee;
+    for (const o of beasts) {
+      if (!vivante(o) || o.sp.plante || o.sp.batiment || o.sp.pnj || o.sp.illusion || o.gardeCamp || o.cache || !beteHostile(o) || Math.abs(o.z - c.z) > 6) continue;
+      const d = (o.x - ox) ** 2 + (o.y - oy) ** 2;
+      if (d < bd) { bd = d; cible = o; }
+    }
+    if (!cible) for (const j of Autres.values()) {
+      if (!(Agresseurs.get(j.u) > t) || !(j.pv > 0) || (j.fx && j.fx.abri)) continue;
+      const d = (j.x - ox) ** 2 + (j.y - oy) ** 2;
+      if (d < bd) { bd = d; joueur = j; }
+    }
+    if (!cible && !joueur) { tourT[k] = t + .4; continue; }
+    tourT[k] = t + T.cad;
+    traitTour(ox, oy, oz, cible || joueur);
+    if (cible) {
+      const dg = T.deg / danger() / robuste(cible);
+      cible.pv -= dg; cible.hit = .25; cible.alarm = 1;
+      burst(cible.x, cible.y, cible.z + .4, 8, '#ffb0a0');
+      if (typeof fauneCoup === 'function') fauneCoup(cible, dg, 0, 0, 'tour');
+      if (cible.pv <= 0) mourirBete(cible, 'tour');   // abattue par la tour : pas de butin, on ne chasse pas en dormant
+    } else if (RS.ouvert && Compte.uid) {
+      diffuser(canalIle(), 'coup', { u: Compte.uid, n: 'la tour de ' + pseudo(), a: joueur.u, c: -1, d: r2(T.deg) });
+      joueur.hurt = .5; burst(joueur.x, joueur.y, joueur.z + .6, 8, '#ffb0a0');
+    }
+  }
+}
+// --- le dessin ---
+// Le poste de garde : un râtelier de lances, un bouclier, un brasero.
+function posteOs() {
+  const [B, bat] = osDe(), f = Math.sin(t * 6.7 + 1) * .5 + .5;
+  for (const y of [-.45, .45]) bat([-.2, y, .05], [-.2, y, 1.05], .07, .07, C_BOISF);
+  bat([-.2, -.5, .95], [-.2, .5, .95], .06, .06, C_BOIS); bat([-.2, -.5, .45], [-.2, .5, .45], .06, .06, C_BOIS);
+  for (const y of [-.28, 0, .28]) { bat([-.02, y, .05], [-.16, y, 1.3], .04, .04, C_BOISF); bat([-.16, y, 1.3], [-.19, y, 1.5], .07, .07, C_PIERRE); }
+  bat([.12, -.62, .32], [.16, -.62, .32], .5, .5, C_BOIS); bat([.17, -.62, .32], [.19, -.62, .32], .16, .16, C_OR);   // le bouclier, son umbo
+  bat([.3, .55, .05], [.3, .55, .4], .22, .22, C_PIERREF); bat([.3, .55, .4], [.3, .55, .46], .28, .28, C_PIERRE);
+  bat([.3, .55, .46], [.3, .55, .58 + f * .06], .14, .14, [246, 150, 52], 1);
+  return B;
+}
+// --- le campement qu'on pille : sa porte à forcer, ses tours à faire taire ---
+// Tout se joue chez le pillard, sur la copie du campement que la base lui a donnée : la porte
+// qu'il force, les tours qu'il abat ne coûtent rien au vrai campement.
+const tourR = [0, 0, 0, 0];
+const porteRaid = () => Math.floor(Raid.x) + 4;        // le plan de la porte, entre la colonne 3 et la colonne 4
+// La porte ou la tour à portée de coup.
+function ouvrageProche(port) {
+  if (!raidIci() || Raid.fini || P.pv <= 0 || Math.abs(P.z - Raid.z) > 2) return null;
+  let o = null, bd = port;
+  const T = TOURS[Raid.tours];
+  if (T) for (let k = 0; k < T.n; k++) if (Raid.tk[k] > 0) {
+    const x = Raid.x + TOUR_COINS[k][0], y = Raid.y + TOUR_COINS[k][1], d = Math.hypot(P.x - x, P.y - y) - .35;
+    if (d < bd) { bd = d; o = { k, x, y, z: Raid.z + .8 }; }
+  }
+  if (Raid.mur && Raid.porte > 0) {
+    const x = porteRaid(), y = Math.max(Raid.y - 1.5, Math.min(Raid.y + 1.5, P.y)), d = Math.hypot(P.x - x, P.y - y);
+    if (d < bd) { bd = d; o = { porte: 1, x, y, z: Raid.z + .7 }; }
+  }
+  return o;
+}
+function frapperOuvrage(o, dg) {
+  const col = Raid.mur >= 3 && o.porte ? '#c8ccd6' : '#c8a070';
+  burst(o.x, o.y, o.z, 9, col); Sauve.sale = true;
+  if (o.porte) {
+    Raid.porte = Math.max(0, Raid.porte - dg);
+    if (Raid.porte > 0) { say('la porte · ' + Math.max(1, Math.round(Raid.porte / PORTE_RAID[Raid.mur] * 100)) + ' %', 1); return; }
+    burst(o.x, Raid.y, o.z, 30, col); SON.jouer('pilon', {}, o.x, Raid.y, o.z); P.secousse = t; P.secousseK = .6;
+    say('la porte cède · le coffre de ' + Raid.pseudo + ' est à portée', 3);
+    return;
+  }
+  Raid.tk[o.k] = Math.max(0, Raid.tk[o.k] - dg);
+  if (Raid.tk[o.k] > 0) { say('la tour · ' + Math.max(1, Math.round(Raid.tk[o.k] / TOUR_RAID[Raid.tours] * 100)) + ' %', 1); return; }
+  burst(o.x, o.y, o.z + .6, 26, '#c8a070'); SON.jouer('pilon', {}, o.x, o.y, o.z); P.secousse = t; P.secousseK = .5;
+  const reste = Raid.tk.filter(v => v > 0).length;
+  say('la tour s\'effondre' + (reste ? ' · encore ' + reste : ' · plus aucune ne tire'), 2.5);
+}
+// Une flèche du pillard : elle entame la tour qu'elle touche, la porte qu'elle frappe.
+function flecheOuvrage(x0, y0, x1, y1, z) {
+  if (!raidIci() || Raid.fini) return null;
+  const T = TOURS[Raid.tours];
+  if (T && z > Raid.z && z < Raid.z + T.h + .9) for (let k = 0; k < T.n; k++) if (Raid.tk[k] > 0) {
+    const x = Raid.x + TOUR_COINS[k][0], y = Raid.y + TOUR_COINS[k][1];
+    if ((x1 - x) ** 2 + (y1 - y) ** 2 < .25) return { k, x, y, z };
+  }
+  const gx = porteRaid();
+  if (Raid.mur && Raid.porte > 0 && (x0 - gx) * (x1 - gx) <= 0 && x0 !== x1 && Math.abs(y1 - Raid.y) <= 1.5 && z > Raid.z && z < Raid.z + (Raid.mur === 1 ? 1.1 : 1.8))
+    return { porte: 1, x: gx, y: y1, z };
+  return null;
+}
+// Les tours du campement visité : un carreau qu'on voit venir, qu'un pas de côté esquive.
+function majToursRaid() {
+  if (!raidIci() || !Raid.pret || Raid.fini || P.pv <= 0) return;
+  const T = TOURS[Raid.tours]; if (!T) return;
+  for (let k = 0; k < T.n; k++) {
+    if (!(Raid.tk[k] > 0) || t < tourR[k]) continue;
+    const ox = Raid.x + TOUR_COINS[k][0], oy = Raid.y + TOUR_COINS[k][1], oz = Raid.z + T.h + .35, d = Math.hypot(P.x - ox, P.y - oy);
+    if (d > T.portee || Math.abs(P.z - Raid.z) > 6) { tourR[k] = t + .4; continue; }
+    tourR[k] = t + T.cad * (.9 + Math.random() * .2);
+    const vol = Math.max(.14, d / 15);
+    TIRS.push({ x: ox, y: oy, z: oz, vx: (P.x - ox) / vol, vy: (P.y - oy) / vol, vz: (P.z + .7 - oz) / vol + TIR_G * vol * .5,
+      de: null, deg: TOUR_RAID_DEG[Raid.tours], age: 0, c: [232, 214, 170], carreau: 1 });
+    SON.jouer('decoche', { k: .8 }, ox, oy, oz);
+  }
+}
+function carreauTouche(f, nx, ny, nz) {
+  if ((nx - P.x) ** 2 + (ny - P.y) ** 2 >= .36 || nz < P.z - .1 || nz > P.z + 1.4) return false;
+  if (P.invincible || P.hurt > 0 || P.pv <= 0) return true;
+  P.hurt = 1.0; P.dernierCoup = t;
+  let dg = f.deg * (1 - ((porte('armure') || {}).red || 0)) * vieK();
+  if (P.bonusPv > 0) { const a = Math.min(P.bonusPv, dg); P.bonusPv -= a; dg -= a; }
+  P.pv = Math.max(0, P.pv - dg);
+  const v = Math.hypot(f.vx, f.vy) || 1;
+  P.vx = f.vx / v * 4; P.vy = f.vy / v * 4; P.vz = 3; P.recul = .25;
+  burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
+  say('un carreau des tours de ' + Raid.pseudo, 1.4);
+  if (P.pv <= 0) terrasse();
+  return true;
+}
+// La tour abattue : ce qu'il en reste.
+function tourRuineOs(niv) {
+  const [B, bat] = osDe();
+  if (niv >= 2) bat([0, 0, .05], [0, 0, .3], .64, .64, C_PIERREF);
+  const z = niv >= 2 ? .3 : .05;
+  bat([-.26, -.26, z], [-.22, -.22, z + .5], .07, .07, C_BOISF); bat([.26, .24, z], [.2, .3, z + .3], .07, .07, C_BOISF);
+  bat([-.34, .22, z + .07], [.36, -.08, z + .07], .3, .06, C_BOIS);
+  bat([.06, -.36, z + .04], [.5, -.3, z + .04], .05, .05, C_BOISF);
+  return B;
+}
+// Le rempart, le long de la bordure : des pieux, puis une palissade, puis un mur crénelé — et la porte.
+function rempartOs(niv, ouverte) {
+  const [B, bat] = osDe();
+  CAMP_BORD.forEach((e, k) => {
     const mx = (e[0] + e[2]) / 2, my = (e[1] + e[3]) / 2;
-    bat([e[0], e[1], .27], [e[2], e[3], .27], .16, .34, C_PIERREF);
-    bat([mx, my, .44], [mx, my, .55], .18, .18, C_PIERRE);
+    if (niv === 1) {
+      bat([e[0], e[1], .2], [e[0], e[1], .72], .09, .09, C_BOISF); bat([e[2], e[3], .2], [e[2], e[3], .72], .09, .09, C_BOISF);
+      bat([e[0], e[1], .5], [e[2], e[3], .5], .05, .06, C_BOIS);
+      bat([mx, my, .2], [mx, my, .86], .08, .08, k % 2 ? C_BOIS : C_BOISF); bat([mx, my, .86], [mx, my, .94], .05, .05, C_CORDE);
+    } else if (niv === 2) {
+      bat([e[0], e[1], .68], [e[2], e[3], .68], .1, .96, k % 2 ? C_BOIS : C_BOISF);
+      bat([e[0], e[1], .2], [e[0], e[1], 1.32], .12, .12, C_BOISF); bat([mx, my, 1.16], [mx, my, 1.3], .1, .1, C_BOIS);
+    } else {
+      bat([e[0], e[1], .62], [e[2], e[3], .62], .2, .84, k % 2 ? C_PIERRE : C_PIERREF);
+      bat([mx, my, 1.04], [mx, my, 1.24], .22, .22, C_PIERRE);
+    }
+  });
+  // la porte, à l'entrée : deux montants, deux vantaux qui s'ouvrent vers le dehors
+  const h = niv === 1 ? .7 : niv === 2 ? 1.25 : 1.2, c = niv >= 3 ? C_PIERRE : C_BOISF;
+  for (const y of [-1.5, 1.5]) { bat([3.5, y, .1], [3.5, y, h + .35], .16, .16, c); if (niv >= 3) bat([3.5, y, h + .35], [3.5, y, h + .5], .2, .2, C_ECLAT, 1); }
+  if (niv >= 2) bat([3.5, -1.5, h + .3], [3.5, 1.5, h + .3], .1, .1, c);
+  for (const s of [-1, 1]) {
+    if (ouverte) bat([3.5, s * 1.5, .15 + h / 2], [4.85, s * 1.5, .15 + h / 2], .07, h - .1, C_BOIS);
+    else { bat([3.5, s * 1.5, .15 + h / 2], [3.5, s * .02, .15 + h / 2], .07, h - .1, C_BOIS); bat([3.52, s * .75, .15 + h * .5], [3.58, s * .75, .15 + h * .5], 1.3, .06, C_PIERREF); }
   }
-  for (const [x, y] of [[-2.5, -2.5], [2.5, -2.5], [-2.5, 2.5], [2.5, 2.5]]) {
-    bat([x, y, 0], [x, y, .7], .26, .26, C_PIERRE);
-    bat([x, y, .7], [x, y, .76], .32, .32, C_PIERREF);
-    bat([x, y, .76], [x, y, 1 + g * .03], .13, .13, C_ECLAT, 1);
-  }
+  return B;
+}
+// Une tour : quatre pieds, une plate-forme, son arbalète ; un socle de pierre au niveau 2, un toit et un fanal d'éclat au niveau 3.
+function tourOs(niv) {
+  const [B, bat] = osDe(), h = TOURS[niv].h, r = .26, e = .3;
+  if (niv >= 2) bat([0, 0, .05], [0, 0, .45], .64, .64, C_PIERREF);
+  for (const [x, y] of [[-r, -r], [r, -r], [r, r], [-r, r]]) bat([x, y, niv >= 2 ? .45 : .05], [x * .85, y * .85, h], .07, .07, C_BOISF);
+  bat([-.33, 0, h], [.33, 0, h], .66, .07, C_BOIS);
+  for (const s of [-1, 1]) { bat([-.33, s * e, h + .2], [.33, s * e, h + .2], .04, .04, C_BOISF); bat([s * e, -.33, h + .2], [s * e, .33, h + .2], .04, .04, C_BOISF); }
+  for (const [x, y] of [[-e, -e], [e, -e], [e, e], [-e, e]]) bat([x, y, h], [x, y, h + (niv >= 3 ? .72 : .24)], .05, .05, C_BOISF);
+  bat([0, 0, h + .04], [0, 0, h + .26], .08, .08, C_BOISF);                                // l'arbalète sur son pivot
+  bat([-.24, 0, h + .3], [.28, 0, h + .3], .06, .05, C_BOIS); bat([.2, -.24, h + .3], [.2, .24, h + .3], .04, .04, niv >= 3 ? [98, 102, 114] : C_BOISF);
+  if (niv >= 3) { bat([-.38, 0, h + .76], [.38, 0, h + .76], .76, .06, C_BOISF); bat([0, 0, h + .79], [0, 0, h + .95], .12, .12, C_ECLAT, 1); }
   return B;
 }
 // Le campement de c : le mien, celui d'un autre joueur, celui qu'on pille.
@@ -15887,8 +16751,14 @@ function campOs(c) {
     else if (n && m.id === 'coffre') poseModule(B, coffreOs(), q[0], q[1], q[2]);
     else if (n && m.id === 'etabli') poseModule(B, etabliOs(n), q[0], q[1], q[2]);
     else if (n && m.id === 'cuisine') poseModule(B, cuisineOs(n), q[0], q[1], q[2]);
+    else if (n && m.id === 'soin') poseModule(B, soinOs(n), q[0], q[1], q[2]);
+    else if (n && m.id === 'alchimie') poseModule(B, alchimieOs(n), q[0], q[1], q[2]);
+    else if (n && m.id === 'defense') poseModule(B, posteOs(), q[0], q[1], q[2]);
     else if (mien) poseModule(B, jalonsOs(), q[0], q[1], q[2]);          // chez soi, les emplacements libres se voient
   }
+  const D = defDuCamp(c);                              // le rempart sur la bordure, les tours aux coins
+  if (D.mur) for (const o of rempartOs(D.mur, porteOuverte(c))) B.push(o);
+  if (TOURS[D.tours]) for (let k = 0; k < TOURS[D.tours].n; k++) poseModule(B, c === Raid && !(Raid.tk[k] > 0) ? tourRuineOs(D.tours) : tourOs(D.tours), TOUR_COINS[k][0], TOUR_COINS[k][1], 0);
   return B;
 }
 function emitPortailIle(view, out) {
@@ -16582,7 +17452,7 @@ function pecheLie(b, A) {
 function rapporterPoisson(b) {
   const c = b.comp, i = (b.peche.y | 0) * WS + (b.peche.x | 0), hab = EauT[i] === 1 ? 'lac' : EauT[i] === 2 ? 'riviere' : 'ocean';
   const f = tirerPoisson(hab) || tirerPoisson('ocean') || POISSONS[0], coffre = c.mode === 'camp' && campIci() && aModule('coffre');
-  const n = 1 + (Math.random() < coefApt(b.sp.id, 'peche') - 1 ? 1 : 0);
+  const n = 1 + (Math.random() < coefApt(b.sp.id, 'peche') - 1 ? 1 : 0) + (Math.random() < .1 * potComp(c, 'recolte') ? 1 : 0);   // la potion de récolte
   if (coffre) P.cellier[f.id] = (P.cellier[f.id] || 0) + n; else metSacIngr(f.id, sacIngr(f.id) + n);
   annonceCompagne(c, 'i:' + f.id, n, coffre); if (sacOuvert) majSac();
 }
@@ -17364,6 +18234,33 @@ var hudPliPret = false;
 // ============================================================
 const VERBE_RES = { baies: 'CUEILLIR', bois: 'COUPER', pierre: 'TAILLER', eclat: 'DÉTACHER', fibre: 'CUEILLIR', ferraille: 'DÉMONTER' };
 const nourrirQ = () => { nourrir = true; };
+// Au campement, ce qui est à portée de main décide de l'action : la tente couche, l'établi fabrique,
+// la marmite cuisine… Un emplacement libre propose de créer son module. Ailleurs dans le rond : la vue d'ensemble.
+const MODULE_PRES = 1.3;
+const CASE_MODULE = { etabli: 'modetabli', coffre: 'coffre', portail: 'ameliorer', cuisine: 'modcuisine', soin: 'modsoin', alchimie: 'modalchimie', defense: 'moddefense' };
+function moduleProche() {
+  const c = P.camp; let m = null, bd = MODULE_PRES * MODULE_PRES;
+  const vu = (id, x, y) => { const d = (P.x - x) ** 2 + (P.y - y) ** 2; if (d < bd) { bd = d; m = id; } };
+  { const q = placeAnneau(CAMP_TENTE); vu('tente', c.x + q[0], c.y + q[1]); }
+  for (const o of MODULES) if (o.pret) { const q = lieuModule(c, o.id); vu(o.id, q[0], q[1]); }
+  return m;
+}
+function campAction() {
+  if (!auCamp()) return null;
+  const vers = (cas, volet) => () => { voletCamp = volet || 'camp'; choixCamp = cas; confirmeAct.id = ''; ouvrirSac(true, 'camp'); };
+  const fab = f => () => { filtreEtabli = f; choixEtabli = null; ouvrirSac(true, 'etabli'); };
+  const m = moduleProche();
+  if (m === 'tente') return { v: 'SE REPOSER', o: 'la tente', f: vers('repos') };
+  if (m && !aModule(m)) return { v: 'CRÉER', o: MODULE[m].n.toLowerCase() + (m !== 'etabli' && !aModule('etabli') ? ' · il faut l\'établi' : ''), f: vers(CASE_MODULE[m]) };
+  if (m === 'etabli') return { v: 'FABRIQUER', o: 'l\'établi · niveau ' + nivEtabli(), f: fab('tout') };
+  if (m === 'coffre') return { v: 'COFFRE', o: 'la réserve du campement', f: vers('coffre') };
+  if (m === 'portail') return { v: 'PORTAIL', o: 'le portail · niveau ' + nivCamp(), f: vers('portail', 'portail') };
+  if (m === 'cuisine') return { v: 'CUISINER', o: 'la marmite · ' + placesMarmite() + ' ingrédients', f: () => ouvrirSac(true, 'cuisine') };
+  if (m === 'soin') return { v: 'SOINS', o: 'la table de soin · niveau ' + nivModule('soin'), f: fab('soin') };
+  if (m === 'alchimie') return { v: 'ALCHIMIE', o: 'la table · niveau ' + nivModule('alchimie'), f: () => ouvrirSac(true, 'alchimie') };
+  if (m === 'defense') return { v: 'DÉFENSE', o: 'rempart ' + nivMur() + ' · tours ' + nivTours(), f: vers('moddefense') };
+  return { v: 'CAMPEMENT', o: 'vue d\'ensemble', f: vers(choixVolet.camp) };
+}
 function actionContexte() {
   if (P.rodeo && Rodeo) return { v: 'TENIR', o: 'fougue ' + Math.round(Rodeo.fougue * 100) + ' %', f: () => {} };
   if (P.monture) return { v: 'DESCENDRE', o: nomBete(P.monture), f: () => descendre(false) };
@@ -17386,7 +18283,7 @@ function actionContexte() {
       : { v: 'PILLER', o: 'restez au coffre · 1 % par seconde', f: () => say('restez près du coffre : un centième par seconde', 2), vide: true };
   }
   if (auPortailIle()) return { v: 'FRANCHIR', o: 'arche · exploration ' + (profondeur() + 1), f: franchirPortail };
-  if (auCamp()) return { v: 'CAMPEMENT', o: 'tente · feu' + (aModule('coffre') ? ' · coffre' : '') + (aModule('portail') ? ' · portail' : ''), f: () => { voletCamp = 'camp'; choixCamp = choixVolet.camp; ouvrirSac(true, 'camp'); } };
+  const cpa = campAction(); if (cpa) return cpa;       // au campement : la tente, un module, un emplacement libre
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && (!b.sp.batiment || b.sp.plante) && !b.cache && Math.abs(b.z - P.z) < 2) {
@@ -17446,7 +18343,7 @@ function cibleContact(port) {
 function frapper(a) {
   if (!a || a.arc) return false;
   const c = cibleContact(a.port);
-  if (!c) return false;
+  if (!c && !ouvrageProche(a.port)) return false;
   attaquer(a, c);
   return true;
 }
@@ -17463,6 +18360,7 @@ function lancerAttaque(a, c) {
   P.agiteT = t;                                         // un coup, même dans le vide, effraie les proies
   c = c || cibleContact(a.port + 1);
   if (c) P.face = Math.atan2(c.y - P.y, c.x - P.x);   // face à ce qu'on vise
+  else { const o = ouvrageProche(a.port + 1); if (o) P.face = Math.atan2(o.y - P.y, o.x - P.x); }
   const seq = SEQ_ARME[a.id] || [a.id];
   P.combo = t - (P.finAttaque ?? -99) < .45 ? ((P.combo || 0) + 1) % seq.length : 0;   // coup droit, revers…
   const g = seq[P.combo];
@@ -17508,7 +18406,11 @@ function coupArme(A) {
       vx: (Math.random() - .5) * .8, vy: (Math.random() - .5) * .8, vz: 1 + Math.random(), g: -1.5, life: .7, age: 0, col: '#f2f2f0', tl: .1 });
   }
   const c = cibleContact(a.port + .3);
-  if (!c) return;                                      // dans le vide
+  if (!c) {                                            // dans le vide — ou sur la porte, une tour du campement qu'on pille
+    const o = ouvrageProche(a.port + .3);
+    if (o) { A.arret = true; SON.jouer('touche', { arme: A.arme }, tip[0], tip[1], tip[2]); frapperOuvrage(o, a.deg * forceK()); }
+    return;
+  }
   A.arret = true;
   SON.jouer('touche', { arme: A.arme }, tip[0], tip[1], tip[2]);
   const etin = { gourdin: ['#c8a070', 5], lance: ['#f0e8d6', 5], epee: ['#e0e0da', 7], lame: ['#aef4fc', 9], marteau: ['#ffe0a0', 8] }[A.arme] || ['#ffffff', 5];
@@ -17593,6 +18495,7 @@ function utiliser(i) {
     if (j < 0) { say('plus de ' + nomPlat(id).toLowerCase() + ' · à cuisiner de nouveau', 1.8); return; }
     mangerPlat(j); casesSig = ''; return;
   }
+  if (estSoin(P.raccourcis[k])) { soigner(P.raccourcis[k].slice(5)); casesSig = ''; return; }   // un soin : pour soi, ou l'équipier à portée
   const id = P.raccourcis[k], o = id && objet(id);
   if (!o || !P.objets[id]) { say('case ' + (i + 1) + ' vide · à garnir depuis le sac', 1.6); return; }
   if (o.emp === 'grimoire') { P.equip.grimoire = id; lancerSort(); }
@@ -17609,7 +18512,7 @@ let casesSig = '';
 function majCases() {
   const el = document.getElementById('cases'); if (!el) return;
   const nb = barres(), b = barreVue(), vue = nb ? P.raccourcis.slice(b * CASES, (b + 1) * CASES) : [];
-  const sig = nb + '/' + b + '/' + vue.map(id => { if (estPlat(id)) return id + '#' + partsPlat(id);
+  const sig = nb + '/' + b + '/' + vue.map(id => { if (estPlat(id)) return id + '#' + partsPlat(id); if (estSoin(id)) return id + '#' + qteSoin(id.slice(5));
     const o = id && objet(id); if (!o || !P.objets[id]) return '-';
     return id + (P.equip[o.emp] === id ? '*' : '') + (o.emp === 'grimoire' && manaDispo() < coutSort(o) ? '!' : ''); }).join(',') + '|' + (essai ? 0 : P.sac.eclat);
   if (sig === casesSig) return;
@@ -17618,6 +18521,10 @@ function majCases() {
   const bascule = nb > 1 ? `<button class="bascule" data-barre="1" aria-label="Barre ${b + 1} sur ${nb} : passer à la suivante" title="Barre ${b + 1} sur ${nb} : passer à la suivante"><kbd>T</kbd>`
     + Array.from({ length: nb }, (_, i) => `<i class="${i === b ? 'on' : ''}"></i>`).join('') + `</button>` : '';
   el.innerHTML = bascule + vue.map((id, k) => {
+    if (estSoin(id) && objet(id.slice(5))) {            // un soin : sa vignette, et ce qu'il en reste
+      const o = objet(id.slice(5)), n = qteSoin(o.id), lab = `Case ${k + 1} : ${o.n} · ${n} en réserve`;
+      return `<button class="plat${n ? '' : ' faible'}" data-case="${k}" aria-label="${ESC(lab)}" title="${ESC(lab)}"><kbd>${k + 1}</kbd><i class="ic ic-${o.id}"></i><em>${n}</em></button>`;
+    }
     if (estPlat(id)) {                                   // un plat : sa vignette, et ce qu'il en reste
       const n = partsPlat(id), ef = effetPlat(id);
       const lab = `Case ${k + 1} : ${nomPlat(id)}` + (ef ? ' · ' + ef : '') + (n ? ` · ${n} part${n > 1 ? 's' : ''}` : ' · à cuisiner de nouveau');
@@ -17672,7 +18579,7 @@ function statutsJoueur() {
   if (biomeIci === 12) add('eclat', 'bon', 'Champs de cristal', 'les sorts y coûtent moitié moins de mana');
   const repit = REPIT - (maintenant() - arriveeLe);
   if (repit > 0) add('st_repit', 'bon', 'Répit de l\'arrivée', 'rien ne vous touche encore', t + repit);
-  else if (prsCamp(P.x, P.y)) add('campement', 'bon', 'À l\'abri', 'près de votre campement, on ne prend pas de coups');
+  else if (prsCamp(P.x, P.y)) add('campement', 'bon', 'À l\'abri', 'dans le rond de votre campement, on ne prend pas de coups');
   if (P.invincible) add('st_invincible', 'neu', 'Invincible', 'un outil de la bêta');
   return L;
 }
@@ -19036,6 +19943,7 @@ void main() { o = uC; }`;
       const n = Math.hypot(f.vx, f.vy, f.vz) || 1, u = [f.vx / n, f.vy / n, f.vz / n];
       if (f.feu) { boite(TD, [f.x - .16, f.y, f.z], [f.x + .16, f.y, f.z], .32, .32, [255, 170, 60], 1, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.toile) { boite(TD, [f.x - .1, f.y, f.z], [f.x + .1, f.y, f.z], .2, .2, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
+      if (f.glu) { boite(TD, [f.x - .11, f.y, f.z], [f.x + .11, f.y, f.z], .22, .22, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.spore) { boite(TD, [f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.obus) { boite(TD, [f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], 0, 0, L_FIXE, 0, 0, 0); continue; }
       boite(TD, [f.x - u[0] * .3, f.y - u[1] * .3, f.z - u[2] * .3], [f.x, f.y, f.z], .07, .07, f.c, 0, 0, L_FIXE, 0, 0, 0);
@@ -19297,14 +20205,14 @@ function photo() {
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
     amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
-    fleches: P.fleches, baumes: P.baumes, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
+    fleches: P.fleches, baumes: P.baumes, soins: Object.assign({}, P.soins), defense: { mur: P.defense.mur | 0, tours: P.defense.tours | 0 }, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
     vies: lives,
     camp: P.camp ? { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100,
                      y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: nivCamp(),
                      expl: P.camp.expl || 0 } : null,
-    campNiv: nivCamp(), modules: Object.assign({}, P.modules), portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
+    campNiv: nivCamp(), modules: Object.assign({}, P.modules), alchimie: Object.assign({}, P.alchimie), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), f: P.chaudron.f } : null, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     coffre: Object.assign({}, P.coffre),
     pillages: P.pillages.slice(0, 5),
@@ -19324,6 +20232,7 @@ function photo() {
       if (c.ko) d.ko = 1;
       if (c.aucamp) d.aucamp = 1;
       if (c.variante) d.variante = c.variante;
+      if (c.pot) d.pot = Object.assign({}, c.pot);
       if (b) d.pos = [Math.round(b.x * 100) / 100, Math.round(b.y * 100) / 100];
       return d;
     }),
@@ -19333,7 +20242,7 @@ function photo() {
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
 const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.cellier, P.plats.map(p => p.parts).join(), P.recettes, P.marmite, P.objets, P.ceinture, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.pillages.length, djIci() ? [DJ.e, DJ.etat.ouverts.length, DJ.etat.vaincus.length] : 0, raidIci() ? [Raid.fini, Raid.ko.length, Math.round(Raid.part * 100)] : 0, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
-  P.camp ? [P.camp.graine, P.camp.x, P.camp.y] : 0, P.campNiv, P.modules, P.portailT, P.portailR, P.portailVoeu,
+  P.camp ? [P.camp.graine, P.camp.x, P.camp.y] : 0, P.campNiv, P.modules, P.defense, P.soins, P.portailT, P.portailR, P.portailVoeu,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
   P.liens, P.compagnes.map(c => [c.id, c.nom, c.role, c.mode, c.aucamp ? 1 : 0, c.dehors ? 1 : 0, c.ko ? 1 : 0, Math.round((c.b ? c.b.pv : c.pv) * 10)])]);
 
@@ -19366,6 +20275,7 @@ function appliquer(d, vivantes) {
   // on garde la première barre même sans ceinture (elle reparaîtra avec elle) ; au-delà, seulement les barres ouvertes
   if (rc) for (let k = 0; k < Math.max(CASES, casesOuvertes()); k++) { const id = rc[k], o = typeof id === 'string' && objet(id);
     if (typeof id === 'string' && /^plat:[\w:.-]{1,40}~[a-z]{0,14}~[0-4]$/.test(id) && !P.raccourcis.includes(id)) { P.raccourcis[k] = id; continue; }   // une pile de plats
+    if (estSoin(id) && (objet(id.slice(5)) || {}).cible === 'gens' && !P.raccourcis.includes(id)) { P.raccourcis[k] = id; continue; }   // un soin
     if (o && !enSerie(o) && o.emp !== 'ceinture' && P.objets[id] && !P.raccourcis.includes(id)) P.raccourcis[k] = id; }
   else remplirRaccourcis();
   P.barre = nb(d.barre, 0, CEINTURE_MAX - 1, 0) | 0; if (P.barre >= barres()) P.barre = 0;
@@ -19381,6 +20291,8 @@ function appliquer(d, vivantes) {
     .slice(0, 20).map(e => [e[0], nb(e[1], 0, 1, 0)]);
   nmAppliquer(d.nm);                                   // ce que les nomades savent de vous
   P.fleches = nb(d.fleches, 0, 1e5, 0) | 0; P.baumes = nb(d.baumes, 0, 1e4, 0) | 0;
+  P.defense = { mur: nb(d.defense && d.defense.mur, 0, 3, 0) | 0, tours: nb(d.defense && d.defense.tours, 0, 3, 0) | 0 };
+  P.soins = {}; for (const o of OBJETS) if (o.emp === 'soin') { const n = nb(d.soins && d.soins[o.id], 0, 1e4, 0) | 0; if (n) P.soins[o.id] = n; }
   P.baies = nb(d.baies, 0, 1e5, 3) | 0;
   P.poissons = {}; P.carnetPeche = {};
   for (const f of POISSONS) {
@@ -19436,6 +20348,7 @@ function appliquer(d, vivantes) {
   // le niveau tient au personnage ; une sauvegarde d'avant le portait sur le campement posé
   P.campNiv = (nb(d.campNiv, 1, CAMP_MAX, 0) | 0) || (c ? nb(c.niv, 1, CAMP_MAX, 1) | 0 : 0) || 1;
   P.modules = {}; for (const m of MODULES) { const n = nb(d.modules && d.modules[m.id], 0, 999, 0) | 0; if (n) P.modules[m.id] = n; }
+  alchimieLue(d);
   if (P.camp) P.camp.niv = P.campNiv;
   { const o = d.portail && typeof d.portail === 'object' ? d.portail : {};
     P.portailT = nb(o.t, 0, 1e9, 0) | 0; P.portailR = nb(o.r, 0, 1e4, 0) | 0;
@@ -19479,7 +20392,7 @@ function appliquer(d, vivantes) {
       nom: typeof r.nom === 'string' && r.nom.trim() ? r.nom.trim().slice(0, 24) : null,
       ...ordresDe(r), recolte: typeof r.recolte === 'string' && noteApt(r.esp, r.recolte) ? r.recolte : null, capT: Number.isFinite(r.capT) ? r.capT : null, morphe: Number.isInteger(r.morphe) && r.morphe >= 0 && r.morphe < 4 ? r.morphe : null, dehors: !!r.dehors, ko: r.ko ? 1 : 0, aucamp: r.aucamp ? 1 : 0,
       pv: nb(r.pv, .05, 1, 1), faim: nb(r.faim, 0, 1.2, .2), soif: nb(r.soif, 0, 1.2, .2), nrj: nb(r.nrj, 0, 1, 1),
-      pos: place(r.pos), variante: varianteSure(r.variante) });
+      pos: place(r.pos), variante: varianteSure(r.variante), pot: potLue(r.pot) });
   }
   // Le travail en votre absence : une fois par départ, et seulement de retour chez soi. Une copie
   // plus ancienne qui porterait le même départ ne le fait pas payer deux fois.
@@ -19491,6 +20404,7 @@ function appliquer(d, vivantes) {
     P.solde = P.parti; P.parti = null; Sauve.sale = true;
   }
   installerCompagnes(liste, !!vivantes);
+  chaudronLu(d.chaudron);
   return true;
 }
 // Remet les compagnes d'une sauvegarde dans le jeu. Une bête déjà dehors sous le même numéro
@@ -19506,7 +20420,7 @@ function installerCompagnes(liste, vivantes) {
     if (!id || ids.has(id)) id = prochainId++;
     ids.add(id);
     const c = { id, esp: r.esp, nom: r.nom || tirerNom(), role: r.role, mode: r.mode || 'joueur', recolte: r.recolte, capT: r.capT, morphe: r.morphe, dehors: false, b: null,
-      pv: r.pv, faim: r.faim, soif: r.soif, nrj: r.nrj, ko: r.ko, aucamp: r.aucamp ? 1 : 0, variante: r.variante || null };
+      pv: r.pv, faim: r.faim, soif: r.soif, nrj: r.nrj, ko: r.ko, aucamp: r.aucamp ? 1 : 0, variante: r.variante || null, pot: r.pot || null };
     P.compagnes.push(c);
     const v = r.id ? enPlace.get(r.id) : null;
     if (v && v.sp.id === r.esp) {

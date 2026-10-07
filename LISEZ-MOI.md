@@ -95,6 +95,7 @@ Remplacer `index.html`, `donjon.js` et `sw.js` dans le dépôt : la page et le c
 - la table `vp_retours` reçoit les messages du bouton « Un problème, une idée ? » (Réglages) et les incidents techniques que le jeu envoie tout seul (trois par partie au plus) ;
 - `vp_supprimer_compte` : le bouton « Supprimer mon compte » (Sac › Sauvegarde) efface le compte, l'adresse e-mail, le personnage et les messages.
 - le pillage (fait le 25 septembre 2026) : les tables `vp_campements` et `vp_pillages`, fermées en lecture sauf à son propre campement et à ses propres pillages, et quatre fonctions (`vp_camp_publier`, `vp_camp_cible`, `vp_piller`, `vp_mes_pillages`) qui ne répondent qu'aux joueurs connectés. Supprimer son compte efface aussi son campement publié et les pillages subis (voir section 18).
+- les défenses du campement (fait le 7 octobre 2026, migration `vp_campement_defenses`) : `vp_campements` reçoit `niv_mur` et `niv_tours` (0 à 3), que `vp_camp_publier` enregistre et que `vp_camp_cible` rend (voir section 79).
 
 **Lire les retours** : Supabase → Table Editor → `vp_retours`, ou dans l'éditeur SQL :
 
@@ -280,7 +281,7 @@ Le pillage se joue **avec un compte** : sans compte, votre campement reste à l'
 - **Emporter** : le butin n'est à vous qu'une fois **sorti du campement**, ou d'un appui sur EMPORTER, ou à 20 %. Il passe alors par la base, qui le tire de son propre état du coffre, et il entre au sac. Repartir par la pierre de foyer ou par un portail emporte aussi ce qui a été pris. **Terrassé avant**, on repart les mains vides. La visite dure au plus dix-huit minutes.
 - **Le pillé**, à son retour, voit un avis (« Corbeau a pillé votre campement · −12 bois · −6 pierre · bouclier douze heures ») ; le butin est retiré de son coffre, et la page Campement du sac garde les cinq derniers pillages, avec le nombre de ses gardiennes.
 - **Les protections** : douze heures de **bouclier** après chaque pillage ; personne ne vient tant que vous êtes sur votre île (le jeu le signale toutes les deux minutes) ; un seul pillard à la fois par campement ; six visites par heure au plus pour un même pillard. La base borne la part au temps réellement passé depuis l'ouverture du portail : une part annoncée trop forte est ramenée à ce qui était possible.
-- **Ce qui est partagé** : votre pseudo, l'île et la place de votre campement, son niveau, le contenu du coffre et l'espèce, la santé et la robe de vos gardiennes. Jamais votre adresse. Personne ne peut lire les campements des autres : la base choisit la cible, et ne révèle que celle qu'elle vous donne. Vous ne lisez que vos propres pillages.
+- **Ce qui est partagé** : votre pseudo, l'île et la place de votre campement, son niveau, celui de son rempart et de ses tours, le contenu du coffre et l'espèce, la santé et la robe de vos gardiennes. Jamais votre adresse. Personne ne peut lire les campements des autres : la base choisit la cible, et ne révèle que celle qu'elle vous donne. Vous ne lisez que vos propres pillages.
 - **Le trafic** : une lecture des pillages toutes les trois minutes, une publication du campement quand il change (une par minute au plus), et une toutes les deux minutes quand vous êtes chez vous.
 
 ## 19. Le Centre des automates (le donjon)
@@ -1568,7 +1569,7 @@ Dans le code : `COUT_MODULE`, `creerModule`, `ditPortail` (ce que le portail sai
 
 | D'où | Ce qu'on y fabrique |
 |---|---|
-| **À la main**, partout, sans campement | couteau d'os, pioche, gourdin, tunique de fibre, canne à pêche, flèches, baume de relève, campement |
+| **À la main**, partout, sans campement | couteau d'os, pioche, gourdin, tunique de fibre, canne à pêche, flèches, campement |
 | **Établi niveau 1** | lance d'os, épée de pierre, arc, cuirasse d'os, lanterne, marmite portable, sifflet d'os, lien d'éclat, ceinture — et la création des modules : coffre, portail, cuisine |
 | **Établi niveau 2** | serpe cristalline, lame d'éclat, manteau d'éclats, les quatre grimoires, lampe d'ambre |
 | **Établi niveau 3** | foreuse, marteau-pilon, arbalète à poulies, plastron de ferraille |
@@ -1600,3 +1601,169 @@ La bêta : un bouton par module (chaque appui monte d'un niveau, puis retire).
 Testé sur ordinateur et téléphone : à la main sans campement (le campement et la pioche se font, la lance non), l'établi créé au prix juste, les niveaux 2 et 3 qui ouvrent leurs objets, le refus loin du campement, le coffre, le portail et la cuisine refusés sans établi ; le feu de camp qui ne cuisine plus, la marmite portable à deux ingrédients, la cuisine à deux, trois puis quatre, une recette à quatre refusée au niveau 1 ; les modules dessinés aux trois niveaux ; nectar, ceinture, spores, plats et départ par le portail sans régression.
 
 Dans le code : `et` sur chaque objet d'`OBJETS` (le niveau d'établi qu'il faut, absent = à la main), `verrouFab`, `noteEtabli` ; `COUT_MODULE` (création et niveaux), `coutModule`, `MODULE_MAX`, `nivModule`, `creerModule`, `ameliorerModule` ; `cuisineIci`, `marmitePres`, `placesMarmite`, `MARMITE_PORTABLE` ; `etabliOs`, `cuisineOs` ; `modsDits` / `modsLus` (réseau).
+
+## 77. Le voile des portails remis dans son plan, et la table de soin
+
+**Le voile des portails.** Les quatre lames du voile étaient dessinées en travers de l'arche (des ailettes, vues par la tranche quand on regardait le portail de face). Elles sont maintenant dans le plan de l'arche : un rideau qui ferme le passage. Cela vaut pour l'arche de chaque île, le portail du campement (niveaux 1 et 2 ; à partir du 3 sa nappe vive était déjà dans le bon plan) et le seuil des nomades. Cause : une boîte debout prend sa première largeur selon y, la seconde selon x — les deux étaient inversées dans `portailOs`.
+
+**La table de soin**, troisième module à se créer grâce à l'établi : 30 fibres · 16 bois · 6 os. Niveau 2 : 50 fibres · 14 os · 10 éclats. Niveau 3 : 80 fibres · 36 éclats · 24 os. On y prépare des soins, comptés au sac comme les flèches ; chaque niveau en ouvre de plus forts.
+
+| Table | Pour soi ou un équipier | Pour une compagne |
+|---|---|---|
+| Niveau 1 | **Bandage** (×2) — +35 % de vie — 12 fibres | **Onguent** (×2) — +50 % de vie — 8 fibres · 4 baies ; **Baume de relève** — relève une compagne à terre, à 60 % — 14 fibres · 4 os |
+| Niveau 2 | **Cataplasme** — +65 % de vie, chasse le poison et la brûlure — 14 fibres · 6 baies | **Onguent fort** — toute sa vie, et rassasiée — 12 fibres · 6 baies · 3 os |
+| Niveau 3 | **Élixir de vie** — toute la vie, chasse poison et brûlure, rend un cœur perdu — 14 éclats · 20 fibres · 6 os | **Baume de vie** — relève une compagne à terre, toute sa vie rendue — 8 éclats · 14 fibres · 6 os |
+
+- **Pour soi** : depuis le sac (rangée « Soins », bouton Utiliser) ou depuis une case du bord droit. Trois secondes entre deux soins. Un soin qui ne servirait à rien n'est pas dépensé.
+- **Pour un équipier** : un joueur à moins de 3,5 pas. Le bouton « Soigner <son nom> » du sac ; ou la case, quand on est soi-même en pleine forme. Le soin part par le réseau (évènement `soin`) et s'applique chez lui ; un ancien client l'ignore. Aucun changement Supabase.
+- **Pour une compagne** : depuis l'onglet Compagnes, un bouton par soin possédé. À terre, il lui faut un baume : celui de relève (niveau 1, à 60 % de sa vie) ou le baume de vie (niveau 3, toute sa vie). **Le baume de relève ne se fait plus à la main** : il se prépare à la table de soin, comme les autres soins ; ceux qu'on a déjà en réserve restent.
+- Les soins se préparent **au campement**, à la table, comme le reste se fabrique à l'établi : onglet Fabrication, filtre « Soins ». Ils ne se perdent pas avec le sac.
+
+**Au campement.** La table prend sa place sur l'anneau : une table nappée, un mortier, un rouleau de bandage ; une étagère de pots au niveau 2 ; des fioles qui luisent au niveau 3. Volet Camp : Se reposer, Établi, Coffre, Portail, Cuisine, Table de soin, Modules, Reprendre, Compagnes, Pillage.
+
+Testé sur ordinateur et téléphone : le voile avant et après, de face et de trois quarts ; la table refusée sans établi, créée, montée deux fois ; chaque soin refusé sous son niveau et loin du campement ; bandage, cataplasme (poison et brûlure chassés), élixir (cœur rendu) ; le refus à pleine vie, la pause de trois secondes ; un équipier soigné (message parti, soin non dépensé s'il va bien) et le soin reçu d'un autre (borné : un par seconde, un soin connu seulement) ; onguent, onguent fort, baume de vie sur une compagne à terre ; un soin rangé dans une case et utilisé ; sauvegarde relue, valeurs hostiles bornées ; établi, cuisine, ceinture, plats et portail sans régression.
+
+Dans le code : `ts` sur un objet (le niveau de table qu'il faut), `atelierDe`, `verrouFab` ; `P.soins`, `soigner`, `effetSoin`, `etreSoigne`, `soignerCompagne`, `equipierProche`, `SOIN_PAUSE`, `SOIN_PORTEE` ; `grilleSoins`, `ficheSoin` ; `soinOs`.
+
+## 78. La défense, premier temps : le rempart et les tours, contre la faune et les étrangers
+
+Le pillage est venu dans un second temps : voir la section 79.
+
+**L'abri du feu rétrécit.** Il couvrait sept cases autour du campement ; il ne couvre plus que **le rond lui-même** (quatre cases du feu). Dans le rond, comme avant : les prédateurs ne vous prennent pas pour proie et les coups des autres joueurs ne portent pas. Au-delà, plus rien ne protège — sinon la défense. La réserve commune (établi, cuisine, compagnes qui puisent au coffre) porte toujours à sept cases.
+
+**Le module Défense** se crée grâce à l'établi : un poste de garde à sa place sur l'anneau (30 bois · 20 pierres · 10 fibres). Deux branches s'y améliorent à part, trois niveaux chacune :
+
+| | Niveau 1 | Niveau 2 | Niveau 3 |
+|---|---|---|---|
+| **Rempart** | Barricade de pieux : les bêtes n'entrent plus — 60 bois · 20 fibres | Palissade : les joueurs étrangers non plus, on entre par la porte — 90 bois · 60 pierres · 30 fibres | Mur de pierre crénelé : il arrête aussi les tirs — 220 pierres · 30 éclats · 20 os |
+| **Tours** | 1 tour, 8 cases, un tir toutes les 2,2 s — 50 bois · 30 pierres · 10 os | 2 tours, 10 cases, plus fort — 80 bois · 60 pierres · 30 éclats | 4 tours, 13 cases — 30 ferraille · 60 éclats · 120 pierres |
+
+**Le rempart** suit la bordure du rond ; sa porte est à l'entrée (trois cases).
+- Les bêtes n'entrent plus dans le rond. Passent quand même : les compagnes, ce qui vole, les nomades, et une bête déjà dedans peut toujours sortir.
+- La barricade (niveau 1) s'enjambe : elle n'arrête aucun joueur. Dès la palissade, on n'entre que par la porte, et seulement si l'on est du campement ou de son groupe ; un étranger reste dehors. **Sortir reste toujours libre** : on ne s'enferme pas.
+- Le mur de pierre arrête à l'entrée du rond les tirs qui volent plus bas que ses créneaux (spores, traits d'automates, obus, flèches d'un étranger).
+- La porte s'ouvre à l'approche de quelqu'un du campement.
+
+**Les tours** prennent les coins du rond. Elles tirent seules sur la bête hostile la plus proche à portée (un prédateur éveillé, une bête en colère ou qui s'en prend à vous ou à une compagne), jamais sur une bête paisible, une compagne, un nomade. Elles tirent aussi, trente secondes durant, sur un joueur qui vient de vous frapper. Leurs coups pèsent comme ceux d'une arme (ils faiblissent avec le danger de l'île). **Une bête abattue par une tour ne laisse pas de butin** : on ne chasse pas en dormant.
+
+**Chez les autres.** Rempart et tours d'un joueur se voient sur son campement, à leur niveau, et son rempart vous arrête comme le vôtre l'arrête (le sixième nombre du message `cp` porte ces deux niveaux).
+
+**Onglet Campement**, volet Camp : la case Défense crée le poste, puis montre les deux branches, chacune avec son état, son niveau suivant, son prix et son bouton (deux appuis). La bêta a ses boutons (défense, rempart, tours).
+
+Testé : l'abri à 1, 3,5, 4,5, 6,5 et 8 cases ; le poste refusé sans établi, créé, les deux branches montées jusqu'à 3 puis refusées ; un traqueur en colère lancé sur le joueur au centre reste dehors dès la barricade ; la porte, les côtés et le fond pour soi, pour un étranger, pour un membre du groupe ; la sortie libre ; les tirs bas arrêtés par le mur de pierre et pas par la palissade ; une tour qui entame un traqueur (12 coups en 30 s au niveau 1), quatre tours qui l'abattent en deux salves, aucune matière gagnée ; une bête paisible épargnée ; la riposte sur un joueur agresseur ; sauvegarde relue et bornée ; le dessin aux trois niveaux, porte ouverte et fermée ; soins, portail, nectar, retour d'expédition sans régression. Non testé entre deux vrais clients : le rempart et les tours vus chez un autre joueur.
+
+Dans le code : `P.defense`, `DEF_MAX`, `COUT_DEFENSE`, `TOURS` (nombre, portée, dégâts, cadence, hauteur), `TOUR_COINS`, `ameliorerDefense` ; `majMurs`, `murJoueur`, `murBete`, `murTir`, `parLaPorte`, `allieDuCamp`, `porteOuverte` ; `majTours`, `beteHostile`, `Agresseurs` ; `posteOs`, `rempartOs`, `tourOs` ; `ABRI` (4) et `RESERVE_R` (7).
+
+## 79. La défense, second temps : le pillard contre le rempart et les tours
+
+**La base a changé** (migration `vp_campement_defenses`, appliquée le 7 octobre 2026) : `vp_campements` porte deux colonnes de plus, `niv_mur` et `niv_tours` (de 0 à 3) ; `vp_camp_publier` les enregistre, `vp_camp_cible` les rend. `vp_piller` n'a pas bougé : la part reste plafonnée à **20 %** du coffre, et à un centième par seconde de visite. Un campement publié avant cette version passe pour sans défense jusqu'à ce que son joueur rejoue.
+
+**Ce que le pillard trouve.** Le campement visité se dresse avec le rempart et les tours de son propriétaire, à leur niveau. L'annonce d'arrivée les nomme (« palissade · 2 tours · forcez la porte, puis au coffre »).
+
+**Le rempart.** Chez celui qu'on pille, tout rempart arrête — même la barricade, qui ailleurs s'enjambe. On n'entre que par la **porte, une fois forcée** : on la frappe à l'arme (ATTAQUER ou ACTION, le coup se tourne vers elle) ou on la crible de flèches. Elle tient, en dégâts d'arme : 3 (barricade), 8 (palissade), 18 (mur de pierre) — au gourdin 4 s, 11 s, 25 s environ ; à l'épée 2 s, 5 s, 11 s ; au marteau-pilon 6 s pour le mur de pierre. Forcée, elle reste ouverte. Sortir reste libre. Les compagnes du pillard restent dehors tant qu'elle tient ; les gardiennes passent. **Derrière un rempart, le coffre ne se vide que de l'intérieur** (sans cela on l'atteignait depuis la porte).
+
+**Les tours** tirent sur le pillard dès qu'il est à portée (8, 10, 13 cases) : un carreau qu'on voit venir, qu'un pas de côté esquive, qu'un arbre arrête. Touché, on perd 6 %, 8 % ou 10 % de vie selon le niveau (l'armure en retient sa part), on recule, et l'on reste une seconde hors d'atteinte — comme pour tout coup, ce qui interrompt aussi le pillage au coffre. Une tour **s'abat** : à l'arme depuis son pied (elles sont aux coins, on les atteint de dehors) ou à l'arc, de plus loin que leur portée. Elle tient 1,5, 3 ou 5 dégâts d'arme ; il en reste une ruine. La visite close, elles se taisent.
+
+**Rien n'est abîmé chez le pillé** : la porte forcée et les tours abattues ne le sont que pour cette visite, sur la copie que la base a donnée au pillard. Le pillé ne perd que la part de coffre, comme avant, et garde son bouclier de douze heures.
+
+**Sauvegarde** : la visite en cours garde l'état de la porte et de chaque tour (`porte`, `tk`) ; recharger ne les relève pas.
+
+Testé (campement visité simulé, base remplacée par un double) : les niveaux lus, bornés, relus de la sauvegarde, une sauvegarde gonflée ramenée aux bornes ; le rempart qui arrête aux trois niveaux, de côté et à la porte ; la porte forcée au gourdin, à l'épée, au marteau, puis l'entrée par elle seule ; rien de pillé depuis le dehors, 20 % emportés une fois dedans ; les tours immobile (5, 6, 7 coups en dix secondes), en courant (aucun), hors de portée, visite close, en cuirasse ; les tours abattues à l'arme, entamées à l'arc, puis muettes ; les essais de la section 78 repassés. **Pas vérifié** : un vrai pillage entre deux comptes, de la publication à l'emport — il faudra le jouer.
+
+Dans le code : `PORTE_RAID`, `TOUR_RAID`, `TOUR_RAID_DEG`, `TOUR_RAID_N` ; `Raid.mur`, `Raid.tours`, `Raid.porte`, `Raid.tk` (lus par `raidLu`, gardés par `raidPhoto`) ; `ouvrageProche`, `frapperOuvrage`, `flecheOuvrage`, `majToursRaid`, `carreauTouche`, `tourRuineOs` ; la branche `c === Raid` de `murJoueur`, `murBete`, `porteOuverte`, `defDuCamp` ; `campPublic` publie `niv_mur` et `niv_tours`.
+
+## 80. Au campement, l'action suit ce qu'on approche
+
+Le bouton ACTION ne disait que « CAMPEMENT » dans tout le rond. Il propose maintenant ce qui est **à portée de main** (1,3 case), le plus proche l'emportant :
+
+| On approche… | ACTION propose | et ouvre |
+|---|---|---|
+| la tente | SE REPOSER | Campement › Camp, case Se reposer |
+| l'établi | FABRIQUER | l'onglet Fabrication, tout affiché |
+| le coffre | COFFRE | Campement › Camp, case Coffre |
+| le portail | PORTAIL | Campement › Portail |
+| la cuisine | CUISINER | Campement › Cuisine (la marmite) |
+| la table de soin | SOINS | l'onglet Fabrication, filtré sur les soins |
+| le poste de garde | DÉFENSE | Campement › Camp, case Défense |
+| un emplacement libre | CRÉER · le nom du module | la case de ce module (« il faut l'établi » s'il manque) |
+| le feu, ou rien de précis | CAMPEMENT · vue d'ensemble | Campement › Camp, comme avant |
+
+Les emplacements de l'alchimie et de la bibliothèque ne proposent rien tant que ces modules n'existent pas. Améliorer un module se fait toujours depuis sa case, dans Campement › Camp. Rien d'autre ne change : une bête au contact se frappe d'abord, la marmite portable garde son action, et hors du rond le bouton reprend son rôle habituel.
+
+Testé : le camp de base, l'établi seul, tous les modules — chaque emplacement approché, l'action lue puis jouée, le panneau ouvert vérifié ; l'approche par le dehors du rond, entre deux modules, hors du rond ; le bouton à l'écran et son appui réel devant la cuisine.
+
+Dans le code : `moduleProche`, `campAction`, `MODULE_PRES`, `CASE_MODULE`, appelés par `actionContexte`.
+
+## 81. La table d'alchimie : les potions, seul moyen d'améliorer le personnage
+
+Il n'y a pas de niveau de personnage : c'est par les potions qu'il progresse, et pour de bon. Rien ne change dans Supabase.
+
+**Le module.** La table d'alchimie se crée grâce à l'établi, à sa place sur l'anneau (40 pierres · 20 bois · 20 éclats), et s'améliore deux fois (60 pierres · 50 éclats · 20 os, puis 30 ferraille · 90 éclats · 100 pierres). Niveau 1 : les rangs 1 et 2. Niveau 2 : le rang 3. Niveau 3 : les rangs 4 et 5. Chaque niveau au-delà du premier ajoute 8 points de chance. Devant elle, ACTION propose ALCHIMIE (ou CRÉER tant qu'elle n'existe pas).
+
+**Huit caractéristiques, cinq rangs chacune.**
+
+| Caractéristique | Base | Par rang | Au rang 5 |
+|---|---|---|---|
+| Vie | 100 | +10 : la jauge tient davantage, toute blessure en coûte moins | 150 |
+| Souffle | 8 s de course | +10 % | 12 s |
+| Mana | sorts à 100 % | −8 % d'éclats par sort | 60 % |
+| Force | 100 % | +10 % aux coups et aux flèches | 150 % |
+| Récupération | la vie remonte 8 s après le dernier coup | 0,8 s plus tôt, 20 % plus vite | 4 s, deux fois plus vite |
+| Vitesse | 100 % | +4 % | 120 % |
+| Saut | 100 % | +5 % | 125 % |
+| Récolte | 100 % | +10 % (la fraction tombe au sort) | 150 % |
+
+Les plats de la cuisine restent temporaires et s'ajoutent par-dessus.
+
+**Préparer une potion.** Une recette par caractéristique et par rang : de trois étapes (rang 1) à six (rang 5). Chaque étape demande une famille d'ingrédient et une rareté minimale ; chaque caractéristique a ses trois familles (la force : viande, racine, champignon ; le souffle : poisson, feuille, graine…). Les rangs 4 et 5 demandent en plus un ou deux ingrédients « très rares », de n'importe quelle famille.
+- **L'ordre compte.** On verse un ingrédient à la fois, depuis le garde-manger. S'il convient à l'étape attendue, il la prend. S'il ne convient qu'à une étape plus loin, il la prend quand même et c'est une faute : −15 points de chance. S'il n'entre nulle part, il est refusé sans être consommé.
+- **Versé, c'est versé** : l'ingrédient est consommé aussitôt. On peut vider le chaudron (deux appuis), mais ce qui y était est perdu. Le chaudron en cours est gardé par la sauvegarde.
+- **La chance** s'affiche en permanence : 80, 70, 60, 50, 40 % selon le rang, +8 par niveau de table, +3 par cran de rareté au-dessus du demandé (15 au plus), −15 par faute ; jamais moins de 5 %, jamais plus de 95 %.
+- **Tenter** coûte des éclats (6, 12, 20, 30, 45) et, dès le rang 3, des spores de Korlaz (4, 8, 12) : elles trouvent là leur usage.
+- **Réussie**, la potion est bue sur place et le rang est acquis. **Ratée, tout est perdu** : ingrédients, éclats, spores.
+
+**La page Alchimie**, nouveau volet du Campement. À gauche la fiche : pour chaque caractéristique la base, les rangs de potion et le total ; puis les compagnes, avec leurs aptitudes d'espèce (leurs potions : section 82). À droite la potion choisie : son effet, sa chance et d'où elle vient, la recette étape par étape, puis le garde-manger réduit à ce qui peut encore entrer. La fiche se consulte partout ; verser et tenter demandent d'être à la table. Sur téléphone, la potion passe avant les compagnes.
+
+**À savoir.** « Résistance », annoncée dans le plan, a laissé sa place à « Récupération » : la jauge de vie étant une fraction, une vie plus grande et une résistance aux coups revenaient au même levier. Le mana n'a pas de réserve propre (ce sont les éclats du sac) : sa potion baisse le prix des sorts.
+
+**Bêta** : deux boutons, « Alchimie n/3 » (le module) et « Potions : rang n/5 » (toutes les caractéristiques d'un coup).
+
+Testé : la table refusée sans établi, créée, montée à 3 puis refusée ; les 40 recettes, dont aucune étape n'est impossible à remplir ; une potion versée dans l'ordre puis réussie, une autre avec une faute et un ingrédient très rare puis ratée (rang inchangé, tout consommé) ; un ingrédient hors recette ou trop commun refusé sans perte ; le rang 3 refusé à la table de niveau 1 ; rien loin du campement ; le chaudron vidé ; les spores manquantes puis fournies ; l'effet mesuré de chaque caractéristique au rang 0 et au rang 5 ; la sauvegarde relue, puis gonflée et ramenée aux bornes ; la page à l'écran, au clic, sur téléphone ; les essais des sections précédentes repassés.
+
+Dans le code : `P.alchimie`, `P.chaudron` ; `ALCH`, `ALCH_MOTIF`, `ALCH_COUT`, `ALCH_CHANCE`, `ALCH_NIV` ; `rangAlch`, `vieK`, `forceK`, `sautK`, `arrondiAlch` ; `recetteAlch`, `etapeVa`, `chanceAlch`, `verserAlch`, `tenterAlch`, `viderAlch`, `alchimieLue` ; `pageAlchimie`, `alchimieOs`. Le septième groupe de deux bits de `modsDits` porte le niveau de la table.
+
+## 82. Les potions des compagnes : récolte, défense, et une compétence par type
+
+Les compagnes ont maintenant leurs potions, préparées à la table d'alchimie comme les vôtres (recette à verser dans l'ordre, chance de réussite, tout perdu si la potion tourne). Réussie, la potion est donnée à la compagne choisie, pour de bon. Rien ne change dans Supabase.
+
+**Trois potions par compagne.**
+
+| Potion | Rangs | Effet |
+|---|---|---|
+| Récolte | 5 | +10 % par rang à tout ce qu'elle rapporte, sur place comme en votre absence |
+| Défense | 5 | par rang, +10 % à ses coups et −6 % à ceux qu'elle reçoit |
+| Éveil | 3 | le premier rang lui apprend la compétence de son type ; les deux suivants la renforcent |
+
+La potion d'éveil est plus exigeante : elle part des recettes du rang 3 (cinq étapes, 60 % de base, table au niveau 2), puis du rang 4 et du rang 5 (table au niveau 3). Une compagne à terre ne reçoit pas de potion.
+
+**Une compétence par type.** Elle s'en sert seule, quand la situation s'y prête, avec un délai entre deux usages.
+
+| Type | Compétence | Rang 1 | Rang 2 | Rang 3 |
+|---|---|---|---|---|
+| **Rampants** (brouteur, bossu, glaneur, traqueur, spectre, félin, bramard, sterne, dragon, silencieux, mille-gueules) | **Boule visqueuse** : elle crache sur la bête qui vous menace, clouée sur place, sans assaut possible | 2,5 s, toutes les 10 s | 3,5 s, toutes les 8 s | 4,5 s, toutes les 6 s |
+| **Coursiers** | **Charge** : en selle et au galop, il renverse et blesse ce qui est devant lui. **Ruade** : monté ou non, une bête hostile à moins d'une case et demie est repoussée avec ses voisines | ruade toutes les 9 s | toutes les 7 s | toutes les 5 s |
+| **Telluriens** (crapaud-buffle, varan, vesseron, cerf de verre, salamandre) | **Secousse** : une bête hostile tout près, il frappe le sol ; tout ce qui l'entoure est repoussé, blessé un peu, étourdi | 3 cases, 1,2 s, toutes les 14 s | 3,5 cases, 1,6 s, toutes les 11 s | 4 cases, 2 s, toutes les 8 s |
+| **Doux** (lentigrade, cotonnier, carillonneur, oglodon) | **Trouvaille** : en rapportant sa récolte, elle déniche parfois un produit rare de la flore | 8 % | 12 % | 16 %, dont parfois un « très rare » |
+
+- **Les automates** reçoivent les potions de récolte et de défense, mais n'ont pas de compétence.
+- **La boule visqueuse et les joueurs.** Elle ne part sur un joueur que si vous venez de le frapper (dans les huit secondes). Touché, il est cloué sur place, sans saut, le temps de la boule (5 s au plus), sauf dans le rond d'un campement. Qui englue devient une cible pour les tours du joueur visé.
+- **Un gardien de portail** ne reste englué que 40 % du temps, et les coups des compétences le blessent sans le repousser ni l'étourdir.
+- **La trouvaille en votre absence** : une Douce restée au campement en rapporte aussi, au cellier (une toutes les vingt minutes par rang, environ).
+
+**La fiche**, page Alchimie : sous vos caractéristiques, chaque compagne a ses lignes — récolte, défense, compétence — avec la base, les rangs de potion et le total, puis les aptitudes de son espèce. Une ligne se choisit comme une des vôtres : la recette s'affiche à droite. Dans l'onglet Compagnes, la fiche rappelle les potions reçues.
+
+**Bêta** : « Compagnes : potions n/5 » monte d'un coup les trois potions de toutes les compagnes.
+
+Testé : une compagne de chaque type et un automate liés ; les trois potions préparées et données, la table trop basse et la compagne à terre refusées, le chaudron perdu quand la compagne visée n'est plus là ; la récolte (+50 % au rang 5, la fraction au sort), la trouvaille sur place et en absence ; la défense (coups ×1,5, coups reçus ×0,7 au rang 5) ; la boule visqueuse sur un traqueur en colère (engluée 2,5 s, immobile), rien sans potion, rien sur un joueur non frappé, le message envoyé au joueur frappé, et soi-même englué (ni pas ni saut, puis libre) ; la secousse et son délai, rien sans bête hostile ; la ruade, la charge au galop (devant seulement, pas deux fois de suite), rien au pas ; la sauvegarde relue, gonflée puis ramenée aux bornes. **Pas vérifié** : entre deux joueurs réellement connectés, et sur une faune partagée dont on n'est pas le gardien — les effets sur les bêtes y sont joués chez celui qui les anime.
+
+Dans le code : `c.pot` (`recolte`, `defense`, `comp`), `potComp`, `potBete`, `potLue` ; `ALCH_COMP`, `COMPETENCES`, `GLU`, `CHARGE`, `RUADE`, `SECOUSSE`, `TROUVE` ; `potionDe` (une potion par sa clé : `vie`, ou `c12:recolte`), `freinAlch`, `chaudronLu` ; `majCompetences`, `compGlu`, `gluTouche`, `engluer`, `etreEnglue` (message `glu`), `compCoursier`, `compSecousse`, `frappeComp`, `trouvaille`, `ditPotions`.
