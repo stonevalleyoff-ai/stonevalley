@@ -1,23 +1,23 @@
-// Stone Valley — LA FLORE_RARES RARE, LÉGENDAIRE ET ÉPIQUE (flore.js)
-// Pour chaque biome, douze plantes qu'on ne trouve qu'une à une : six RARES (magnifiques), quatre
-// LÉGENDAIRES (géantes, vivantes, et leurs ingrédients sont puissants), deux ÉPIQUES (géantes,
-// puissantes — et elles vous attaquent). Chacune a sa forme, tirée de quatorze silhouettes :
-//  rares      : l'étoile (les pétales s'ouvrent le jour, se ferment la nuit), les clochettes (un arc
+// Stone Valley — LA FLORE RARE (flore.js)
+// Pour chaque biome, douze plantes qu'on ne trouve qu'une à une. TOUTES SONT RARES : même rang, même
+// rareté d'ingrédient (« rare »). Les légendaires et les épiques restent à créer. Ce qui les
+// distingue n'est plus leur rang mais leur PORT (`port`), qui règle la taille et le comportement :
+//  simples (six) : l'étoile (les pétales s'ouvrent le jour, se ferment la nuit), les clochettes (un arc
 //               d'où pendent des cloches qui luisent), l'éventail (des frondes qui ondulent), la crosse
 //               (des spirales qui se déroulent), l'orbe (des lanternes qui flottent au bout des tiges),
 //               l'arbuste en fleurs (ses pétales tombent) — et, au champ de cristal, la cristalline ;
-//  légendaires: le colosse (une fleur de quatre mètres qui respire, ses étamines qui luisent), le saule
-//               de lumière (de longues chevelures qui ondoient au vent), la méduse (elle flotte et
-//               traîne ses filaments), l'arbre-lumière (des fruits lumineux qui tournent) ;
-//  épiques    : la gueule (deux mâchoires dentées sur une tige en S : elle se cabre, s'ouvre, mord),
+//  géantes (quatre) : le colosse (une fleur de quatre mètres qui respire, ses étamines qui luisent), le
+//               saule de lumière (de longues chevelures qui ondoient au vent), la méduse (elle flotte
+//               et traîne ses filaments), l'arbre-lumière (des fruits lumineux qui tournent) ;
+//  vives (deux) : la gueule (deux mâchoires dentées sur une tige en S : elle se cabre, s'ouvre, mord),
 //               la fouetteuse (des fouets d'épines qui fouettent), la cracheuse (un bulbe qui gonfle et
 //               crache un venin).
-// Toutes bougent : le vent, la respiration, le jour et la nuit. ACTION près d'elles : CUEILLIR (la rare
-// et la légendaire repoussent ; l'épique, il faut d'abord l'abattre). Les ingrédients rejoignent le
-// garde-manger : rares (rareté « rare »), légendaires et épiques (« légendaire », « épique »), plus
-// nourrissants, et chacun porte un effet.
+// Toutes bougent : le vent, la respiration, le jour et la nuit. ACTION près d'elles : CUEILLIR (la simple
+// et la géante repoussent ; la vive, il faut d'abord l'abattre). Les ingrédients rejoignent le
+// garde-manger, tous de rareté « rare », et chacun porte un effet.
+// Le biome nuage n'existe qu'en îles volantes : ses plantes se posent sur les dalles de nuage.
 // Partagées entre les joueurs d'une île (voir LISEZ-MOI, section 58) : la plante cueillie l'est pour tous
-// (« fcueille », et l'état de l'île donné au nouveau venu) ; l'épique est une bête du gardien de la faune :
+// (« fcueille », et l'état de l'île donné au nouveau venu) ; la vive est une bête du gardien de la faune :
 // elle attaque le joueur le plus proche, d'ici ou d'en face, et chez les autres n'est qu'une marionnette.
 // Abattue, son butin va à qui l'a abattue.
 // Le jeu (index.html) appelle floreIle(), majPlante, osPlante, cueillirPlante ; FLORE_SPEC et
@@ -26,7 +26,7 @@ const FL_FORMES_R = ['etoile', 'clochettes', 'eventail', 'spirale', 'orbe', 'arb
 const FL_PART = { etoile: ['Pétale', 'fleur'], clochettes: ['Clochette', 'fleur'], eventail: ['Fronde', 'feuille'], spirale: ['Crosse', 'feuille'], orbe: ['Orbe', 'fruit'], arbuste: ['Fleur', 'fleur'], cristalline: ['Éclat', 'graine'],
   colosse: ['Cœur', 'douceur'], saule: ['Larme', 'douceur'], meduse: ['Voile', 'champignon'], lumiere: ['Fruit', 'fruit'], gueule: ['Croc', 'racine'], fouetteuse: ['Épine', 'racine'], cracheuse: ['Venin', 'champignon'] };
 const FL_TAGS = ['nuit', 'braise', 'vif', 'fort', 'robuste', 'souffle'];
-// [biome, palette (tige, feuille, pétale, cœur, pointe), six rares | quatre légendaires | deux épiques]
+// [biome, palette (tige, feuille, pétale, cœur, pointe), six simples | quatre géantes | deux vives]
 const FL_BIOMES = [
   [1, [[96, 120, 110], [70, 150, 150], [236, 246, 250], [120, 220, 255], [255, 150, 140]], "Lys d'écume|Clochette des marées|Fougère-houle|Crosse de sel|Perle-de-dune|Corail fleuri|Rose des abysses|Saule d'embruns|Méduse des grèves|Arbre-nacre|Gueule des récifs|Cracheuse d'écume"],
   [2, [[96, 140, 60], [110, 170, 70], [255, 206, 90], [255, 240, 160], [250, 140, 170]], "Étoile des prés|Clochettes d'aube|Éventail de soie|Crosse dorée|Lanterne de rosée|Pommier nain|Soleil-colosse|Saule de lumière|Voile de pollen|Arbre aux mille fruits|Gueule-de-loup géante|Fouet des herbes"],
@@ -50,22 +50,22 @@ const FLORE_RARES = [], FLORE_PRODUITS = [];
 const flElide = s => { const m = s.charAt(0).toLowerCase() + s.slice(1); return (/^[aeiouyéèêàâîôûœh]/i.test(m) ? "d'" : 'de ') + m; };
 for (const [bio, pal, noms] of FL_BIOMES) {
   noms.split('|').forEach((n, i) => {
-    const rang = i < 6 ? 'rare' : i < 10 ? 'leg' : 'epique';
-    let forme = rang === 'rare' ? FL_FORMES_R[i] : rang === 'leg' ? FL_FORMES_L[i - 6] : i === 10 ? 'gueule' : /^Fouet/.test(n) ? 'fouetteuse' : 'cracheuse';
+    const port = i < 6 ? 'simple' : i < 10 ? 'geante' : 'vive';   // sa stature et sa conduite — pas son rang : toutes sont rares
+    let forme = port === 'simple' ? FL_FORMES_R[i] : port === 'geante' ? FL_FORMES_L[i - 6] : i === 10 ? 'gueule' : /^Fouet/.test(n) ? 'fouetteuse' : 'cracheuse';
     if (bio === 12 && forme === 'etoile') forme = 'cristalline';
     const id = 'fl' + bio + '_' + i, [part, fam] = FL_PART[forme], tag = FL_TAGS[(bio + i) % FL_TAGS.length];
-    FLORE_RARES.push({ id, n, bio, rang, forme, pal, ingr: 'p_' + id });
+    FLORE_RARES.push({ id, n, bio, rang: 'rare', port, forme, pal, ingr: 'p_' + id });
     const dejaNomme = n.toLowerCase().startsWith(part.toLowerCase()), ni = dejaNomme ? n : part + ' ' + flElide(n);   // « Orbe des aigles », pas « Orbe d'orbe des aigles »
     const court = n.charAt(0).toLowerCase() + n.slice(1);    // sous l'icône et dans le nom des plats : la plante, sans la partie
-    FLORE_PRODUITS.push([id, ni, court, fam, rang === 'rare' ? 3 : rang === 'leg' ? 5 : 6, tag, pal[2].slice()]);
+    FLORE_PRODUITS.push([id, ni, court, fam, 3, tag, pal[2].slice()]);   // rareté 3 : « rare », pour toutes
   });
 }
 const FLORE_SPEC = [
   { id: 'plante_r', n: 'Plante rare', plante: 1, batiment: 1, diet: 'p', sz: 1, spd: 0, vue: 0, peur: 0, herd: 0, cap: 0, mat: 9999, shell: [120, 170, 90], dark: [70, 100, 60], leg: [80, 110, 60], oeil: [255, 240, 160], bio: [], dur: 1, lien: 0, chasse: [], travail: {}, metier: '', grimpe: 0 },
-  { id: 'plante_l', n: 'Plante légendaire', plante: 1, batiment: 1, diet: 'p', sz: 1, spd: 0, vue: 0, peur: 0, herd: 0, cap: 0, mat: 9999, shell: [120, 170, 90], dark: [70, 100, 60], leg: [80, 110, 60], oeil: [255, 240, 160], bio: [], dur: 1, lien: 0, chasse: [], travail: {}, metier: '', grimpe: 0 },
-  { id: 'plante_e', n: 'Plante épique', plante: 1, epique: 1, diet: 'p', sz: 1.4, spd: 0, vue: 9, peur: 0, herd: 0, cap: 0, mat: 9999, shell: [120, 60, 70], dark: [70, 30, 40], leg: [80, 60, 50], oeil: [255, 80, 60], bio: [], dur: 3, lien: 0, chasse: [], travail: {}, metier: '', grimpe: 0 },
+  { id: 'plante_l', n: 'Grande plante rare', plante: 1, batiment: 1, diet: 'p', sz: 1, spd: 0, vue: 0, peur: 0, herd: 0, cap: 0, mat: 9999, shell: [120, 170, 90], dark: [70, 100, 60], leg: [80, 110, 60], oeil: [255, 240, 160], bio: [], dur: 1, lien: 0, chasse: [], travail: {}, metier: '', grimpe: 0 },
+  { id: 'plante_e', n: 'Plante rare vive', plante: 1, epique: 1, diet: 'p', sz: 1.4, spd: 0, vue: 9, peur: 0, herd: 0, cap: 0, mat: 9999, shell: [120, 60, 70], dark: [70, 30, 40], leg: [80, 60, 50], oeil: [255, 80, 60], bio: [], dur: 3, lien: 0, chasse: [], travail: {}, metier: '', grimpe: 0 },
 ];
-const FL_RANG = { rare: 'rare', leg: 'légendaire', epique: 'épique' };
+const FL_RANG = { rare: 'rare' };
 // ---------- l'île : quelques plantes, une à une, sur leur biome ----------
 function floreIle() {
   let s = (SEED ^ 0xf10e5) >>> 0 || 1; const r = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
@@ -76,9 +76,14 @@ function floreIle() {
     if (typeof VL !== 'undefined' && VL.ici && Math.hypot(VL.centre[0] - x, VL.centre[1] - y) < 10) return false;
     if (Math.hypot(P.x - x, P.y - y) < 6 || beasts.some(b => b.sp.plante && Math.hypot(b.x - x, b.y - y) < 3)) return false;
     return true; };
-  const poser = (pl, L, R) => { for (let k = 0; k < 30; k++) { const i = L[r() * L.length | 0]; if (!libre(i, R)) continue;
-      const x = i % WS + .5, y = ((i / WS) | 0) + .5, sp = specById[pl.rang === 'rare' ? 'plante_r' : pl.rang === 'leg' ? 'plante_l' : 'plante_e'];
-      const b = naitre(sp, x, y); b.age = 1e6; b.ech = pl.rang === 'rare' ? 1.3 : 1; b.pv = 1; b.z = sol(x, y); b.pl = pl; b.dir = b.dirT = r() * 6.2832; b.graine = r(); b.etat = 'pousse';
+  // sur une dalle de nuage : une dalle d'un seul tenant sous toute la plante, jamais une dalle conjurée
+  const libreDalle = (i, R) => { const x = i % WS, y = (i / WS) | 0, h = PlT[i]; if (!h || x < 4 || y < 4 || x > WS - 5 || y > WS - 5) return false;
+    for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const j = i + dy * WS + dx; if (PlT[j] !== h || (typeof dalleConjuree === 'function' && dalleConjuree(j))) return false; }
+    if (Math.hypot(P.x - x, P.y - y) < 6 || beasts.some(b => b.sp.plante && Math.hypot(b.x - x, b.y - y) < 3)) return false;
+    return true; };
+  const poser = (pl, L, R, dalle) => { for (let k = 0; k < 30; k++) { const i = L[r() * L.length | 0]; if (!(dalle ? libreDalle(i, R) : libre(i, R))) continue;
+      const x = i % WS + .5, y = ((i / WS) | 0) + .5, sp = specById[pl.port === 'simple' ? 'plante_r' : pl.port === 'geante' ? 'plante_l' : 'plante_e'];
+      const b = naitre(sp, x, y); b.age = 1e6; b.ech = pl.port === 'simple' ? 1.3 : 1; b.pv = 1; b.z = dalle ? PlT[i] : sol(x, y); b.pl = pl; b.dir = b.dirT = r() * 6.2832; b.graine = r(); b.etat = 'pousse';
       for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) if (Flo[i + dy * WS + dx]) Flo[i + dy * WS + dx] = 0;
       beasts.push(b); return b; } return null; };
   const niv = profondeur();
@@ -89,8 +94,18 @@ function floreIle() {
     if (r() < .45 + Math.min(.3, niv * .02)) poser(cat[6 + (r() * 4 | 0)], L, 2);
     if (niv >= 2 && r() < .35 + Math.min(.25, niv * .015)) poser(cat[10 + (r() * 2 | 0)], L, 1);
   }
+  // Le nuage n'a pas de sol : il n'existe qu'en îles volantes. Ses plantes se posent sur les dalles,
+  // après toutes les autres (le tirage des plantes du sol ne change pas). Mêmes parts que les autres biomes.
+  { const cat = FLORE_RARES.filter(p => p.bio === 17), L = [];
+    for (let i = 0; i < WS * WS; i++) if (PlT[i] && !(typeof dalleConjuree === 'function' && dalleConjuree(i))) L.push(i);
+    if (cat.length && L.length >= 60) {
+      const nR = Math.max(2, Math.min(7, L.length / 350 | 0));
+      for (let k = 0; k < nR; k++) poser(cat[r() * 6 | 0], L, 0, true);
+      if (r() < .45 + Math.min(.3, niv * .02)) poser(cat[6 + (r() * 4 | 0)], L, 2, true);
+      if (niv >= 2 && r() < .35 + Math.min(.25, niv * .015)) poser(cat[10 + (r() * 2 | 0)], L, 1, true);
+    } }
 }
-// ---------- la vie : le vent, la repousse, et l'épique qui attaque ----------
+// ---------- la vie : le vent, la repousse, et la vive qui attaque ----------
 function majPlante(b, dt, marionnette) {
   b.t += dt; if (b.hit > 0) b.hit -= dt; b.vx = b.vy = 0;
   const pl = b.pl; if (!pl) return;
@@ -99,24 +114,24 @@ function majPlante(b, dt, marionnette) {
     // suiveur, seulement si c'est lui qui vient de la frapper
     const moi = marionnette ? maintenant() - (b.coupT ?? -99) < 2.5 : !b.tueDistant;
     if (!b.butin && !moi) b.butin = true;
-    if (!b.butin) { b.butin = true; const n = 2; metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); say(`${pl.n} est vaincue · +${n} ${INGR[pl.ingr].n.toLowerCase()} (épique)`, 3.5); burst(b.x, b.y, b.z + 1, 24, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac(); }
+    if (!b.butin) { b.butin = true; const n = 2; metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); say(`${pl.n} est vaincue · +${n} ${INGR[pl.ingr].n.toLowerCase()}`, 3.5); burst(b.x, b.y, b.z + 1, 24, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac(); }
     b.dead = 1; return;
   }
   if (b.cueillie && t > b.repousseT) b.cueillie = false;
   const dJ = Math.hypot(P.x - b.x, P.y - b.y);
-  if (pl.rang !== 'rare' && !b.cueillie && dJ < 30 && Math.random() < dt * (pl.rang === 'leg' ? 3 : 1.5)) {     // le pollen, les lueurs
-    const a = Math.random() * 6.2832, r0 = Math.random() * 1.5, h = pl.rang === 'leg' ? 1 + Math.random() * 3 : .5 + Math.random();
+  if (pl.port !== 'simple' && !b.cueillie && dJ < 30 && Math.random() < dt * (pl.port === 'geante' ? 3 : 1.5)) {     // le pollen, les lueurs
+    const a = Math.random() * 6.2832, r0 = Math.random() * 1.5, h = pl.port === 'geante' ? 1 + Math.random() * 3 : .5 + Math.random();
     parts.push({ x: b.x + Math.cos(a) * r0, y: b.y + Math.sin(a) * r0, z: b.z + h, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, vz: .15 + Math.random() * .2, g: -.05, life: 2.5, age: 0, col: 'rgb(' + pl.pal[3].join(',') + ')', luit: 1, tl: .05 });
   }
-  if (pl.rang === 'arbuste' || pl.forme === 'arbuste') if (!b.cueillie && dJ < 25 && Math.random() < dt * .8) parts.push({ x: b.x + (Math.random() - .5) * 1.4, y: b.y + (Math.random() - .5) * 1.4, z: b.z + 1.3, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, vz: -.1, g: .3, life: 3, age: 0, col: 'rgb(' + pl.pal[2].join(',') + ')', tl: .05 });
-  if (pl.rang !== 'epique') return;
+  if (pl.forme === 'arbuste') if (!b.cueillie && dJ < 25 && Math.random() < dt * .8) parts.push({ x: b.x + (Math.random() - .5) * 1.4, y: b.y + (Math.random() - .5) * 1.4, z: b.z + 1.3, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, vz: -.1, g: .3, life: 3, age: 0, col: 'rgb(' + pl.pal[2].join(',') + ')', tl: .05 });
+  if (pl.port !== 'vive') return;
   if (marionnette) {                                       // chez un suiveur : le gardien dit quand elle s'arme et frappe
     if (b.etat === 'arme') b.armeT = (b.armeT || 0) + dt;
     else if (b.etat === 'frappe') { if (b.etatNeuf && pl.forme !== 'cracheuse') SON.jouer(pl.forme === 'gueule' ? 'pilon' : 'tir', {}, b.x, b.y, b.z + 1); b.frappeT = (b.frappeT || 0) + dt; }
     if (b.etatNeuf && b.etat === 'arme') b.armeT = 0;
     return;
   }
-  // l'épique : elle guette, s'arme (on le voit), frappe ; puis elle se remet. Elle vise le joueur le plus
+  // la vive : elle guette, s'arme (on le voit), frappe ; puis elle se remet. Elle vise le joueur le plus
   // proche, d'ici ou d'en face
   const J = typeof JC !== 'undefined' && JC ? JC : P, dK = Math.hypot(J.x - b.x, J.y - b.y);
   const R = pl.forme === 'cracheuse' ? 9 : pl.forme === 'fouetteuse' ? 4.2 : 3.4, vu = J.pv > 0 && dK < R && Math.abs(J.z - b.z) < 3 && !abriDe(J);
@@ -140,22 +155,22 @@ function majPlante(b, dt, marionnette) {
   } else if (b.etat === 'frappe') { b.frappeT += dt; if (b.frappeT > 1.3) b.etat = 'guette'; }
   else { b.etat = 'guette'; if (vu && b.t > (b.cdT || 0)) { b.etat = 'arme'; b.armeT = 0; b.cdT = b.t + (pl.forme === 'cracheuse' ? 3.2 : 2.2); } }
 }
-// La nuit, les plantes les plus proches éclairent autour d'elles (les légendaires et les épiques plus loin).
+// La nuit, les plantes les plus proches éclairent autour d'elles (les géantes et les vives plus loin).
 function lueursPlantes(pousse) {
   const L = [];
   for (const b of beasts) if (b.sp.plante && b.pl && !b.cueillie && !b.dead) { const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < 484) L.push([b, d]); }
   L.sort((a, b) => a[1] - b[1]);
-  for (const [b] of L.slice(0, 4)) { const g = b.pl.rang !== 'rare'; pousse(b.x, b.y, b.z + (g ? 2.2 : .8), g ? 3.4 : 1.6); }
+  for (const [b] of L.slice(0, 4)) { const g = b.pl.port !== 'simple'; pousse(b.x, b.y, b.z + (g ? 2.2 : .8), g ? 3.4 : 1.6); }
 }
 function cueillirPlante(b) {
   const pl = b.pl; if (!pl) return;
-  if (pl.rang === 'epique') { say(pl.n + ' se défend · abattez-la d\'abord', 2); return; }
+  if (pl.port === 'vive') { say(pl.n + ' se défend · abattez-la d\'abord', 2); return; }
   if (b.cueillie) { say(pl.n + ' a déjà été cueillie · elle repousse', 2); return; }
-  const n = pl.rang === 'rare' ? 1 + (Math.random() < .5 ? 1 : 0) : 1;
-  metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); b.cueillie = true; b.repousseT = t + (pl.rang === 'rare' ? 600 : 1800);
+  const n = pl.port === 'simple' ? 1 + (Math.random() < .5 ? 1 : 0) : 1;
+  metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); b.cueillie = true; b.repousseT = t + (pl.port === 'simple' ? 600 : 1800);
   if (b.num !== undefined && RS.ouvert && Autres.size && Compte.uid) diffuser(canalIle(), 'fcueille', { u: Compte.uid, n: b.num, r: Math.round(b.repousseT - t) });
   say(`${FL_RANG[pl.rang]} · ${pl.n} · +${n} ${INGR[pl.ingr].n.toLowerCase()}`, 3);
-  burst(b.x, b.y, b.z + (pl.rang === 'leg' ? 2 : .8), pl.rang === 'leg' ? 30 : 14, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac();
+  burst(b.x, b.y, b.z + (pl.port === 'geante' ? 2 : .8), pl.port === 'geante' ? 30 : 14, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac();
 }
 // ---------- en volumes ----------
 function osPlante(f) {
@@ -228,7 +243,7 @@ function osPlante(f) {
       add([0, 0, .9], [0, 0, 1.0], .55, .14, fane(feuille));
       break;
     }
-    // ---- les légendaires : géantes, et elles bougent ----
+    // ---- les géantes : elles bougent ----
     case 'colosse': {
       const respire = .5 + .5 * Math.sin(t * .8 + g * 6);
       for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g, z = .4 + (k % 3) * .5, sw = sway(k, .1); add([0, 0, z], [Math.cos(a) * 1.2, Math.sin(a) * 1.2, z + .3 + sw], .55, .04, feuille); add([Math.cos(a) * 1.2, Math.sin(a) * 1.2, z + .3 + sw], [Math.cos(a) * 1.7, Math.sin(a) * 1.7, z + .1 + sw], .3, .03, mix(feuille, pointe, .3)); }
@@ -264,7 +279,7 @@ function osPlante(f) {
       for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832 + t * .25, r = 1.1 + (k % 3) * .2, z = top[2] + .5 + (k % 4) * .25; add([top[0] + Math.cos(a) * r, top[1] + Math.sin(a) * r, z], [top[0] + Math.cos(a) * r, top[1] + Math.sin(a) * r, z - .16], .14, .14, fane(k % 2 ? coeur : pointe), lu); }
       break;
     }
-    // ---- les épiques : elles attaquent ----
+    // ---- les vives : elles attaquent ----
     case 'gueule': {
       const arme = f.etat === 'arme' ? Math.min(1, f.armeT / .6) : 0, mord = f.etat === 'frappe' ? Math.max(0, 1 - f.frappeT / .25) : 0;
       for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g; add([0, 0, .05], [Math.cos(a) * .8, Math.sin(a) * .8, .25 + sway(k, .05)], .32, .04, feuille); for (let j = 1; j <= 3; j++) add([Math.cos(a) * .25 * j, Math.sin(a) * .25 * j, .12 + j * .04], [Math.cos(a) * .25 * j, Math.sin(a) * .25 * j, .22 + j * .04], .02, .02, [230, 220, 200]); }
@@ -310,11 +325,11 @@ function osPlante(f) {
 function dessinPlante(d, sp) { d.ligne(8, 15, 8, 7, [90, 140, 60]); d.rect(5, 3, 11, 7, [240, 170, 220]); d.net(8, 5, [255, 240, 140]); }
 // Une plante cueillie par un joueur d'en face : elle l'est ici aussi, et repousse au même moment.
 function cueillieAilleurs(n, reste) {
-  const b = beasts.find(o => o.num === n && o.sp.plante && o.pl && o.pl.rang !== 'epique');
+  const b = beasts.find(o => o.num === n && o.sp.plante && o.pl && o.pl.port !== 'vive');
   if (!b || !Number.isFinite(reste)) return;
   const fin = t + Math.max(0, Math.min(1800, reste));
   b.repousseT = b.cueillie && b.repousseT > fin ? b.repousseT : fin; b.cueillie = true;
-  burst(b.x, b.y, b.z + (b.pl.rang === 'leg' ? 2 : .8), 8, 'rgb(' + b.pl.pal[3].join(',') + ')');
+  burst(b.x, b.y, b.z + (b.pl.port === 'geante' ? 2 : .8), 8, 'rgb(' + b.pl.pal[3].join(',') + ')');
 }
 // Pour le nouveau venu : les plantes déjà cueillies ici, et dans combien de temps elles repoussent.
 const plantesCueillies = () => beasts.filter(o => o.sp.plante && o.pl && o.cueillie && o.num !== undefined && o.repousseT > t).flatMap(o => [o.num, Math.round(o.repousseT - t)]);

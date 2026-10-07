@@ -7,12 +7,14 @@
 // noire qui monte, de petits êtres décharnés qui le regardent de loin (et s'approchent quand il
 // leur tourne le dos), des blessures qui s'ouvrent de nulle part, des silhouettes noires qui
 // surgissent et lui fondent dessus. Les blessures et les coups sont réels, mais légers. Tout vient
-// au hasard, de plus en plus souvent à mesure que l'infection dure.
+// au hasard, de plus en plus souvent à mesure que l'infection dure. Et il entend faux : la musique
+// du jeu devient dissonante tant qu'il est infecté (les humeurs « korlaz » de SON, dans index.html).
 // Le jeu (index.html) appelle, s'ils existent :
 //   etatsInit()       au démarrage : le remède dans les recettes ;
 //   etatsIle()        à chaque île : l'état tiré, la roche rongée peinte, le mycélium posé ;
 //   majEtats(dt)      à chaque image : spores, exposition, infection, visions, le filtre ;
 //   etatsRecolte(nd)  une récolte (sur la roche rongée, elle infecte) ;
+//   etatsSpores(nd)   le coup porté : sur la roche rongée, il rapporte des spores de Korlaz (une matière du sac) ;
 //   etatsHud()        l'étiquette du HUD ;
 //   guerirKorlaz()    le sérum injecté ;
 //   majIllusion, osIllusion : les visions, qui vivent parmi les bêtes (sp.illusion).
@@ -35,8 +37,9 @@ function etatGraine(g, niv) {                             // une île sur six en
 function etatsInit() {
   if (typeof REMARQUABLES !== 'undefined' && !REMARQUABLES.some(r => r.id === 'serum'))
     REMARQUABLES.push({ id: 'serum', n: 'Sérum de clairvoyance',
-      indice: 'ce qui pousse sur la roche rongée, la mousse des nuages, le nectar des oglodons, une goutte de sève',
-      ok: ids => ids.length === 4 && ['p_mycelium', 'p_mousse', 'nectar', 'p_seve'].every(id => ids.includes(id)) });
+      // (la mousse céleste ne pousse plus sur les nuages : la fleur des cimes, l'edelweiss, la remplace)
+      indice: 'ce qui pousse sur la roche rongée, la fleur des cimes, le nectar des oglodons, une goutte de sève',
+      ok: ids => ids.length === 4 && ['p_mycelium', 'p_edelweiss', 'nectar', 'p_seve'].every(id => ids.includes(id)) });
   if (typeof CONSERVE !== 'undefined') CONSERVE['r:serum'] = [1, 1];          // une dose, qui se garde
 }
 // ---------- l'île : la roche rongée, par plaques ----------
@@ -75,10 +78,21 @@ function infecter(pourquoi) {
   say('Vous êtes infecté par le Korlaz · ' + pourquoi + ' · seul un sérum vous en délivrera', 5);
   SON.jouer('stridence'); ETAT.flash = 1;
 }
+// Ce qui pousse sur la roche rongée, ou contre elle, est infecté.
+const piedInfecte = nd => { if (ETAT.id !== 'korlaz' || !nd) return false; const x = nd.i % WS, y = (nd.i / WS) | 0;
+  return roche(x, y) || roche(x + 1, y) || roche(x - 1, y) || roche(x, y + 1) || roche(x, y - 1); };
+// Récolter un pied infecté rapporte des spores de Korlaz, à chaque coup : une, ou deux sur ce que le
+// Korlaz fait pousser lui-même (excroissance, mycélium pâle). Infecté ou non — mais sain, chaque coup expose.
+function etatsSpores(nd) {
+  if (!piedInfecte(nd)) return 0;
+  const n = nd.sp && (nd.sp.id === 'excroissance' || nd.sp.id === 'mycelium') ? 2 : 1;
+  P.sac.spore = (P.sac.spore || 0) + n;
+  return n;
+}
 function etatsRecolte(nd) {
   if (ETAT.id !== 'korlaz' || !nd || P.korlaz) return;
   const x = nd.i % WS, y = (nd.i / WS) | 0;
-  if (roche(x, y) || roche(x + 1, y) || roche(x - 1, y) || roche(x, y + 1) || roche(x, y - 1)) {
+  if (piedInfecte(nd)) {
     P.korlazExpo = (P.korlazExpo || 0) + 9;                // gratter la roche rongée : un nuage en plein visage
     burst(x + .5, y + .5, sol(x + .5, y + .5) + .6, 12, '#2a2e22');
     if (Math.random() < .25 || P.korlazExpo > KORLAZ_SEUIL) infecter('la roche rongée vous a craché ses spores');

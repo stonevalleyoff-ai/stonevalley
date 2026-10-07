@@ -301,6 +301,7 @@ function pageAmis() {
       + `<div class="gestes-ligne">${btn('oublier', '', 'Oublier')}</div></div>`;
     h += `<div class="gestes">${btn('quitter', '', 'Quitter le groupe', 'alerte')}</div>`;
   }
+  if (typeof blocEnLigne === 'function') h += blocEnLigne();   // qui est en ligne, et où : avec les amis et le groupe
   return h + `</div></div>`;
 }
 function dessinOngletAmis(d) { d.rect(3, 5, 6, 8, [220, 190, 150]); d.rect(2, 9, 7, 14, [120, 160, 200]); d.rect(9, 4, 12, 7, [220, 190, 150]); d.rect(8, 8, 13, 14, [200, 140, 110]); }

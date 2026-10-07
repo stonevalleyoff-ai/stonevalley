@@ -138,7 +138,7 @@ Une créature par biome rare, qui n'existe que sur les îles qui portent ce sol 
 
 ## 8. Au-delà du huitième saut : les automates d'élite
 
-Jusqu'à l'exploration 8, le danger monte (les bêtes frappent et encaissent plus fort). Au-delà, il plafonne, mais les automates, eux, continuent de monter jusqu'à l'exploration 20 :
+Le danger monte à chaque exploration, sans plafond (voir §72 ; il s'arrêtait à l'exploration 8). Le nombre des bêtes, lui, cesse de monter à l'exploration 8, et les automates continuent de monter jusqu'à l'exploration 20 :
 
 - **le portail ne tire plus que des îles gardées** : au moins un automate tireur à partir de l'exploration 10 (les automates n'arrivent pas avant, voir section 21), deux à partir de 13, trois à partir de 17 ;
 - **ils sont plus nombreux** (+5 % de la base par saut au-delà de 8) **et visent mieux** : leur avance sur une cible qui court devient exacte et leur dispersion fond. Un mercenaire qui manque celui qui court au 8e saut le touche au 20e ;
@@ -631,7 +631,7 @@ L'onglet **Campement** se lit comme l'établi : à gauche, l'île du campement p
 |---|---|
 | Coffre | la réserve, Tout déposer / Tout reprendre, la répartition sac ↔ coffre (section 35) |
 | Se reposer | santé et souffle refaits, compagnes rassasiées (au campement) |
-| Cuisiner | ouvre l'onglet Cuisine |
+| Cuisiner | ouvre le Campement, volet Cuisine |
 | Partir **!** | une île au hasard, exploration + 1 (près d'une arche) |
 | Viser une île | le journal, s'il tient des graines gardées |
 | Rentrer **!** | la pierre de foyer (irréversible seulement depuis une autre île) |
@@ -861,7 +861,7 @@ Pour régler : section LES TERRES DE L'EFFROI d'`index.html` (`bruitJoueur`, `ma
   - une **blessure de nulle part** : un éclair rouge, du sang, un vrai coup léger ;
   - une **silhouette** noire et très grande, aux yeux comme deux points, surgit dans votre dos (une note qui grince), **vous fond dessus** et frappe (vrai coup, léger) avant de se défaire en fumée. Frappée la première, elle se dissipe.
   Vos compagnes ne voient rien.
-- **Le remède** : une **recette légendaire** à découvrir dans la cuisine, à **quatre ingrédients** — le **Sérum de clairvoyance** : le mycélium pâle de la roche rongée, la mousse céleste des îles de nuage, le nectar des oglodons, une goutte de sève. Une dose, qui se garde ; au sac, son bouton dit **Injecter**. Injecté : la brume se lève, les visions se dissipent, guéri.
+- **Le remède** : une **recette légendaire** à découvrir dans la cuisine, à **quatre ingrédients** — le **Sérum de clairvoyance** : le mycélium pâle de la roche rongée, la fleur d'edelweiss des cimes (la mousse céleste ne pousse plus : voir §68), le nectar des oglodons, une goutte de sève. Une dose, qui se garde ; au sac, son bouton dit **Injecter**. Injecté : la brume se lève, les visions se dissipent, guéri.
 
 **Le visuel, retravaillé** :
 - **L'île** : la roche rongée vire au noir violacé ; des **excroissances** y poussent (des pointes noires aux bouts d'un vert maladif, qui luisent ; une case sur neuf) ; les spores sont lentes, noires ou vert-jaune, certaines luisent ; l'image perd un peu de couleur (filtre CSS sur les toiles `c` et `c3`).
@@ -1292,3 +1292,311 @@ Les autres joueurs voient le vrai niveau (le message de position porte le niveau
 Testé : campement amélioré jusqu'au niveau 3 (matières débitées au bon prix, refus sans matières), repris puis reposé (niveau 3 gardé), sauvegarde relue, ancienne sauvegarde migrée ; propositions valides et stables aux niveaux 1 à 14, relance et vœu de chaque biome (moins de 5 ms) ; départ vers une île choisie (arrivée sur la bonne graine, exploration +1, campement et niveau gardés) puis retour ; vues de jour et de nuit à chaque palier ; panneau sur téléphone ; aperçu d'une île à Korlaz aux quatre degrés de précision (la note ne change pas d'un degré à l'autre).
 
 Pour régler : `CAMP_PALIERS`, `CAMP_NOMS`, `COUT_CAMP`, `memoireCamp`, `choixPortail`, `detailPortail`, `relancesPortail`, `voeuxPortail`, `cristauxCamp`, `apercuIle`.
+
+
+## 66. La ceinture : elle ouvre les cases du bord droit, une barre par niveau
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-33`).
+
+**Sans ceinture, pas de barre.** Les cases du bord droit n'apparaissent plus tant qu'on n'a pas fabriqué la **Ceinture** (établi, filtre Outils ou Tout). Ce qu'on fabrique reste porté aussitôt, comme avant ; il n'est simplement plus rangé dans une case. La canne, la marmite et les plats s'utilisent toujours depuis leur fiche du sac.
+
+**Trois niveaux, une barre de cinq cases chacun** (`CEINTURE_COUT`, `nivCeinture`, `barres`) :
+
+| Niveau | Barres | Coût |
+|---|---|---|
+| 1 | 1 | 4 os, 20 fibres |
+| 2 | 2 | 20 ferraille, 10 os, 30 fibres |
+| 3 | 3 | 12 matières inconnues, 40 ferraille, 20 os |
+
+La **matière inconnue** est celle d'un biome qui n'existe pas encore (`RES_AVENIR`) : le niveau 3 s'affiche à l'établi, avec sa vignette et « 0 / 12 », mais ne peut pas se fabriquer — sauf en mode essai, pour voir les trois barres. Quand le biome existera : ajouter la matière à `RES`, et remplacer `inconnue` dans `CEINTURE_COUT`.
+
+**Changer de barre** : à partir de deux barres, un bouton au-dessus des cases (un point par barre, celui de la barre affichée allumé), ou la touche **T**. Les touches 1 à 5 et les boutons du bord jouent la barre affichée.
+
+**Au sac** : la ceinture est un objet (son niveau en chiffre sur sa case), ni portée ni rangée. « Cases du bord droit » montre une rangée par barre ouverte ; la fiche d'un objet ou d'un plat propose une ligne de boutons 1 à 5 par barre. Un objet ne tient toujours que dans une seule case, toutes barres confondues.
+
+**À la fabrication du niveau 1**, ce qu'on possédait déjà prend place dans les cases (sorts d'abord), si elles sont vides.
+
+**Les parties d'avant** : pas de ceinture, donc plus de barre tant qu'elle n'est pas fabriquée. Les cinq cases déjà garnies sont gardées et reparaissent telles quelles avec la ceinture. « Tout fabriquer » (Bêta, essai) donne la ceinture au niveau 3.
+
+`P.raccourcis` tient maintenant quinze cases bout à bout (barre × 5 + case) ; `P.ceinture` est le niveau, `P.barre` la barre affichée, tous deux sauvegardés.
+
+Testé : sans ceinture, rien au bord et les touches 1 à 5 le disent ; niveau 1 (4 os et 20 fibres débités, quatre objets rangés d'eux-mêmes) ; niveau 2 refusé sans ferraille, puis fait (le bouton paraît) ; passage d'une barre à l'autre par le bouton et par T, objet rangé en barre 2 puis utilisé ; niveau 3 impossible avec 500 de chaque matière, possible en essai puis rendu en le coupant ; sauvegarde relue ; ancienne sauvegarde (cinq cases, pas de ceinture) : cases gardées, de retour à la fabrication ; plats en raccourci inchangés ; ordinateur et téléphone.
+
+Pour régler : `CEINTURE_COUT`, `CEINTURE_MAX`, `RES_AVENIR`, `barreSuivante`, `majCases` (le bouton `.bascule`).
+
+
+## 67. Korlaz : les spores se récoltent, et l'infecté entend faux
+
+**À déposer** : `index.html`, `etats.js` et `sw.js` (qui passe en `stone-valley-34`).
+
+**Une matière nouvelle : la spore de Korlaz** (`RES.spore`, `etatsSpores` dans `etats.js`). Sur une île à Korlaz, chaque coup de récolte porté à un pied **infecté** — qui pousse sur la roche rongée, ou contre elle — rapporte des spores en plus de sa matière : **une** par coup, **deux** sur ce que le Korlaz fait pousser lui-même (excroissance, mycélium pâle). Infecté ou non ; mais tant qu'on est sain, chaque coup expose, comme avant. L'avis le dit (« +1 pierre · +2 spores de Korlaz »). Les compagnes n'en rapportent pas.
+
+C'est une matière comme les autres : au sac (elle n'y paraît que lorsqu'on en a), au coffre du campement, dans la sauvegarde, perdue ou gardée avec le reste du sac. **Elle ne sert encore à rien** : aucune recette ne la demande. Côté base, le coffre publié pour les pillages ne connaît pas cette matière (`vp_coffre_propre` la laisse de côté) : les spores du coffre ne peuvent donc pas être pillées.
+
+Au passage : « il manque 8 undefined » pour la lampe d'ambre devient « il manque 8 nectar » (le pluriel du nectar manquait).
+
+**La musique de l'infecté** (`HUMEURS.korlaz`, `korlazDanger`, le timbre `fele`, `MUS.nappe`) : tant qu'on est infecté, la musique du jeu devient dissonante, quels que soient l'heure et le lieu.
+- **Les phrases** : une gamme de secondes mineures et de tritons, jouée par une « boîte à musique fêlée » — chaque note un peu fausse, doublée un quart de ton à côté, et qui fléchit ; des fausses notes s'ajoutent en retard ; le rythme boite.
+- **La nappe** : par-dessous, en continu, cinq voix qui frottent (seconde mineure, triton) et dérivent lentement. Elle se tait en quelques secondes une fois guéri.
+- **Elle empire** : à mesure que l'infection dure (quinze minutes pour le plein effet), la nappe enfle, les silences raccourcissent, les fausses notes se multiplient.
+- **Elle ment** : une silhouette qui surgit déclenche la musique du danger, comme un vrai prédateur — fausse, elle aussi.
+- Elle passe par le réglage **Musique** du son, comme le reste.
+
+Testé : sur une île à Korlaz, une excroissance rend 2 spores par coup, un pied voisin de la roche rongée 1, un pied sain 0 ; sac, sauvegarde relue. Musique : dans le navigateur, l'humeur passe à « korlaz » à l'infection, à « korlazDanger » quand une silhouette surgit, revient au jour après le sérum, et la nappe retombe ; en rendu hors ligne, le niveau reste celui de la musique habituelle (ni saturation, ni saut de volume). La dissonance elle-même n'a pas été jugée à l'oreille : à écouter en jeu.
+
+Pour régler : `etatsSpores` (le nombre par coup), `HUMEURS.korlaz` (`deg` la gamme, `acc` l'accord tenu, `repos` les silences), la part de fausses notes dans `MUS.maj`, le volume de la nappe (`.012 + .014 × I`).
+
+
+## 68. Le nectar d'oglodon est un ingrédient ; le sérum du Korlaz retrouve une recette possible
+
+**À déposer** : `index.html`, `etats.js` et `sw.js` (qui passe en `stone-valley-35`).
+
+**Le nectar n'est plus une matière.** Il quitte `RES`, le sac des matières et le coffre : c'est une denrée comme les autres (`INGR.nectar`, `src: 'denree'`), au **garde-manger** du sac et au **cellier** du campement. Il suit donc les règles des ingrédients (retour d'expédition, « Tout déposer », cuisine qui puise au cellier près du feu).
+- **Au sac** : il n'est plus dans « Matières » ; il est dans « Garde-manger », avec sa goutte d'ambre. Un appui le **boit** (+35 % de vie, tout le souffle), comme la touche N ; le bouton « Boire du nectar » à part a disparu.
+- **D'où il vient, inchangé** : la fourmilière (PUISER), les compagnes oglodons (au garde-manger, ou au cellier si elles tiennent le campement), le troc de la marchande.
+- **La lampe d'ambre** en demande toujours 8 : l'établi le lit au garde-manger (et au cellier près du campement).
+- **Les parties d'avant** : le nectar du sac passe au garde-manger, celui du coffre au cellier, au premier chargement.
+- N'étant plus au coffre, il ne peut plus être pillé.
+
+**Le sérum de clairvoyance était devenu impossible.** Sa recette demandait la **mousse céleste**, qui ne pousse plus : depuis que les nuages ne portent que des druses (`calcFlore` l'écarte), on n'en trouvait plus sur aucune île. Vérifié sur cinq îles : zéro pied. Les trois autres ingrédients existent toujours (mycélium pâle sur la roche rongée, arbre à sève dans les bois, nectar à la fourmilière).
+- **Nouvelle recette** : mycélium pâle, **fleur d'edelweiss**, nectar d'oglodon, goutte de sève. L'edelweiss pousse sur toutes les îles, en altitude, et a la même rareté que la mousse.
+- L'indice du carnet suit : « ce qui pousse sur la roche rongée, la fleur des cimes, le nectar des oglodons, une goutte de sève ».
+
+**Trouvé au passage** (corrigé en §69) : les douze plantes rares du biome **nuage** de `flore.js` (étoile des nues, clochettes célestes, lys céleste…) ne poussent jamais non plus. Elles se posent sur des cases de sol du biome 17, or le nuage n'existe qu'en dalles volantes : aucune case de sol ne porte ce biome. Leurs ingrédients sont donc introuvables.
+
+Testé : ancienne sauvegarde (7 nectars au sac, 5 au coffre) relue en 8 au garde-manger et 5 au cellier ; boire par N et par le garde-manger ; lampe d'ambre refusée à 6 nectars, faite à 9 (il en reste 1) ; une compagne oglodon rapporte 2 nectars pour 4 baies ; troc ; sérum cuisiné avec la nouvelle recette (le nectar quitte le garde-manger) et injecté : guéri ; l'ancienne recette ne donne plus qu'un plat du voyageur.
+
+
+## 69. La flore de `flore.js` est toute rare ; les plantes des nuages poussent enfin
+
+**À déposer** : `index.html`, `flore.js` et `sw.js` (qui passe en `stone-valley-36`).
+
+**Un seul rang : rare.** Les douze plantes de chaque biome étaient classées six rares, quatre légendaires, deux épiques. Elles sont toutes **rares** ; les vraies légendaires et épiques restent à créer.
+- **Le rang** (`rang: 'rare'` pour toutes) ne sert plus qu'à l'affichage : « plante rare » sur la cible, « rare · … » à la cueillette.
+- **Leurs ingrédients** sont tous de rareté 3 (« rare »), au lieu de 3, 5 et 6.
+- **Ce qui les distingue** s'appelle maintenant le **port** (`port`) et ne change rien à ce qu'on voyait : `simple` (les six petites), `geante` (les quatre grandes, qui bougent, se cueillent une fois par demi-heure), `vive` (les deux qui attaquent, à abattre avant de cueillir). Tailles, formes, comportements, fréquences et emplacements sont les mêmes qu'avant.
+- Les trois espèces s'appellent « Plante rare », « Grande plante rare », « Plante rare vive ».
+
+**Conséquences en cuisine** (voulues : ce sont des rares) : un plat fait avec ces ingrédients a la puissance d'une rare (niveau II). Les niveaux III et IV, la régénération, le soin complet et les effets de vingt minutes n'existent plus tant qu'il n'y a pas de légendaires ni d'épiques. **Le cœur en plus est gardé** : la règle « seulement aux très rares » l'aurait fait disparaître ; elle devient « aux rares et au-delà », et ce sont exactement les onze mêmes ingrédients qu'avant qui le portent.
+
+**Les plantes des nuages.** Le biome nuage n'a pas de sol : il n'existe qu'en îles volantes, et `floreIle` ne posait ses plantes que sur du sol. Les douze plantes « des nues » ne poussaient donc jamais. Elles se posent maintenant **sur les dalles de nuage** (jamais sur une dalle conjurée), avec les mêmes parts que les autres biomes : deux à sept simples, parfois une géante (il lui faut une dalle de cinq cases de côté), parfois une vive. Elles sont tirées après toutes les autres : les plantes du sol ne bougent pas d'une case.
+
+Testé : sur trois îles, les plantes du sol sont aux mêmes cases qu'avant, et trois plantes de nuage par île sont posées à la hauteur de leur dalle ; cueillette depuis la dalle (« rare · Étoile des nues · +1 pétale… ») ; tous les rangs « rare », tous les ingrédients de rareté 3 ; un plat de deux anciennes légendaire et épique sort au niveau II ; mêmes onze ingrédients à cœur.
+
+## 70. Les états du joueur, en vignettes sous le souffle
+
+**À déposer** : `index.html` et `sw.js` (`stone-valley-36`, le même dépôt que §69).
+
+Sous la jauge de souffle, une rangée de petites vignettes dit dans quel état on est. Elle reste visible **carte du HUD repliée ou non**, et disparaît quand il n'y a rien à dire (`statutsJoueur`, `majStatuts`, les dessins `st_*`).
+
+| Cerclé de rouge : les maux | Dessous |
+|---|---|
+| Infecté par le Korlaz | rien (seul le sérum en délivre) |
+| Spores de Korlaz | le pourcentage d'exposition |
+| Empoisonné, Brûlure | le temps qui reste |
+| Braises (sur les plaques vives), Pris dans la toile, À bout de souffle, Boue (tourbière), Chaleur (canyon, de jour) | rien : tant qu'on y est |
+
+| Cerclé d'or : les bienfaits | Dessous |
+|---|---|
+| Chacun des 21 effets de plat, à sa couleur | le temps qui reste, et son niveau (II, III, IV) en pastille |
+| Régénération, Répit de l'arrivée | le temps qui reste |
+| Vie en plus, Second souffle, Un cœur en plus, À l'abri (près du campement), Champs de cristal (sorts à moitié prix) | rien (la vie et le souffle en plus se lisent sur leur jauge : voir §71) |
+
+- Le temps s'écrit `m:ss` ; sous dix secondes, la vignette clignote.
+- **Un appui** sur une vignette (ou le survol, à la souris) dit son nom, ce qu'elle fait et le temps qui reste.
+- La carte du HUD ne répète plus en toutes lettres les effets des plats, « empoisonné » ni « infecté · Korlaz » : les vignettes les remplacent.
+
+Testé : aucune vignette quand tout va bien (la rangée n'existe pas) ; infecté, empoisonné, deux plats, un cœur et de la vie en plus : sept vignettes, les bons temps, le niveau II ; les trente états à la fois (la rangée passe à la ligne) ; carte dépliée sur ordinateur, dépliée et repliée sur téléphone ; l'appui annonce « Infecté par le Korlaz · … ».
+
+
+## 71. La vie et le souffle en plus : une barre par-dessus la jauge
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-37`).
+
+La vie en plus et le second souffle ne s'écrivent plus en pourcentage à côté des cœurs (« ♥3 +20% ≈30% » redevient « ♥3 »). Chacun est une **barre d'une autre couleur, posée par-dessus sa jauge** (`majBarrePlus`, l'élément `<u>` de la jauge) :
+- **dorée sur le rouge de la vie**, pour la vie en plus ;
+- **bleu clair sur l'or du souffle**, pour le second souffle.
+
+Elle occupe la moitié haute de la jauge, pour qu'on lise toujours la jauge du dessous, et elle est à la même échelle : une jauge pleine vaut 100 %. La vie en plus va jusqu'à 80 % ; le second souffle peut dépasser le plein (jusqu'à 150 %) : la barre couvre alors toute la jauge et luit, puis raccourcit quand il repasse sous 100 %. Tant qu'il reste du second souffle, la jauge de souffle ne pâlit pas. À dos de monture, la jauge montre le souffle de la monture, sans la barre bleue.
+
+Les deux vignettes d'état (cœur à croix, souffle « 2 ») restent, sans chiffre dessous.
+
+Testé : sans bonus, aucune barre ; +20 % de vie et +30 % de souffle : deux barres aux bonnes largeurs ; +80 % de vie avec une vie à 25 % : le rouge se lit encore dessous ; +150 % de souffle : barre pleine qui luit ; un coup de 10 % avec 30 % de vie en plus : la barre dorée tombe à 12 %, la vie ne bouge pas.
+
+
+## 72. La difficulté n'a plus de plafond
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-38`).
+
+**Le danger monte sans fin.** Il s'arrêtait à l'exploration 8 (×2,44). Chaque exploration ajoute maintenant **18 %** à ce que les bêtes frappent et encaissent, comme avant la huitième, mais sans s'arrêter (`DANGER_PAS`, `danger()`).
+
+| Exploration | Danger | Un coup qui valait 10 % de vie (sans armure) | Un coup de lame d'éclat (76) |
+|---|---|---|---|
+| 8 | ×2,44 | 29 % | 31 |
+| 10 | ×2,80 | 34 % | 27 |
+| 20 | ×4,60 | 55 % | 17 |
+| 23 | ×5,14 | 62 % | 15 |
+| 50 | ×10 | 120 % | 8 |
+| 99 | ×18,8 | 226 % | 4 |
+
+Jusqu'à l'exploration 8, rien ne change. Au-delà, c'est plus dur qu'hier : à l'exploration 23, les bêtes frappent et encaissent 2,1 fois plus. Tout ce qui passe par `degSubi` et `degJoueur` suit : bêtes, automates, Tisseuse, souterrain, plantes vives, visions du Korlaz.
+
+**Le niveau lui-même n'est plus borné à 99** : la sauvegarde, le démarrage et la téléportation de la bêta acceptaient 99 au plus ; la borne est à 9 999 (`NIV_PLAFOND`, seulement contre une sauvegarde hostile).
+
+**Ce qui reste plafonné, exprès** : le **nombre** des bêtes (il cesse de monter à l'exploration 8, celui des automates à la 20, pour ne pas ralentir le jeu), la visée des automates (exacte à la 20) et la chance des variantes (triple à la 20). Côté base, le niveau d'île d'un campement publié reste borné à 99 : au-delà, les pillages se cherchent comme à 99.
+
+Testé : danger et dégâts aux explorations 0 à 150 ; une partie à l'exploration 150 se charge telle quelle (elle retombait à 99) ; téléportation à l'exploration 240 (danger ×44,20 au HUD) ; le nombre de traqueurs ne bouge pas entre les explorations 8 et 150.
+
+Pour régler : `DANGER_PAS` (la pente). Pour une pente plus douce au-delà de la huitième, c'est `danger()` qu'il faut couper en deux.
+
+## 73. Le sac rangé : tout le campement sous un seul onglet
+
+Le sac avait onze onglets, dont quatre tournaient autour du camp (Campement, Cuisine, Exploration dans le Journal, Journal). Il en a **huit** : Sac, Établi, Compagnes, **Campement**, Amis, Sauvegarde, Réglages, Bêta (touches 1 à 8 ; sur téléphone, deux rangées de quatre).
+
+L'onglet **Campement** porte une barre de **quatre volets** :
+
+| Volet | Ce qu'on y trouve |
+|---|---|
+| **Camp** | Coffre, Se reposer, Améliorer, Reprendre le camp, Compagnes, Pillage |
+| **Cuisine** | la marmite, le garde-manger, le cellier, le livre de recettes (l'ancien onglet, tel quel) |
+| **Portail** | Partir (les îles proposées et leur aperçu), **Îles gardées**, Rentrer, Exploration (niveau, danger, essai) |
+| **Journal** | l'île où l'on est, les expéditions, l'atlas des biomes, les carnets (pêche, faune, flore) |
+
+- Chaque volet retient sa case et son défilement ; choisir une case change de volet tout seul (un raccourci vers « Îles gardées » ouvre le Portail).
+- **Les îles gardées** ont quitté le Journal pour le Portail, là où l'on part. Le Journal n'en garde qu'une ligne (« n sur m ») et un bouton « Voir au Portail ». Une île gardée proposée au portail porte l'étiquette « gardée ».
+- **Les joueurs en ligne** ont quitté le Journal pour l'onglet **Amis**, sous la liste d'amis.
+- Les anciens chemins mènent au bon volet : « Cuisiner » au feu, la marmite, le portail du campement (volet Portail), ACTION sur la tente (volet Camp), les notes du sac.
+- Sans campement posé, les volets Camp et Portail disent quoi faire ; Cuisine et Journal restent consultables.
+
+Rien ne change dans la sauvegarde ni dans les règles : c'est du rangement. Les sections plus haut qui disent « onglet Cuisine » ou « onglet Journal » parlent désormais de ces volets.
+
+Testé sur ordinateur et sur téléphone : les huit onglets et leurs touches, les quatre volets, la case retenue par volet, « Garder » puis « Voir au Portail », cuisiner dans le volet, départ vers une île choisie depuis le portail du campement, « En ligne » dans Amis ; sans régression sur le nectar, les spores, la ceinture, les plats.
+
+Dans le code : `VOLETS_CAMP`, `CASES_VOLET` (quelle case dans quel volet), `voletCamp`, `ongletDe` (redirige les anciens onglets), `pageCampement` (la barre) et `voletCases` (les cases).
+
+## 74. Le camp de base, et la place des modules
+
+Le campement devient un **camp de base** qu'on agrandit de **modules**. Cette version pose le socle : le dessin du camp de base, l'espace autour, et la règle « ce qui n'est pas créé n'existe pas ». La création des modules en jeu viendra module par module.
+
+**Le camp de base** : une tente (la couchette) et un feu de camp. Il fait trois choses : on s'y repose, il lie l'île au personnage (pierre de foyer, retour quand les trois vies sont perdues), et il se reprend pour être posé ailleurs. Il n'a **ni portail ni coffre**.
+
+**L'emprise** : un rond de sept cases de large (45 cases, un carré de 7 sans ses coins), en terre battue bordée de pierres, le feu au centre. Autour du feu, un anneau de dix places : l'entrée (trois cases ouvertes dans la bordure), la tente, et **huit emplacements** marqués de quatre piquets et d'une corde. Chaque module a sa place attitrée, tournée vers le feu :
+
+| Place sur l'anneau (depuis l'entrée) | Module | État |
+|---|---|---|
+| 36° | Établi | à venir |
+| 72° | la tente | camp de base |
+| 108° | Défense | à venir |
+| 144° | **Portail** | dessin et règles prêts, pas encore créable en jeu |
+| 180° | Bibliothèque (la magie) | à venir |
+| −144° | Table d'alchimie | à venir |
+| −108° | Table de soin | à venir |
+| −72° | Cuisine | à venir |
+| −36° | **Coffre** | dessin et règles prêts, pas encore créable en jeu |
+
+**Le terrassement.** Le campement nivelle lui-même son rond :
+- pour le poser, il faut 45 cases de terre ferme (ni mer, ni eau douce, ni gouffre, ni dalle, ni village, ni plante rare, loin de l'arche et de la fourmilière) et pas plus de **deux cubes** d'écart avec la hauteur la plus commune du rond ;
+- le rond est ramené à cette hauteur (le moins de terre à remuer), la flore s'en efface, et une marche d'un cube adoucit le pourtour, pour que bêtes et compagnes y montent ;
+- rien n'est perdu : hauteurs et plantes d'origine sont gardées et rendues quand on reprend le campement (testé : zéro case d'écart) ;
+- la règle vaut pour tous les campements de l'île (le sien, celui d'un autre joueur, celui qu'on pille) : le sol reste le même pour chacun ;
+- **l'arche de l'île ne bouge pas** : elle garde l'ancienne règle de pose (`placeArche`), et la faune de départ est identique à la version d'avant (vérifié sur quatre graines) ;
+- un campement posé avec l'ancienne règle (neuf cases) reste en place : son rond est nivelé là où le sol est ferme, et dépasse au-dessus de l'eau s'il y en avait à côté. Le reprendre et le reposer le remet d'aplomb.
+
+**Sans portail au camp** (jusqu'à la création du module) : on voyage par l'arche de l'île, vers une île au hasard ; la pierre de foyer ramène toujours au camp ; les îles gardées se consultent mais on ne peut pas y repartir ; pas de choix d'île ni d'aperçu ; « Améliorer » disparaît (le niveau du campement est en fait celui du portail). Pour rejoindre un joueur en ligne, il suffit d'être devant un portail : celui du campement ou l'arche de l'île.
+
+**Sans coffre au camp** : pas de dépôt ni de réserve commune (l'établi, la cuisine et les compagnes ne puisent que dans le sac) ; au retour d'expédition, la part gardée reste **au sac** au lieu d'aller au coffre ; les récolteuses laissées au camp rapportent au sac, et n'engrangent rien pendant l'absence ; il n'y a rien à piller (le campement publie un coffre vide).
+
+**Rien n'est effacé** : le contenu du coffre et du cellier, le niveau du campement, les tirages du portail restent dans la sauvegarde. Ils reviendront avec leurs modules. `P.modules` (`{ id: niveau }`) est sauvegardé ; une ancienne sauvegarde n'a aucun module.
+
+**Onglet Campement.** Volet Camp : Se reposer, **Modules** (le camp de base et les huit emplacements), Reprendre, Compagnes, Pillage — plus Coffre et Améliorer quand leur module existe. Volet Portail : Partir (par l'arche de l'île), Îles gardées, Rentrer, Exploration.
+
+**Bêta** : « Modules du campement » crée ou retire le portail et le coffre, tels qu'ils étaient, pour les essayer à leur place en attendant leur création en jeu.
+
+**Les décors de niveau** (§65) ont quitté le camp de base. Les runes, cristaux, seuil, arche double, anneau, cristaux en orbite et trait de lumière tiennent au **portail** (paliers 2, 3, 12, 20). Le parapet et les bornes du bastion attendent le module Défense (`rempartOs`, que rien n'appelle encore). Le socle, le plancher, les caisses, le grand mât, la lanterne, le tonneau n'existent plus.
+
+**Réseau** : le message `cp` d'un joueur porte un sixième nombre (2 = il a un coffre), pour que son coffre se voie chez les autres ; un ancien client l'ignore. **Aucun changement dans Supabase.**
+
+**Rendu** : en repli (canvas), les cases de terre battue se trient comme le sol, avant ce qu'elles portent — le défaut de la tente cachée par le plancher a disparu avec lui.
+
+Testé sur ordinateur et téléphone : pose sur un sol en pente (24 cases nivelées, 12 pieds effacés, marche d'un cube au plus), reprise (sol rendu à l'identique), île réinitialisée, campement pillé ailleurs sur l'île, ancien campement au bord de l'eau, départ par l'arche puis retour par la pierre sans coffre (« 233 gardés au sac »), sauvegarde et relecture des modules (valeurs hostiles bornées), les deux moteurs de rendu, de jour et de nuit ; avec les modules créés en bêta, les tests des versions précédentes (portail à choix, coffre, nectar, volets) passent tels quels.
+
+Dans le code : `MODULES` (les places), `aModule`, `placeAnneau`, `lieuModule`, `modsDuCamp` ; `placeCamp`, `majTerrasse`, `terrasseDefaire` ; `campOs(c)` et ses pièces `tenteOs`, `feuOs`, `jalonsOs`, `coffreOs`, `portailCampOs`, `poseModule` (tourne un module d'un quart de tour). Pour régler : `CAMP_RAYON` (3,7 : le rond), `CAMP_ANNEAU` (2,7 : la distance des modules au feu), `CAMP_DENIV` (2 : la pente admise), `CAMP_TALUS`.
+
+## 75. Le portail et le coffre se créent au campement
+
+Les deux premiers modules se créent en jeu : onglet Campement, volet Camp, une case par module (**Portail**, **Coffre**). Il faut être à son campement ; les matières viennent du sac (et du coffre, une fois qu'il existe). Deux appuis : la dépense ne se défait pas.
+
+| Module | Création | Ensuite |
+|---|---|---|
+| **Coffre** | 30 bois · 12 fibres | ne s'améliore pas : créé, il ouvre le stock (dépôt, réserve commune, butin au retour, récolte des compagnes, pillage) |
+| **Portail** | 40 pierres · 10 éclats | s'améliore **onze fois**, jusqu'au niveau 12 |
+
+Le coffre rend ce qu'il gardait : un joueur d'avant les modules retrouve son stock en le créant (« 59 en réserve vous y attendaient »).
+
+**Le portail, niveau par niveau.** Créé, il ouvre une arche au campement : on part de chez soi, vers une île au hasard. Chaque amélioration le fait viser un peu mieux :
+
+| Niveau | Îles au choix | Ce qu'il lit d'une île | Îles gardées | Relances | Biome cherché | Allure |
+|---|---|---|---|---|---|---|
+| 1 | hasard | rien | — | — | — | Portail |
+| 2 | 2 | le danger (le reste flou) | on y repart · 3 en mémoire | — | — | gravé (runes) |
+| 3 | 3 | + les biomes rares | 6 | — | — | d'éclat (cristaux, voile vif) |
+| 4 | 4 | | 7 | — | — | |
+| 5 | 5 | + le bestiaire | 8 | — | — | au seuil |
+| 6 | 6 | | 9 | — | — | |
+| 7 | 7 | + l'état de l'île | 10 | — | — | |
+| 8 | 8 | | 11 | — | — | à double arche |
+| 9 | 8 | | 12 | 1 | — | |
+| 10 | 8 | | 12 | 2 | 1 île tenue de le porter | à l'anneau |
+| 11 | 8 | | 12 | 3 | 3 îles | |
+| 12 | 8 | | 12 | 4 | toutes | de lumière (cristaux en orbite, trait) |
+
+Le prix d'une amélioration est celui d'avant (§65) : 24 éclats et 30 pierres au niveau 2, des os dès le 3, du bois dès le 5, et 60 % de plus à chaque fois — 2 639 éclats, 3 299 pierres, 550 os et 1 074 bois pour le douzième. **Le niveau n'est plus sans limite** : au-delà de 12 il ne donnait plus que des relances ; le biome cherché, qui montait jusqu'au niveau 31, est resserré sur les niveaux 10 à 12.
+
+**Les anciens niveaux.** Le « niveau du campement » était déjà celui du portail : en le créant, le portail **reprend ce niveau** (au plus 12). Sans portail, ce niveau dort dans la sauvegarde.
+
+**L'onglet Campement.** Volet Camp : Se reposer, Portail, Coffre, Modules, Reprendre, Compagnes, Pillage. La case d'un module à créer dit ce qu'il apporte et son coût ; celle du portail créé dit ce qu'il sait faire, ce qu'apporte le niveau suivant, et son prix. « Modules » garde la vue d'ensemble (installé, à créer, à venir). Au volet Portail, sans portail, un bouton mène à sa création.
+
+La bêta garde ses boutons (créer ou retirer sans payer, niveau du portail).
+
+Testé sur ordinateur et téléphone : cases éteintes sans matières, création du coffre (stock retrouvé, réserve commune rouverte) et du portail (payé au coffre et au sac), onze améliorations puis plus de bouton, les douze niveaux et ce qu'ils apportent, l'allure aux niveaux 1, 5, 8 et 12, un ancien joueur au niveau 7 qui le retrouve, une sauvegarde hostile bornée à 12, départ vers une île choisie.
+
+Dans le code : `COUT_MODULE`, `creerModule`, `ditPortail` (ce que le portail sait faire à un niveau), `CAMP_MAX` (12), `CAMP_PALIERS`, `choixPortail`, `DETAIL_NIV`, `relancesPortail`, `voeuxPortail`, `COUT_CAMP` (le prix des améliorations).
+
+## 76. L'établi et la cuisine : fabriquer à la main ou à l'établi, cuisiner de deux à quatre ingrédients
+
+**Deux façons de fabriquer.** L'onglet du sac s'appelle désormais **Fabrication** (touche B). Chaque objet dit d'où il se fait :
+
+| D'où | Ce qu'on y fabrique |
+|---|---|
+| **À la main**, partout, sans campement | couteau d'os, pioche, gourdin, tunique de fibre, canne à pêche, flèches, baume de relève, campement |
+| **Établi niveau 1** | lance d'os, épée de pierre, arc, cuirasse d'os, lanterne, marmite portable, sifflet d'os, lien d'éclat, ceinture — et la création des modules : coffre, portail, cuisine |
+| **Établi niveau 2** | serpe cristalline, lame d'éclat, manteau d'éclats, les quatre grimoires, lampe d'ambre |
+| **Établi niveau 3** | foreuse, marteau-pilon, arbalète à poulies, plastron de ferraille |
+
+- L'établi est un **module du campement**. Il se crée à la main, au camp (volet Camp, case Établi) : 24 bois · 16 pierres · 8 fibres. Niveau 2 : 40 bois · 50 pierres · 16 éclats · 8 os. Niveau 3 : 24 ferraille · 40 éclats · 80 pierres.
+- Ce qui demande l'établi se fabrique **au campement**, près de lui, et s'il a le niveau. Ailleurs, la recette est grisée et dit pourquoi (« Établi niveau 2 », « À l'établi, au campement »). Un filtre « À la main » montre ce qui se fait partout.
+- Ce qu'on possède déjà reste à soi : seule la fabrication est concernée. Le mode essai et « tout fabriquer » de la bêta passent outre.
+- **L'établi vient en premier** : sans lui, ni coffre, ni portail, ni cuisine. Ceux qui avaient déjà créé un module le gardent.
+
+**La cuisine.** Deux feux où cuisiner ; le feu de camp seul ne cuisine plus.
+
+| Où | Ingrédients par plat |
+|---|---|
+| **Marmite portable** (établi niveau 1), posée où l'on veut | 2 |
+| **Cuisine du campement**, niveau 1 — 24 pierres · 16 bois · 8 fibres | 2 |
+| niveau 2 — 40 pierres · 10 os · 8 éclats | 3 |
+| niveau 3 — 70 pierres · 30 éclats · 20 os | 4 |
+
+- La marmite montre autant de places que le feu en offre. Une recette du livre qui en demande plus le dit (« il faut une cuisine de niveau 3 »).
+- Conséquence à connaître : les plats à quatre ingrédients — le **sérum du Korlaz** en est un — ne se cuisinent plus qu'au campement, cuisine au niveau 3.
+- Le garde-manger du coffre reste la réserve de la cuisine, près du campement.
+
+**Au campement.** L'établi (un plateau, son panneau d'outils, un billot ; une meule et des éclats au niveau 2 ; une enclume et de la ferraille au niveau 3) et la cuisine (une marmite pendue à sa potence sur un âtre ; une table de découpe au niveau 2 ; un séchoir au niveau 3) prennent leur place sur l'anneau. Les autres joueurs de l'île les voient à leur niveau (le sixième nombre du message `cp` porte aussi ces deux niveaux ; aucun changement Supabase).
+
+**L'onglet Campement, volet Camp** : Se reposer, Établi, Coffre, Portail, Cuisine, Modules, Reprendre, Compagnes, Pillage. Chaque case de module dit ce qu'il apporte, ce qu'il sait faire, ce qu'apporte le niveau suivant et son prix.
+
+La bêta : un bouton par module (chaque appui monte d'un niveau, puis retire).
+
+Testé sur ordinateur et téléphone : à la main sans campement (le campement et la pioche se font, la lance non), l'établi créé au prix juste, les niveaux 2 et 3 qui ouvrent leurs objets, le refus loin du campement, le coffre, le portail et la cuisine refusés sans établi ; le feu de camp qui ne cuisine plus, la marmite portable à deux ingrédients, la cuisine à deux, trois puis quatre, une recette à quatre refusée au niveau 1 ; les modules dessinés aux trois niveaux ; nectar, ceinture, spores, plats et départ par le portail sans régression.
+
+Dans le code : `et` sur chaque objet d'`OBJETS` (le niveau d'établi qu'il faut, absent = à la main), `verrouFab`, `noteEtabli` ; `COUT_MODULE` (création et niveaux), `coutModule`, `MODULE_MAX`, `nivModule`, `creerModule`, `ameliorerModule` ; `cuisineIci`, `marmitePres`, `placesMarmite`, `MARMITE_PORTABLE` ; `etabliOs`, `cuisineOs` ; `modsDits` / `modsLus` (réseau).
