@@ -496,6 +496,47 @@ const NM_INDICES = {
     'Les herbes hautes freinent le pas. Les troncs, eux, ne laissent passer personne.',
   ],
 };
+NM_INDICES.tomes = [
+  'Chaque matière a trois tomes. Le premier se lit sur un lutrin de pierre, dans la terre qui lui ressemble : la fange dans la tourbière, la braise dans la caldeira.',
+  'Les seconds tomes, les Horlogers les ont mis sous clé, dans leurs coffres gardés, sous les îles de métal. Il m\'en reste parfois un.',
+  'Le troisième tome d\'une matière, la Tisseuse de fer le porte dans son ventre. Il faut la faire tomber pour le lire.',
+  'Un tome ne s\'apprend pas sur la route. Il se déchiffre au pupitre d\'une bibliothèque, avec de l\'encre d\'éclat, et dans l\'ordre : pas de second sans premier.',
+  'Qui tient déjà le Souffle connaît le vent sans l\'avoir lu. Pour les autres matières, il faut marcher.',
+  'L\'effroi s\'écrit aussi. Son lutrin se dresse dans l\'ossuaire, ou sur les terres creuses : va le lire sans courir.',
+  'Deux matières se mêlent dans une même phrase, si ta bibliothèque est assez haute. Sans leurs seconds tomes, l\'accord se défait une fois sur quatre — ou brûle les éclats dans ton sac, et tes mains avec.',
+  'La fange et la braise, mêlées, donnent la poix. Ce qu\'elle prend, elle le brûle.',
+  'Fange et cristal font la gangue. Une bête prise dedans casse comme du verre.',
+  'Le vent porte les spores : les anciens disaient la nuée. Tout ce qui la respire t\'oublie.',
+  'Vent et effroi, c\'est l\'épouvante. Elle vide une clairière en un souffle.',
+  'Ne mêle pas les spores à la braise près des tiens. Les mineurs appelaient ça le grisou.',
+  'L\'effroi et le cristal sonnent le glas : il achève ce qui chancelle déjà.',
+  'Les accents dorment dans les troisièmes tomes. L\'aigu presse la phrase, le grave l\'alourdit, le circonflexe l\'étend.',
+  'Un sort qu\'on a écrit, on peut le nommer. Les miens portent le nom de ceux qui me les ont appris.',
+];
+// Les tomes : où est le lutrin de l'île (il se marque à la boussole), ce qu'on en sait, et un
+// Tome II à troquer par halte — offert à un ami.
+function nmTomes(b) {
+  const retour = { t: 'Autre chose.', va: 'accueil' };
+  if (typeof LUTRINS === 'undefined') return { dit: 'Les livres dorment encore. Reviens me voir.', choix: [retour] };
+  const ici = LUTRINS.filter(l => !tomeAcquis(l.m, 1));
+  const dit = ici.length
+    ? ici.map(l => { l.vu = true; return 'Un lutrin de pierre porte le ' + nomTome(cleTome(l.m, 1)) + ', ' + versLe(l.x - P.x, l.y - P.y) + '.'; }).join(' ') + ' La nuit, son livre luit : tu le verras de loin.'
+    : nmPioche('t', NM_INDICES.tomes);
+  const m = tomeConteur(), ami = nmAmi(b) >= 3, choix = [];
+  if (m) {
+    const manque = !ami && Object.entries(TOME_CONTEUR).some(([r, n]) => nmA(r) < n);
+    choix.push({ t: 'Cède-moi le ' + nomTome(cleTome(m, 2)) + '.' + (ami ? ' (offert)' : ' (' + nmListe(TOME_CONTEUR) + ')'), grise: manque, va: 'tomes',
+      fait: () => {
+        if (!gagnerTome(m, 2)) return null;
+        if (!ami) for (const [r, n] of Object.entries(TOME_CONTEUR)) nmMet(r, nmA(r) - n);
+        P.tomeHalte = NM.moi.vues; nmGagne(b, 1); if (typeof majSac === 'function') majSac();
+        say(nomTome(cleTome(m, 2)) + ' reçu · à déchiffrer au pupitre de la bibliothèque', 3.2);
+        return 'Prends-en soin : les Horlogers l\'avaient mis sous clé. Il se déchiffre au pupitre, après son premier tome.';
+      } });
+  }
+  choix.push({ t: 'Dis-m\'en plus.', va: 'tomesPlus' }, retour);
+  return { dit, choix };
+}
 const NM_LORE = {
   peuple: ['Nous sommes les Nomades du Seuil. Nous n\'avons pas d\'île : nous avons les passages entre elles.',
     'Nos anciens tissaient la lumière des éclats en étoffe. Tu vois nos visières ? C\'est ce qu\'il nous en reste.',
@@ -533,8 +574,10 @@ const NM_DIALOGUES = {
   },
   conteur: {
     accueil: b => ({ dit: nmAccueil(b), choix: [
-      { t: 'Parle-moi des automates.', va: 'automates' }, { t: 'Un conseil pour la route ?', va: 'conseil' },
+      { t: 'Parle-moi des automates.', va: 'automates' }, { t: 'Un conseil pour la route ?', va: 'conseil' }, { t: 'Que sais-tu des tomes ?', va: 'tomes' },
       { t: 'Qui êtes-vous ?', va: 'peuple' }, { t: 'Qu\'est-ce que le Seuil ?', va: 'seuil' }] }),
+    tomes: nmTomes,
+    tomesPlus: () => ({ dit: nmPioche('t', NM_INDICES.tomes), choix: [{ t: 'Encore.', va: 'tomesPlus' }, { t: 'Revenons aux tomes.', va: 'tomes' }, { t: 'Autre chose.', va: 'accueil' }] }),
     automates: () => ({ dit: nmPioche('a', NM_INDICES.automates), choix: [{ t: 'Encore.', va: 'automates' }, { t: 'Autre chose.', va: 'accueil' }] }),
     conseil: () => ({ dit: nmPioche('j', NM_INDICES.jeu), choix: [{ t: 'Un autre.', va: 'conseil' }, { t: 'Autre chose.', va: 'accueil' }] }),
     peuple: () => ({ dit: NM_LORE.peuple, choix: [{ t: 'Et les Horlogers ?', va: 'horlogers' }, { t: 'Autre chose.', va: 'accueil' }] }),

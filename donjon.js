@@ -403,6 +403,7 @@ function djRendre() {
     for (const emp of Object.keys(P.equip)) if (P.equip[emp] === k) P.equip[emp] = null;
     P.raccourcis = P.raccourcis.map(x => x === k ? null : x);
   }
+  if (DJ.etat.tomes && DJ.etat.tomes.length && Array.isArray(P.tomesPortes)) P.tomesPortes = P.tomesPortes.filter(k => !DJ.etat.tomes.includes(k));   // les tomes trouvés en bas
 }
 function djDescendre() {
   if (!djIci() || DJ.e >= DJ.n) return false;
@@ -416,7 +417,8 @@ function djButin() {
   const s0 = DJ.etat.s0, g = [];
   for (const r of DJ_RES) { const d = (P.sac[r] || 0) - (s0[r] || 0); if (d > 0) g.push('+' + d + ' ' + (RES[r] || r)); }
   const o = Object.keys(P.objets).filter(k => P.objets[k] && !DJ.etat.o0.includes(k)).map(k => (objet(k) || {}).n || k);
-  return g.concat(o);
+  const tm = (DJ.etat.tomes || []).filter(k => typeof tomePorte === 'function' && P.tomesPortes.includes(k)).map(k => nomTome(k));
+  return g.concat(o, tm);
 }
 function djSurface() { const tr = DJ.etat.tr; return tr ? [tr[0] + 1.2, tr[1] + .4, tr[2]] : null; }
 function djRemonter() {
@@ -461,9 +463,11 @@ function djOuvrir(c) {
   else if (c.taille === 'garde') arme = pas('laser') && R() < .25 ? 'laser' : pas('sniper') && e >= 3 && R() < .06 ? 'sniper' : null;
   else if (e >= 2 && pas('laser') && R() < .05) arme = 'laser';
   if (arme) { P.objets[arme] = 1; if (typeof rangerRaccourci === 'function') rangerRaccourci(arme); L.push(objet(arme).n.toUpperCase()); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
+  const tome = typeof tomeCoffre === 'function' ? tomeCoffre(c.taille) : '';   // un coffre gardé : parfois un Tome II
+  if (tome) { L.push(tome.toUpperCase()); if (!arme) SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
   SON.jouer('clank', {}, c.x, c.y, c.z); SON.jouer('ramasse', {});
-  burst(c.x, c.y, c.z + .6, 18, arme ? '#ffe28a' : '#ffd27d');
-  say((arme ? 'une arme d\'en bas · ' : 'coffre ouvert · ') + L.join(' · ') + ' · à remonter pour le garder', 5);
+  burst(c.x, c.y, c.z + .6, 18, arme ? '#ffe28a' : tome ? '#c9a2ec' : '#ffd27d');
+  say((arme ? 'une arme d\'en bas · ' : tome ? 'un tome des Horlogers · ' : 'coffre ouvert · ') + L.join(' · ') + ' · à remonter pour le garder', 5);
   majSac();
 }
 

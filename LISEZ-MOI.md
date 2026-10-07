@@ -840,7 +840,7 @@ Ni le lien par l'appel, ni les baies : **une offrande de son sol, au bon moment*
 | Silencieux | un **Os-cep** (de l'ossuaire) | tendu **sans le moindre bruit** (immobile, ni arme ni arc), à moins de trois cases mais hors de portée de ses bras, quand il ne charge pas | une **dizaine** ; tant qu'il n'est pas à moitié apprivoisé, le geste l'**effraie une fois sur deux** : il hurle et fonce |
 | Mille-gueules | un **Cœur de lanterne** (rare, des lanternes des fosses) | quand il est **dehors, dressé** — donc juste après avoir survécu à son jaillissement | **sept ou huit** ; il prend l'offrande et replonge sans frapper |
 
-- **À moitié apprivoisé** : le Silencieux connaît votre pas (il ne fonce plus sur vous, ne vous saisit plus) ; le Mille-gueules ne vous chasse plus. Un moment après chaque offrande, ils restent calmes.
+- **À moitié apprivoisé** : le Silencieux connaît votre pas (il ne fonce plus sur vous, ne vous saisit plus) ; le Mille-gueules ne vous chasse plus, mais vient encore, sans frapper, à qui porte un Cœur de lanterne (section 83). Un moment après chaque offrande, ils restent calmes.
 - **Liés** : le **Silencieux** vous suit à quelques pas, de sa démarche boiteuse, s'arrête pour écouter ; en défense (5), il **hurle, fonce et saisit** la menace. Le **Mille-gueules** **nage sous vos pas** sur la terre meuble (il attend au bord de la roche) ; en défense (5), il **jaillit sous la menace**, se dresse, frappe et replonge. Ni l'un ni l'autre ne vous touche plus, ni vos compagnes.
 - Testé : Silencieux lié en 11 offrandes (dont une où il a pris peur), Mille-gueules en 8 ; liés, ils vous suivent sans vous blesser.
 
@@ -1750,12 +1750,13 @@ La potion d'éveil est plus exigeante : elle part des recettes du rang 3 (cinq �
 
 | Type | Compétence | Rang 1 | Rang 2 | Rang 3 |
 |---|---|---|---|---|
-| **Rampants** (brouteur, bossu, glaneur, traqueur, spectre, félin, bramard, sterne, dragon, silencieux, mille-gueules) | **Boule visqueuse** : elle crache sur la bête qui vous menace, clouée sur place, sans assaut possible | 2,5 s, toutes les 10 s | 3,5 s, toutes les 8 s | 4,5 s, toutes les 6 s |
+| **Rampants** (brouteur, bossu, glaneur, traqueur, spectre) | **Boule visqueuse** : elle crache sur la bête qui vous menace, clouée sur place, sans assaut possible | 2,5 s, toutes les 10 s | 3,5 s, toutes les 8 s | 4,5 s, toutes les 6 s |
 | **Coursiers** | **Charge** : en selle et au galop, il renverse et blesse ce qui est devant lui. **Ruade** : monté ou non, une bête hostile à moins d'une case et demie est repoussée avec ses voisines | ruade toutes les 9 s | toutes les 7 s | toutes les 5 s |
 | **Telluriens** (crapaud-buffle, varan, vesseron, cerf de verre, salamandre) | **Secousse** : une bête hostile tout près, il frappe le sol ; tout ce qui l'entoure est repoussé, blessé un peu, étourdi | 3 cases, 1,2 s, toutes les 14 s | 3,5 cases, 1,6 s, toutes les 11 s | 4 cases, 2 s, toutes les 8 s |
 | **Doux** (lentigrade, cotonnier, carillonneur, oglodon) | **Trouvaille** : en rapportant sa récolte, elle déniche parfois un produit rare de la flore | 8 % | 12 % | 16 %, dont parfois un « très rare » |
 
 - **Les automates** reçoivent les potions de récolte et de défense, mais n'ont pas de compétence.
+- **Les créatures à part** — félin de brume, bramard, sterne des nues, dragon à plumes, silencieux, mille-gueules — ne sont d'aucun type : elles ont chacune leur compétence (section 84). (La première livraison les avait rangées par erreur chez les Rampants, faute d'une famille à elles dans le code ; corrigé au cache 50.)
 - **La boule visqueuse et les joueurs.** Elle ne part sur un joueur que si vous venez de le frapper (dans les huit secondes). Touché, il est cloué sur place, sans saut, le temps de la boule (5 s au plus), sauf dans le rond d'un campement. Qui englue devient une cible pour les tours du joueur visé.
 - **Un gardien de portail** ne reste englué que 40 % du temps, et les coups des compétences le blessent sans le repousser ni l'étourdir.
 - **La trouvaille en votre absence** : une Douce restée au campement en rapporte aussi, au cellier (une toutes les vingt minutes par rang, environ).
@@ -1767,3 +1768,163 @@ La potion d'éveil est plus exigeante : elle part des recettes du rang 3 (cinq �
 Testé : une compagne de chaque type et un automate liés ; les trois potions préparées et données, la table trop basse et la compagne à terre refusées, le chaudron perdu quand la compagne visée n'est plus là ; la récolte (+50 % au rang 5, la fraction au sort), la trouvaille sur place et en absence ; la défense (coups ×1,5, coups reçus ×0,7 au rang 5) ; la boule visqueuse sur un traqueur en colère (engluée 2,5 s, immobile), rien sans potion, rien sur un joueur non frappé, le message envoyé au joueur frappé, et soi-même englué (ni pas ni saut, puis libre) ; la secousse et son délai, rien sans bête hostile ; la ruade, la charge au galop (devant seulement, pas deux fois de suite), rien au pas ; la sauvegarde relue, gonflée puis ramenée aux bornes. **Pas vérifié** : entre deux joueurs réellement connectés, et sur une faune partagée dont on n'est pas le gardien — les effets sur les bêtes y sont joués chez celui qui les anime.
 
 Dans le code : `c.pot` (`recolte`, `defense`, `comp`), `potComp`, `potBete`, `potLue` ; `ALCH_COMP`, `COMPETENCES`, `GLU`, `CHARGE`, `RUADE`, `SECOUSSE`, `TROUVE` ; `potionDe` (une potion par sa clé : `vie`, ou `c12:recolte`), `freinAlch`, `chaudronLu` ; `majCompetences`, `compGlu`, `gluTouche`, `engluer`, `etreEnglue` (message `glu`), `compCoursier`, `compSecousse`, `frappeComp`, `trouvaille`, `ditPotions`.
+
+## 83. Le Mille-gueules qu'on ne pouvait plus débusquer
+
+Deux défauts le rendaient impossible à faire sortir, donc à apprivoiser.
+
+**Il se coinçait sous la terre.** Pour contourner la roche, il n'essayait qu'un écart d'un côté, puis de l'autre : dans un angle de roche entre lui et vous, les deux échouaient et il restait là, pour de bon. Un plongeon pouvait aussi l'emmener sous la roche, d'où il ne ressortait plus. Il cherche maintenant **le plus court chemin par la terre meuble**, case par case, dans un carré de 26 cases autour de sa tête ; si rien n'y mène jusqu'à vous, il va au plus près et vous traite comme si vous étiez sur la roche (il rôde au bord, frappe à moins de 4 cases, renonce au bout de quinze secondes). Il ne plonge plus dans la roche, et s'il s'y trouve, il en ressort tout droit.
+
+**À moitié apprivoisé, il ne venait plus.** Passé la moitié de la confiance (quatre offrandes), il cessait de vous chasser — donc de sortir —, alors qu'il faut qu'il soit dehors, dressé, pour recevoir les quatre offrandes suivantes. Désormais, à moitié apprivoisé, **il vient encore à qui porte un Cœur de lanterne** (à moins de 18 cases, sur sa terre) : il sort à deux pas de vous, sans frapper (« le Mille-gueules vient à l'offrande »), reste dressé trois secondes, puis replonge. Sans Cœur de lanterne au sac, il vous laisse en paix, comme avant.
+
+**Lié**, il vous suivait mal pour la même raison : quand le point qu'il visait, trois cases derrière vous, tombait sur la roche, il repartait errer. Il va maintenant au plus près de vous par la terre meuble, et il défend.
+
+Testé (graine 109, exploration 3) : avant le correctif, deux offrandes au plus puis plus rien pendant trois minutes, la tête immobile dans un angle de roche ; après, les deux Mille-gueules de l'île liés en huit offrandes chacun (81 s et 99 s), les quatre premières en chasseur, les quatre dernières « à l'offrande » sans un coup. À moitié apprivoisé et sans Cœur de lanterne : aucune sortie en trente secondes. Sur la roche : il rôde et frappe au bord, comme avant. Lié : à moins de quatre cases de vous dans seize placements sur seize (cinq sur seize à plus de cinq cases avant), et un traqueur en colère abattu en cinq secondes (jamais attaqué avant). Coût mesuré : environ 1,7 ms de plus par image quand il chasse.
+
+Dans le code : `pasMille` (le chemin, gardé une seconde par case de départ et d'arrivée), `b.chem`, `b.acces`, `b.ami` ; `majMille` (états `sous`, `fendre`, `dresse`, `plonger`).
+
+## 84. Les six créatures à part : une compétence chacune
+
+Le félin de brume, le bramard, la sterne des nues, le dragon à plumes, le silencieux et le mille-gueules ne sont d'aucun type. Chacun reçoit sa propre compétence, par la même potion d'éveil que les autres (trois rangs, recette du rang 3 pour commencer, table au niveau 2), et s'en sert seul.
+
+| Créature | Compétence | Rang 1 | Rang 2 | Rang 3 |
+|---|---|---|---|---|
+| **Félin de brume** | **Voile de brume** : une bête vous a pris pour proie à moins de neuf cases, il est près de vous — vous voilà invisible | 4 s, toutes les 45 s | 6 s, toutes les 36 s | 8 s, toutes les 28 s |
+| **Bramard** | **Brame** : une bête hostile à moins de sept cases de lui, il brame — toutes les bêtes alentour s'enfuient, les chasseurs renoncent à vous | 6 cases, 4 s, toutes les 20 s | 8 cases, 5 s, toutes les 16 s | 10 cases, 6 s, toutes les 12 s |
+| **Sterne des nues** | **Vigie** : elle crie quand une bête vous guette, dit où (« vers l'ouest, à 13 pas ») et la désigne : sa fiche s'affiche, vos compagnes en défense s'en chargent. Elle voit aussi le félin fondu dans la brume, que le jeu n'annonce pas | à 14 cases | à 20 cases | à 26 cases |
+| **Dragon à plumes** | **Souffle de braise** : sa boule de feu éclate plus large, et le brasier qu'elle laisse est plus grand et dure plus longtemps (sans potion : 1,5 case, 3,5 s) | 1,9 case, 5 s | 2,3 cases, 6,5 s | 2,7 cases, 8 s |
+| **Silencieux** | **Silence** : près de lui, vos pas ne s'entendent plus — les bêtes vous remarquent de bien plus près, et un Silencieux sauvage ne vous entend pas | à 6 cases de lui | à 8 cases | à 10 cases |
+| **Mille-gueules** | **Embuscade** : en jaillissant sous la menace, il cloue sur place les bêtes autour du trou, pour le coup qui suit (celles qui sont juste au-dessus prennent déjà le jaillissement) | 2 cases, 2 s | 2,4 cases, 3 s | 2,8 cases, 4 s |
+
+- Le brame n'effraie ni les gardiens de portail, ni les horreurs, ni les dragons, ni les automates. Une bête qui fuit sous le brame ne lance plus d'assaut, même mordue par une compagne.
+- Le voile de brume se dissipe si vous frappez, comme l'invisibilité des plats.
+- Au passage : « vers le ouest » et « vers le est » s'écrivent maintenant « vers l'ouest », « vers l'est » (la vigie, et l'arche de l'île dans le panneau).
+- Au passage aussi : un Mille-gueules **sous terre** n'est plus blessé par un autre Mille-gueules (le vôtre, en défense, le frappait à travers la terre et finissait par le tuer). Dehors, il reste une cible : pour en apprivoiser un second, mettez vos compagnes **au repos**, sinon elles s'en prennent à lui pendant qu'il se dresse.
+
+Testé : les six liées, leurs recettes ; le voile (rien sans guetteur, 4 s puis le délai, rien si le félin est loin) ; le brame (rien pour une bête paisible seule, un traqueur en colère qui passe de 1,5 à 14 cases en trois secondes sans un assaut, rien au-delà du rayon) ; la vigie (un félin tapi à 13 cases signalé et désigné, pas deux fois, la portée par rang) ; le silence (bruit de course ramené à zéro dans le rayon, pas au-delà) ; le souffle (zone et brasier aux trois rangs, le dragon sauvage inchangé) ; l'embuscade (retenue selon la distance au trou et le rang). Pas vérifié : à deux joueurs, et le dragon et la sterne en vol réel sur une longue partie.
+
+Dans le code : `BRUME`, `BRAME`, `VIGIE`, `BRAISE`, `SILENCE`, `EMBUSCADE` ; `guette`, `compBrume`, `compBrame` (et `b.brame` dans le choix d'état des bêtes), `compVigie`, `compSilence` ; `cracheFeu` et `allumerFeu` pour le dragon, la sortie de `fendre` dans `majMille` pour l'embuscade ; `compDe` rend le type, ou l'espèce pour une créature à part ; `versLe`.
+
+## 85. La magie, première livraison : l'Écriture d'éclat
+
+On n'apprend pas des sorts tout faits : **on les écrit**. Une phrase tient en deux glyphes — une **forme** (comment le sort part) et une **matière** (ce qu'il fait) — et le jeu lui donne son nom : « Trait de braise », « Mur de fange », « Égide d'effroi ». Cinq formes, six matières : trente sorts. La magie n'agit que dans l'instant, pour attaquer ou se défendre ; ce qui change le personnage pour de bon reste à l'alchimie. Rien ne change dans Supabase.
+
+**Les formes**
+
+| Forme | Rôle | Ce qu'elle fait | Éclats | À relancer après |
+|---|---|---|---|---|
+| Trait | attaque | un projectile sur la bête visée : celle qu'on vient de frapper, sinon la plus menaçante devant soi, à 14 cases au plus | 5 | 1,2 s |
+| Onde | attaque | un anneau qui part de vous : tout ce qui est à 4,5 cases | 10 | 5 s |
+| Piège | attaque | un glyphe posé à vos pieds ; armé en une seconde, il attend 90 s la première bête à une case, et touche à 2,2 cases. Trois pièges au plus | 8 | 4 s |
+| Mur | défense | une barrière de cinq cases, deux cases devant vous, huit secondes : les bêtes à pied ne passent pas, leurs tirs non plus (ni les carreaux des tours) ; ce qui s'y frotte reçoit la matière. Un seul mur à la fois | 12 | 8 s |
+| Égide | défense | dix secondes : toute blessure réduite d'un tiers, et la matière rendue à la bête qui vous frappe | 12 | 14 s |
+
+**Les matières**
+
+| Matière | Éclats | Son effet | Son coup | Son biome (son Tome I y repose, voir §86) |
+|---|---|---|---|---|
+| Fange | 3 | englue : clouée sur place 2,5 s | faible | la Tourbière |
+| Vent | 3 | repousse au loin | faible | le Canyon d'ocre |
+| Spore | 5 | trouble : la bête vous perd de vue six secondes et renonce | faible | la Sylve fongique |
+| Effroi | 6 | met en fuite quatre secondes | faible | les Terres de l'effroi |
+| Cristal | 7 | perce : aucun effet, les dégâts les plus forts | très fort | les Champs de cristal |
+| Braise | 8 | brûle, et laisse un brasier de 3,5 s (il épargne le joueur et ses compagnes) | fort | la Caldeira de cendre |
+
+Un sort coûte sa forme plus sa matière, en éclats du sac : de 8 (Trait de fange) à 20 (Mur ou Égide de braise). Le Manteau d'éclats, les Champs de cristal et la potion de mana les allègent, comme pour les anciens sorts. L'effroi ne prend ni sur les gardiens de portail, ni sur les horreurs, ni sur les dragons, ni sur les automates ; un gardien de portail se remet plus vite de tout le reste. Une bête tuée par un sort laisse son butin, comme à l'arme.
+
+**La bibliothèque**, dernier module de l'anneau (au fond, face à l'entrée). Elle se crée grâce à l'établi (40 bois · 20 pierres · 30 éclats) et s'améliore deux fois (60 bois · 70 éclats · 20 os, puis 30 ferraille · 120 éclats · 80 bois). Son grimoire tient **trois sorts**, puis **cinq**, puis **sept**. Les niveaux 2 et 3 ouvriront les mélanges et les accents, dans une prochaine livraison. Devant elle, ACTION propose MAGIE.
+
+**Le volet Magie** du Campement. À gauche, les six matières avec le tome lu (I, II, III) et où trouver le premier, puis les cinq formes. À droite, le **pupitre** : on choisit une forme et une matière, la phrase s'affiche avec son nom, ce qu'elle fait, son prix ; « Inscrire au grimoire » coûte 10 éclats d'encre et demande d'être au pupitre. Dessous, **le grimoire** : chaque sort inscrit se range dans une case du bord droit (ceinture), se tient en main (la touche X le lance), ou s'efface (deux appuis). Sur téléphone, les six volets tiennent sur une ligne, sans vignette.
+
+**Les tomes.** Trois par matière ; le Tome I l'apprend. Depuis §86 ils se trouvent dans le monde (lutrins, coffres gardés, conteur, Tisseuse) ; le bouton bêta « Tomes : n/3 » les donne toujours. Une exception : le vieux grimoire **Souffle** vaut le Tome I du vent, et à la création de la bibliothèque « Onde de vent » est inscrite d'office.
+
+**Les quatre grimoires de l'établi** ne changent pas. Si l'un d'eux est équipé, c'est lui que lance X.
+
+**Pas encore fait** : les sorts sur les autres joueurs, et leur dessin chez les autres (les accords, les accents et le Codex sont en §87). **Pas vérifié** : à deux joueurs, et sur une faune partagée dont on n'est pas le gardien.
+
+**Bêta** : « Bibliothèque n/3 » et « Tomes : n/3 ».
+
+Testé : la bibliothèque refusée sans établi, créée (« Onde de vent » offerte), montée à 3 ; une matière inconnue refusée, l'encre payée, le doublon et le grimoire plein refusés, rien loin du pupitre ; le trait des six matières sur un bossu (dégâts, englué, repoussé, perdu de vue, en fuite, brasier), sans cible, avant le délai, sans éclats, effacé ; l'onde (trois bêtes touchées, une épargnée à 6,5 cases) ; le piège (rien à 2,5 cases, déclenché dessus, trois au plus) ; le mur (un traqueur en colère tenu derrière pendant huit secondes, puis il passe ; un tir ennemi arrêté ; son propre trait qui passe) ; l'égide (blessure ×0,67, l'attaquant englué, dix secondes) ; un brasier de sort (0,17 de vie en trois secondes sur un bossu, le joueur indemne, le butin à la mort) ; les cases, la touche X, le grimoire équipé qui garde la main ; la sauvegarde relue, gonflée puis ramenée aux bornes ; la page à l'écran, au clic, sur téléphone ; les essais des sections précédentes repassés.
+
+Dans le code : `FORMES`, `MATIERES`, `phraseDe`, `nomPhrase`, `coutPhrase` ; `P.tomes`, `P.sorts`, `P.sortMain`, `P.egide`, `tomeDe`, `inscrireSort`, `effacerSort`, `tenirSort` ; `lancerPhrase`, `sortTrait` / `sortTouche`, `sortOnde`, `sortPiege`, `sortMur`, `sortEgide`, `matiereSur`, `frapperSort`, `toucherSort`, `brasierSort`, `viseSort` ; `SORTS_POSES`, `majSorts`, `murSort`, `sortOs` / `sortDecor` / `sortEmit` ; `pageBiblio`, `biblioOs`, `magieLue` ; les cases portent `sort:forme.matière`. Le huitième groupe de deux bits de `modsDits` porte le niveau de la bibliothèque.
+
+## 86. La magie, deuxième livraison : les tomes dans le monde
+
+Les tomes ne se donnent plus seulement en bêta : **on les trouve en explorant**, on les **porte**, et on les **déchiffre** au pupitre de la bibliothèque. Rien ne change dans les sorts de §85 ; les Tomes II et III se trouvent et se lisent déjà, mais ne servent qu'à la troisième livraison (mélanges, accents).
+
+| Tome | Où il se trouve | Comment |
+|---|---|---|
+| **I** | sur un **lutrin de pierre**, dans le biome de sa matière | ACTION « LIRE » : on le recopie, le lutrin reste |
+| **II** | dans les **coffres gardés** du Centre des automates, ou chez le **conteur** des Nomades | coffre du gardien 15 %, grand coffre de l'Horloge 50 % ; le conteur en cède un par halte, 40 éclats, offert à un ami |
+| **III** | la **Tisseuse de fer** le porte | il tombe avec elle, la première fois qu'on la terrasse sur une île |
+
+**Le lutrin.** Un par matière dont le biome pousse sur l'île : fange → Tourbière, vent → Canyon d'ocre, spore → Sylve fongique, cristal → Champs de cristal, braise → Caldeira de cendre (jamais sur une plaque vive), effroi → Ossuaire ou Terres creuses (un seul lutrin si l'île porte les deux). Sa place ne dépend que de la graine : **tous les joueurs le voient au même endroit**, et chacun peut le lire. Il est posé à plat, hors de l'eau, sans rien qui y pousse, à sept cases au moins de l'arche, et plutôt au cœur du biome qu'en lisière. Tant qu'on ne l'a pas lu, ses pages ont la couleur de la matière, un signe flotte au-dessus et des étincelles en montent ; **la nuit le livre luit**, avec un fil de lumière qui se voit de loin. À moins de quatorze cases, un message l'annonce et il se marque **à la boussole** (un petit livre de la couleur de la matière) jusqu'à ce qu'on l'ait lu. Une fois lu, le livre est terne et l'action devient « RECOPIÉ » puis « DÉJÀ LU ».
+
+**Porter et déchiffrer.** Un tome trouvé va dans les **tomes rapportés** : il ne pèse rien, ne prend pas de place, et ne se perd pas en tombant à la surface. Le volet Magie les liste en tête, même sans bibliothèque, avec ce qui manque pour les lire. On les déchiffre **au pupitre**, contre de l'encre : **10, 25 et 45 éclats** pour les Tomes I, II et III, et **dans l'ordre** (pas de II sans le I). Le Tome I rend la matière inscriptible ; chaque ligne de matière dit où chercher le suivant.
+
+**Le Souffle** vaut toujours le Tome I du vent : avec lui, le lutrin du canyon répond « DÉJÀ LU » et le Tome II du vent se déchiffre directement.
+
+**Sous terre**, un tome suit la règle du butin : trouvé en bas, il n'est à soi qu'une fois remonté ; terrassé, on le perd (il est cité dans « perdu : … ») ; en descente d'essai, rien n'est gardé.
+
+**Le tirage.** Un coffre, le conteur et la Tisseuse donnent toujours un tome qu'on n'a pas (ni lu, ni dans le sac), et **d'abord d'une matière dont on tient déjà le tome précédent**. Le conteur propose le même tome tant que la halte dure. Quand tous les tomes d'un rang sont là, il n'y en a plus.
+
+**Le conteur.** Nouvelle question, « Que sais-tu des tomes ? » : il dit **vers où se trouve chaque lutrin non lu de l'île** (ce qui le marque à la boussole), cède son Tome II, et raconte six indices sur les tomes.
+
+**Bêta** : « Tome rapporté +1 » (met au sac le prochain tome manquant) et « Aller au lutrin » (grisé sur une île sans biome de matière). « Tomes : n/3 » continue de tout donner.
+
+**Ce que j'ai décidé seul** : le lutrin se recopie au lieu de se ramasser (pour que plusieurs joueurs le lisent) ; un tome ne se lit pas sur place, il faut le pupitre ; les prix d'encre et les chances des coffres ; un tome par halte chez le conteur ; pas de niveau de bibliothèque exigé pour déchiffrer ; on traverse le lutrin, il n'arrête pas le pas ; un lutrin aperçu s'oublie à la boussole quand on recharge l'île.
+
+Les accords, l'instabilité, les accents et le Codex sont en §87. **Pas vérifié** : à deux joueurs réellement connectés ; le rendu en canvas, sans WebGL 2.
+
+Testé : un lutrin posé pour chacun des six biomes (à plat, dans son biome, sans flore, loin de l'arche), un seul quand l'ossuaire et les terres creuses sont ensemble ; l'annonce à l'approche, « LIRE », le tome au sac, « RECOPIÉ », le repère de boussole qui apparaît puis s'efface ; les refus du pupitre (sans bibliothèque, loin du pupitre, sans encre, sans le tome précédent), l'encre payée, la matière apprise ; le Souffle ; la sauvegarde (aller-retour, clés invalides, doublons, vieille sauvegarde sans tomes) ; les tirages ; un Tome II dans le grand coffre, gardé en remontant, perdu en tombant, rendu en essai ; le Tome III à la chute de la Tisseuse ; le conteur (lutrin indiqué, troc payé, grisé sans éclats, offert à un ami, un seul par halte) ; la page à l'ordinateur et au téléphone ; les boutons bêta ; les essais de §85 rejoués sans écart.
+
+Dans le code (`index.html`) : `LUTRINS`, `BIOME_MATIERE`, `placerLutrins` (appelé après `placerPortailIle`), `lutrinOs`, `majLutrins`, `lutrinProche`, `lutrinAction`, `lireLutrin` ; `P.tomesPortes` (clés `matière.rang`), `P.tomeHalte`, `tomeLu`, `nomTome`, `tomePorte`, `tomeAcquis`, `gagnerTome`, `tomeManquant`, `rangerTomes` ; `DECHIFFRE`, `freinTome`, `dechiffrerTome`, `blocTomesPortes`, `ouTome` ; `TOME_COFFRE`, `tomeCoffre`, `tomeTisseuse`, `TOME_CONTEUR`, `tomeConteur` ; les lutrins passent par `sortDecor` / `sortEmit`, et par `reperes` pour la boussole. `donjon.js` : `djOuvrir`, `djButin`, `djRendre` (`DJ.etat.tomes`). `nomades.js` : `NM_INDICES.tomes`, `nmTomes`, les nœuds `tomes` et `tomesPlus` du conteur. Aucun changement dans la base.
+
+**À déposer** : `index.html`, `donjon.js`, `nomades.js` et `sw.js` (qui passe en `stone-valley-54`).
+
+## 87. La magie, troisième livraison : les accords, les accents, le Codex
+
+Une phrase peut maintenant **mêler deux matières** et porter un **accent**. Ce qu'on a écrit se retrouve dans un **Codex**, et un sort inscrit peut recevoir **le nom qu'on veut**.
+
+**Les accords** (bibliothèque de niveau 2, Tome I des deux matières). L'ordre des deux matières ne compte pas : quinze paires. Le prix d'un accord est la somme des deux matières ; l'encre pour l'inscrire passe à **20 éclats**. Neuf accords sont **simples** : les deux effets à la fois, avec le coup de la plus forte des deux. Six sont **remarquables** : ils ont un nom, une couleur et un effet à eux, **et ne les disent qu'une fois inscrits** — avant, le pupitre annonce seulement « accord jamais essayé ». Chaque matière entre dans deux accords remarquables, pas plus.
+
+| Accord | Matières | Coup | Ce qu'il fait |
+|---|---|---|---|
+| **Poix** | fange + braise | ×1 | englue, et la bête brûle tant qu'elle est prise (une brûlure toutes les demi-secondes) ; pas de brasier au sol |
+| **Gangue** | fange + cristal | ×1,1 | fige moitié plus longtemps, et tout ce qui frappe la bête figée pèse moitié plus (armes et compagnes comprises) |
+| **Nuée** | vent + spore | ×0,5 | repousse, et toutes les bêtes à cinq cases perdent le joueur de vue |
+| **Épouvante** | vent + effroi | ×0,5 | repousse, et toutes les bêtes à sept cases prennent la fuite |
+| **Grisou** | spore + braise | ×1 | explose : les bêtes à trois cases prennent la moitié du coup, et le sol brûle |
+| **Glas** | effroi + cristal | ×1,6 | perce, met en fuite, et frappe double une bête qui a perdu la moitié de sa vie |
+
+**L'instabilité.** Un accord dont on n'a pas lu **les deux Tomes II** est instable : **un lancer sur quatre tourne mal**, un sur huit si l'on tient un des deux. Une fois sur deux la phrase **se défait** (les éclats du lancer sont perdus, rien ne part) ; l'autre fois c'est la **brûlure d'éclat** : autant d'éclats de plus partent en fumée (dans la limite du sac) et le joueur perd 12 % de sa vie, sans jamais en mourir. Dans les deux cas le délai du sort court. Le pupitre, le grimoire et le Codex disent si un accord est stable.
+
+**Les accents** (bibliothèque de niveau 3, Tome III de chaque matière de la phrase ; +10 éclats d'encre). Un seul par phrase, et il s'accorde : une onde *aiguë*.
+
+| Accent | Prix | Effet |
+|---|---|---|
+| **Aigu** | +2 éclats | le délai avant de relancer est multiplié par 0,6 |
+| **Grave** | +4 éclats | le coup pèse moitié plus |
+| **Circonflexe** | +3 éclats | ×1,4 : le trait part plus vite et vise plus loin, l'onde porte à 6,3 cases, le piège se déclenche et frappe plus large, le mur fait sept cases et dure onze secondes, l'égide quatorze |
+
+**Le Codex.** Dans le volet Magie, la colonne de gauche bascule entre « Tomes et formes » et « Codex » : les quinze paires (« jamais essayé », accord simple ●, accord remarquable ★ avec son nom et son effet, stable ou non), puis les trois accents. Un accord entre au Codex **à sa première inscription** ; l'effacer ensuite ne le fait pas oublier.
+
+**Nommer un sort.** Bouton « Nommer » sur chaque ligne du grimoire : 24 caractères au plus ; vide, il reprend son nom. Le nom donné s'affiche partout (grimoire, cases, messages), le nom d'origine reste écrit dessous. Effacer le sort efface son nom.
+
+**Le pupitre** : forme, matière, puis « Seule » ou la matière qu'on y mêle (niveau 2), puis l'accent (niveau 3). Avant ces niveaux, une ligne dit ce qu'ils ouvriront. Les vignettes des accords portent les deux couleurs, et l'accent en bas à droite ; dans le monde, murs et glyphes alternent les deux couleurs.
+
+**Le conteur** a neuf indices de plus : un par accord remarquable, l'instabilité, les accents, le nom des sorts.
+
+**La clé d'une phrase** : `forme.matière`, `forme.matière+matière`, et `~accent` à la suite (`onde.vent+spore~aigu`). Les vieilles sauvegardes se lisent telles quelles.
+
+**Bêta** : « Codex : n/15 » fait connaître les quinze accords, puis revient à ceux qui sont inscrits.
+
+**Ce que j'ai décidé seul** : quels accords sont remarquables, leurs noms et leurs effets ; les neuf autres donnent simplement leurs deux effets ; un sur huit avec un seul Tome II ; la brûlure ne tue pas ; les trois accents et leurs chiffres ; le Tome III exigé pour chaque matière d'un accord accentué ; le nom d'un accord caché jusqu'à l'inscription.
+
+**Pas encore fait** : les sorts sur les autres joueurs, et leur dessin chez les autres. **Pas vérifié** : à deux joueurs réellement connectés, et sur une faune partagée dont on n'est pas le gardien.
+
+Testé : les clés (ordre des matières, clés fausses), les noms avant et après découverte, les prix ; les refus (Tome I, niveau 2, niveau 3, Tome III) ; l'inscription d'un accord remarquable puis d'un simple, l'encre, le Codex ; l'instabilité (défaite, brûlure, lancer réussi, un seul Tome II, les deux, sac presque vide et joueur presque mort, 1 012 ratés sur 4 000 lancers) ; les six accords remarquables et un simple sur des bêtes placées à distance (rayons de trois, cinq et sept cases, brûlure de la poix dans le temps, gangue ×1,5, glas doublé) ; les trois accents sur les cinq formes ; l'onde, le trait, l'égide et le mur avec un accord ; la sauvegarde (aller-retour, clés à l'envers, doublons, données fausses, vieille sauvegarde) ; le nom d'un sort (nettoyé, tronqué, effacé avec lui) ; la page aux niveaux 1, 2 et 3, à l'ordinateur et au téléphone ; les vignettes ; une case de raccourci ; les essais de §85 et §86 rejoués sans écart.
+
+Dans le code (`index.html`) : `ACCENTS`, `ACCORDS`, `MELANGES` (les quinze entrent aussi dans `MATIERE`, avec `mix`, `acc`, `col2`, `feu`), `INSTABLE`, `phraseDe` (rend aussi `del`, `deg`, `amp`), `nomPhraseNu`, `nomPhrase`, `accordConnu`, `dessinSort`, `icSort` ; `encreDe`, `freinPhrase`, `instabilite`, `sortRate`, `nommerSort` ; `zoneSort`, `matiereSur`, `toucherSort`, `poixFin` et la boucle de la poix dans `majSorts`, `robuste` (la gangue) ; `P.codex`, `P.nomsSorts`, `pupitre` (`m2`, `a`, `vue`, `nomme`), `clePupitre`, `blocCodex`, `pageBiblio`. `nomades.js` : `NM_INDICES.tomes`. Aucun changement dans la base.
+
+**À déposer** : `index.html`, `nomades.js` et `sw.js` (qui passe en `stone-valley-55`).

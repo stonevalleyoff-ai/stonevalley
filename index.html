@@ -383,6 +383,7 @@
   .volets button:hover{background:#1c2232;} .volets button.on{border-color:var(--or);color:var(--or);background:rgba(255,210,125,.1);}
   .volets button.on .ic{opacity:1;}
   @media (max-width:640px){ .volets{gap:4px;padding:7px 8px 8px;} .volets button{flex:1;min-width:0;padding:6px 4px;gap:4px;font-size:12px;} .volets button .ic{width:18px;height:18px;} }
+  @media (max-width:520px){ .volets{gap:3px;padding:7px 6px 8px;} .volets button{padding:7px 2px;font-size:11.5px;} #sac .volets button .ic{display:none !important;} .volets button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} }   /* six volets : sans vignette sur un téléphone */
   .sac-tete{flex:none;display:flex;align-items:center;gap:10px;padding:10px 18px 9px;border-bottom:1px solid var(--trait);}
   .sac-tete h2{margin:0;font-size:18px;font-weight:650;color:var(--texte);}
   .badge{font-size:11px;font-weight:650;color:#2a1d05;background:var(--or);border-radius:4px;padding:1px 7px;}
@@ -489,6 +490,11 @@
   #sac .caracs button:focus-visible{outline:2px solid var(--or);outline-offset:-2px;}
   #sac .obj.etape{padding:7px 2px;} #sac .obj.etape.porte{padding-left:12px;}
   #sac .obj .fait{color:var(--pousse);font-weight:600;font-size:12px;white-space:nowrap;} #sac .obj .attend{color:var(--or);font-size:12px;white-space:nowrap;}
+  #sac .pastille{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
+  #sac .biblio .obj .pts{color:var(--texte2);letter-spacing:1px;font-size:11px;white-space:nowrap;} #sac .biblio .obj .pts.su{color:var(--or);}
+  #sac .biblio .filtres button.inconnu{opacity:.5;}
+  #sac .champ-nom{display:block;width:100%;max-width:260px;margin-top:6px;background:rgba(12,16,26,.7);border:1px solid rgba(190,205,230,.28);color:#cfd6e4;border-radius:8px;font:inherit;font-size:13px;padding:6px 9px;}
+  #sac .obj.sortg{align-items:flex-start;} #sac .obj.sortg .gestes.cases{margin-top:6px;flex-wrap:wrap;}
   #sac .alch h4{margin:8px 0 5px;font-size:11.5px;font-weight:600;color:var(--texte2);}
   #sac .alch .fin h4{margin:14px 0 2px;font-size:12.5px;color:var(--texte);}
   #sac .obj{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:10px 2px;
@@ -2373,6 +2379,9 @@ P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ
 P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, baies: 0, spore: 0 };
 P.modules = {};                                       // les modules créés au campement : { id: niveau }
 P.alchimie = {}; P.chaudron = null;                   // les rangs acquis par potion { caractéristique: rang } ; la potion en cours { c, e, f }
+P.codex = []; P.nomsSorts = {};                       // les accords déjà écrits (clés « matière+matière ») ; les noms donnés aux sorts
+P.tomesPortes = []; P.tomeHalte = 0;                  // les tomes trouvés, pas encore déchiffrés ; la halte où le conteur en a cédé un
+P.tomes = {}; P.sorts = []; P.sortMain = null; P.egide = null;   // la magie : les tomes lus { matière: 1..3 }, les phrases inscrites, celle que lance X, l'égide en cours
 P.pillages = [];                                      // les derniers pillages subis : qui, quoi, quand
 // L'expédition en cours : les sauts faits depuis le campement, et les cœurs perdus en route.
 // Elle se lit avant le peuplement de l'île, sinon la première fournée de bêtes ignorerait
@@ -3782,6 +3791,7 @@ function emitFleches(view, out) {
 // ============================================================
 const CARDINAUX = ['est', 'nord-est', 'nord', 'nord-ouest', 'ouest', 'sud-ouest', 'sud', 'sud-est'];
 const versOu = (dx, dy) => CARDINAUX[(Math.round(Math.atan2(-dy, dx) / .7854) + 8) % 8];
+const versLe = (dx, dy) => { const d = versOu(dx, dy); return (/^[eo]/.test(d) ? 'vers l\'' : 'vers le ') + d; };   // vers l'est, vers l'ouest
 // Chaque île porte un portail, posé à une place tirée de sa graine — donc la même pour tous ceux
 // qui y arrivent. C'est par là qu'on s'enfonce : le campement n'est plus le seul départ.
 let PortailIle = null;
@@ -3823,7 +3833,7 @@ const MODULES = [   // a : l'angle sur l'anneau, compté depuis l'entrée ; pret
   { id: 'cuisine',  n: 'Cuisine',           a: -72,  d: 'la marmite du campement : de deux à quatre ingrédients', pret: 1 },
   { id: 'soin',     n: 'Table de soin',     a: -108, d: 'bandages, onguents, élixirs : pour soi, ses compagnes, ses équipiers', pret: 1 },
   { id: 'alchimie', n: 'Table d\'alchimie', a: -144, d: 'les potions : elles améliorent le personnage pour de bon', pret: 1 },
-  { id: 'biblio',   n: 'Bibliothèque',      a: 180,  d: 'la magie' },
+  { id: 'biblio',   n: 'Bibliothèque',      a: 180,  d: 'la magie : on y lit ses tomes, on y écrit ses sorts', pret: 1 },
   { id: 'defense',  n: 'Défense',           a: 108,  d: 'un rempart sur la bordure, des tours aux coins : contre les bêtes et les étrangers', pret: 1 },
 ];
 const MODULE = {}; for (const m of MODULES) MODULE[m.id] = m;
@@ -3831,15 +3841,15 @@ const MODULE = {}; for (const m of MODULES) MODULE[m.id] = m;
 const placeAnneau = a => { const r = a * Math.PI / 180; return [Math.cos(r) * CAMP_ANNEAU, Math.sin(r) * CAMP_ANNEAU, ((Math.round((a + 180) / 90) % 4) + 4) % 4]; };
 const aModule = id => (P.modules[id] | 0) > 0;
 // Le niveau d'un module : 0 tant qu'il n'est pas créé. Celui du portail est tenu à part (P.campNiv).
-const MODULE_MAX = { etabli: 3, cuisine: 3, soin: 3, alchimie: 3, coffre: 1 };
+const MODULE_MAX = { etabli: 3, cuisine: 3, soin: 3, alchimie: 3, biblio: 3, coffre: 1 };
 const maxModule = id => id === 'portail' ? CAMP_MAX : MODULE_MAX[id] || 1;
 const nivModule = id => !aModule(id) ? 0 : id === 'portail' ? nivCamp() : Math.min(maxModule(id), P.modules[id] | 0);
 const nivEtabli = () => nivModule('etabli'), nivCuisine = () => nivModule('cuisine');
 const lieuModule = (c, id) => { const q = placeAnneau(MODULE[id].a); return [c.x + q[0], c.y + q[1]]; };
 // Ce qu'on dit de ses modules aux autres joueurs de l'île, en un nombre : 2 le coffre, puis deux bits
 // pour le niveau de l'établi, deux pour celui de la cuisine, deux pour la table de soin, deux pour le rempart, deux pour les tours, deux pour la table d'alchimie. Le portail ne s'ouvre que pour soi.
-const modsDits = () => (aModule('coffre') ? 2 : 0) | (nivEtabli() << 2) | (nivCuisine() << 4) | (nivModule('soin') << 6) | (nivMur() << 8) | (nivTours() << 10) | (nivModule('alchimie') << 12);
-const modsLus = v => { v |= 0; const m = {}; if (v & 2) m.coffre = 1; if ((v >> 2) & 3) m.etabli = (v >> 2) & 3; if ((v >> 4) & 3) m.cuisine = (v >> 4) & 3; if ((v >> 6) & 3) m.soin = (v >> 6) & 3; if ((v >> 8) & 3) m.mur = (v >> 8) & 3; if ((v >> 10) & 3) m.tours = (v >> 10) & 3; if ((v >> 12) & 3) m.alchimie = (v >> 12) & 3; return m; };
+const modsDits = () => (aModule('coffre') ? 2 : 0) | (nivEtabli() << 2) | (nivCuisine() << 4) | (nivModule('soin') << 6) | (nivMur() << 8) | (nivTours() << 10) | (nivModule('alchimie') << 12) | (nivModule('biblio') << 14);
+const modsLus = v => { v |= 0; const m = {}; if (v & 2) m.coffre = 1; if ((v >> 2) & 3) m.etabli = (v >> 2) & 3; if ((v >> 4) & 3) m.cuisine = (v >> 4) & 3; if ((v >> 6) & 3) m.soin = (v >> 6) & 3; if ((v >> 8) & 3) m.mur = (v >> 8) & 3; if ((v >> 10) & 3) m.tours = (v >> 10) & 3; if ((v >> 12) & 3) m.alchimie = (v >> 12) & 3; if ((v >> 14) & 3) m.biblio = (v >> 14) & 3; return m; };
 const MODS_RAID = { coffre: 1 }, MODS_RAID_DEF = { coffre: 1, defense: 1 };   // le campement qu'on pille : on y vient pour son coffre
 const modsDuCamp = c => c === P.camp ? P.modules : c === Raid ? (Raid.mur || Raid.tours ? MODS_RAID_DEF : MODS_RAID) : (c && c.mods) || {};
 const CAMP_R = 3.9;                                    // portée : tout le rond du campement
@@ -4375,7 +4385,7 @@ const COGNE = 1.2;
 // marcher ne sème personne, courir si, un temps — et à bout de souffle on est une proie.
 const VIT_MARCHE = 4.2, VIT_COURSE = 5.8, VIT_EPUISE = 3.2;   // la marche au pas de l'ancien sprint, le sprint plus vif encore
 const ENDU_COURSE = 8, ENDU_REPRISE = .12, ENDU_REPOS = .24, ENDU_SEUIL = .35;
-const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1);   // l'escouade est blindée
+const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1) / (b && b.gangue > t ? 1.5 : 1);   // l'escouade est blindée
 const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.6, effet('robuste') * .2)) * vieK();   // peau dure : −20 % par niveau, −60 % au plus
 const degJoueur = (deg, b) => deg / danger() / robuste(b) * forceK();   // coups puissants : +25 % par niveau
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
@@ -5018,6 +5028,7 @@ const COUT_MODULE = {
   cuisine: [{ pierre: 24, bois: 16, fibre: 8 }, { pierre: 40, os: 10, eclat: 8 }, { pierre: 70, eclat: 30, os: 20 }],
   soin:    [{ fibre: 30, bois: 16, os: 6 }, { fibre: 50, os: 14, eclat: 10 }, { fibre: 80, eclat: 36, os: 24 }],
   alchimie: [{ pierre: 40, bois: 20, eclat: 20 }, { pierre: 60, eclat: 50, os: 20 }, { ferraille: 30, eclat: 90, pierre: 100 }],
+  biblio:   [{ bois: 40, pierre: 20, eclat: 30 }, { bois: 60, eclat: 70, os: 20 }, { ferraille: 30, eclat: 120, bois: 80 }],
   defense: [{ bois: 30, pierre: 20, fibre: 10 }],
 };
 const coutModule = (id, niv) => id === 'portail' && niv > 1 ? coutCamp(niv) : (COUT_MODULE[id] || [])[niv - 1] || null;
@@ -5033,12 +5044,14 @@ function creerModule(id) {
     payer(cout);
   }
   P.modules[id] = 1;
+  if (id === 'biblio' && P.objets.souffle && !P.sorts.includes('onde.vent')) P.sorts.push('onde.vent');   // le vieux Souffle : la première phrase
   const q = lieuModule(P.camp, id);
   burst(q[0], q[1], P.camp.z + .8, 44, id === 'portail' ? '#8fe4e8' : '#ffd27d'); SON.jouer('niveau');
   say(id === 'etabli' ? 'établi créé · bien plus à fabriquer, et les autres modules'
     : id === 'cuisine' ? 'cuisine créée · deux ingrédients par plat'
     : id === 'soin' ? 'table de soin créée · bandages et onguents'
     : id === 'alchimie' ? 'table d\'alchimie créée · les potions améliorent le personnage pour de bon'
+    : id === 'biblio' ? 'bibliothèque créée · un pupitre pour écrire vos sorts' + (P.sorts.includes('onde.vent') ? ' · « Onde de vent » y est déjà, d\'après votre Souffle' : '')
     : id === 'defense' ? 'poste de garde créé · le rempart et les tours s\'y commandent'
     : id === 'portail' ? 'portail créé' + (nivCamp() > 1 ? ' · il retrouve son niveau ' + nivCamp() : ' · il s\'améliore pour viser')
     : 'coffre créé' + (coffreTotal() + cellierTotal() ? ' · ' + (coffreTotal() + cellierTotal()) + ' en réserve vous y attendaient' : ' · le stock du campement est ouvert'), 3.5);
@@ -5062,6 +5075,7 @@ function ameliorerModule(id) {
   burst(q[0], q[1], P.camp.z + .8, 36, '#ffd27d'); SON.jouer('niveau');
   say(id === 'etabli' ? 'établi · niveau ' + n + ' · de nouvelles fabrications' : id === 'soin' ? 'table de soin · niveau ' + n + ' · des soins plus forts'
     : id === 'alchimie' ? 'table d\'alchimie · niveau ' + n + ' · les potions jusqu\'au rang ' + [0, 2, 3, 5][n]
+    : id === 'biblio' ? 'bibliothèque · niveau ' + n + ' · un grimoire de ' + PAGES_SORT[n] + ' sorts'
     : 'cuisine · niveau ' + n + ' · ' + (n + 1) + ' ingrédients par plat', 3);
   majSac();
   return true;
@@ -5305,6 +5319,7 @@ function payerMana(n) {
   return true;
 }
 function lancerSort() {
+  if (!porte('grimoire') && P.sortMain && sortInscrit(P.sortMain)) { lancerPhrase(P.sortMain); return; }   // une phrase du grimoire, tenue en main
   SON.jouer('sort');
   const gr = porte('grimoire');
   if (!gr) { say('aucun grimoire équipé', 1.4); return; }
@@ -6123,6 +6138,7 @@ function pageSac() {
       attr: ` data-choix="${ESC(id)}"`, label: `Case ${i} : ${nomPlat(id)}` }) + `<span>${i}</span></div>`;
     if (estSoin(id) && objet(id.slice(5))) return `<div class="emplacement">` + caseObjet(id.slice(5), { nb: qteSoin(id.slice(5)), choisie: choixSac === id,
       attr: ` data-choix="${id}"`, label: `Case ${i} : ${objet(id.slice(5)).n}` }) + `<span>${i}</span></div>`;
+    if (estSort(id) && phraseDe(id.slice(5)) && sortInscrit(id.slice(5))) return `<div class="emplacement">` + caseObjet(icSort(id.slice(5)), { inerte: true, label: `Case ${i} : ${nomPhrase(phraseDe(id.slice(5)))}` }) + `<span>${i}</span></div>`;
     const o = id && P.objets[id] && objet(id);
     return `<div class="emplacement">` + (o
       ? caseObjet(id, { choisie: choixSac === id, attr: ` data-choix="${id}"`, label: `Case ${i} : ${o.n}` })
@@ -6379,16 +6395,16 @@ function pageJournal() {
 // choisie décide du volet, et chaque volet retient la sienne.
 let confirmeCamp = 0;
 let voletCamp = 'camp';
-const VOLETS_CAMP = [['camp', 'Camp', 'ongletCamp'], ['cuisine', 'Cuisine', 'ongletCuisine'], ['alchimie', 'Alchimie', 'alambic'], ['portail', 'Portail', 'portail'], ['journal', 'Journal', 'ongletJournal']];
-const CASES_VOLET = { camp: ['repos', 'modetabli', 'coffre', 'ameliorer', 'modcuisine', 'modsoin', 'modalchimie', 'moddefense', 'modules', 'reprendre', 'compagnes', 'pillage'], portail: ['portail', 'gardees', 'rentrer', 'exploration'] };
+const VOLETS_CAMP = [['camp', 'Camp', 'ongletCamp'], ['cuisine', 'Cuisine', 'ongletCuisine'], ['alchimie', 'Alchimie', 'alambic'], ['biblio', 'Magie', 'livre'], ['portail', 'Portail', 'portail'], ['journal', 'Journal', 'ongletJournal']];
+const CASES_VOLET = { camp: ['repos', 'modetabli', 'coffre', 'ameliorer', 'modcuisine', 'modsoin', 'modalchimie', 'modbiblio', 'moddefense', 'modules', 'reprendre', 'compagnes', 'pillage'], portail: ['portail', 'gardees', 'rentrer', 'exploration'] };
 const choixVolet = { camp: 'repos', portail: 'portail' };
-const ongletDe = id => id === 'cuisine' || id === 'journal' || id === 'alchimie' ? (voletCamp = id, 'camp') : id;
+const ongletDe = id => id === 'cuisine' || id === 'journal' || id === 'alchimie' || id === 'biblio' ? (voletCamp = id, 'camp') : id;
 function pageCampement() {
   if (!VOLETS_CAMP.some(v => v[0] === voletCamp)) voletCamp = 'camp';
   if (CASES_VOLET[voletCamp]) for (const v in CASES_VOLET) if (CASES_VOLET[v].includes(choixCamp)) voletCamp = v;   // la case choisie décide
   const barre = `<div class="volets" role="tablist" aria-label="Volets du campement">` + VOLETS_CAMP.map(([id, n, ic]) =>
     `<button role="tab" class="${voletCamp === id ? 'on' : ''}" data-voletcamp="${id}" aria-selected="${voletCamp === id}">${img(ic)}<span>${n}</span></button>`).join('') + `</div>`;
-  return barre + (voletCamp === 'cuisine' ? pageCuisine() : voletCamp === 'alchimie' ? pageAlchimie() : voletCamp === 'journal' ? pageJournal() : voletCases(voletCamp));
+  return barre + (voletCamp === 'cuisine' ? pageCuisine() : voletCamp === 'alchimie' ? pageAlchimie() : voletCamp === 'biblio' ? pageBiblio() : voletCamp === 'journal' ? pageJournal() : voletCases(voletCamp));
 }
 // L'exploration en cours : le niveau, le danger, ce qui rentrera au coffre, l'arche de l'île, le dernier retour.
 function blocExploration() {
@@ -6407,7 +6423,7 @@ function blocExploration() {
         const dx = PortailIle.x - P.x, dy = PortailIle.y - P.y, d = Math.round(Math.hypot(dx, dy));
         return `<div class="obj"><div><div class="n">L'arche de cette île</div><div class="d">`
           + (d < 3 ? 'vous y êtes · l\'action vous fait franchir'
-             : d + ' pas vers le ' + versOu(dx, dy) + ' · elle mène à l\'exploration ' + (profondeur() + 1))
+             : d + ' pas ' + versLe(dx, dy) + ' · elle mène à l\'exploration ' + (profondeur() + 1))
           + `</div></div></div>`;
       })() : '')
     + (bilanExp ? (() => {
@@ -6515,6 +6531,11 @@ function voletCases(volet) {
       creer: ['des potions qui améliorent le personnage pour de bon : ' + ALCH.map(a => a.n.toLowerCase()).join(', '), 'cinq rangs par caractéristique ; au niveau 1, la table prépare les rangs 1 et 2', 'chaque potion a sa recette, à verser dans l\'ordre, et sa chance de réussite ; si elle tourne, tout est perdu', 'elle s\'améliore deux fois : le rang 3, puis les rangs 4 et 5, et de meilleures chances'],
       sait: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : ' + (n > 1 ? '+' + ALCH_TABLE * (n - 1) + ' points' : 'celle de la recette')],
       niv: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : +' + ALCH_TABLE + ' points de plus'] })),
+    (o => { if (aModule('biblio')) o.corps += `<div class="obj"><div><div class="n">Vos tomes, le pupitre, le grimoire</div><div class="d">tout se lit et s'écrit dans le volet Magie</div></div><button data-voletcamp="biblio">Ouvrir</button></div>`; return o; })(
+    caseMod('biblio', 'modbiblio', 'livre', { court: 'écrire ses sorts', le: 'la bibliothèque', il: 'elle',
+      creer: ['un pupitre où écrire ses sorts : une forme (' + FORMES.map(f => f.n.toLowerCase()).join(', ') + ') et une matière (' + MATIERES.map(m => m.n.toLowerCase()).join(', ') + ')', 'les tomes trouvés en exploration s\'y lisent : le Tome I d\'une matière l\'apprend', 'un grimoire de trois sorts inscrits, à ranger dans les cases du bord droit ou à tenir en main (X)', 'elle s\'améliore deux fois : cinq sorts puis sept, les mélanges, puis les accents'],
+      sait: n => ['un grimoire de ' + PAGES_SORT[n] + ' sorts inscrits', 'les ' + FORMES.length + ' formes, et les matières dont vous avez le tome'],
+      niv: n => ['un grimoire de ' + PAGES_SORT[n] + ' sorts inscrits', n === 2 ? 'les accords : deux matières mêlées dans une même phrase' : 'les accents : aigu, grave, circonflexe'] })),
     !aModule('defense') ? caseMod('defense', 'moddefense', 'tourdef', { court: 'rempart et tours', le: 'le poste de garde', il: 'il',
         creer: ['un poste de garde : c\'est de là qu\'on bâtit et qu\'on améliore la défense', 'le rempart, sur la bordure du rond : ' + MUR_DIT.slice(1).join(' ; '), 'les tours, aux coins : ' + TOURS_DIT.slice(1).join(' ; '),
           'l\'abri du feu ne couvre que le rond du campement : au-delà, c\'est elle qui protège'], sait: () => [], niv: () => [] })
@@ -6538,7 +6559,7 @@ function voletCases(volet) {
       corps: note(proche ? 'Santé et souffle refaits, compagnes alentour rassasiées.' : 'Il faut être au campement.'), bouton: 'Se reposer', attr: 'data-camp="repos"' },
     { id: 'modules', n: 'Modules', ic: 'ongletEtabli', ok: true, sous: MODULES.filter(m => aModule(m.id)).length + ' sur ' + MODULES.length + ' emplacements occupés',
       corps: `<div class="obj"><div><div class="n">Camp de base</div><div class="d">une tente pour la couchette, un feu : on s'y repose, et l'île reste la vôtre</div></div></div>`
-        + MODULES.map(m => { const n = nivModule(m.id), max = maxModule(m.id), cible = { portail: 'ameliorer', etabli: 'modetabli', cuisine: 'modcuisine', soin: 'modsoin', alchimie: 'modalchimie', defense: 'moddefense' }[m.id] || m.id;
+        + MODULES.map(m => { const n = nivModule(m.id), max = maxModule(m.id), cible = { portail: 'ameliorer', etabli: 'modetabli', cuisine: 'modcuisine', soin: 'modsoin', alchimie: 'modalchimie', biblio: 'modbiblio', defense: 'moddefense' }[m.id] || m.id;
             return `<div class="obj"><div><div class="n">${ESC(m.n)} · ${n ? 'installé' + (max > 1 ? ' · niveau ' + n + ' sur ' + max : '') : m.pret ? 'à créer' : 'à venir'}</div>`
               + `<div class="d">${ESC(m.d)}</div></div>`
               + (m.pret ? `<button data-choixcamp="${cible}">${n ? 'Voir' : 'Créer'}</button>` : '') + `</div>`; }).join('')
@@ -6625,6 +6646,7 @@ function faireCamp(id) {
   else if (id === 'modcuisine') { if (aModule('cuisine')) ameliorerModule('cuisine'); else creerModule('cuisine'); }
   else if (id === 'modsoin') { if (aModule('soin')) ameliorerModule('soin'); else creerModule('soin'); }
   else if (id === 'modalchimie') { if (aModule('alchimie')) ameliorerModule('alchimie'); else creerModule('alchimie'); }
+  else if (id === 'modbiblio') { if (aModule('biblio')) ameliorerModule('biblio'); else creerModule('biblio'); }
   else if (id === 'moddefense') creerModule('defense');
   else if (id.startsWith('def:')) ameliorerDefense(id.slice(4));
   else if (id === 'reprendre') reprendreCampement();
@@ -6775,7 +6797,7 @@ function pageBeta() {
     + ligne('Niveau du portail', 'niveau ' + nivCamp() + ' · il ne compte qu\'avec le module Portail · pour retrouver un niveau perdu, ou voir ses paliers (2, 3, 5, 8, 10, 12) · ce réglage est gardé : hors du mode essai',
         btn('campMoins', '−1', nivCamp() > 1 ? '' : ' disabled') + btn('campPlus', '+1') + btn('campPlus5', '+5'))
     + ligne('Modules du campement', 'créer, monter ou retirer sans rien payer : chaque appui passe au niveau suivant, puis retire · ' + ESC(ditModules().toLowerCase()) + ' · ce réglage est gardé : hors du mode essai',
-        btn('modEtabli', 'Établi ' + nivEtabli() + '/3') + btn('modCoffre', aModule('coffre') ? 'Coffre : oui' : 'Coffre : non') + btn('modPortail', aModule('portail') ? 'Portail : oui' : 'Portail : non') + btn('modCuisine', 'Cuisine ' + nivCuisine() + '/3') + btn('modSoin', 'Soin ' + nivModule('soin') + '/3') + btn('modAlchimie', 'Alchimie ' + nivModule('alchimie') + '/3') + btn('alchRang', 'Potions : rang ' + rangAlch('vie') + '/5') + btn('compRang', 'Compagnes : potions ' + (P.compagnes[0] ? potComp(P.compagnes[0], 'recolte') : 0) + '/5', P.compagnes.length ? '' : ' disabled')
+        btn('modEtabli', 'Établi ' + nivEtabli() + '/3') + btn('modCoffre', aModule('coffre') ? 'Coffre : oui' : 'Coffre : non') + btn('modPortail', aModule('portail') ? 'Portail : oui' : 'Portail : non') + btn('modCuisine', 'Cuisine ' + nivCuisine() + '/3') + btn('modSoin', 'Soin ' + nivModule('soin') + '/3') + btn('modAlchimie', 'Alchimie ' + nivModule('alchimie') + '/3') + btn('modBiblio', 'Bibliothèque ' + nivBiblio() + '/3') + btn('tomesRang', 'Tomes : ' + (P.tomes.braise | 0) + '/3') + btn('codexTout', 'Codex : ' + P.codex.length + '/15') + btn('tomePorte', 'Tome rapporté +1') + btn('lutrin', LUTRINS.length ? 'Aller au lutrin' : 'Pas de lutrin ici', LUTRINS.length ? '' : ' disabled') + btn('alchRang', 'Potions : rang ' + rangAlch('vie') + '/5') + btn('compRang', 'Compagnes : potions ' + (P.compagnes[0] ? potComp(P.compagnes[0], 'recolte') : 0) + '/5', P.compagnes.length ? '' : ' disabled')
         + btn('modDefense', aModule('defense') ? 'Défense : oui' : 'Défense : non') + btn('defMur', 'Rempart ' + nivMur() + '/3', aModule('defense') ? '' : ' disabled') + btn('defTours', 'Tours ' + nivTours() + '/3', aModule('defense') ? '' : ' disabled'))
     + `<h3>Se téléporter</h3>`
     + `<div class="obj tp"><div style="flex:1;min-width:0"><div class="n">Vers une graine, à un niveau</div>`
@@ -6871,14 +6893,32 @@ function outilBeta(k) {
     for (const c of P.compagnes) c.pot = n ? potLue({ recolte: n, defense: n, comp: compDe(c) ? n : 0 }) : null;
     P.chaudron = null; say('compagnes · potions au rang ' + n + (n ? ' · compétence au rang ' + Math.min(COMP_MAX, n) : ''), 2.4); majSac(); return;
   }
+  if (k === 'tomesRang') {
+    const n = ((P.tomes.braise | 0) + 1) % (TOME_MAX + 1); P.tomes = {};
+    if (n) for (const m of MATIERES) P.tomes[m.id] = n;
+    rangerTomes(); say('tomes · toutes les matières au tome ' + n, 2); majSac(); return;
+  }
+  if (k === 'codexTout') {
+    const plein = P.codex.length >= MELANGES.length; P.codex = plein ? P.sorts.map(q => phraseDe(q).m).filter(M => M.mix).map(M => M.id).filter((x, i, L) => L.indexOf(x) === i) : MELANGES.map(M => M.id);
+    say(plein ? 'codex · seuls les accords inscrits restent connus' : 'codex · les quinze accords sont connus', 2.4); majSac(); return;
+  }
+  if (k === 'tomePorte') {
+    for (let n = 1; n <= TOME_MAX; n++) { const m = tomeManquant(n); if (m && gagnerTome(m, n)) { say(nomTome(cleTome(m, n)) + ' · dans le sac, à déchiffrer', 2.4); majSac(); return; } }
+    say('tous les tomes sont déjà là', 2); return;
+  }
+  if (k === 'lutrin') {
+    const l = LUTRINS.find(l => !tomeAcquis(l.m, 1)) || LUTRINS[0]; if (!l) return;
+    P.x = l.x + 1.2; P.y = l.y; P.z = hAt(P.x | 0, P.y | 0); P.vz = 0; l.vu = true;
+    say('au lutrin · ' + nomTome(cleTome(l.m, 1)), 2); ouvrirSac(false); return;
+  }
   if (k === 'alchRang') {
     const n = (rangAlch('vie') + 1) % (ALCH_MAX + 1); P.alchimie = {}; P.chaudron = null;
     if (n) for (const a of ALCH) P.alchimie[a.id] = n;
     say('potions · toutes les caractéristiques au rang ' + n, 2); majSac(); return;
   }
-  if (k === 'modPortail' || k === 'modCoffre' || k === 'modEtabli' || k === 'modCuisine' || k === 'modSoin' || k === 'modAlchimie' || k === 'modDefense') {
+  if (k === 'modPortail' || k === 'modCoffre' || k === 'modEtabli' || k === 'modCuisine' || k === 'modSoin' || k === 'modAlchimie' || k === 'modBiblio' || k === 'modDefense') {
     if (essai) { say('coupez d\'abord le mode essai : ce réglage est gardé', 2.8); return; }
-    const id = { modPortail: 'portail', modCoffre: 'coffre', modEtabli: 'etabli', modCuisine: 'cuisine', modSoin: 'soin', modAlchimie: 'alchimie', modDefense: 'defense' }[k], max = id === 'portail' ? 1 : maxModule(id);   // le portail a ses propres boutons de niveau
+    const id = { modPortail: 'portail', modCoffre: 'coffre', modEtabli: 'etabli', modCuisine: 'cuisine', modSoin: 'soin', modAlchimie: 'alchimie', modBiblio: 'biblio', modDefense: 'defense' }[k], max = id === 'portail' ? 1 : maxModule(id);   // le portail a ses propres boutons de niveau
     const n = ((P.modules[id] | 0) + 1) % (max + 1);
     if (n) P.modules[id] = n; else delete P.modules[id];
     say('module ' + MODULE[id].n.toLowerCase() + (n ? (max > 1 ? ' · niveau ' + n : ' · créé') : ' · retiré'), 2); majSac(); return;
@@ -6944,7 +6984,7 @@ function majSac() {
   if (!sacOuvert) return;
   const el = document.getElementById('sac');
   const actif = document.activeElement;
-  if (actif && (actif.tagName === 'SELECT' || (actif.tagName === 'INPUT' && (actif.dataset.partage || actif.dataset.tp || actif.dataset.coopsaisie))) && el.contains(actif)) { sacEnAttente = true; return; }
+  if (actif && (actif.tagName === 'SELECT' || (actif.tagName === 'INPUT' && (actif.dataset.partage || actif.dataset.tp || actif.dataset.coopsaisie || actif.dataset.sortnom))) && el.contains(actif)) { sacEnAttente = true; return; }
   // Le panneau est réécrit en entier : on garde la saisie d'un code et la position des listes.
   const champ = document.getElementById('svcode');
   const saisie = champ ? champ.value : '', enSaisie = !!champ && document.activeElement === champ;
@@ -7020,6 +7060,21 @@ function clicSac(b) {
   else if (d.recette) { choixEtabli = d.recette; majSac(); montrerFiche(); }
   else if (d.filtre) { filtreEtabli = d.filtre; majSac(); }
   else if (d.souscuisine) { sousCuisine = d.souscuisine; majSac(); }
+  else if (d.pupf) { pupitre.f = d.pupf; confirmeAct.id = ''; majSac(); }
+  else if (d.pupm) { pupitre.m = d.pupm; if (pupitre.m2 === d.pupm) pupitre.m2 = ''; confirmeAct.id = ''; majSac(); }
+  else if (d.pupm2 !== undefined) { pupitre.m2 = d.pupm2; confirmeAct.id = ''; majSac(); }
+  else if (d.pupa !== undefined) { pupitre.a = d.pupa; confirmeAct.id = ''; majSac(); }
+  else if (d.pupvue) { pupitre.vue = d.pupvue; majSac(); }
+  else if (d.sortnomme) { pupitre.nomme = pupitre.nomme === d.sortnomme ? '' : d.sortnomme; majSac(); setTimeout(() => { const i = document.querySelector('#sac [data-sortnom]'); if (i) i.focus(); }, 30); }
+  else if (d.inscrire) { inscrireSort(d.inscrire); majSac(); }
+  else if (d.dechiffre) { dechiffrerTome(d.dechiffre); majSac(); }
+  else if (d.sortmain) { tenirSort(d.sortmain); majSac(); }
+  else if (d.sortrac !== undefined && d.sort && sortInscrit(d.sort)) { assignerRaccourci('sort:' + d.sort, +d.sortrac); casesSig = ''; Sauve.sale = true; majSac(); }
+  else if (d.sorteff) {
+    if (confirmeAct.id === 'sorteff:' + d.sorteff && maintenantSac() < confirmeAct.jusqua) { confirmeAct.id = ''; effacerSort(d.sorteff); }
+    else { confirmeAct = { id: 'sorteff:' + d.sorteff, jusqua: maintenantSac() + 5 }; setTimeout(() => { if (sacOuvert && ongletSac === 'camp') majSac(); }, 5100); }
+    majSac();
+  }
   else if (d.alch) { if (!P.chaudron) alchChoix = d.alch; confirmeAct.id = ''; majSac(); }
   else if (d.verser) { confirmeAct.id = ''; verserAlch(d.verser); majSac(); }
   else if (d.alchtenter) { confirmeAct.id = ''; tenterAlch(); majSac(); }
@@ -7789,8 +7844,8 @@ function loadWorld() {
   crystals = []; crates = []; foes = []; parts.length = 0; got = 0; won = false;
   dalles.length = 0; FLECHES.length = 0;             // ni les dalles conjurées ni les flèches en vol
   ENTAME.clear(); P.anim = null; P.garde = -99; P.dernierGeste = null;                     // ni les pieds entamés, ni le geste en cours
-  beasts = []; berries = []; TIRS.length = 0;
-  placerPortailIle();                                // l'arche d'abord : les sentinelles la gardent
+  beasts = []; berries = []; TIRS.length = 0; SORTS_POSES.length = 0;
+  placerPortailIle(); placerLutrins();               // l'arche d'abord : les sentinelles la gardent
   poserLasers();                                     // sur l'île des automates, les barrières
   especesIle = tirerBestiaire();                     // ce que la graine met sur cette île
   // et chaque sol rare, son Tellurien — sauf les chasseurs, qui attendent la troisième exploration
@@ -8308,6 +8363,7 @@ addEventListener('keydown', e => {
   if (document.getElementById('retour').classList.contains('ouvert')) return;   // le panneau du mot : les touches sont à lui
   if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {   // une saisie : les touches sont à elle
     if (e.key === 'Escape') e.target.blur();
+    if (e.key === 'Enter' && e.target.dataset && e.target.dataset.sortnom) e.target.blur();   // Entrée valide le nom d'un sort
     if (e.key === 'Enter' && e.target.dataset && e.target.dataset.coopsaisie && typeof coopAction === 'function') {   // le code d'un ami : Entrée l'envoie
       e.preventDefault(); COOP.saisie = e.target.value; e.target.blur(); coopAction('ajout');
     }
@@ -8450,6 +8506,8 @@ document.getElementById('sac').addEventListener('change', e => {
     if (c) changerOrdre(c, o, v); else majSac();
     return;
   }
+  const sn = e.target && e.target.dataset && e.target.dataset.sortnom;
+  if (sn) { const v = e.target.value; pupitre.nomme = ''; e.target.blur(); nommerSort(sn, v); majSac(); return; }   // le nom qu'on donne à un sort
   if (!e.target || e.target.id !== 'pseudoIn') return;
   const v = String(e.target.value || '').replace(/[<>]/g, '').slice(0, 18).trim();
   P.pseudo = v || null; Sauve.sale = true;
@@ -8677,7 +8735,7 @@ function update(dt) {
   // --- l'écosystème vit sa vie, les compagnes avec lui ---
   majEcosysteme(dt);
   majEscouade(dt);                                   // l'escouade des automates, et son portail
-  majCompagnes(dt); majCompetences(dt);
+  majCompagnes(dt); majCompetences(dt); majSorts(dt); majLutrins(dt);
   demeler(dt);                                       // deux corps mêlés se démêlent
   // --- nourrir : la confiance vient en mangeant, et au bout on est suivi ---
   if (nourrir) {
@@ -9627,6 +9685,42 @@ function osSilencieux(f) {
 //  LE MILLE-GUEULES
 // ------------------------------------------------------------
 const MG_N = 15, MG_PAS = .55;
+const sousTerre = o => !!o.sp && o.sp.corps === 'millegueule' && !o.dehors;   // sous la terre, rien ne l'atteint
+// Sous la terre, il ne traverse ni la roche, ni l'eau, ni les dalles : il les contourne. Le plus court
+// chemin par la terre meuble, case par case, dans un carré de 26 cases autour de sa tête — et, si
+// rien n'y mène, ce qui s'en approche le plus (il attend alors au bord).
+const MG_R = 26, MG_W = 2 * MG_R + 1, MG_PREV = new Int16Array(MG_W * MG_W), MG_FILE = new Int16Array(MG_W * MG_W), MG_VOIS = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+function pasMille(b, cx, cy, k = 'chem') {              // k : où garder le calcul (le chemin suivi, ou l'accès à la cible)
+  const T = b.tete, sx = T[0] | 0, sy = T[1] | 0, tx = cx | 0, ty = cy | 0, C = b[k];
+  if (C && C.sx === sx && C.sy === sy && C.tx === tx && C.ty === ty && b.t - C.t < 1) return C.pas && C.fin ? [cx, cy] : C.pas;
+  const s0 = MG_R * MG_W + MG_R, ox = sx - MG_R, oy = sy - MG_R;
+  let pas = null, fin = false, ok = sx === tx && sy === ty;
+  if (ok) { pas = [cx, cy]; fin = true; }
+  else {
+    MG_PREV.fill(-1); MG_PREV[s0] = s0; MG_FILE[0] = s0;
+    let h = 0, q = 1, mieux = s0, bd = (tx - sx) ** 2 + (ty - sy) ** 2, trouve = -1;
+    while (h < q && trouve < 0) {
+      const i = MG_FILE[h++], x = i % MG_W, y = (i / MG_W) | 0;
+      for (const [dx, dy] of MG_VOIS) {
+        const x2 = x + dx, y2 = y + dy; if (x2 < 0 || y2 < 0 || x2 >= MG_W || y2 >= MG_W) continue;
+        const j = y2 * MG_W + x2, wx = ox + x2, wy = oy + y2;
+        if (MG_PREV[j] >= 0 || wx < 1 || wy < 1 || wx >= WS - 1 || wy >= WS - 1 || !solMeuble(wx, wy)) continue;
+        MG_PREV[j] = i; MG_FILE[q++] = j;
+        const d = (wx - tx) ** 2 + (wy - ty) ** 2; if (d < bd) { bd = d; mieux = j; }
+        if (!d) { trouve = j; break; }
+      }
+    }
+    ok = trouve >= 0;
+    let i = ok ? trouve : mieux;
+    if (i !== s0) {
+      while (MG_PREV[i] !== s0) i = MG_PREV[i];
+      fin = ok && i === trouve;
+      pas = fin ? [cx, cy] : [ox + (i % MG_W) + .5, oy + ((i / MG_W) | 0) + .5];
+    }
+  }
+  b[k] = { sx, sy, tx, ty, t: b.t, pas, ok, fin };
+  return pas;
+}
 function initMille(b) { b.seg = []; for (let k = 0; k < MG_N; k++) b.seg.push([b.x - Math.cos(b.dir) * k * MG_PAS, b.y - Math.sin(b.dir) * k * MG_PAS, sol(b.x, b.y) - 1.4]); b.tete = b.seg[0].slice(); b.etat = 'sous'; }
 function majMille(b, dt) {
   const sp = b.sp; b.t += dt; b.ech = 1; if (b.hit > 0) { b.hit -= dt; b.blesseT = b.t; }
@@ -9641,8 +9735,11 @@ function majMille(b, dt) {
   if (!b.tame) for (const Q of joueursFaune()) { const d = Math.hypot(Q.x - T[0], Q.y - T[1]); if (Q !== P && d < dJ) { J = Q; dJ = d; } }
   const proche = J.pv > 0 && Math.abs(J.z - g) < 4 && dJ < 32 && !b.fuite;
   const vise = () => {
-    if (b.tame) { const m = b.role === 'defense' ? menaceOrdre(b) : null; return m && m !== P && !m.dead && m.pv > 0 && solMeuble(m.x, m.y) && Math.hypot(m.x - T[0], m.y - T[1]) < 25 ? [m.x, m.y, m] : null; }
-    if (proche && (b.conf || 0) < .5 && b.t > (b.calmeT || 0)) return [J.x, J.y, J];                           // vous, sinon une bête sur sa terre
+    if (b.tame) { const m = b.role === 'defense' ? menaceOrdre(b) : null; return m && m !== P && !m.dead && m.pv > 0 && !sousTerre(m) && solMeuble(m.x, m.y) && Math.hypot(m.x - T[0], m.y - T[1]) < 25 ? [m.x, m.y, m] : null; }
+    if (proche && b.t > (b.calmeT || 0)) {                                                                    // vous, sinon une bête sur sa terre
+      if ((b.conf || 0) < .5) return [J.x, J.y, J];
+      if (J === P && dJ < 18 && INGR.p_lanterneau && sacIngr('p_lanterneau') > 0) return [J.x, J.y, J];       // à moitié apprivoisé : il vient encore à l'offrande, sans frapper
+    }
     for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !o.enVol && !o.sp.horreur && !o.sp.plante && !o.sp.batiment && Math.hypot(o.x - T[0], o.y - T[1]) < 18 && solMeuble(o.x, o.y)) return [o.x, o.y, o];
     return null; };
   let mv = null, v = 0, zT = g - 1.4;
@@ -9650,23 +9747,26 @@ function majMille(b, dt) {
     case 'sous': {                                       // il nage sous la terre, vers ce qui bouge dessus
       const c = vise();
       if (c) {
-        const ok = solMeuble(c[0], c[1]);
+        let ok = solMeuble(c[0], c[1]);
+        const ami = c[2] === P && !b.tame && (b.conf || 0) >= .5;   // il vient pour l'offrande : il sort à côté, sans frapper
+        if (ok && solMeuble(T[0], T[1])) { pasMille(b, c[0], c[1], 'acces'); if (b.acces && !b.acces.ok) ok = false; }   // la terre meuble ne mène pas jusqu'à lui : comme sur la roche
         let cx = c[0], cy = c[1];
         if (!ok) {                                       // sur la roche : il rôde au bord
           const a = Math.atan2(T[1] - c[1], T[0] - c[0]) + .4; cx = c[0] + Math.cos(a) * 3.2; cy = c[1] + Math.sin(a) * 3.2;
           b.bordT = (b.bordT || 0) + dt;
-          if (Math.hypot(c[0] - T[0], c[1] - T[1]) < 3.8 && b.t > (b.cdT || 0) && solMeuble(T[0], T[1])) { b.etat = 'fendre'; b.fenT = 0; b.cible = c[2]; b.au = [T[0], T[1]]; break; }
+          if (Math.hypot(c[0] - T[0], c[1] - T[1]) < 3.8 && b.t > (b.cdT || 0) && solMeuble(T[0], T[1])) { b.etat = 'fendre'; b.fenT = 0; b.cible = c[2]; b.au = [T[0], T[1]]; b.ami = ami; break; }
           if (b.bordT > 15) { b.fuite = b.t + 12; b.bordT = 0; }
         } else b.bordT = 0;
         mv = [cx, cy]; v = 7.5;
-        if (ok && Math.hypot(c[0] - T[0], c[1] - T[1]) < .9 && b.t > (b.cdT || 0)) { b.etat = 'fendre'; b.fenT = 0; b.cible = c[2]; b.au = [c[0], c[1]]; }
+        if (ok && Math.hypot(c[0] - T[0], c[1] - T[1]) < (ami ? 2.2 : .9) && b.t > (b.cdT || 0)) { b.etat = 'fendre'; b.fenT = 0; b.cible = c[2]; b.au = ami ? [T[0], T[1]] : [c[0], c[1]]; b.ami = ami;
+          if (ami) say('le Mille-gueules vient à l\'offrande', 2.2); }
       } else {
-        if (!b.but || Math.hypot(b.but[0] - T[0], b.but[1] - T[1]) < 2) { const a = Math.random() * 6.2832, r = 4 + Math.random() * 12, H = b.home || [T[0], T[1]];
+        if (!b.but || Math.hypot(b.but[0] - T[0], b.but[1] - T[1]) < 2 || b.t > (b.butT || 0)) { b.butT = b.t + 10; const a = Math.random() * 6.2832, r = 4 + Math.random() * 12, H = b.home || [T[0], T[1]];
           b.but = [H[0] + Math.cos(a) * r, H[1] + Math.sin(a) * r]; }
         mv = b.but; v = b.fuite ? 6 : 2.5;
         if (b.tame && (b.mode === 'joueur' || b.mode === 'camp')) {   // lié : il nage sous vos pas, à quelques cases
           const A = b.mode === 'camp' && campIci() ? { x: P.camp.x + 3, y: P.camp.y } : { x: P.x - Math.cos(P.faceS ?? 0) * 3, y: P.y - Math.sin(P.faceS ?? 0) * 3 };
-          const d = Math.hypot(A.x - T[0], A.y - T[1]); mv = solMeuble(A.x, A.y) ? [A.x, A.y] : b.but; v = d > 8 ? 7.5 : d > 1.5 ? 3 : 0;
+          const d = Math.hypot(A.x - T[0], A.y - T[1]); mv = [A.x, A.y]; v = d > 8 ? 7.5 : d > 1.5 ? 3 : 0;   // la roche entre vous : le chemin le mène au plus près
         }
       }
       // la traînée : la terre qui se soulève au-dessus de sa tête, et le grondement
@@ -9684,8 +9784,10 @@ function majMille(b, dt) {
       if (b.fenT >= 1) {
         b.etat = 'jaillir'; b.jT = 0; sonHorreur(b.au[0], b.au[1], g + 2, 'criMille'); if (Math.hypot(P.x - b.au[0], P.y - b.au[1]) < 30) { P.secousse = t; P.secousseK = 1; }
         for (let k = 0; k < 26; k++) parts.push({ x: b.au[0], y: b.au[1], z: sol(b.au[0], b.au[1]) + .2, vx: (Math.random() - .5) * 5, vy: (Math.random() - .5) * 5, vz: 3 + Math.random() * 4, g: 10, life: .8, age: 0, col: '#2c2a36', tl: .1 });
-        if (!b.tame) for (const Q of joueursFaune()) if (Math.hypot(Q.x - b.au[0], Q.y - b.au[1]) < 1.7) frapperJoueur(b, Q, .3, { kb: [0, 0, 6], m: 'le Mille-gueules jaillit sous vous' });
-        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < 1.7) { porterCoup(b, o, 1); if (o.pv <= 0) mourirBete(o, 'chassé'); }
+        if (!b.tame && !b.ami) for (const Q of joueursFaune()) if (Math.hypot(Q.x - b.au[0], Q.y - b.au[1]) < 1.7) frapperJoueur(b, Q, .3, { kb: [0, 0, 6], m: 'le Mille-gueules jaillit sous vous' });
+        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && !sousTerre(o) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < 1.7) { porterCoup(b, o, 1); if (o.pv <= 0) mourirBete(o, 'chassé'); }
+        { const E = EMBUSCADE[potBete(b, 'comp')];           // l'embuscade : ce qui entoure le trou reste cloué
+          if (E) for (const o of beasts) if (o !== b && prenable(o) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < E.r) engluer(o, E.dur); }
       }
       break;
     }
@@ -9698,7 +9800,8 @@ function majMille(b, dt) {
       b.drT += dt; const c = b.cible && !b.cible.dead && !(estJoueur(b.cible) && !(b.cible.pv > 0)) ? b.cible : J;
       const a = Math.atan2(c.y - b.au[1], c.x - b.au[0]);
       mv = [b.au[0] + Math.cos(a) * .8 + Math.sin(b.t * 4) * .3, b.au[1] + Math.sin(a) * .8 + Math.cos(b.t * 3.3) * .3]; v = 3; zT = sol(b.au[0], b.au[1]) + 3.6 + Math.sin(b.t * 2.5) * .3;
-      if (b.drT > 1.1) { b.etat = 'frapper'; b.frT = 0; b.coup = [c.x, c.y]; sonHorreur(T[0], T[1], T[2], 'criMille', { court: 1 }); }
+      if (b.ami) { if (b.drT > 3.2) { b.etat = 'plonger'; b.plT = 0; b.frappe = 0; } }   // il attend l'offrande, puis replonge sans frapper
+      else if (b.drT > 1.1) { b.etat = 'frapper'; b.frT = 0; b.coup = [c.x, c.y]; sonHorreur(T[0], T[1], T[2], 'criMille', { court: 1 }); }
       break;
     }
     case 'frapper': {                                    // il s'abat
@@ -9707,23 +9810,29 @@ function majMille(b, dt) {
         b.frappe = 1; if (Math.hypot(P.x - T[0], P.y - T[1]) < 30) { P.secousse = t; P.secousseK = .9; }
         for (let k = 0; k < 18; k++) parts.push({ x: T[0], y: T[1], z: g + .1, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, vz: 2 + Math.random() * 2, g: 9, life: .6, age: 0, col: '#3a3644', tl: .09 });
         if (!b.tame) for (const Q of joueursFaune()) if (Math.hypot(Q.x - T[0], Q.y - T[1]) < 1.9 && Math.abs(Q.z - g) < 1.5) frapperJoueur(b, Q, .25, { kb: [(Q.x - T[0]) * 5, (Q.y - T[1]) * 5, 0] });
-        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && Math.hypot(o.x - T[0], o.y - T[1]) < 1.9) { porterCoup(b, o, .8); if (o.pv <= 0) mourirBete(o, 'chassé'); }
+        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && !sousTerre(o) && Math.hypot(o.x - T[0], o.y - T[1]) < 1.9) { porterCoup(b, o, .8); if (o.pv <= 0) mourirBete(o, 'chassé'); }
       }
       if (b.frT > .75) { b.etat = 'plonger'; b.plT = 0; b.frappe = 0; }
       break;
     }
     case 'plonger': {                                    // il replonge, tête la première ; le corps suit dans le trou
       b.plT += dt; const a = b.dir; mv = [T[0] + Math.cos(a) * 2, T[1] + Math.sin(a) * 2]; v = 5; zT = g - 2;
-      if (b.seg[MG_N - 1][2] < sol(b.seg[MG_N - 1][0], b.seg[MG_N - 1][1]) - .3 || b.plT > 3) { b.etat = 'sous'; b.cdT = b.t + 3; b.cible = null; }
+      if (b.seg[MG_N - 1][2] < sol(b.seg[MG_N - 1][0], b.seg[MG_N - 1][1]) - .3 || b.plT > 3) { b.etat = 'sous'; b.cdT = Math.max(b.cdT || 0, b.t + 3); b.cible = null; b.ami = 0; b.frappe = 0; b.chem = null; }
       break;
     }
   }
   // la tête avance, la queue suit, anneau par anneau
   if (mv) {
     const dx = mv[0] - T[0], dy = mv[1] - T[1], d = Math.hypot(dx, dy);
-    if (d > .02) { const s = Math.min(v * dt, d); let nx = T[0] + dx / d * s, ny = T[1] + dy / d * s;
-      if (b.etat === 'sous' && !solMeuble(nx, ny)) { const a = Math.atan2(dy, dx) + (b.sens || 1) * 1.2; nx = T[0] + Math.cos(a) * s; ny = T[1] + Math.sin(a) * s; if (!solMeuble(nx, ny)) { nx = T[0]; ny = T[1]; b.sens = -(b.sens || 1); } }
-      T[0] = nx; T[1] = ny; b.dirT = Math.atan2(dy, dx); }
+    if (d > .02) { const s = Math.min(v * dt, d); let nx = T[0] + dx / d * s, ny = T[1] + dy / d * s, cap = Math.atan2(dy, dx);
+      const dedans = solMeuble(T[0], T[1]);              // sorti de sa terre (un plongeon trop long) : il y revient tout droit
+      if (b.etat === 'sous' && dedans) {
+        const q = pasMille(b, mv[0], mv[1]);
+        if (!q) { nx = T[0]; ny = T[1]; }
+        else { const ex = q[0] - T[0], ey = q[1] - T[1], e = Math.hypot(ex, ey) || 1, s2 = Math.min(s, e); nx = T[0] + ex / e * s2; ny = T[1] + ey / e * s2; cap = Math.atan2(ey, ex);
+          if (!solMeuble(nx, ny)) { nx = T[0]; ny = T[1]; b.chem = null; } }
+      } else if (b.etat === 'plonger' && dedans && !solMeuble(nx, ny)) { nx = T[0]; ny = T[1]; }
+      T[0] = nx; T[1] = ny; b.dirT = cap; }
   }
   T[2] += (zT - T[2]) * Math.min(1, dt * (b.etat === 'frapper' ? 9 : b.etat === 'jaillir' ? 7 : 4));
   chaineMille(b);
@@ -9833,11 +9942,12 @@ function cracheFeu(b, c) {
   const e = b.tame ? .4 : .9 + d * .04, a = Math.random() * 6.2832;
   const cx = c.x + (c.vx || 0) * vol * .7 + Math.cos(a) * e * Math.random(), cy = c.y + (c.vy || 0) * vol * .7 + Math.sin(a) * e * Math.random();
   TIRS.push({ x: m[0], y: m[1], z: m[2], vx: (cx - m[0]) / vol, vy: (cy - m[1]) / vol, vz: (sol(cx, cy) - m[2]) / vol + TIR_G * vol * .5,
-    de: b, deg: b.tame ? .34 : .2, age: 0, c: [255, 160, 60], obus: true, feu: true, zone: 1.7, cx, cy, cz: sol(cx, cy), vol });
+    de: b, deg: b.tame ? .34 : .2, age: 0, c: [255, 160, 60], obus: true, feu: true, zone: b.sp.dragon && potBete(b, 'comp') ? BRAISE[potBete(b, 'comp')].zone : 1.7, cx, cy, cz: sol(cx, cy), vol });
   if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
   SON.jouer('cracheFeu', {}, m[0], m[1], m[2]); burst(m[0], m[1], m[2], 12, '#ffb040'); b.feuT = 0; b.gueuleT = t; b.tirs = (b.tirs || 0) + 1;
 }
-function allumerFeu(f) { BRASIERS.push({ x: f.x, y: f.y, z: sol(f.x, f.y), r: 1.5, fin: t + 3.5, de: f.de, piq: 0, fantome: !!f.fantome }); }
+function allumerFeu(f) { const B = f.de && f.de.sp && f.de.sp.dragon ? BRAISE[potBete(f.de, 'comp')] : null;   // le souffle de braise d'un dragon lié
+  BRASIERS.push({ x: f.x, y: f.y, z: sol(f.x, f.y), r: B ? B.r : 1.5, fin: t + (B ? B.dur : 3.5), de: f.de, piq: 0, fantome: !!f.fantome }); }
 function majBrasiers(dt) {                              // le sol qui brûle : des flammes, et ce qui y passe brûle
   for (let i = BRASIERS.length - 1; i >= 0; i--) {
     const w = BRASIERS[i]; if (w.fin < t) { BRASIERS.splice(i, 1); continue; }
@@ -9848,7 +9958,7 @@ function majBrasiers(dt) {                              // le sol qui brûle : d
     if (Math.random() < dt * 4 * k) parts.push({ x: w.x, y: w.y, z: w.z + .5, vx: 0, vy: 0, vz: 1.2, g: -1, life: 1.4, age: 0, col: '#5a524c', tl: .16 });
     if ((P.x - w.x) ** 2 + (P.y - w.y) ** 2 < w.r * w.r && Math.abs(P.z - w.z) < 1.2 && !effet('braise') && !(w.de.tame)) P.brulure = Math.max(P.brulure || 0, t + 1.2);
     if (t > w.piq && !w.fantome) { w.piq = t + .5;   // un brasier rejoué (le feu d'un dragon du gardien) : les bêtes brûlent chez lui
-      for (const o of beasts) if (o !== w.de && !o.dead && o.pv > 0 && !(w.de.tame && o.tame) && (o.x - w.x) ** 2 + (o.y - w.y) ** 2 < w.r * w.r && Math.abs(o.z - w.z) < 1.2 && !o.sp.brule) porterCoup(w.de, o, .06); }
+      for (const o of beasts) if (o !== w.de && !o.dead && o.pv > 0 && !(w.de.tame && o.tame) && (o.x - w.x) ** 2 + (o.y - w.y) ** 2 < w.r * w.r && Math.abs(o.z - w.z) < 1.2 && !o.sp.brule) { if (w.sort) frapperSort(o, .06); else porterCoup(w.de, o, .06); } }
   }
 }
 // Un tour d'attaque, du ciel : s'approcher à bonne distance, se cabrer en surplace (la gorge
@@ -10467,7 +10577,9 @@ function mortTisseuse(b, dt) {
   if (k >= 2.4 && !b.fini) {
     b.fini = 1;
     const deja = (P.bossVaincus || []).includes(SEED);   // déjà vaincue (avec d'autres, une autre fois) : l'arche, pas de part
+    let tomeT = '';
     if (!deja) {
+      tomeT = tomeTisseuse();                          // le Tome III qu'elle portait
       P.sac.ferraille = (P.sac.ferraille || 0) + 24; P.sac.eclat = (P.sac.eclat || 0) + 12; P.sac.pierre = (P.sac.pierre || 0) + 10;
       (P.bossVaincus || (P.bossVaincus = [])).push(SEED); Sauve.sale = true;
     }
@@ -10477,7 +10589,7 @@ function mortTisseuse(b, dt) {
       for (let j = 0; j < 60; j++) { const a = j / 60 * 6.2832; parts.push({ x: q.x + .5 + Math.cos(a) * 1.4, y: q.y + .5 + Math.sin(a) * 1.4, z: q.z + Math.random() * 2.6, vx: Math.cos(a) * .4, vy: Math.sin(a) * .4, vz: 1.5, g: -.5, life: 1.6, age: 0, col: '#9fd8ff', luit: 1, tl: .08 }); }
       SON.jouer('lien', {}, q.x, q.y, q.z + 1);
     }
-    say(deja ? 'La Tisseuse est terrassée · l\'arche apparaît' : 'La Tisseuse est terrassée · +24 ferraille · +12 éclats · +10 pierres · l\'arche apparaît', 5);
+    say(deja ? 'La Tisseuse est terrassée · l\'arche apparaît' : 'La Tisseuse est terrassée · +24 ferraille · +12 éclats · +10 pierres' + (tomeT ? ' · ' + tomeT : '') + ' · l\'arche apparaît', tomeT ? 7 : 5);
     majSac();
   }
 }
@@ -11106,6 +11218,7 @@ function porterCoup(b, c, deg) {
     let dg = degSubi(deg) * (1 - ((porte('armure') || {}).red || 0));
     if (P.bonusPv > 0) { const a = Math.min(P.bonusPv, dg); P.bonusPv -= a; dg -= a; }   // la vie en plus prend le coup d'abord
     P.pv = Math.max(0, P.pv - dg);
+    if (egideActive() && b.sp && !b.tame && b.pv > 0 && !b.dead) toucherSort(b, P.egide.m, P.egide.deg);   // l'égide rend sa matière
     if (effet('epines') && b.sp && !b.tame && b.pv > 0) { b.pv -= deg * .3 * effet('epines') / robuste(b); b.hit = .25; if (b.pv <= 0 && !b.dead) mourirBete(b, 'combat'); }   // les épines rendent le coup
     P.vx = dx / d * 7; P.vy = dy / d * 7; P.vz = 4.2; P.recul = .3;
     if (b.sp && b.sp.roche && b.as) { P.vx = dx / d * 11; P.vy = dy / d * 11; P.vz = 5.4; }   // la charge de l'oglodon projette loin
@@ -11733,9 +11846,10 @@ function majTirs(dt) {
     for (let i = 0; i < n && !fini; i++) {
       f.vz -= TIR_G * h;
       const nx = f.x + f.vx * h, ny = f.y + f.vy * h, nz = f.z + f.vz * h;
-      fini = f.carreau ? carreauTouche(f, nx, ny, nz) : f.glu ? gluTouche(f, nx, ny, nz) : f.obus ? toucheObus(f, nx, ny, nz) : f.spore || f.toile ? toucheSpore(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
+      fini = f.sortM ? sortTouche(f, nx, ny, nz) : f.carreau ? carreauTouche(f, nx, ny, nz) : f.glu ? gluTouche(f, nx, ny, nz) : f.obus ? toucheObus(f, nx, ny, nz) : f.spore || f.toile ? toucheSpore(f, nx, ny, nz) : impactTir(f, nx, ny, nz);
       if (!fini && f.age > .05 && floreTouche(nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8b89a'); }   // arrêté par un arbre, une pierre
       if (!fini && MURS.length && !f.carreau && murTir(f.x, f.y, nx, ny, nz)) { fini = true; if (!f.obus) burst(nx, ny, nz, 5, '#c8ccd6'); }   // arrêté par un mur de pierre
+      if (!fini && SORTS_POSES.length && !f.sortM && !f.glu && (f.carreau || (f.de && !f.de.tame)) && murSort(f.x, f.y, nx, ny, nz)) { fini = true; burst(nx, ny, nz, 6, '#e8e0ff'); }   // arrêté par un mur de sort
       f.x = nx; f.y = ny; f.z = nz;
     }
     if (f.feu && Math.random() < dt * 40) parts.push({ x: f.x, y: f.y, z: f.z, vx: (Math.random() - .5) * .6, vy: (Math.random() - .5) * .6, vz: .3, g: -.6, life: .4, age: 0, col: Math.random() < .5 ? '#ffb040' : '#ff6a24', luit: 1, tl: .1 });
@@ -12629,9 +12743,11 @@ function majBete(b, dt) {
   // une menace qui ne bougeait pas, elle restait sur place jusqu'à en mourir.
   const besoin = !b.tame && ((assoiffe && b.soif > .7) || b.faim > .85);
   const presse = !!men && (dM < 9 || men.cible === b || (!!men.as && men.as.c === b));
+  if (b.brame > t && !b.tame) { b.as = null; b.riposteA = null; }   // sous le brame, plus d'assaut : il fuit
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
   if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
   else if (b.as) etat = 'assaut';
+  else if (b.brame > t && b.brameDe && !b.brameDe.dead && !b.tame) { etat = 'fuir'; men = b.brameDe; dM = (b.x - men.x) ** 2 + (b.y - men.y) ** 2; }   // le brame d'un bramard lié
   else if (panique) { etat = 'fuir'; men = J; dM = dJ * dJ; }
   else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15 && (!besoin || presse) && !(b.tame && (b.rappel > 0 || (b.role === 'defense' && b.pv > .3)))) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
   else if (b.decroche > 0 && b.epargne && !b.epargne.dead) etat = 'décrocher';
@@ -12886,6 +13002,7 @@ function majEcosysteme(dt) {
     if (d < 3600) majBete(b, dt);
     else if ((i + tour) % 6 === 0) majBete(b, dt * 6);
     if (MURS.length && murBete(b, ox, oy)) { b.x = ox; b.y = oy; }   // un rempart : elle n'entre pas
+    if (SORTS_POSES.length && !b.tame && !b.enVol && murSort(ox, oy, b.x, b.y, b.z)) { b.x = ox; b.y = oy; b.vx = b.vy = 0; }   // un mur de sort : elle ne passe pas
     if (b.englue > t) {                                  // engluée : clouée sur place, sans assaut
       b.x = ox; b.y = oy; b.vx = b.vy = 0; b.as = null;
       if (Math.random() < dt * 8) parts.push({ x: b.x + (Math.random() - .5) * .5, y: b.y + (Math.random() - .5) * .5, z: b.z + .15, vx: 0, vy: 0, vz: .4, g: 1, life: .5, age: 0, col: '#9ccf5a', tl: .07 });
@@ -15740,7 +15857,7 @@ const ALCH = [   // v(r) : ce que vaut la caractéristique au rang r (0 : la bas
 const ALCH_PAR_ID = {}; for (const a of ALCH) ALCH_PAR_ID[a.id] = a;
 const rangAlch = k => Math.max(0, Math.min(ALCH_MAX, P.alchimie[k] | 0));
 // Ce que les rangs changent en jeu.
-const vieK = () => 1 / (1 + .1 * rangAlch('vie'));                    // la jauge tient plus : toute blessure en coûte moins
+const vieK = () => (egideActive() ? .67 : 1) / (1 + .1 * rangAlch('vie'));                    // la jauge tient plus : toute blessure en coûte moins
 const forceK = () => (1 + effet('fort') * .25) * (1 + .1 * rangAlch('force'));   // coups puissants (plat) et force (potion)
 const sautK = () => (1 + .12 * effet('saut')) * (1 + .05 * rangAlch('saut'));
 function arrondiAlch(v) {                                   // la récolte : la fraction en plus tombe au sort
@@ -15770,10 +15887,26 @@ const COMPETENCES = {
     v: r => r ? decAlch(SECOUSSE[r].r) + ' cases · ' + decAlch(SECOUSSE[r].et) + ' s étourdies · toutes les ' + SECOUSSE[r].del + ' s' : 'pas encore apprise' },
   doux: { n: 'Trouvaille', fam: ['fleur', 'douceur', 'graine'], d: 'en récoltant, elle déniche parfois un produit rare de la flore, de ceux qui servent aux potions',
     v: r => r ? Math.round(TROUVE[r] * 100) + ' % par récolte rapportée' + (r >= 3 ? ' · parfois très rare' : '') : 'pas encore apprise' },
+  // les créatures à part : une compétence par espèce
+  felin: { n: 'Voile de brume', fam: ['fleur', 'champignon', 'viande'], d: 'quand une bête vous a pris pour proie, il vous enveloppe de brume : vous voilà invisible',
+    v: r => r ? BRUME[r].dur + ' s invisible · toutes les ' + BRUME[r].del + ' s' : 'pas encore apprise' },
+  bramard: { n: 'Brame', fam: ['feuille', 'racine', 'fruit'], d: 'une bête hostile près de lui, il brame : les bêtes alentour s\'enfuient, et les chasseurs renoncent',
+    v: r => r ? BRAME[r].r + ' cases · ' + BRAME[r].dur + ' s de fuite · toutes les ' + BRAME[r].del + ' s' : 'pas encore apprise' },
+  sterne: { n: 'Vigie', fam: ['poisson', 'fleur', 'graine'], d: 'elle crie quand une bête vous guette, dit où elle est, et la désigne à vos compagnes — même un félin fondu dans la brume',
+    v: r => r ? 'à ' + VIGIE[r].r + ' cases' : 'pas encore apprise' },
+  dragon: { n: 'Souffle de braise', fam: ['viande', 'racine', 'douceur'], d: 'sa boule de feu éclate plus large, et le brasier qu\'elle laisse brûle plus longtemps',
+    v: r => r ? 'brasier de ' + decAlch(BRAISE[r].r) + ' cases · ' + decAlch(BRAISE[r].dur) + ' s' : 'brasier de 1,5 case · 3,5 s' },
+  silencieux: { n: 'Silence', fam: ['champignon', 'racine', 'feuille'], d: 'près de lui, vos pas ne s\'entendent plus : les bêtes vous remarquent de bien plus près',
+    v: r => r ? 'à ' + SILENCE[r] + ' cases de lui' : 'pas encore apprise' },
+  millegueule: { n: 'Embuscade', fam: ['racine', 'viande', 'champignon'], d: 'en jaillissant sous la menace, il retient les bêtes autour du trou : clouées sur place, pour le coup qui suit',
+    v: r => r ? decAlch(EMBUSCADE[r].r) + ' cases · ' + EMBUSCADE[r].dur + ' s retenues' : 'pas encore apprise' },
 };
 const NOM_TYPE = { rampant: 'Rampant', coursier: 'Coursier', tellurien: 'Tellurien', doux: 'Doux', automate: 'Automate' };
-const typeComp = c => { const sp = c && specById[c.esp]; return sp ? familleBete(sp) : ''; };
-const compDe = c => { const f = typeComp(c); return COMPETENCES[f] ? f : null; };
+// Le type d'une compagne. familleBete range « rampant » tout ce qui n'est d'aucune famille : les vrais Rampants sont
+// ceux qui n'ont pas de corps à eux (brouteur, bossu, glaneur, traqueur, spectre). Le félin, le bramard, la sterne,
+// le dragon, le silencieux et le mille-gueules sont des créatures à part : pas de type : une compétence à chacun.
+const typeComp = c => { const sp = c && specById[c.esp]; if (!sp) return ''; const f = familleBete(sp); return f === 'rampant' && sp.corps ? 'apart' : f; };
+const compDe = c => { const f = typeComp(c); return COMPETENCES[f] ? f : f === 'apart' && COMPETENCES[c.esp] ? c.esp : null; };   // le type, ou l'espèce pour une créature à part
 const potComp = (c, g) => c && c.pot ? Math.max(0, Math.min(g === 'comp' ? COMP_MAX : ALCH_MAX, c.pot[g] | 0)) : 0;
 const potBete = (b, g) => b && b.tame && b.comp ? potComp(b.comp, g) : 0;
 function potLue(p) {                                        // ce qu'une sauvegarde dit des potions d'une compagne
@@ -15976,6 +16109,52 @@ function trouvaille(r) {
 }
 const ditPotions = c => { const L = [], f = compDe(c); if (potComp(c, 'recolte')) L.push('récolte ' + potComp(c, 'recolte')); if (potComp(c, 'defense')) L.push('défense ' + potComp(c, 'defense'));
   if (f && potComp(c, 'comp')) L.push(COMPETENCES[f].n.toLowerCase() + ' ' + potComp(c, 'comp')); return L.length ? `<p class="note" style="margin:2px 0 0">Potions : ${L.join(' · ')}</p>` : ''; };
+// --- les six créatures à part : une compétence chacune ---
+const BRUME = [null, { dur: 4, del: 45 }, { dur: 6, del: 36 }, { dur: 8, del: 28 }];                         // le félin : invisible, tant de secondes
+const BRAME = [null, { r: 6, dur: 4, del: 20 }, { r: 8, dur: 5, del: 16 }, { r: 10, dur: 6, del: 12 }];      // le bramard : la fuite alentour
+const VIGIE = [null, { r: 14 }, { r: 20 }, { r: 26 }];                                                       // la sterne : jusqu'où elle voit le guetteur
+const BRAISE = [null, { zone: 2, r: 1.9, dur: 5 }, { zone: 2.3, r: 2.3, dur: 6.5 }, { zone: 2.6, r: 2.7, dur: 8 }];   // le dragon : le souffle et son brasier (1,7 · 1,5 · 3,5 s sans potion)
+const SILENCE = [null, 6, 8, 10];                                                                            // le silencieux : le rayon où vos pas se taisent
+const EMBUSCADE = [null, { r: 2, dur: 2 }, { r: 2.4, dur: 3 }, { r: 2.8, dur: 4 }];                          // le mille-gueules : ce qu'il retient en jaillissant
+// La bête qui vous a pris pour proie.
+const guette = o => vivante(o) && predateur(o.sp) && !!(o.traque || o.viseJ || o.colere > 0 || (o.as && o.as.c === P));
+const nomComp = b => (b.comp && b.comp.nom) || b.sp.n;
+function compBrume(b, r) {
+  if (t < (b.compT || 0) || effet('invisible') || P.pv <= 0 || (b.x - P.x) ** 2 + (b.y - P.y) ** 2 > 144) return;
+  if (!beasts.some(o => guette(o) && Math.abs(o.z - P.z) < 5 && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < 81)) return;
+  const B = BRUME[r]; b.compT = t + B.del;
+  P.effetsN = P.effetsN || {}; P.effets.invisible = t + B.dur; P.effetsN.invisible = 1;
+  for (let k = 0; k < 26; k++) { const a = Math.random() * 6.2832, q = Math.random() * 1.4;
+    parts.push({ x: P.x + Math.cos(a) * q, y: P.y + Math.sin(a) * q, z: P.z + .2 + Math.random() * 1.2, vx: Math.cos(a) * .4, vy: Math.sin(a) * .4, vz: .2, g: -.2, life: 1.2, age: 0, col: '#c8d6e6', tl: .22 }); }
+  say(nomComp(b) + ' vous enveloppe de brume · invisible ' + B.dur + ' s', 2.6);
+}
+function compBrame(b, r) {
+  if (t < (b.compT || 0)) return;
+  const B = BRAME[r];
+  if (!beasts.some(o => prenable(o) && beteHostile(o) && Math.abs(o.z - b.z) < 4 && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 49)) return;
+  b.compT = t + B.del;
+  for (const o of beasts) {
+    if (!prenable(o) || o.sp.boss || o.sp.horreur || o.sp.dragon || automate(o.sp) || Math.abs(o.z - b.z) > 5 || (o.x - b.x) ** 2 + (o.y - b.y) ** 2 > B.r * B.r) continue;
+    o.fuite = Math.max(o.fuite || 0, B.dur); o.menace = b; o.alarm = 1; o.as = null; o.colere = 0; o.brame = t + B.dur; o.brameDe = b; o.riposteA = null;
+    if (o.traque) { o.traque = false; o.renonceJ = o.t; }
+  }
+  SON.jouer('rugissement', { court: 1 }, b.x, b.y, b.z + 1); poussiere(b.x, b.y, b.z, 20, B.r * .9);
+  if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 100) say(nomComp(b) + ' brame · les bêtes s\'enfuient', 2.2);
+}
+function compVigie(b, r) {
+  if (t < (b.compT || 0) || P.pv <= 0) return;
+  let m = null, bd = VIGIE[r].r ** 2;
+  for (const o of beasts) { if (!guette(o) || (o.vigieT || 0) > t) continue; const d = (o.x - P.x) ** 2 + (o.y - P.y) ** 2; if (d < bd) { bd = d; m = o; } }
+  if (!m) return;
+  m.vigieT = t + 25; b.compT = t + 4;
+  P.designe = { o: m, t };                                // la fiche de la cible la montre ; les compagnes en défense s'en chargent
+  SON.jouer('cri', { genre: 'alerte' }, b.x, b.y, b.z);
+  say(nomComp(b) + ' crie · ' + m.sp.n.toLowerCase() + ' vous guette · ' + versLe(m.x - P.x, m.y - P.y) + ', à ' + Math.max(1, Math.round(Math.sqrt(bd))) + ' pas', 3.2);
+}
+function compSilence(b, r) {
+  if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 > SILENCE[r] ** 2 || Math.abs(b.z - P.z) > 6) return;
+  P.effetsN = P.effetsN || {}; P.effets.silence = Math.max(P.effets.silence || 0, t + 1.5); if (!(P.effetsN.silence > 1)) P.effetsN.silence = 1;
+}
 let compPrec = null;
 function majCompetences(dt) {
   if (P.englue > t && Math.random() < dt * 14) parts.push({ x: P.x + (Math.random() - .5) * .5, y: P.y + (Math.random() - .5) * .5, z: P.z + .1, vx: 0, vy: 0, vz: .4, g: 1, life: .5, age: 0, col: '#9ccf5a', tl: .07 });
@@ -15988,6 +16167,10 @@ function majCompetences(dt) {
     if (f === 'rampant') compGlu(b, r);
     else if (f === 'coursier') compCoursier(b, r, v, dir);
     else if (f === 'tellurien') compSecousse(b, r);
+    else if (f === 'felin') compBrume(b, r);
+    else if (f === 'bramard') compBrame(b, r);
+    else if (f === 'sterne') compVigie(b, r);
+    else if (f === 'silencieux') compSilence(b, r);          // le dragon et le mille-gueules : dans leur propre attaque
   }
 }
 // --- la page : à gauche la fiche (soi, puis les compagnes), à droite la potion et le garde-manger ---
@@ -16062,6 +16245,615 @@ function alchimieOs(niv) {
   return B;
 }
 DESSINS.alambic = d => { d.rect(6, 1, 9, 2, PIX.pierreC); d.rect(7, 3, 8, 6, [150, 214, 204]); d.rect(5, 7, 10, 8, [150, 214, 204]); d.rect(3, 9, 12, 13, [150, 96, 190]); d.rect(4, 14, 11, 14, [110, 66, 150]); d.net(5, 10, [214, 170, 240]); d.net(9, 12, [214, 170, 240]); d.net(7, 5, [214, 170, 240]); };
+// ============================================================
+//  LA MAGIE : L'ÉCRITURE D'ÉCLAT
+//  On n'apprend pas des sorts tout faits : on les écrit. Une phrase tient en deux glyphes, une
+//  forme (comment le sort part) et une matière (ce qu'il fait) : « Trait de braise », « Mur de
+//  fange ». La magie n'agit que dans l'instant, pour attaquer ou se défendre ; ce qui change le
+//  personnage pour de bon, c'est l'alchimie. Un sort se lance contre des éclats : le mana.
+// ============================================================
+const FORMES = [   // c : son prix en éclats ; del : le délai avant de relancer le même sort
+  { id: 'trait', n: 'Trait', role: 'attaque', c: 5, del: 1.2, deg: .35, d: 'un projectile, sur la bête que vous visez' },
+  { id: 'onde', n: 'Onde', role: 'attaque', c: 10, del: 5, deg: .2, d: 'un anneau qui part de vous, à quatre cases et demie' },
+  { id: 'piege', n: 'Piège', role: 'attaque', c: 8, del: 4, deg: .45, d: 'un glyphe posé à vos pieds, qui attend la première bête' },
+  { id: 'mur', n: 'Mur', role: 'défense', c: 12, del: 8, deg: .12, d: 'une barrière devant vous, huit secondes : ni les bêtes ni leurs tirs ne passent' },
+  { id: 'egide', n: 'Égide', role: 'défense', c: 12, del: 14, deg: .15, d: 'un bouclier sur vous, dix secondes : un tiers des blessures en moins, et la matière rendue à qui vous frappe' },
+];
+const MATIERES = [   // k : ce que pèse son coup (le cristal perce, la fange retient)
+  { id: 'fange', n: 'Fange', de: 'de fange', c: 3, k: .5, col: [128, 102, 64], biome: 'la Tourbière', d: 'englue : la bête est clouée sur place' },
+  { id: 'vent', n: 'Vent', de: 'de vent', c: 3, k: .5, col: [190, 226, 250], biome: 'le Canyon d\'ocre', d: 'repousse au loin' },
+  { id: 'spore', n: 'Spore', de: 'de spores', c: 5, k: .4, col: [150, 204, 96], biome: 'la Sylve fongique', d: 'trouble : la bête vous perd de vue et renonce' },
+  { id: 'effroi', n: 'Effroi', de: 'd\'effroi', c: 6, k: .4, col: [160, 118, 204], biome: 'les Terres de l\'effroi', d: 'met en fuite' },
+  { id: 'cristal', n: 'Cristal', de: 'de cristal', c: 7, k: 1.6, col: [143, 228, 232], biome: 'les Champs de cristal', d: 'perce : les dégâts les plus forts' },
+  { id: 'braise', n: 'Braise', de: 'de braise', c: 8, k: 1, col: [255, 150, 60], biome: 'la Caldeira de cendre', d: 'brûle, et laisse un brasier' },
+];
+const FORME = {}, MATIERE = {}; for (const f of FORMES) FORME[f.id] = f; for (const m of MATIERES) MATIERE[m.id] = m;
+// --- les accents (Tome III) : un signe posé sur la phrase, qui la presse, l'alourdit ou l'étend ---
+const ACCENTS = [   // c : ce qu'il ajoute au prix ; f : son féminin (une onde aiguë)
+  { id: 'aigu', n: 'Aigu', f: 'aiguë', c: 2, d: 'presse la phrase : elle se relance bien plus tôt (délai × 0,6)' },
+  { id: 'grave', n: 'Grave', f: 'grave', c: 4, d: 'alourdit la phrase : son coup pèse moitié plus' },
+  { id: 'circonflexe', n: 'Circonflexe', f: 'circonflexe', c: 3, d: 'étend la phrase : plus loin, plus large, plus longtemps (× 1,4)' },
+];
+const ACCENT = {}; for (const a of ACCENTS) ACCENT[a.id] = a;
+FORME.onde.fem = FORME.egide.fem = true;
+// --- les accords : deux matières mêlées. Neuf donnent simplement leurs deux effets ; six, les
+// remarquables, donnent autre chose — et ne disent leur nom qu'une fois écrits. Chaque matière
+// entre dans deux accords remarquables, pas plus. ---
+const ACCORDS = {
+  'fange+braise': { acc: 'poix', n: 'Poix', le: 'la Poix', de: 'de poix', k: 1, col: [70, 52, 42], d: 'englue, et la bête brûle tant qu\'elle est prise' },
+  'fange+cristal': { acc: 'gangue', n: 'Gangue', le: 'la Gangue', de: 'de gangue', k: 1.1, col: [150, 172, 170], d: 'fige plus longtemps, et tout ce qui frappe la bête figée pèse moitié plus' },
+  'vent+spore': { acc: 'nuee', n: 'Nuée', le: 'la Nuée', de: 'de nuée', k: .5, col: [186, 220, 160], d: 'repousse, et toutes les bêtes à cinq cases vous perdent de vue' },
+  'vent+effroi': { acc: 'epouvante', n: 'Épouvante', le: 'l\'Épouvante', de: 'd\'épouvante', k: .5, col: [150, 124, 210], d: 'repousse, et toutes les bêtes à sept cases prennent la fuite' },
+  'spore+braise': { acc: 'grisou', n: 'Grisou', le: 'le Grisou', de: 'de grisou', k: 1, col: [226, 198, 90], d: 'explose : les bêtes à trois cases prennent la moitié du coup, et le sol brûle' },
+  'effroi+cristal': { acc: 'glas', n: 'Glas', le: 'le Glas', de: 'de glas', k: 1.6, col: [126, 100, 196], d: 'perce, met en fuite, et frappe double une bête qui a perdu la moitié de sa vie' },
+};
+const MELANGES = [];                                      // les quinze paires
+for (let i = 0; i < MATIERES.length; i++) for (let j = i + 1; j < MATIERES.length; j++) {
+  const a = MATIERES[i], b = MATIERES[j], id = a.id + '+' + b.id, R = ACCORDS[id];
+  const M = Object.assign({ id, mix: [a.id, b.id], acc: null, n: a.n + ' et ' + b.n.toLowerCase(), de: a.de + ' et ' + b.de, c: a.c + b.c, k: Math.max(a.k, b.k),
+    col: a.col, col2: b.col, feu: a.id === 'braise' || b.id === 'braise', d: a.d + ' ; ' + b.d }, R || {});
+  if (R) M.feu = R.acc === 'grisou';
+  MATIERE[id] = M; MELANGES.push(M);
+}
+MATIERE.braise.feu = true;
+const INSTABLE = [.25, .125, 0], ENCRE_MELANGE = 20, ENCRE_ACCENT = 10, NOM_SORT_MAX = 24, POIX_PAS = .5, POIX_DEG = .04, BRULURE_ECLAT = .12;
+let poixFin = 0;
+const TOME_MAX = 3, PAGES_SORT = [0, 3, 5, 7], ENCRE = 10, SORT_PIEGES = 3;
+const hexSort = c => '#' + c.map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('');
+const estSort = id => typeof id === 'string' && id.startsWith('sort:');
+// Une phrase, par sa clé « forme.matière », « forme.matière+matière » (un accord, l'ordre des
+// deux ne compte pas) ou l'une des deux suivie de « ~accent » — ou rien si elle ne veut rien dire.
+function phraseDe(k) {
+  const [fm, a] = String(k || '').split('~'), [f, mm] = fm.split('.');
+  const F = FORME[f], A = a ? ACCENT[a] : null; let M = MATIERE[mm];
+  if (!M && mm && mm.includes('+')) { const [x, y] = mm.split('+'); M = MATIERE[y + '+' + x]; }
+  if (!F || !M || (a && !A)) return null;
+  return { k: f + '.' + M.id + (A ? '~' + A.id : ''), f: F, m: M, a: A,
+    del: F.del * (A && A.id === 'aigu' ? .6 : 1), deg: F.deg * (A && A.id === 'grave' ? 1.5 : 1), amp: A && A.id === 'circonflexe' ? 1.4 : 1 };
+}
+const accordConnu = M => !M.mix || P.codex.includes(M.id);
+// Son nom : forme, matière, accent. Un accord remarquable jamais écrit se dit encore par ses deux matières.
+function nomPhraseNu(s) {
+  const M = s.m, de = M.acc && !accordConnu(M) ? MATIERE[M.mix[0]].de + ' et ' + MATIERE[M.mix[1]].de : M.de;
+  return s.f.n + ' ' + de + (s.a ? ' ' + (s.f.fem ? s.a.f : s.a.n.toLowerCase()) : '');
+}
+const nomPhrase = s => (P.nomsSorts && P.nomsSorts[s.k]) || nomPhraseNu(s);   // ou le nom que le joueur lui a donné
+function dessinSort(d, f, c, c2, a) {
+  const cl = c2 || c.map(v => Math.min(255, v + 60)), cf = c2 ? c2.map(v => v * .7 | 0) : c.map(v => v * .6 | 0);
+  if (f === 'trait') { d.ligne(3, 12, 10, 5, cf); d.ligne(4, 12, 11, 5, c); d.rect(10, 3, 12, 5, cl); d.net(13, 2, cl); }
+  else if (f === 'onde') { d.ligne(5, 3, 10, 3, c); d.ligne(5, 12, 10, 12, c); d.ligne(3, 5, 3, 10, c); d.ligne(12, 5, 12, 10, c); d.net(4, 4, c2 || c); d.net(11, 4, c2 || c); d.net(4, 11, c2 || c); d.net(11, 11, c2 || c); d.rect(7, 7, 8, 8, cl); }
+  else if (f === 'piege') { d.ligne(3, 8, 12, 8, c); d.ligne(8, 3, 8, 12, c); d.ligne(5, 5, 10, 10, cf); d.ligne(5, 10, 10, 5, cf); d.rect(7, 7, 8, 8, cl); }
+  else if (f === 'mur') { for (const x of [3, 7, 11]) { d.rect(x, 4, x + 1, 13, x === 7 && c2 ? c2 : c); d.rect(x, 3, x + 1, 3, cl); } d.ligne(3, 9, 12, 9, cf); }
+  else { d.rect(4, 3, 11, 9, c); d.rect(5, 10, 10, 11, c); d.rect(6, 12, 9, 12, c); d.rect(7, 13, 8, 13, cf); d.rect(6, 5, 9, 8, cl); }
+  const B = [244, 244, 252];                             // l'accent, dans le coin
+  if (a === 'aigu') { d.net(13, 15, B); d.net(14, 14, B); d.net(15, 13, B); }
+  else if (a === 'grave') { d.net(13, 13, B); d.net(14, 14, B); d.net(15, 15, B); }
+  else if (a === 'circonflexe') { d.net(13, 15, B); d.net(14, 14, B); d.net(15, 15, B); }
+}
+// Sa vignette, dessinée à la demande (cinq formes, vingt et une matières, trois accents : trop pour les dessiner toutes d'avance).
+function icSort(k) {
+  const s = phraseDe(k); if (!s) return 'livre';
+  const su = accordConnu(s.m), M = su || !s.m.acc ? s.m : { col: MATIERE[s.m.mix[0]].col, col2: MATIERE[s.m.mix[1]].col };
+  const id = 'sort_' + s.f.id + '_' + s.m.id.replace('+', '_') + (su || !s.m.acc ? '' : '_x') + (s.a ? '_' + s.a.id : '');
+  if (!DESSINS[id]) DESSINS[id] = d => dessinSort(d, s.f.id, M.col, M.col2, s.a && s.a.id);
+  poserIcone(id); return id;
+}
+const nivBiblio = () => nivModule('biblio');
+const biblioIci = () => campIci() && auCamp() && nivBiblio() > 0;
+// Ce qu'on sait d'une matière : 0, ou le tome lu (I, II, III). Le vieux grimoire Souffle vaut le Tome I du vent.
+const tomeDe = m => Math.max(Math.max(0, Math.min(TOME_MAX, P.tomes[m] | 0)), m === 'vent' && P.objets.souffle ? 1 : 0);
+const pagesSort = () => PAGES_SORT[nivBiblio()] || 0;
+const sortInscrit = k => P.sorts.includes(k);
+const coutPhrase = s => Math.max(1, Math.round((s.f.c + s.m.c + (s.a ? s.a.c : 0)) * (1 - ((porte('armure') || {}).sort || 0)) * (biomeIci === 12 ? .5 : 1) * (1 - .08 * rangAlch('mana'))));
+const sortPret = {};                                      // phrase -> l'instant où elle peut repartir
+const SORTS_POSES = [];                                   // les pièges et les murs, sur cette île
+const SORT_DE = { tame: true, sp: { n: 'sort' }, x: 0, y: 0 };   // le brasier d'un sort : il épargne le joueur et les siens
+const egideActive = () => !!P.egide && P.egide.fin > t;
+const encreDe = s => (s.m.mix ? ENCRE_MELANGE : ENCRE) + (s.a ? ENCRE_ACCENT : 0);
+// Ce qui manque pour écrire une phrase : les tomes, le niveau de la bibliothèque. '' si tout y est.
+function freinPhrase(s) {
+  const niv = nivBiblio(), ms = s.m.mix || [s.m.id];
+  for (const m of ms) if (!tomeDe(m)) return 'Matière inconnue : il faut le Tome I ' + TOME_DE[m] + '.';
+  if (s.m.mix && niv < 2) return 'Mêler deux matières demande une bibliothèque de niveau 2.';
+  if (s.a && niv < 3) return 'Les accents demandent une bibliothèque de niveau 3.';
+  if (s.a) for (const m of ms) if (tomeDe(m) < 3) return 'L\'accent demande le Tome III ' + TOME_DE[m] + '.';
+  return '';
+}
+// Un accord dont on ne tient pas les deux Tomes II : la part des lancers qui tournent mal.
+const instabilite = s => s.m.mix ? INSTABLE[s.m.mix.filter(m => tomeDe(m) >= 2).length] : 0;
+function nommerSort(k, v) {
+  const s = phraseDe(k); if (!s || !sortInscrit(s.k)) return false;
+  const n = String(v == null ? '' : v).replace(/[<>&"]/g, '').replace(/\s+/g, ' ').trim().slice(0, NOM_SORT_MAX);
+  if (!n || n === nomPhraseNu(s).slice(0, NOM_SORT_MAX)) delete P.nomsSorts[s.k]; else P.nomsSorts[s.k] = n;   // vide, ou son propre nom : il le reprend
+  Sauve.sale = true; casesSig = ''; say(n && P.nomsSorts[s.k] ? nomPhraseNu(s) + ' · nommé « ' + n + ' »' : nomPhraseNu(s) + ' · reprend son nom', 2);
+  return true;
+}
+// --- écrire, effacer ---
+function inscrireSort(k) {
+  const s = phraseDe(k); if (!s) return false;
+  if (!nivBiblio()) { say('il faut une bibliothèque : elle se crée au campement', 2.6); return false; }
+  if (!biblioIci()) { say('il faut être au pupitre de la bibliothèque, au campement', 2.6); return false; }
+  if (!s.m.mix && !tomeDe(s.m.id)) { say('la matière « ' + s.m.n.toLowerCase() + ' » vous est inconnue · son Tome I se trouve dans ' + s.m.biome, 3.2); return false; }
+  { const fr = freinPhrase(s); if (fr) { say(fr[0].toLowerCase() + fr.slice(1).replace(/\.$/, ''), 3.2); return false; } }
+  if (sortInscrit(s.k)) { say(nomPhrase(s) + ' est déjà inscrit', 1.8); return false; }
+  if (P.sorts.length >= pagesSort()) { say('le grimoire est plein · ' + pagesSort() + ' sorts à ce niveau de bibliothèque', 2.6); return false; }
+  const encre = encreDe(s);
+  if (!essai) { if (dispo('eclat') < encre) { say('il faut ' + eclats(encre) + ' pour l\'encre', 2); return false; } payer({ eclat: encre }); }
+  const neuf = !!s.m.mix && !P.codex.includes(s.m.id); if (neuf) P.codex.push(s.m.id);   // un accord jamais écrit : il entre au Codex
+  P.sorts.push(s.k); Sauve.sale = true; SON.jouer(neuf && s.m.acc ? 'rare' : 'niveau');
+  { const q = lieuModule(P.camp, 'biblio'); burst(q[0], q[1], P.camp.z + 1.1, neuf && s.m.acc ? 50 : 30, hexSort(s.m.col)); if (s.m.mix) burst(q[0], q[1], P.camp.z + 1.3, 20, hexSort(s.m.col2)); }
+  say(neuf && s.m.acc ? 'accord remarquable · ' + s.m.le + ' · ' + s.m.d : neuf ? 'accord simple · ' + nomPhrase(s) + ' · les deux effets à la fois' : 'inscrit au grimoire · ' + nomPhrase(s) + ' · ' + coutPhrase(s) + ' éclats par lancer', neuf ? 5 : 3.2);
+  return true;
+}
+function effacerSort(k) {
+  const i = P.sorts.indexOf(k); if (i < 0) return false;
+  P.sorts.splice(i, 1); if (P.sortMain === k) P.sortMain = null; delete P.nomsSorts[k];
+  for (let j = 0; j < P.raccourcis.length; j++) if (P.raccourcis[j] === 'sort:' + k) P.raccourcis[j] = null;
+  Sauve.sale = true; casesSig = ''; const s = phraseDe(k); say((s ? nomPhrase(s) : 'le sort') + ' · effacé du grimoire', 2);
+  return true;
+}
+function tenirSort(k) {                                    // le sort que lance X
+  if (!sortInscrit(k)) return;
+  if (P.sortMain === k && !porte('grimoire')) { P.sortMain = null; say('plus de sort en main', 1.4); return; }
+  P.sortMain = k; P.equip.grimoire = null; Sauve.sale = true; say(nomPhrase(phraseDe(k)) + ' · en main', 1.6);
+}
+// --- ce que fait une matière ---
+function frapperSort(o, deg) {                             // comme un coup d'arme : la prise est au joueur
+  const dg = deg / danger() / robuste(o);
+  o.pv -= dg; o.hit = .25; o.alarm = 1; blesseParJoueur(o);
+  if (typeof fauneCoup === 'function') fauneCoup(o, dg, o.vx || 0, o.vy || 0, 'chassé');
+  if (o.pv <= 0 && !o.dead) { mourirBete(o, 'chassé'); butin(o); }
+}
+// Autour d'une bête touchée : ce que font les accords qui débordent.
+function zoneSort(o, R, f) { for (const q of beasts) if (q !== o && prenable(q) && Math.abs(q.z - o.z) < 3 && (q.x - o.x) ** 2 + (q.y - o.y) ** 2 < R * R) f(q); }
+function matiereSur(o, m) {
+  const k = o.sp.boss ? .4 : 1, M = MATIERE[m];           // un gardien de portail s'en remet vite
+  if (M && M.mix) {                                        // un accord : ses deux effets, ou le sien s'il est remarquable
+    if (M.acc === 'poix') { engluer(o, 2.5 * k); o.poix = o.englue; o.poixT = t + POIX_PAS; poixFin = Math.max(poixFin, o.poix); }
+    else if (M.acc === 'gangue') { engluer(o, 3.75 * k); o.gangue = o.englue; }
+    else if (M.acc === 'nuee') { matiereSur(o, 'vent'); matiereSur(o, 'spore'); zoneSort(o, 5, q => { matiereSur(q, 'spore'); burst(q.x, q.y, q.z + .6, 6, hexSort(M.col)); }); anneauSort(o.x, o.y, o.z, M.col, 5, 20); }
+    else if (M.acc === 'epouvante') { matiereSur(o, 'vent'); matiereSur(o, 'effroi'); zoneSort(o, 7, q => { matiereSur(q, 'effroi'); burst(q.x, q.y, q.z + .6, 6, hexSort(M.col)); }); anneauSort(o.x, o.y, o.z, M.col, 7, 24); }
+    else if (M.acc === 'glas') matiereSur(o, 'effroi');
+    else if (!M.acc) { matiereSur(o, M.mix[0]); matiereSur(o, M.mix[1]); }
+    return;                                                // le grisou : son souffle se compte avec le coup, dans toucherSort
+  }
+  if (m === 'fange') engluer(o, 2.5 * k);
+  else if (m === 'vent') { const dx = o.x - P.x, dy = o.y - P.y, d = Math.hypot(dx, dy) || 1; lacherParoi(o);
+    if (!o.sp.boss) { o.vx = dx / d * 9; o.vy = dy / d * 9; o.etourdi = Math.max(o.etourdi || 0, .4); o.as = null; } }
+  else if (m === 'spore') { o.as = null; o.colere = 0; o.riposteA = null; if (o.traque) { o.traque = false; o.renonceJ = o.t; }
+    o.ignore = P; o.ignoreT = o.t + 6 * k; o.etourdi = Math.max(o.etourdi || 0, .8 * k); }
+  else if (m === 'effroi') { if (!o.sp.boss && !o.sp.horreur && !o.sp.dragon && !automate(o.sp)) {
+    o.fuite = Math.max(o.fuite || 0, 4); o.menace = P; o.alarm = 1; o.as = null; o.colere = 0; o.brame = t + 4; o.brameDe = P; o.riposteA = null;
+    if (o.traque) { o.traque = false; o.renonceJ = o.t; } } }
+}
+function brasierSort(x, y) { if (BRASIERS.length < 24) BRASIERS.push({ x, y, z: sol(x, y), r: 1.4, fin: t + 3.5, de: SORT_DE, piq: 0, fantome: false, sort: 1 }); }
+function toucherSort(o, m, deg) {
+  if (!prenable(o)) return false;
+  const M = MATIERE[m]; let dg = deg * M.k;
+  burst(o.x, o.y, o.z + .5, 10, hexSort(M.col)); if (M.mix) burst(o.x, o.y, o.z + .7, 6, hexSort(M.col2));
+  if (M.acc === 'glas' && o.pv < .5) { dg *= 2; burst(o.x, o.y, o.z + .9, 12, '#f4f0ff'); }
+  matiereSur(o, m);
+  if (M.acc === 'grisou') {
+    zoneSort(o, 3, q => { burst(q.x, q.y, q.z + .5, 8, hexSort(M.col2)); frapperSort(q, dg * .5); });
+    anneauSort(o.x, o.y, o.z, M.col2, 3, 18); P.secousse = t; P.secousseK = .35; SON.jouer('explosion', {}, o.x, o.y, o.z);
+  }
+  frapperSort(o, dg);
+  return true;
+}
+function anneauSort(x, y, z, col, r, n = 26) {
+  const c = hexSort(col);
+  for (let k = 0; k < n; k++) { const a = k / n * 6.2832;
+    parts.push({ x: x + Math.cos(a) * .4, y: y + Math.sin(a) * .4, z: z + .25, vx: Math.cos(a) * r * 2.4, vy: Math.sin(a) * r * 2.4, vz: .3, g: .4, life: .42, age: 0, col: c, luit: 1, tl: .1 }); }
+}
+// La bête que vise un trait : celle qu'on vient de frapper, sinon la plus menaçante devant soi.
+function viseSort(R = 14) {
+  const d = P.designe;
+  if (d && d.o && !d.loin && prenable(d.o) && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < R * R) return d.o;
+  const a = P.faceS ?? P.face ?? 0, fx = Math.cos(a), fy = Math.sin(a); let best = null, bs = 1e9;
+  for (const o of beasts) { if (!prenable(o) || Math.abs(o.z - P.z) > 6) continue;
+    const dx = o.x - P.x, dy = o.y - P.y, dd = Math.hypot(dx, dy) || .01; if (dd > R) continue;
+    const cos = (dx * fx + dy * fy) / dd; if (cos < .45 && dd > 2) continue;
+    const s = dd * (2 - cos) * (beteHostile(o) ? .5 : 1); if (s < bs) { bs = s; best = o; } }
+  return best;
+}
+// --- les cinq formes ---
+function sortTrait(s) {
+  const a = P.faceS ?? P.face ?? 0, o = viseSort(14 * s.amp), ox = P.x + Math.cos(a) * .4, oy = P.y + Math.sin(a) * .4, oz = P.z + .95;
+  let vx, vy, vz;
+  if (o) { const d = Math.hypot(o.x - ox, o.y - oy), vol = Math.max(.15, d / (17 * s.amp)), cz = o.z + .45 * (o.sp.sz || 1);
+    vx = (o.x + (o.vx || 0) * vol * .6 - ox) / vol; vy = (o.y + (o.vy || 0) * vol * .6 - oy) / vol; vz = (cz - oz) / vol + TIR_G * vol * .5; P.face = Math.atan2(o.y - P.y, o.x - P.x); }
+  else { vx = Math.cos(a) * 17 * s.amp; vy = Math.sin(a) * 17 * s.amp; vz = 1.6; }
+  TIRS.push({ x: ox, y: oy, z: oz, vx, vy, vz, de: null, deg: s.deg, age: 0, c: s.m.col, sortM: s.m.id });
+  burst(ox, oy, oz, 6, hexSort(s.m.col));
+  return true;
+}
+function sortTouche(f, nx, ny, nz) {                       // le trait en vol : une bête, ou le sol
+  for (const o of beasts) if (prenable(o) && toucheBete(o, nx, ny, nz)) { toucherSort(o, f.sortM, f.deg); if (MATIERE[f.sortM].feu) brasierSort(o.x, o.y); return true; }
+  if (nz < sol(nx, ny) + .02) { burst(nx, ny, nz + .1, 8, hexSort(f.c)); if (MATIERE[f.sortM].feu) brasierSort(nx, ny); return true; }
+  return false;
+}
+function sortOnde(s) {
+  const R = 4.5 * s.amp; let n = 0;
+  for (const o of beasts) { if (!prenable(o) || Math.abs(o.z - P.z) > 3 || (o.x - P.x) ** 2 + (o.y - P.y) ** 2 > R * R) continue;
+    toucherSort(o, s.m.id, s.deg); if (s.m.feu && n < 3) brasierSort(o.x, o.y); n++; }
+  anneauSort(P.x, P.y, P.z, s.m.col, R); P.secousse = t; P.secousseK = .25;
+  return true;
+}
+function sortPiege(s) {
+  const L = SORTS_POSES.filter(q => q.k === 'piege');
+  if (L.length >= SORT_PIEGES) SORTS_POSES.splice(SORTS_POSES.indexOf(L[0]), 1);   // le plus ancien s'efface
+  SORTS_POSES.push({ k: 'piege', x: P.x, y: P.y, z: sol(P.x, P.y), m: s.m.id, deg: s.deg, amp: s.amp, fin: t + 90, arme: t + .8 });
+  burst(P.x, P.y, P.z + .1, 10, hexSort(s.m.col));
+  return true;
+}
+function sortMur(s) {
+  const a = P.faceS ?? P.face ?? 0, cx = P.x + Math.cos(a) * 2, cy = P.y + Math.sin(a) * 2, px = -Math.sin(a) * 2.5 * s.amp, py = Math.cos(a) * 2.5 * s.amp;
+  for (let i = SORTS_POSES.length - 1; i >= 0; i--) if (SORTS_POSES[i].k === 'mur') SORTS_POSES.splice(i, 1);   // un seul mur à la fois
+  SORTS_POSES.push({ k: 'mur', x0: cx - px, y0: cy - py, x1: cx + px, y1: cy + py, z: sol(cx, cy), m: s.m.id, deg: s.deg, fin: t + 8 * s.amp });
+  for (let k = 0; k <= 8; k++) burst(cx - px + px * k / 4, cy - py + py * k / 4, sol(cx, cy) + .4, 3, hexSort(s.m.col));
+  return true;
+}
+function sortEgide(s) {
+  P.egide = { m: s.m.id, deg: s.deg, fin: t + 10 * s.amp };
+  anneauSort(P.x, P.y, P.z + .5, s.m.col, 1.2, 16);
+  return true;
+}
+// Un accord qu'on ne tient pas tourne mal : la phrase se défait (les éclats sont perdus), ou elle
+// brûle — autant d'éclats de plus partent en fumée, et on s'y brûle les mains (sans en mourir).
+function sortRate(s, cs, brule) {
+  payerMana(cs); sortPret[s.k] = t + s.del; casesSig = '';
+  const c = hexSort(s.m.col), z = P.z + .9;
+  if (!brule) {
+    for (let k = 0; k < 16; k++) parts.push({ x: P.x, y: P.y, z, vx: (Math.random() - .5) * 2.4, vy: (Math.random() - .5) * 2.4, vz: .4 + Math.random(), g: 1.5, life: .5 + Math.random() * .4, age: 0, col: k % 2 ? c : '#8a8f9c', tl: .09, luit: k % 2 });
+    SON.jouer('pouf', {}, P.x, P.y, z); say(nomPhrase(s) + ' se défait · ' + eclats(cs) + ' perdus', 2.4);
+    return false;
+  }
+  const plus = essai ? 0 : Math.min(manaDispo(), cs); if (plus > 0) payerMana(plus);
+  P.pv = Math.max(Math.min(P.pv, .05), P.pv - BRULURE_ECLAT * vieK()); P.dernierCoup = t; P.secousse = t; P.secousseK = .5;
+  burst(P.x, P.y, z, 26, '#8fe3ff'); burst(P.x, P.y, z, 12, c); SON.jouer('touche', {}, P.x, P.y, z);
+  say('brûlure d\'éclat · ' + nomPhrase(s) + ' vous éclate entre les mains · ' + eclats(cs + plus) + ' partis en fumée', 3.4);
+  return false;
+}
+const SORT_FAIT = { trait: sortTrait, onde: sortOnde, piege: sortPiege, mur: sortMur, egide: sortEgide };
+function lancerPhrase(k) {
+  const s = phraseDe(k);
+  if (!s || !sortInscrit(s.k)) { say('ce sort n\'est plus au grimoire', 1.6); return false; }
+  if (P.pv <= 0 || (typeof djIci === 'function' && djIci() && s.f.id === 'piege')) return false;
+  if (t < (sortPret[s.k] || 0)) { say(nomPhrase(s) + ' · encore ' + Math.max(1, Math.ceil(sortPret[s.k] - t)) + ' s', 1); return false; }
+  const cs = coutPhrase(s);
+  if (manaDispo() < cs) { say('pas assez de mana : il faut ' + eclats(cs) + ' dans le sac', 1.8); return false; }
+  SON.jouer('sort');
+  { const p = instabilite(s);                              // un accord mal tenu : parfois il tourne mal
+    if (p > 0) { const de = globalThis.__SORT_DE != null ? globalThis.__SORT_DE : Math.random(); if (de < p) return sortRate(s, cs, de < p / 2); } }
+  if (!SORT_FAIT[s.f.id](s)) return false;
+  payerMana(cs); sortPret[s.k] = t + s.del; casesSig = '';
+  if (effet('invisible')) { P.effets.invisible = t; say('vous redevenez visible', 1.6); }
+  else say(nomPhrase(s), 1);
+  return true;
+}
+// --- les pièges, les murs, l'égide : ce qui dure ---
+const distSeg = (x, y, w) => { const dx = w.x1 - w.x0, dy = w.y1 - w.y0, l2 = dx * dx + dy * dy || 1, u = Math.max(0, Math.min(1, ((x - w.x0) * dx + (y - w.y0) * dy) / l2)); return Math.hypot(x - w.x0 - dx * u, y - w.y0 - dy * u); };
+const coteSeg = (x, y, w) => (w.x1 - w.x0) * (y - w.y0) - (w.y1 - w.y0) * (x - w.x0);
+// Un pas de (x0, y0) à (x1, y1) traverse-t-il un mur de sort ?
+function murSort(x0, y0, x1, y1, z) {
+  for (const w of SORTS_POSES) {
+    if (w.k !== 'mur' || z > w.z + 2.4 || z < w.z - 2) continue;
+    const a = coteSeg(x0, y0, w), b = coteSeg(x1, y1, w); if (a * b > 0 || a === b) continue;
+    const u = a / (a - b), ix = x0 + (x1 - x0) * u, iy = y0 + (y1 - y0) * u;
+    if (distSeg(ix, iy, w) < .05) return w;
+  }
+  return null;
+}
+function majSorts(dt) {
+  if (poixFin > t) for (const o of beasts) if (o.poix > t && t >= o.poixT && prenable(o)) { o.poixT = t + POIX_PAS; burst(o.x, o.y, o.z + .5, 5, '#ff9a3c'); frapperSort(o, POIX_DEG); }   // la poix : prise, la bête brûle
+  if (P.egide) {
+    if (P.egide.fin <= t) { P.egide = null; say('l\'égide se dissipe', 1.4); }
+    else if (Math.random() < dt * 16) { const a = t * 4 + Math.random() * 6.28;
+      parts.push({ x: P.x + Math.cos(a) * .7, y: P.y + Math.sin(a) * .7, z: P.z + .3 + Math.random() * 1.2, vx: 0, vy: 0, vz: .3, g: 0, life: .4, age: 0, col: hexSort(MATIERE[P.egide.m].col), luit: 1, tl: .06 }); }
+  }
+  for (let i = SORTS_POSES.length - 1; i >= 0; i--) {
+    const w = SORTS_POSES[i];
+    if (w.fin <= t) { SORTS_POSES.splice(i, 1); continue; }
+    if (w.k === 'piege') {
+      if (t < w.arme || !beasts.some(o => prenable(o) && !o.enVol && Math.abs(o.z - w.z) < 2 && (o.x - w.x) ** 2 + (o.y - w.y) ** 2 < 1.44 * (w.amp || 1) ** 2)) continue;
+      for (const o of beasts) if (prenable(o) && Math.abs(o.z - w.z) < 2.5 && (o.x - w.x) ** 2 + (o.y - w.y) ** 2 < 4.84 * (w.amp || 1) ** 2) toucherSort(o, w.m, w.deg);
+      if (MATIERE[w.m].feu) brasierSort(w.x, w.y);
+      anneauSort(w.x, w.y, w.z, MATIERE[w.m].col, 2.2 * (w.amp || 1), 18); SON.jouer('pilon', {}, w.x, w.y, w.z); SORTS_POSES.splice(i, 1);
+    } else {                                              // le mur : ce qui s'y frotte reçoit la matière
+      for (const o of beasts) { if (!prenable(o) || (o.murSortT || 0) > t || Math.abs(o.z - w.z) > 3 || distSeg(o.x, o.y, w) > .9) continue;
+        o.murSortT = t + 1.2; toucherSort(o, w.m, w.deg); }
+    }
+  }
+}
+// Ce qui se dessine : le glyphe d'un piège à plat sur le sol, les stèles d'un mur.
+function sortOs(w) {
+  const B = [], M = MATIERE[w.m], c = M.col, cl = M.col2 || c.map(v => Math.min(255, v + 50)), add = (a, b, lw, lh, col) => B.push({ a, b, w: lw, h: lh, c: col, lum: 1 });
+  if (w.k === 'piege') {
+    const r = (.55 + .05 * Math.sin(t * 5)) * (w.amp || 1), z = w.z + .04;
+    add([w.x - r, w.y, z], [w.x + r, w.y, z], .09, .03, c); add([w.x, w.y - r, z], [w.x, w.y + r, z], .09, .03, c);
+    add([w.x - r * .7, w.y - r * .7, z], [w.x + r * .7, w.y + r * .7, z], .06, .03, cl); add([w.x - r * .7, w.y + r * .7, z], [w.x + r * .7, w.y - r * .7, z], .06, .03, cl);
+    add([w.x, w.y, z], [w.x, w.y, z + .16], .12, .12, cl);
+  } else {
+    const k = Math.min(1, (w.fin - t) / 1.2), n = 7;
+    for (let i = 0; i < n; i++) { const u = i / (n - 1), x = w.x0 + (w.x1 - w.x0) * u, y = w.y0 + (w.y1 - w.y0) * u, z = sol(x, y), h = (1.5 + .12 * Math.sin(t * 6 + i)) * k;
+      add([x, y, z + .03], [x, y, z + h], .22, .22, i % 2 ? c : cl); }
+    add([w.x0, w.y0, w.z + 1.05 * k], [w.x1, w.y1, w.z + 1.05 * k], .08, .5 * k, c);
+  }
+  return B;
+}
+function sortDecor(ex, ey, r) {
+  if (!SORTS_POSES.length && !LUTRINS.length) return [];
+  const L = [];
+  for (const w of SORTS_POSES) { const x = w.k === 'mur' ? (w.x0 + w.x1) / 2 : w.x, y = w.k === 'mur' ? (w.y0 + w.y1) / 2 : w.y; if ((x - ex) ** 2 + (y - ey) ** 2 < r * r) L.push(...sortOs(w)); }
+  for (const l of LUTRINS) if ((l.x - ex) ** 2 + (l.y - ey) ** 2 < r * r) L.push(...lutrinOs(l));   // les lutrins des tomes
+  return L;
+}
+function sortEmit(view, out) {
+  for (const o of sortDecor(P.x, P.y, 60)) {
+    const cle = view.kEnt && view.kEnt((o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2);
+    emitLimb(o.a, o.b, o.w, o.h, o.c, view, out, cle, rangSol(Math.min(o.a[2], o.b[2]), false), o.lum ? 1 : undefined);
+  }
+}
+// ---------- LES TOMES DANS LE MONDE ----------
+// Trois tomes par matière, trois manières de les trouver. Le Tome I repose sur un lutrin de
+// pierre, au cœur du biome de sa matière : on le recopie, et le lutrin reste là pour les autres.
+// Le Tome II dort dans les coffres gardés du Centre des automates, ou se troque au conteur des
+// Nomades. Le Tome III, c'est la Tisseuse de fer qui le porte. Un tome trouvé se porte (il ne
+// pèse rien, et ne se perd pas en tombant à la surface) puis se déchiffre au pupitre de la
+// bibliothèque, dans l'ordre : le II ne se lit pas sans le I.
+const LUTRINS = [];                                   // ceux de l'île : { m, x, y, z, vu }
+const BIOME_MATIERE = { 9: 'fange', 10: 'vent', 11: 'spore', 12: 'cristal', 13: 'braise', 19: 'effroi', 20: 'effroi' };
+const TOME_DE = { fange: 'de la Fange', vent: 'du Vent', spore: 'de la Spore', effroi: 'de l\'Effroi', cristal: 'du Cristal', braise: 'de la Braise' };
+const TOME_CH = ['', 'I', 'II', 'III'], DECHIFFRE = [0, 10, 25, 45];   // l'encre qu'il faut pour le déchiffrer
+const TOME_COFFRE = { grand: .5, garde: .15 }, TOME_CONTEUR = { eclat: 40 }, LUTRIN_R = 1.7, LUTRIN_VU = 14;
+const cleTome = (m, n) => m + '.' + n;
+function tomeLu(k) { const [m, n] = String(k).split('.'); return MATIERE[m] && !MATIERE[m].mix && +n >= 1 && +n <= TOME_MAX ? { k: m + '.' + (n | 0), m, n: n | 0 } : null; }
+const nomTome = k => { const q = tomeLu(k); return q ? 'Tome ' + TOME_CH[q.n] + ' ' + TOME_DE[q.m] : ''; };
+const tomePorte = (m, n) => P.tomesPortes.includes(cleTome(m, n));
+const tomeAcquis = (m, n) => tomeDe(m) >= n || tomePorte(m, n);   // lu (le Souffle vaut le Tome I du vent), ou dans le sac
+const rangerTomes = () => { P.tomesPortes = P.tomesPortes.filter(k => { const q = tomeLu(k); return q && tomeDe(q.m) < q.n; }); };
+function gagnerTome(m, n, bas) {
+  if (!MATIERE[m] || tomeAcquis(m, n)) return false;
+  P.tomesPortes.push(cleTome(m, n)); Sauve.sale = true;
+  if (bas && typeof DJ !== 'undefined' && DJ.etat) (DJ.etat.tomes || (DJ.etat.tomes = [])).push(cleTome(m, n));   // trouvé sous terre : à remonter
+  return true;
+}
+// Un tome de ce rang qu'on n'a pas : d'abord parmi les matières dont on tient déjà le précédent.
+function tomeManquant(n, tir = Math.random) {
+  const L = MATIERES.filter(m => !tomeAcquis(m.id, n)); if (!L.length) return null;
+  const pret = L.filter(m => n < 2 || tomeDe(m.id) >= n - 1 || tomePorte(m.id, n - 1)), C = pret.length ? pret : L;
+  return C[Math.min(C.length - 1, tir() * C.length | 0)].id;
+}
+// Le lutrin : un par matière dont le biome pousse ici, toujours au même endroit pour une même
+// graine (tous les joueurs de l'île le voient à la même place). On le veut à plat, loin de l'eau,
+// sans rien qui y pousse, et au cœur du biome plutôt qu'en lisière.
+function placerLutrins() {
+  LUTRINS.length = 0;
+  if (djIci() || !RaresIle.length) return;
+  const C = {};
+  for (const b of RaresIle) { const m = BIOME_MATIERE[famille(b)]; if (m && !C[m]) C[m] = { b: famille(b), L: [] }; }
+  if (!Object.keys(C).length) return;
+  for (let y = 6; y < WS - 6; y++) for (let x = 6; x < WS - 6; x++) { const b = bAt(x, y), q = C[BIOME_MATIERE[b]]; if (q && q.b === b) q.L.push(y * WS + x); }
+  const arche = PortailIle || PortailCache;
+  for (const m of MATIERES) {
+    const q = C[m.id]; if (!q || !q.L.length) continue;
+    let g = (SEED ^ 0x70e5d1 ^ (m.id.charCodeAt(0) * 7919 + m.id.charCodeAt(1) * 104729)) >>> 0, best = null, bs = -1, vus = 0;
+    const tir = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+    for (let k = 0; k < 900 && vus < 40; k++) {
+      const i = q.L[tir() * q.L.length | 0], x = i % WS, y = i / WS | 0;
+      if (!placeArche(x, y) || typeFlore(x, y)) continue;
+      if (arche && (arche.x - x) ** 2 + (arche.y - y) ** 2 < 49) continue;
+      let s = 0, bord = false;
+      for (let dy = -4; dy <= 4; dy++) for (let dx = -4; dx <= 4; dx++) { const b = bAt(x + dx, y + dy); if (b === q.b) s++; else if (Math.abs(dx) < 2 && Math.abs(dy) < 2) bord = true; }
+      if (bord) continue;                              // pas en lisière, ni contre une plaque de braise
+      vus++; if (s > bs) { bs = s; best = [x, y]; }
+    }
+    if (best) LUTRINS.push({ m: m.id, x: best[0] + .5, y: best[1] + .5, z: hAt(best[0], best[1]), vu: false });
+  }
+}
+// En volumes : un socle, un fût, une tablette penchée, le livre ouvert. Tant qu'on ne l'a pas
+// recopié, ses pages ont la couleur de la matière, un signe flotte au-dessus, et la nuit le livre
+// luit : un fil de lumière monte, qui se voit de loin.
+function lutrinOs(l) {
+  const B = [], c = MATIERE[l.m].col, cl = c.map(v => Math.min(255, v + 70)), x = l.x, y = l.y, z = l.z, lu = tomeAcquis(l.m, 1), nuit = noirceur() > .3;
+  const P1 = [132, 130, 124], P2 = [102, 100, 96], add = (a, b, w, h, col, lum) => B.push({ a, b, w, h, c: col, lum: lum ? 1 : 0 });
+  add([x, y, z], [x, y, z + .14], .8, .8, P2);
+  add([x, y, z + .14], [x, y, z + .84], .3, .3, P1);
+  add([x, y, z + .84], [x, y, z + .92], .5, .5, P2);
+  add([x, y - .27, z + .93], [x, y + .27, z + 1.11], .66, .08, P1);
+  add([x - .155, y - .2, z + 1.005], [x - .155, y + .2, z + 1.14], .27, .05, lu ? [150, 144, 130] : cl, !lu && nuit);
+  add([x + .155, y - .2, z + 1.005], [x + .155, y + .2, z + 1.14], .27, .05, lu ? [140, 134, 122] : cl, !lu && nuit);
+  add([x, y - .2, z + 1.015], [x, y + .2, z + 1.15], .05, .05, lu ? [96, 84, 70] : c, !lu);
+  if (!lu) {
+    const h = z + 1.62 + .07 * Math.sin(t * 2 + x);
+    add([x, y, h], [x, y, h + .17], .12, .12, c, 1);
+    if (nuit) add([x, y, h + .3], [x, y, h + 5.5], .045, .045, cl, 1);
+  }
+  return B;
+}
+function majLutrins(dt) {
+  for (const l of LUTRINS) {
+    const d = Math.hypot(l.x - P.x, l.y - P.y); if (d > 46) continue;
+    const lu = tomeAcquis(l.m, 1);
+    if (!l.vu && d < LUTRIN_VU) { l.vu = true; if (!lu) say('un lutrin de pierre · un livre y est ouvert', 3.2); }
+    if (!lu && Math.random() < dt * (noirceur() > .3 ? 5 : 1.4)) {
+      const a = Math.random() * 6.2832, r = Math.random() * .3;
+      parts.push({ x: l.x + Math.cos(a) * r, y: l.y + Math.sin(a) * r, z: l.z + 1.15, vx: 0, vy: 0, vz: .45 + Math.random() * .5, g: -.15, life: 1.1 + Math.random(), age: 0, col: hexSort(MATIERE[l.m].col), luit: 1, tl: .07 });
+    }
+  }
+}
+function lutrinProche() {
+  let b = null, bd = LUTRIN_R * LUTRIN_R;
+  for (const l of LUTRINS) { const d = (l.x - P.x) ** 2 + (l.y - P.y) ** 2; if (d < bd && Math.abs(l.z - P.z) < 2) { bd = d; b = l; } }
+  return b;
+}
+function lutrinAction() {
+  const l = lutrinProche(); if (!l) return null;
+  const nom = 'tome I · ' + MATIERE[l.m].n.toLowerCase();
+  if (tomeDe(l.m) >= 1) return { v: 'DÉJÀ LU', o: nom, f: () => say(P.tomes[l.m] > 0 ? 'vous connaissez déjà ce tome' : 'le Souffle vous a déjà appris le vent', 1.8), vide: true };
+  if (tomePorte(l.m, 1)) return { v: 'RECOPIÉ', o: nom + ' · à déchiffrer au campement', f: () => say('déjà recopié · il se déchiffre au pupitre de la bibliothèque', 2.4), vide: true };
+  return { v: 'LIRE', o: nom, f: () => lireLutrin(l) };
+}
+function lireLutrin(l) {
+  if (!gagnerTome(l.m, 1)) return false;
+  SON.jouer('rare', {}, l.x, l.y, l.z + 1); burst(l.x, l.y, l.z + 1.2, 28, hexSort(MATIERE[l.m].col));
+  say(nomTome(cleTome(l.m, 1)) + ' recopié · à déchiffrer au pupitre de la bibliothèque' + (nivBiblio() ? '' : ' (elle se crée au campement)'), 4.5);
+  majSac(); return true;
+}
+// Au pupitre : dans l'ordre, et contre un peu d'encre d'éclat.
+function freinTome(k) {
+  const q = tomeLu(k); if (!q || !P.tomesPortes.includes(q.k)) return 'Ce tome n\'est pas dans votre sac.';
+  if (!nivBiblio()) return 'Il faut une bibliothèque : elle se crée au campement.';
+  if (!biblioIci()) return 'Il faut être au pupitre, au campement.';
+  if (tomeDe(q.m) < q.n - 1) return 'Il faut d\'abord déchiffrer le Tome ' + TOME_CH[q.n - 1] + ' ' + TOME_DE[q.m] + '.';
+  if (!essai && dispo('eclat') < DECHIFFRE[q.n]) return 'Il faut ' + eclats(DECHIFFRE[q.n]) + ' d\'encre.';
+  return '';
+}
+function dechiffrerTome(k) {
+  const q = tomeLu(k), f = freinTome(k);
+  if (f) { say(f[0].toLowerCase() + f.slice(1).replace(/\.$/, ''), 2.6); return false; }
+  if (!essai) payer({ eclat: DECHIFFRE[q.n] });
+  P.tomes[q.m] = Math.max(P.tomes[q.m] | 0, q.n); rangerTomes(); Sauve.sale = true; SON.jouer('niveau');
+  { const p = lieuModule(P.camp, 'biblio'); burst(p[0], p[1], P.camp.z + 1.1, 34, hexSort(MATIERE[q.m].col)); }
+  say(nomTome(q.k) + ' déchiffré · ' + (q.n === 1 ? 'la matière « ' + MATIERE[q.m].n.toLowerCase() + ' » peut s\'écrire' : q.n === 2 ? 'cette matière pourra se mélanger' : 'cette matière pourra s\'accentuer'), 3.6);
+  return true;
+}
+// Un coffre gardé des Horlogers : parfois un Tome II. Comme tout ce qu'on trouve en bas, il n'est à soi qu'une fois remonté.
+function tomeCoffre(taille) {
+  const ch = TOME_COFFRE[taille] || 0, de = globalThis.__TOME_DE;
+  if (!ch || (de != null ? de : Math.random()) >= ch) return '';
+  const m = tomeManquant(2); if (!m || !gagnerTome(m, 2, true)) return '';
+  return nomTome(cleTome(m, 2));
+}
+// La Tisseuse qui tombe : un Tome III, la première fois qu'on la terrasse sur cette île.
+function tomeTisseuse() {
+  let g = (SEED ^ 0x7153e7) >>> 0; g = (g * 1664525 + 1013904223) >>> 0;
+  const m = tomeManquant(3, () => g / 4294967296); if (!m || !gagnerTome(m, 3)) return '';
+  return nomTome(cleTome(m, 3));
+}
+// Le conteur des Nomades : un Tome II par halte, toujours le même tant que la halte dure.
+function tomeConteur() {
+  if (typeof NM === 'undefined' || P.tomeHalte === NM.moi.vues) return null;
+  let g = (SEED ^ Math.imul(NM.moi.vues + 1, 2654435761)) >>> 0; g = (g * 1664525 + 1013904223) >>> 0;
+  return tomeManquant(2, () => g / 4294967296);
+}
+function blocTomesPortes() {
+  if (!P.tomesPortes.length) return '';
+  const tri = P.tomesPortes.map(tomeLu).filter(Boolean).sort((a, b) => a.n - b.n || MATIERES.indexOf(MATIERE[a.m]) - MATIERES.indexOf(MATIERE[b.m]));
+  return `<div><h3>Tomes rapportés · ${tri.length}</h3>` + tri.map(q => { const f = freinTome(q.k);
+    return `<div class="obj"><div style="flex:1;min-width:0"><div class="n"><i class="pastille" style="background:${hexSort(MATIERE[q.m].col)}"></i>${ESC(nomTome(q.k))}</div>`
+      + `<div class="d">${f ? ESC(f) : 'Prêt à être déchiffré · ' + eclats(DECHIFFRE[q.n]) + ' d\'encre'}</div></div>`
+      + `<button class="btn${f ? '' : ' principal'}" data-dechiffre="${q.k}"${f ? ' disabled' : ''}>Déchiffrer</button></div>`; }).join('') + `</div>`;
+}
+
+// Ce que la sauvegarde en dit : des tomes bornés, des phrases qui veulent dire quelque chose.
+function magieLue(d) {
+  P.tomes = {}; P.sorts = []; P.sortMain = null; P.egide = null; SORTS_POSES.length = 0;
+  for (const m of MATIERES) { const n = Math.max(0, Math.min(TOME_MAX, Number(d.tomes && d.tomes[m.id]) | 0)); if (n) P.tomes[m.id] = n; }
+  for (const k of Array.isArray(d.sorts) ? d.sorts : []) { const s = phraseDe(k); if (s && !P.sorts.includes(s.k) && P.sorts.length < PAGES_SORT[3]) P.sorts.push(s.k); }
+  if (typeof d.sortMain === 'string' && P.sorts.includes(d.sortMain)) P.sortMain = d.sortMain;
+  P.codex = []; P.nomsSorts = {};
+  for (const k of Array.isArray(d.codex) ? d.codex : []) if (MATIERE[k] && MATIERE[k].mix && !P.codex.includes(k)) P.codex.push(k);
+  for (const k of P.sorts) { const q = phraseDe(k); if (q.m.mix && !P.codex.includes(q.m.id)) P.codex.push(q.m.id); }   // un accord inscrit est un accord connu
+  if (d.nomsSorts && typeof d.nomsSorts === 'object') for (const k of P.sorts) { const v = d.nomsSorts[k];
+    if (typeof v === 'string') { const n = v.replace(/[<>&"]/g, '').replace(/\s+/g, ' ').trim().slice(0, NOM_SORT_MAX); if (n) P.nomsSorts[k] = n; } }
+  P.tomesPortes = []; P.tomeHalte = Number(d.tomeHalte) | 0;
+  for (const k of Array.isArray(d.tomesPortes) ? d.tomesPortes : []) { const q = tomeLu(k); if (q && !tomeAcquis(q.m, q.n)) P.tomesPortes.push(q.k); }
+}
+// --- les vignettes : la forme, dans la couleur de la matière ---
+for (const f of FORMES) for (const m of MATIERES) DESSINS['sort_' + f.id + '_' + m.id] = d => dessinSort(d, f.id, m.col);
+DESSINS.livre = d => { d.rect(3, 3, 12, 12, [112, 70, 150]); d.rect(4, 4, 11, 11, [140, 94, 186]); d.rect(3, 3, 4, 12, [78, 46, 108]); d.rect(7, 6, 9, 8, [143, 228, 232]); d.net(8, 7, [232, 252, 255]); d.rect(5, 13, 12, 13, PIX.papier); };
+// --- la page : ce qu'on sait à gauche, le pupitre et le grimoire à droite ---
+let pupitre = { f: 'trait', m: 'vent', m2: '', a: '', vue: 'tomes', nomme: '' };
+const clePupitre = () => pupitre.f + '.' + pupitre.m + (pupitre.m2 ? '+' + pupitre.m2 : '') + (pupitre.a ? '~' + pupitre.a : '');
+// Où chercher le tome suivant d'une matière.
+function ouTome(m, n) {
+  const s = Math.max(n, P.tomes[m.id] | 0) + 1;
+  if (s > TOME_MAX) return 'tout est lu';
+  if (tomePorte(m.id, s)) return 'Tome ' + TOME_CH[s] + ' rapporté : à déchiffrer';
+  return s === 1 ? 'Tome I : sur un lutrin de pierre, dans ' + ESC(m.biome) : s === 2 ? 'Tome II : un coffre gardé du Centre des automates, ou le conteur des Nomades' : 'Tome III : la Tisseuse de fer le porte';
+}
+// Le Codex : les quinze accords (essayés ou non), les six remarquables, les trois accents.
+function blocCodex() {
+  const past = c => `<i class="pastille" style="background:${hexSort(c)}"></i>`, maj = x => ESC(x[0].toUpperCase() + x.slice(1));
+  const rem = MELANGES.filter(M => M.acc && accordConnu(M)).length;
+  const lignes = MELANGES.map(M => { const [a, b] = M.mix.map(m => MATIERE[m]), su = accordConnu(M), inst = INSTABLE[M.mix.filter(m => tomeDe(m) >= 2).length];
+    return `<div class="obj"><div><div class="n">${past(a.col)}${past(b.col)}${su && M.acc ? ESC(M.n) + ' · ' : ''}${a.n} et ${b.n.toLowerCase()}</div>`
+      + `<div class="d">${su ? (M.acc ? 'Accord remarquable · ' : 'Accord simple · ') + ESC(M.d) + '<br>' + (inst ? 'instable : un lancer sur ' + Math.round(1 / inst) + ' tourne mal' : 'stable : les deux Tomes II sont lus') : 'jamais essayé'}</div></div>`
+      + `<span class="pts${su && M.acc ? ' su' : ''}">${su ? (M.acc ? '★' : '●') : '?'}</span></div>`; }).join('');
+  const accents = ACCENTS.map(a => `<div class="obj"><div><div class="n">${a.n}</div><div class="d">${maj(a.d)}<br>+${a.c} éclats par lancer</div></div></div>`).join('');
+  return `<div><h3>Le Codex · ${P.codex.length} accords essayés sur ${MELANGES.length} · ${rem} remarquables sur ${Object.keys(ACCORDS).length}</h3>${lignes}`
+    + `<p class="note" style="margin:6px 2px 0">Mêler deux matières demande une bibliothèque de niveau 2 et le Tome I de chacune. Sans leurs deux Tomes II l'accord est instable : un lancer sur quatre tourne mal, un sur huit avec un seul. La phrase se défait alors (les éclats sont perdus), ou elle brûle : autant d'éclats de plus partent en fumée, et vous êtes blessé. Six accords sont remarquables : ils ne disent leur nom qu'une fois écrits.</p></div>`
+    + `<div class="fin"><h3>Les accents</h3>${accents}<p class="note" style="margin:6px 2px 0">Un accent demande une bibliothèque de niveau 3 et le Tome III de chaque matière de la phrase.</p></div>`;
+}
+function pageBiblio() {
+  const niv = nivBiblio(), ici = biblioIci(), maj = x => ESC(x[0].toUpperCase() + x.slice(1));
+  if (!FORME[pupitre.f]) pupitre.f = 'trait'; if (!MATIERE[pupitre.m] || MATIERE[pupitre.m].mix) pupitre.m = 'vent';
+  if (pupitre.m2 && (niv < 2 || !MATIERE[pupitre.m2] || MATIERE[pupitre.m2].mix || pupitre.m2 === pupitre.m)) pupitre.m2 = '';
+  if (pupitre.a && (niv < 3 || !ACCENT[pupitre.a])) pupitre.a = '';
+  const pastille = c => `<i class="pastille" style="background:${hexSort(c)}"></i>`;
+  const vue = pupitre.vue === 'codex' ? 'codex' : 'tomes';
+  const bascule = `<div class="filtres" role="group" aria-label="Ce que vous savez" style="margin-top:0"><button class="${vue === 'tomes' ? 'on' : ''}" data-pupvue="tomes" aria-pressed="${vue === 'tomes'}">Tomes et formes</button>`
+    + `<button class="${vue === 'codex' ? 'on' : ''}" data-pupvue="codex" aria-pressed="${vue === 'codex'}">Codex · ${P.codex.length} sur ${MELANGES.length}</button></div>`;
+  const tomes = MATIERES.map(m => { const n = tomeDe(m.id);
+    return `<div class="obj"><div><div class="n">${pastille(m.col)}${m.n}${n ? ' · tome ' + ['', 'I', 'II', 'III'][n] : ''}</div>`
+      + `<div class="d">${maj(m.d)}<br>${(n ? (m.id === 'vent' && !(P.tomes.vent > 0) ? 'connue par le grimoire Souffle' : 'tomes lus : ' + n + ' sur ' + TOME_MAX) : 'inconnue') + ' · ' + ouTome(m, n)}</div></div>`
+      + `<span class="pts${n ? ' su' : ''}">${'●'.repeat(n) + '○'.repeat(TOME_MAX - n)}</span></div>`; }).join('');
+  const formes = FORMES.map(f => `<div class="obj"><div><div class="n">${f.n} · ${f.role}</div><div class="d">${maj(f.d)}<br>${f.c} éclats · à relancer après ${decAlch(f.del)} s</div></div></div>`).join('');
+  const savoir = vue === 'codex' ? blocCodex()
+    : `<div><h3>Les matières · vos tomes</h3>${tomes}`
+      + `<p class="note" style="margin:6px 2px 0">Trois tomes par matière, à trouver puis à déchiffrer au pupitre, dans l'ordre. Le Tome I l'apprend, le Tome II rend ses accords stables, le Tome III lui ouvre les accents.</p></div>`
+      + `<div class="fin"><h3>Les formes</h3>${formes}</div>`;
+  const s = phraseDe(clePupitre()), deja = sortInscrit(s.k), plein = P.sorts.length >= pagesSort(), connu = accordConnu(s.m), inst = instabilite(s);
+  const frein = !niv ? 'Il faut une bibliothèque : elle se crée au campement.' : !ici ? 'Il faut être au pupitre, au campement.' : freinPhrase(s) || (deja ? 'Déjà inscrit au grimoire.' : plein ? 'Le grimoire est plein.' : '');
+  const choixF = `<div class="filtres" role="group" aria-label="La forme" style="margin-top:0">` + FORMES.map(f => `<button class="${f.id === pupitre.f ? 'on' : ''}" data-pupf="${f.id}" aria-pressed="${f.id === pupitre.f}">${f.n}</button>`).join('') + `</div>`;
+  const choixM = `<div class="filtres" role="group" aria-label="La matière">` + MATIERES.map(m => `<button class="${m.id === pupitre.m ? 'on' : ''}${tomeDe(m.id) ? '' : ' inconnu'}" data-pupm="${m.id}" aria-pressed="${m.id === pupitre.m}">${pastille(m.col)}${m.n}</button>`).join('') + `</div>`;
+  const choixM2 = niv >= 2 ? `<div class="filtres" role="group" aria-label="La matière qu'on y mêle"><button class="${pupitre.m2 ? '' : 'on'}" data-pupm2="" aria-pressed="${!pupitre.m2}">Seule</button>`
+      + MATIERES.filter(m => m.id !== pupitre.m).map(m => `<button class="${m.id === pupitre.m2 ? 'on' : ''}${tomeDe(m.id) ? '' : ' inconnu'}" data-pupm2="${m.id}" aria-pressed="${m.id === pupitre.m2}">+ ${pastille(m.col)}${m.n}</button>`).join('') + `</div>` : '';
+  const choixA = niv >= 3 ? `<div class="filtres" role="group" aria-label="L'accent"><button class="${pupitre.a ? '' : 'on'}" data-pupa="" aria-pressed="${!pupitre.a}">Sans accent</button>`
+      + ACCENTS.map(a => `<button class="${a.id === pupitre.a ? 'on' : ''}" data-pupa="${a.id}" aria-pressed="${a.id === pupitre.a}">${a.n}</button>`).join('') + `</div>` : '';
+  const aVenir = niv && niv < 3 ? `<p class="note" style="margin:2px 2px 6px">${niv < 2 ? 'Niveau 2 de la bibliothèque : mêler deux matières. ' : ''}Niveau 3 : les accents.</p>` : '';
+  const effet = !s.m.mix ? maj(s.m.d) + '.' : !connu ? 'Accord jamais essayé : inscrivez-le pour voir ce qu\'il donne.' : (s.m.acc ? 'Accord remarquable, ' + ESC(s.m.le) + ' : ' : 'Accord simple : ') + ESC(s.m.d) + '.';
+  const manque = s.m.mix ? s.m.mix.filter(m => tomeDe(m) < 2).map(m => TOME_DE[m]).join(' et ') : '';
+  const stab = !s.m.mix ? '' : inst ? `<br><b class="dgr">Instable</b> : un lancer sur ${Math.round(1 / inst)} tourne mal. Il manque le Tome II ${ESC(manque)}.` : '<br>Stable : vous tenez les deux Tomes II.';
+  const sur = confirmeAct.id.startsWith('sorteff:') && maintenantSac() < confirmeAct.jusqua ? confirmeAct.id.slice(8) : '';
+  const grimoire = P.sorts.length ? P.sorts.map(k => { const q = phraseDe(k), enMain = P.sortMain === k && !porte('grimoire'), nu = nomPhraseNu(q), nom = nomPhrase(q), qi = instabilite(q);
+      return `<div class="obj sortg"><div class="emplacement">${caseObjet(icSort(k), { inerte: true, label: nom })}</div>`
+        + `<div style="flex:1;min-width:0"><div class="n">${ESC(nom)}</div><div class="d">${nom !== nu ? ESC(nu) + ' · ' : ''}${coutPhrase(q)} éclats · ${q.f.role} · à relancer après ${decAlch(q.del)} s${qi ? ' · <b class="dgr">instable, 1 sur ' + Math.round(1 / qi) + '</b>' : ''}</div>`
+        + (pupitre.nomme === k ? `<input data-sortnom="${k}" maxlength="${NOM_SORT_MAX}" value="${ESC(nom !== nu ? nom : '')}" placeholder="${ESC(nu)}" aria-label="Le nom de ce sort" class="champ-nom">` : '')
+        + `<div class="gestes cases"><button class="btn" data-sortmain="${k}" aria-pressed="${enMain}" title="Le sort que lance la touche X">${enMain ? 'En main' : 'Tenir (X)'}</button>`
+        + (barres() ? Array.from({ length: barres() * CASES }, (_, c) => `<button class="btn" data-sortrac="${c}" data-sort="${k}" aria-pressed="${P.raccourcis[c] === 'sort:' + k}"`
+            + ` title="${P.raccourcis[c] === 'sort:' + k ? 'Retirer de' : 'Mettre dans'} la case ${c % CASES + 1}${barres() > 1 ? ' de la barre ' + ((c / CASES | 0) + 1) : ''}">${c % CASES + 1}</button>`).join('') : '')
+        + `<button class="btn discret" data-sortnomme="${k}">${pupitre.nomme === k ? 'Fermer' : 'Nommer'}</button>`
+        + `<button class="btn ${sur === k ? 'alerte' : 'discret'}" data-sorteff="${k}">${sur === k ? 'Confirmer' : 'Effacer'}</button></div></div></div>`; }).join('')
+    : `<div class="vide-texte">Aucun sort inscrit. Composez une phrase au pupitre : une forme, une matière.</div>`;
+  return `<div class="sac-corps deux alch biblio"><div class="col">${blocTomesPortes()}${bascule}${savoir}</div>`
+    + `<div class="col"><h3>Le pupitre · écrire une phrase</h3>${choixF}${choixM}${choixM2}${choixA}${aVenir}`
+    + `<div class="obj"><div class="emplacement">${caseObjet(icSort(s.k), { inerte: true, label: nomPhraseNu(s) })}</div><div style="flex:1;min-width:0"><div class="n">${ESC(nomPhraseNu(s))}</div>`
+    + `<div class="d">${maj(s.f.d)}.<br>${effet}${s.a ? '<br>Accent ' + s.a.n.toLowerCase() + ' : ' + ESC(s.a.d) + '.' : ''}${stab}<br>${coutPhrase(s)} éclats par lancer · à relancer après ${decAlch(s.del)} s · ${encreDe(s)} éclats d'encre pour l'inscrire</div></div></div>`
+    + (frein ? `<p class="note" style="margin:8px 2px"><b>${frein}</b></p>` : '')
+    + (!niv && P.camp ? `<button class="btn" data-voletcamp="camp" data-casecamp="modbiblio">Créer la bibliothèque</button> ` : '')
+    + `<button class="btn principal" data-inscrire="${s.k}"${frein ? ' disabled' : ''}>Inscrire au grimoire</button>`
+    + `<h3>Votre grimoire · ${P.sorts.length} sur ${pagesSort() || PAGES_SORT[1]}</h3>${grimoire}`
+    + `<p class="note" style="margin:8px 2px 0">Un sort inscrit se lance depuis une case du bord droit, ou avec X s'il est en main. Il coûte des éclats du sac à chaque lancer.${barres() ? '' : ' Une ceinture (établi) ouvre les cases.'}</p>`
+    + `</div></div>`;
+}
+// La bibliothèque : des rayons de livres, un pupitre et son livre ouvert ; un second rayon au
+// niveau 2, un éclat qui flotte au-dessus du livre au niveau 3.
+function biblioOs(niv) {
+  const [B, bat] = osDe(), DOS = [[150, 70, 70], [84, 120, 170], [120, 150, 90], [176, 140, 70], [130, 90, 160], [90, 150, 150]];
+  for (const y of [-.52, .52]) bat([-.3, y, .05], [-.3, y, niv >= 2 ? 1.5 : 1.05], .06, .2, C_BOISF);
+  const rayons = niv >= 2 ? [.12, .56, 1.0, 1.44] : [.12, .56, 1.0];
+  for (const z of rayons) bat([-.3, -.54, z], [-.3, .54, z], .2, .04, C_BOIS);
+  for (let r = 0; r < rayons.length - 1; r++) for (let k = 0; k < 7; k++) { const y = -.42 + k * .14, h = .26 + ((k * 3 + r * 5) % 4) * .03;
+    if ((k + r) % 5 === 4) continue; bat([-.3, y, rayons[r] + .03], [-.3, y, rayons[r] + .03 + h], .1, .14, DOS[(k + r * 2) % DOS.length]); }
+  bat([.1, 0, .05], [.1, 0, .62], .1, .1, C_BOISF);                                   // le pupitre
+  bat([.02, -.24, .66], [.2, -.24, .58], .04, .04, C_BOISF); bat([.02, .24, .66], [.2, .24, .58], .04, .04, C_BOISF);
+  bat([.02, 0, .68], [.22, 0, .6], .5, .04, C_BOIS);
+  bat([.04, -.11, .715], [.2, -.11, .645], .2, .02, [236, 228, 206]); bat([.04, .11, .715], [.2, .11, .645], .2, .02, [226, 218, 196]);
+  if (niv >= 3) { const z = .98 + .04 * Math.sin(t * 2); bat([.12, 0, z], [.12, 0, z + .16], .1, .1, C_ECLAT, 1); bat([.12, 0, z - .1], [.12, 0, z - .06], .03, .03, C_RUNE, 1); }
+  return B;
+}
 function pageCuisine() {
   const feu = presDuFeu();
   const cap = placesMarmite(); if (marmiteSel.length > cap) marmiteSel.length = cap;
@@ -16753,6 +17545,7 @@ function campOs(c) {
     else if (n && m.id === 'cuisine') poseModule(B, cuisineOs(n), q[0], q[1], q[2]);
     else if (n && m.id === 'soin') poseModule(B, soinOs(n), q[0], q[1], q[2]);
     else if (n && m.id === 'alchimie') poseModule(B, alchimieOs(n), q[0], q[1], q[2]);
+    else if (n && m.id === 'biblio') poseModule(B, biblioOs(n), q[0], q[1], q[2]);
     else if (n && m.id === 'defense') poseModule(B, posteOs(), q[0], q[1], q[2]);
     else if (mien) poseModule(B, jalonsOs(), q[0], q[1], q[2]);          // chez soi, les emplacements libres se voient
   }
@@ -16782,6 +17575,7 @@ function emitCamp(view, out) {
   pecheEmit(view, out);                                 // les ombres, le bouchon, la ligne
   escEmit(view, out);                                   // le portail de l'escouade
   marmiteEmit(view, out);                               // la marmite posée
+  sortEmit(view, out);                                  // les pièges et les murs des sorts
 }
 function emitHero(view, out, J) {
   J = J || P;
@@ -18237,7 +19031,7 @@ const nourrirQ = () => { nourrir = true; };
 // Au campement, ce qui est à portée de main décide de l'action : la tente couche, l'établi fabrique,
 // la marmite cuisine… Un emplacement libre propose de créer son module. Ailleurs dans le rond : la vue d'ensemble.
 const MODULE_PRES = 1.3;
-const CASE_MODULE = { etabli: 'modetabli', coffre: 'coffre', portail: 'ameliorer', cuisine: 'modcuisine', soin: 'modsoin', alchimie: 'modalchimie', defense: 'moddefense' };
+const CASE_MODULE = { etabli: 'modetabli', coffre: 'coffre', portail: 'ameliorer', cuisine: 'modcuisine', soin: 'modsoin', alchimie: 'modalchimie', biblio: 'modbiblio', defense: 'moddefense' };
 function moduleProche() {
   const c = P.camp; let m = null, bd = MODULE_PRES * MODULE_PRES;
   const vu = (id, x, y) => { const d = (P.x - x) ** 2 + (P.y - y) ** 2; if (d < bd) { bd = d; m = id; } };
@@ -18257,6 +19051,7 @@ function campAction() {
   if (m === 'portail') return { v: 'PORTAIL', o: 'le portail · niveau ' + nivCamp(), f: vers('portail', 'portail') };
   if (m === 'cuisine') return { v: 'CUISINER', o: 'la marmite · ' + placesMarmite() + ' ingrédients', f: () => ouvrirSac(true, 'cuisine') };
   if (m === 'soin') return { v: 'SOINS', o: 'la table de soin · niveau ' + nivModule('soin'), f: fab('soin') };
+  if (m === 'biblio') return { v: 'MAGIE', o: 'la bibliothèque · niveau ' + nivBiblio(), f: () => ouvrirSac(true, 'biblio') };
   if (m === 'alchimie') return { v: 'ALCHIMIE', o: 'la table · niveau ' + nivModule('alchimie'), f: () => ouvrirSac(true, 'alchimie') };
   if (m === 'defense') return { v: 'DÉFENSE', o: 'rempart ' + nivMur() + ' · tours ' + nivTours(), f: vers('moddefense') };
   return { v: 'CAMPEMENT', o: 'vue d\'ensemble', f: vers(choixVolet.camp) };
@@ -18283,6 +19078,7 @@ function actionContexte() {
       : { v: 'PILLER', o: 'restez au coffre · 1 % par seconde', f: () => say('restez près du coffre : un centième par seconde', 2), vide: true };
   }
   if (auPortailIle()) return { v: 'FRANCHIR', o: 'arche · exploration ' + (profondeur() + 1), f: franchirPortail };
+  const lta = lutrinAction(); if (lta) return lta;     // un lutrin de pierre : le Tome I d'une matière
   const cpa = campAction(); if (cpa) return cpa;       // au campement : la tente, un module, un emplacement libre
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
@@ -18496,6 +19292,7 @@ function utiliser(i) {
     mangerPlat(j); casesSig = ''; return;
   }
   if (estSoin(P.raccourcis[k])) { soigner(P.raccourcis[k].slice(5)); casesSig = ''; return; }   // un soin : pour soi, ou l'équipier à portée
+  if (estSort(P.raccourcis[k])) { lancerPhrase(P.raccourcis[k].slice(5)); casesSig = ''; return; }   // un sort inscrit au grimoire
   const id = P.raccourcis[k], o = id && objet(id);
   if (!o || !P.objets[id]) { say('case ' + (i + 1) + ' vide · à garnir depuis le sac', 1.6); return; }
   if (o.emp === 'grimoire') { P.equip.grimoire = id; lancerSort(); }
@@ -18512,7 +19309,7 @@ let casesSig = '';
 function majCases() {
   const el = document.getElementById('cases'); if (!el) return;
   const nb = barres(), b = barreVue(), vue = nb ? P.raccourcis.slice(b * CASES, (b + 1) * CASES) : [];
-  const sig = nb + '/' + b + '/' + vue.map(id => { if (estPlat(id)) return id + '#' + partsPlat(id); if (estSoin(id)) return id + '#' + qteSoin(id.slice(5));
+  const sig = nb + '/' + b + '/' + vue.map(id => { if (estSort(id)) return id + (sortInscrit(id.slice(5)) ? '+' : '-'); if (estPlat(id)) return id + '#' + partsPlat(id); if (estSoin(id)) return id + '#' + qteSoin(id.slice(5));
     const o = id && objet(id); if (!o || !P.objets[id]) return '-';
     return id + (P.equip[o.emp] === id ? '*' : '') + (o.emp === 'grimoire' && manaDispo() < coutSort(o) ? '!' : ''); }).join(',') + '|' + (essai ? 0 : P.sac.eclat);
   if (sig === casesSig) return;
@@ -18524,6 +19321,10 @@ function majCases() {
     if (estSoin(id) && objet(id.slice(5))) {            // un soin : sa vignette, et ce qu'il en reste
       const o = objet(id.slice(5)), n = qteSoin(o.id), lab = `Case ${k + 1} : ${o.n} · ${n} en réserve`;
       return `<button class="plat${n ? '' : ' faible'}" data-case="${k}" aria-label="${ESC(lab)}" title="${ESC(lab)}"><kbd>${k + 1}</kbd><i class="ic ic-${o.id}"></i><em>${n}</em></button>`;
+    }
+    if (estSort(id) && phraseDe(id.slice(5)) && sortInscrit(id.slice(5))) {   // un sort inscrit : sa vignette, son prix
+      const q = phraseDe(id.slice(5)), cs = coutPhrase(q), lab = `Case ${k + 1} : ${nomPhrase(q)} · ${cs} mana (éclats)`;
+      return `<button class="${manaDispo() < cs ? 'faible' : ''}" data-case="${k}" aria-label="${ESC(lab)}" title="${ESC(lab)}"><kbd>${k + 1}</kbd><i class="ic ic-${icSort(q.k)}"></i><em>${cs}</em></button>`;
     }
     if (estPlat(id)) {                                   // un plat : sa vignette, et ce qu'il en reste
       const n = partsPlat(id), ef = effetPlat(id);
@@ -18766,6 +19567,7 @@ function reperes() {
   for (const c of P.compagnes) if (c.dehors && c.b && !c.b.dead) L.push({ x: c.b.x, y: c.b.y, k: 'comp' });
   for (const j of Autres.values()) L.push({ x: j.x, y: j.y, k: 'joueur', n: j.nom });
   const nm = nmRepere(); if (nm) L.push(nm);          // la halte des nomades
+  for (const l of LUTRINS) if (l.vu && !tomeAcquis(l.m, 1)) L.push({ x: l.x, y: l.y, k: 'tome', c: hexSort(MATIERE[l.m].col) });   // un lutrin aperçu, pas encore lu
   return L;
 }
 function majBoussole(forcer) {
@@ -18802,6 +19604,8 @@ function majBoussole(forcer) {
       x.fillStyle = m.k === 'camp' ? '#ffb45a' : '#ff6a5a'; x.beginPath(); x.moveTo(X - 5, Y + 4); x.lineTo(X + 5, Y + 4); x.lineTo(X, Y - 5); x.fill();
     } else if (m.k === 'arche') {                   // une arche
       x.strokeStyle = '#8fe3ff'; x.lineWidth = 2; x.beginPath(); x.arc(X, Y + 3, 4.5, Math.PI, 0); x.moveTo(X - 4.5, Y + 3); x.lineTo(X - 4.5, Y + 5); x.moveTo(X + 4.5, Y + 3); x.lineTo(X + 4.5, Y + 5); x.stroke();
+    } else if (m.k === 'tome') {                    // un livre ouvert, de la couleur de sa matière
+      x.fillStyle = m.c; x.fillRect(X - 5.5, Y - 3.5, 5, 7.5); x.fillRect(X + .5, Y - 3.5, 5, 7.5);
     } else if (m.k === 'comp') {
       x.fillStyle = '#e8a0a8'; x.beginPath(); x.arc(X, Y, 3, 0, 6.2832); x.fill();
     } else {
@@ -19936,6 +20740,7 @@ void main() { o = uC; }`;
     }
     for (const o of djDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const o of marmiteDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
+    for (const o of sortDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const o of pecheDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
     for (const o of escDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, 1, 0, L_FIXE, 0, 0, 0);
     for (const o of ogDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, 0, L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0);
@@ -20212,7 +21017,7 @@ function photo() {
     camp: P.camp ? { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100,
                      y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: nivCamp(),
                      expl: P.camp.expl || 0 } : null,
-    campNiv: nivCamp(), modules: Object.assign({}, P.modules), alchimie: Object.assign({}, P.alchimie), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), f: P.chaudron.f } : null, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
+    campNiv: nivCamp(), modules: Object.assign({}, P.modules), tomes: Object.assign({}, P.tomes), tomesPortes: P.tomesPortes.slice(), tomeHalte: P.tomeHalte | 0, sorts: P.sorts.slice(), sortMain: P.sortMain || null, codex: P.codex.slice(), nomsSorts: Object.assign({}, P.nomsSorts), alchimie: Object.assign({}, P.alchimie), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), f: P.chaudron.f } : null, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     coffre: Object.assign({}, P.coffre),
     pillages: P.pillages.slice(0, 5),
@@ -20271,9 +21076,11 @@ function appliquer(d, vivantes) {
   }
   // les cinq cases : ce qu'on possède, une fois chacun ; une sauvegarde d'avant les cases les garnit
   const rc = Array.isArray(d.raccourcis) ? d.raccourcis : null;
+  magieLue(d);
   P.raccourcis = Array(CASES * CEINTURE_MAX).fill(null);
   // on garde la première barre même sans ceinture (elle reparaîtra avec elle) ; au-delà, seulement les barres ouvertes
   if (rc) for (let k = 0; k < Math.max(CASES, casesOuvertes()); k++) { const id = rc[k], o = typeof id === 'string' && objet(id);
+    if (estSort(id) && P.sorts.includes(id.slice(5)) && !P.raccourcis.includes(id)) { P.raccourcis[k] = id; continue; }   // un sort inscrit
     if (typeof id === 'string' && /^plat:[\w:.-]{1,40}~[a-z]{0,14}~[0-4]$/.test(id) && !P.raccourcis.includes(id)) { P.raccourcis[k] = id; continue; }   // une pile de plats
     if (estSoin(id) && (objet(id.slice(5)) || {}).cible === 'gens' && !P.raccourcis.includes(id)) { P.raccourcis[k] = id; continue; }   // un soin
     if (o && !enSerie(o) && o.emp !== 'ceinture' && P.objets[id] && !P.raccourcis.includes(id)) P.raccourcis[k] = id; }
