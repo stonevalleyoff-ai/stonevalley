@@ -170,6 +170,8 @@ function etatFaune(b) {
   if (b.cou !== undefined) { x.cu = r2(b.cou); x.ai = r2(b.aile || 0); x.te = r2(b.tete || 0); }
   if (b.ruade > .02) x.ru = r2(b.ruade);
   if (b.ech && b.ech !== 1) x.ec = r2(b.ech);
+  if (b.englue > t) x.eg = r2(b.englue - t);              // figée par la fange ou la glu
+  if (b.gangue > t) x.gg = r2(b.gangue - t);              // prise dans la gangue : tout coup pèse moitié plus, d'où qu'il vienne
   if (b.sp.fam !== 'automate' && Math.abs((b.faim || 0) - (b._fFm ?? -1)) > .04) { x.fm = r2(b.faim || 0); b._fFm = b.faim || 0; }   // la faim se lit sur la fiche de la bête visée : dite quand elle a bougé
   const sac = sacFaune(b);                             // une bête à part : son sac, quand il a changé (et de temps en temps)
   if (sac) { const sig = JSON.stringify(sac); if (sig !== b._fSac || maintenant() - (b._fSacT || -99) > 2.5) { x.s = sac; b._fSac = sig; b._fSacT = maintenant(); } }
@@ -303,6 +305,7 @@ function appliquerFaune(f) {
     if (x.cu !== undefined) { b.cou = x.cu; b.aile = x.ai; b.tete = x.te; }
     if (x.ru) b.ruade = Math.max(b.ruade || 0, x.ru);
     if (x.ec) b.ech = x.ec;
+    if (x.eg) b.englue = t + x.eg; if (x.gg) b.gangue = t + x.gg;
     if (x.fm !== undefined) b.faim = x.fm;
     if (x.h) b.hit = Math.max(b.hit || 0, x.h);
     if (x.d && !b.dead) b.dead = x.d;
@@ -387,7 +390,7 @@ function sorteFaune(b) {
   const sp = b.sp;
   return sp.boss ? 'tiss' : sp.horreur ? (sp.corps === 'silencieux' ? 'sil' : 'mille') : sp.dragon ? 'dragon' : sp.plante ? 'plante'
     : sp.villageois ? 'vill' : sp.pnj ? (sp.arche ? 'arche' : 'nomade') : b.pnjSuit ? 'nmbete' : b.escouade ? 'esc' : sp.donjon ? 'dj'
-    : sp.corps === 'myconide' ? 'myco' : '';
+    : sp.corps === 'myconide' ? 'myco' : sp.brume ? 'brume' : '';
 }
 // Le sac : [champ, codage, champ où le poser chez le suiveur]. n : un nombre ; v : tel quel ; a : des
 // nombres en tableau ; o : un petit objet ; t : un instant du jeu (dit en écart à maintenant, chaque
@@ -401,6 +404,7 @@ const SAC_FAUNE = {
   vill: [['cache', 'v'], ['assis', 'v'], ['porte', 'v'], ['peche', 'v'], ['cuisine', 'v'], ['gesteT', 't']],
   arche: [['ouv', 'n'], ['camo', 'n']],
   myco: [['lanceT', 't'], ['rireT', 't'], ['nuageT', 't'], ['farce', 'o']],
+  brume: [['actT', 't'], ['vise', 'a'], ['emerge', 'n'], ['sonne', 't'], ['place', 'n'], ['impact', 'a']],   // la brume sanglante (brume.js)
 };
 function codeSac(b, v, c) {
   if (v === undefined || v === null) return null;
@@ -465,9 +469,11 @@ function mondeFaune() {
     w.nm = [C.arche.num, r2(C.lieu[0]), r2(C.lieu[1]), r2(C.centre[0]), r2(C.centre[1]), Math.round(C.fin - t), C.hostile ? 1 : 0, C.depart ? 1 : 0, C.ferme ? 1 : 0, C.bsp ? C.bsp.id : '', C.sortis | 0];
   const E = Escouade;
   if (E && !djIci()) w.es = [r2(E.x), r2(E.y), r2(E.z), r2(E.a), r2(E.k), E.etat, E.file.length, E.niv, E.sauts.map(A => [r2(A.x), r2(A.y), r2(A.z), r2(A.a), r2(A.k)])];
+  if (typeof brumeMonde === 'function') { const br = brumeMonde(); if (br) w.br = br; }   // le cercle de la brume sanglante (brume.js)
   return w;
 }
 function appliquerMonde(w, idx) {
+  if (w.br && typeof brumeAppliquer === 'function') brumeAppliquer(w.br);
   if (Number.isFinite(w.fo) && typeof Fourmi !== 'undefined' && Fourmi) Fourmi.nectar = Math.max(0, w.fo | 0);
   // les nomades : la caravane du gardien, dont on se fait un double pour leur parler et troquer
   const N = Array.isArray(w.nm) ? w.nm : null, arche = N && idx.get(N[0]);
@@ -551,6 +557,10 @@ function gesteDistantFaune(d) {
     nmPartir();
   } else if (d.k === 'parle') {                          // il parle à un villageois, à un nomade : celui-ci s'arrête et le regarde
     if (b) { b.parleD = d.on ? b.t + 40 : 0; b.parleJ = d.on ? d.u : null; }
+  } else if (d.k === 'matiere') {                        // la matière d'un sort lancé par un suiveur : c'est ici que la bête vit
+    if (b && !b.dead && b.pv > 0 && !b.tame && typeof matiereSur === 'function' && typeof d.m === 'string' && MATIERE[d.m]) matiereSur(b, d.m, j || P);
+  } else if (d.k === 'englue') {                         // la boule visqueuse d'une compagne d'en face
+    if (b && !b.dead && b.pv > 0 && !b.tame && typeof engluer === 'function') engluer(b, Math.max(.5, Math.min(5, +d.d || 0)));
   }
 }
 
@@ -644,7 +654,8 @@ const VISUEL_FAUNE = {
       }
       return;
     }
-    const d = glisserFaune(b, dt); b.vit = b.enVol ? (b.v || d / Math.max(dt, 1e-3)) : 0;
+    const d0 = b.dir, d = glisserFaune(b, dt); let rot = b.dir - d0; while (rot > Math.PI) rot -= 6.2832; while (rot < -Math.PI) rot += 6.2832;
+    b.vit = b.enVol ? (b.v || d / Math.max(dt, 1e-3)) : b.etat === 'dormir' ? 0 : Math.min(1.4, d / Math.max(dt, 1e-3) + Math.abs(rot) / Math.max(dt, 1e-3) * .55);   // au sol : des pas quand il se tourne, rien quand il dort
     if (b.enVol && b.bat > .05) b.ph = ((b.ph || 0) + dt * (4.2 + b.bat * 3 + (b.etat === 'cracher' ? 1.8 : 0)) * 6.2832) % 62.832;
     if (!b.enVol && b.etat !== 'dormir') gestesPerche(b);
     if (b.etatNeuf) {
