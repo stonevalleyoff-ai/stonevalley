@@ -867,7 +867,7 @@ Pour régler : section LES TERRES DE L'EFFROI d'`index.html` (`bruitJoueur`, `ma
 **Le visuel, retravaillé** :
 - **L'île** : la roche rongée vire au noir violacé ; des **excroissances** y poussent (des pointes noires aux bouts d'un vert maladif, qui luisent ; une case sur neuf) ; les spores sont lentes, noires ou vert-jaune, certaines luisent ; l'image perd un peu de couleur (filtre CSS sur les toiles `c` et `c3`).
 - **Infecté** : l'image se **désature** et se contraste ; la brume noire respire, des **vrilles** rentrent par les bords, des **yeux** blancs s'ouvrent et clignent au bord du noir ; parfois un **visage immense** se devine dans la brume (deux orbites, une bouche) sur un bourdon grave ; la blessure fait **couler du sang** du haut de l'image ; le coup d'une silhouette **inverse l'image** un éclair.
-- **Le Décharné**, modèle fin : un enfant famélique trop grand de tête — crâne nu, tempes creuses, deux **orbites noires énormes** où une **pupille minuscule** vous suit, une fente de bouche qui **s'ouvre sans un son** sur de petites dents ; un cou trop long aux vertèbres saillantes, quatre paires de côtes, le ventre rentré, des bras jusqu'aux genoux aux doigts trop longs, des genoux noueux, de longs pieds, des veines sombres. Il penche la tête lentement, puis d'un coup ; dos tourné, il **avance par à-coups** (jamais sous vos yeux) ; tout près, on l'entend **respirer**.
+- **Le Décharné** (revu au §92), modèle fin : un enfant famélique trop grand de tête — crâne nu, tempes creuses, deux **orbites noires énormes** où une **pupille minuscule** vous suit, une fente de bouche qui **s'ouvre sans un son** sur de petites dents ; un cou trop long aux vertèbres saillantes, quatre paires de côtes, le ventre rentré, des bras jusqu'aux genoux aux doigts trop longs, des genoux noueux, de longs pieds, des veines sombres. Il penche la tête lentement, puis d'un coup ; dos tourné, il **avance par à-coups** (jamais sous vos yeux) ; tout près, on l'entend **respirer**.
 - **La Silhouette**, modèle fin : près de trois mètres, trop mince, voûtée ; une tête petite et longue, **couchée sur l'épaule**, sans rien d'autre que **deux points blancs** ; des bras à **trois articulations** finis en **cinq aiguilles** ; des jambes qui **finissent en fumée**. Surgie, elle **tremble** sur place ; ruée, elle se couche presque à l'horizontale, les aiguilles en avant.
 
 Testé (graine 2, exploration 7) : 496 cases rongées, 7 mycéliums ; infecté après 23 s dans les spores ; une vision de chaque sorte ; la silhouette frappe puis se dissipe ; le sérum se cuisine avec les quatre ingrédients et guérit.
@@ -1838,9 +1838,9 @@ Un sort coûte sa forme plus sa matière, en éclats du sac : de 8 (Trait de fan
 
 **Les tomes.** Trois par matière ; le Tome I l'apprend. Depuis §86 ils se trouvent dans le monde (lutrins, coffres gardés, conteur, Tisseuse) ; le bouton bêta « Tomes : n/3 » les donne toujours. Une exception : le vieux grimoire **Souffle** vaut le Tome I du vent, et à la création de la bibliothèque « Onde de vent » est inscrite d'office.
 
-**Les quatre grimoires de l'établi** ne changent pas. Si l'un d'eux est équipé, c'est lui que lance X.
+**Les quatre grimoires de l'établi** ne changent pas. Si l'un d'eux est équipé, c'est lui que lance la case bonus (touche L, voir §89).
 
-**Pas encore fait** : les sorts sur les autres joueurs, et leur dessin chez les autres (les accords, les accents et le Codex sont en §87). **Pas vérifié** : à deux joueurs, et sur une faune partagée dont on n'est pas le gardien.
+Les accords, les accents et le Codex sont en §87 ; les sorts entre joueurs en §88. **Pas vérifié** : à deux joueurs, et sur une faune partagée dont on n'est pas le gardien.
 
 **Bêta** : « Bibliothèque n/3 » et « Tomes : n/3 ».
 
@@ -1921,10 +1921,211 @@ Une phrase peut maintenant **mêler deux matières** et porter un **accent**. Ce
 
 **Ce que j'ai décidé seul** : quels accords sont remarquables, leurs noms et leurs effets ; les neuf autres donnent simplement leurs deux effets ; un sur huit avec un seul Tome II ; la brûlure ne tue pas ; les trois accents et leurs chiffres ; le Tome III exigé pour chaque matière d'un accord accentué ; le nom d'un accord caché jusqu'à l'inscription.
 
-**Pas encore fait** : les sorts sur les autres joueurs, et leur dessin chez les autres. **Pas vérifié** : à deux joueurs réellement connectés, et sur une faune partagée dont on n'est pas le gardien.
+Les sorts sur les autres joueurs, et leur dessin chez les autres, sont en §88. **Pas vérifié** : à deux joueurs réellement connectés, et sur une faune partagée dont on n'est pas le gardien.
 
 Testé : les clés (ordre des matières, clés fausses), les noms avant et après découverte, les prix ; les refus (Tome I, niveau 2, niveau 3, Tome III) ; l'inscription d'un accord remarquable puis d'un simple, l'encre, le Codex ; l'instabilité (défaite, brûlure, lancer réussi, un seul Tome II, les deux, sac presque vide et joueur presque mort, 1 012 ratés sur 4 000 lancers) ; les six accords remarquables et un simple sur des bêtes placées à distance (rayons de trois, cinq et sept cases, brûlure de la poix dans le temps, gangue ×1,5, glas doublé) ; les trois accents sur les cinq formes ; l'onde, le trait, l'égide et le mur avec un accord ; la sauvegarde (aller-retour, clés à l'envers, doublons, données fausses, vieille sauvegarde) ; le nom d'un sort (nettoyé, tronqué, effacé avec lui) ; la page aux niveaux 1, 2 et 3, à l'ordinateur et au téléphone ; les vignettes ; une case de raccourci ; les essais de §85 et §86 rejoués sans écart.
 
 Dans le code (`index.html`) : `ACCENTS`, `ACCORDS`, `MELANGES` (les quinze entrent aussi dans `MATIERE`, avec `mix`, `acc`, `col2`, `feu`), `INSTABLE`, `phraseDe` (rend aussi `del`, `deg`, `amp`), `nomPhraseNu`, `nomPhrase`, `accordConnu`, `dessinSort`, `icSort` ; `encreDe`, `freinPhrase`, `instabilite`, `sortRate`, `nommerSort` ; `zoneSort`, `matiereSur`, `toucherSort`, `poixFin` et la boucle de la poix dans `majSorts`, `robuste` (la gangue) ; `P.codex`, `P.nomsSorts`, `pupitre` (`m2`, `a`, `vue`, `nomme`), `clePupitre`, `blocCodex`, `pageBiblio`. `nomades.js` : `NM_INDICES.tomes`. Aucun changement dans la base.
 
 **À déposer** : `index.html`, `nomades.js` et `sw.js` (qui passe en `stone-valley-55`).
+
+## 88. La magie entre joueurs : ce qu'on en voit, ce qu'on en prend
+
+Jusqu'ici un sort n'existait que chez celui qui le lançait. Maintenant **les autres le voient**, et **il les touche**. La règle est celle des coups d'arme : celui qui lance décide qu'il a touché, celui qui est touché décide de ce qu'il encaisse.
+
+**Ce qu'on voit d'en face** : le trait en vol, l'anneau de l'onde, le glyphe d'un piège, les stèles d'un mur, les étincelles d'une égide autour de l'autre joueur, un sort qui se défait ou qui brûle. Qui arrive sur l'île reçoit les pièges et le mur déjà posés ; ils disparaissent quand leur auteur part.
+
+**Ce que fait chaque matière sur un joueur** (le coup est celui de la forme, pesé par la matière, divisé par le danger de l'île, puis réduit par l'armure et les potions de celui qui le reçoit) :
+
+| Matière | Sur un joueur |
+|---|---|
+| Fange | englué deux secondes : ni pas, ni saut |
+| Vent | projeté loin du lanceur |
+| Spore | **des spores plein les yeux**, quatre secondes : la vue se referme en un rond étroit, et les autres joueurs sortent de la boussole |
+| Effroi | **saisi d'effroi**, trois secondes : ni coup, ni flèche, ni sort |
+| Cristal | le coup le plus fort, rien d'autre |
+| Braise | une brûlure de deux secondes et demie (sauf sous un bouillon de braise) |
+| Poix | englué et brûlé deux secondes |
+| Gangue | englué trois secondes, et **toute blessure pèse moitié plus** pendant ce temps |
+| Nuée / Épouvante | projeté et aveuglé / projeté et saisi d'effroi ; les autres joueurs à cinq / sept cases le sont aussi, sans dégâts |
+| Grisou | brûlé ; les joueurs à trois cases prennent la moitié du coup |
+| Glas | saisi d'effroi, et le coup double sous la moitié de la vie |
+
+Un accord simple donne ses deux effets. Un joueur encore sonné par un coup (une seconde) prend la matière mais pas les dégâts. Les effets en cours s'affichent parmi les états, avec leur décompte — « Englué » aussi, qui n'y était pas.
+
+**Les cinq formes contre un joueur.** Le trait le touche s'il est sur sa route ; il ne le **vise** de lui-même que si on vient de le frapper, ou s'il vient de nous frapper. L'onde prend tous les joueurs de l'anneau, et blesse leurs compagnes sorties. Le piège se déclenche sous le pas d'un joueur. **Le mur d'un autre arrête le pas** (pas le sien), arrête ses traits, et rend sa matière à qui s'y frotte. L'égide rend sa matière à qui nous frappe, à l'arme comme au sort — une seule fois par coup, pour que deux égides ne se renvoient pas la balle.
+
+**Ce qui protège.** Comme pour les armes : rien ne part et rien n'est encaissé près de son campement, ni dans les cinq secondes après une arrivée ; lancer un sort sur quelqu'un fait de nous une cible pour ses tours pendant trente secondes. En plus, **les membres de son groupe d'expédition ne craignent rien de nos sorts** : ni l'onde, ni le piège, ni le mur (qu'ils traversent).
+
+**Ce que j'ai décidé seul** : la protection du groupe d'expédition ; le trait qui ne vise un joueur que s'il y a déjà eu un coup ; les durées ; la spore qui voile la vue et l'effroi qui désarme ; le mur d'un autre qui arrête le pas.
+
+**Pas fait** : les effets de matière sur les compagnes des autres (elles ne prennent que les dégâts) ; les flèches, que les murs de sort n'arrêtent pas ; le brasier d'une braise, qui ne se dessine que chez le lanceur. Sur une faune partagée dont on n'est pas le gardien, les effets de matière sur les bêtes sont en §89.
+
+**Pas vérifié** : entre deux joueurs réellement connectés. Tout a été essayé d'un seul côté à la fois, avec un joueur d'en face simulé : ce qu'on envoie, puis ce qu'on reçoit.
+
+Testé (émission) : le trait visé puis droit devant, l'onde, le piège posé puis déclenché, le mur et son frottement, l'égide, un sort raté, le groupe épargné, l'abri du campement, l'épouvante et le grisou qui débordent sur les voisins, l'onde sur une compagne d'en face. Testé (réception) : les six matières, un accord simple et les six remarquables, le glas sous la moitié de la vie, la gangue suivie d'un coup d'arme, deux sorts coup sur coup, un message pour un autre, des données fausses, l'abri, un allié, l'effroi qui empêche de frapper et de lancer, l'égide qui rend (et ne rend pas un coup rendu), le voile et la boussole. Testé (dessin) : un trait d'en face qui finit sans blesser, les données fausses refusées, le piège fantôme qui ne se déclenche pas, trois pièges au plus par joueur, les retraits, le mur d'un autre qui arrête le pas (pas celui d'un allié, pas le sien), son trait arrêté par notre mur, un mur trop long refusé, les durées bornées, l'arrivant qui reçoit nos poses, le départ qui les efface. Les essais de §85 et §87 rejoués sans écart.
+
+Dans le code (`index.html`) : un seul événement de réseau, `sort`, avec `q` = `tir`, `onde`, `pose`, `ote`, `egide`, `rate` ou `touche` ; `direSort`, `poseDite`, `envoyerSortsPoses`, `toucherJoueur`, `recevoirSort`, `etreTouche`, `matiereSurMoi`, `allieSort`, `SORT_JOUEUR`, `ZONE_JOUEUR`, `voileSpore`, `majSortsJoueurs` ; les poses d'un autre portent `fantome`, `u`, `gid` ; `murSort(…, moi)` ; `P.trouble`, `P.effroi`, `P.gangue` (dans `vieK`). Aucun changement dans la base.
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-56`).
+
+## 89. Quatre choses : la faune partagée sous les sorts, la case bonus, la recharge, les couleurs de rareté
+
+### La magie sur une faune partagée
+
+Sur une île à plusieurs, un seul appareil fait vivre les bêtes (le gardien, §57). Jusqu'ici, la matière d'un sort lancé par un suiveur ne touchait que sa copie de la bête : elle prenait les dégâts, mais n'était ni figée, ni repoussée, ni mise en fuite. Maintenant le suiveur **dit la matière au gardien**, qui la joue sur la vraie bête, avec le lanceur comme origine : le vent pousse loin de lui, la spore fait oublier ce joueur-là, l'effroi fait fuir devant lui, et les accords qui débordent (nuée, épouvante) prennent les voisines chez le gardien. La poix et le grisou passaient déjà par les coups. Le gardien dit en retour quelles bêtes sont **engluées** ou **prises dans la gangue** : chez tous, un coup sur une bête en gangue pèse moitié plus. La **boule visqueuse** d'une compagne suit le même chemin.
+
+### La case bonus, et une vraie touche pour le sort en main
+
+**Un défaut corrigé** : depuis §85 le grimoire disait « Tenir (X) », mais X est la touche d'attaque et rien ne lançait le sort tenu en main. Il fallait une ceinture et une case. Désormais :
+- le sort en main a **sa propre case**, au-dessus des autres au bord droit, cerclée de violet, **même sans ceinture** ; un appui le lance ;
+- au clavier, c'est la touche **L** ;
+- si un grimoire de l'établi est équipé, c'est lui que montre et que lance cette case ; sans sort en main, elle montre un livre grisé tant qu'on a des sorts inscrits.
+
+Une **égide** en cours s'affiche aussi parmi les états, en haut à gauche, avec sa vignette et son décompte.
+
+### La recharge, comme une aiguille
+
+Sur chaque case de sort (la case bonus comprise), le délai avant de relancer se voit : un voile sombre couvre la vignette et **se retire en tournant** depuis le haut, bordé d'un trait clair ; les **secondes** s'égrènent au milieu (au dixième sous la seconde) ; la case **luit un instant** quand le sort est de nouveau prêt.
+
+### La rareté, en couleurs
+
+Tout ce qui a un rang le dit de la même façon : **son nom et le tour de sa vignette**.
+
+| Rang | Couleur |
+|---|---|
+| commun | neutre |
+| peu commun | vert |
+| rare | bleu |
+| très rare | violet |
+| légendaire | or |
+| épique | rouge (rien ne l'est encore) |
+
+Ce qui la porte :
+- **les ingrédients** (viandes, poissons, produits de la flore, nectar) : au sac, à la cuisine, à l'alchimie ;
+- **les poissons** du carnet de pêche ;
+- **les biomes** de l'atlas (l'effroi et le village gardent leur couleur propre : ce ne sont pas des rangs) ;
+- **les bêtes** : chacune a la rareté de sa viande (coursier vert, orange bleu, rouge violet, aurore or) ; une **robe rare** la monte au moins à bleu, une **forme extrêmement rare** à or. Cela se lit sur la bête visée, dans la liste et la fiche des compagnes, au carnet des variantes ;
+- **les plantes rares**, sur la bête visée et sur le bouton d'action ;
+- **les druses** : lavande en violet, dorée en or, sur le bouton d'action ;
+- **les plats** : la couleur de leurs étoiles (2 vert, 3 bleu, 4 violet, 5 or), au sac, au livre de recettes et sur les cases du bord droit.
+
+Une légende rappelle l'échelle au garde-manger et en tête de l'atlas.
+
+**Ce que j'ai décidé seul** : la touche L ; la case bonus affichée même vide dès qu'on a un sort ; l'échelle exacte (le commun reste neutre, l'épique en rouge) ; la rareté d'une bête tirée de celle de sa viande ; les druses rangées d'après leur teinte (lavande violet, dorée or) plutôt que d'après leur fréquence ; les étoiles d'un plat comptées comme une rareté.
+
+**Pas fait** : les objets de l'établi (ils ont un étage, pas une rareté) ; les messages qui défilent (« biome découvert », le butin) restent d'une seule couleur. **Pas vérifié** : la faune partagée entre deux joueurs réellement connectés — essayée d'un côté puis de l'autre, avec un joueur d'en face simulé.
+
+Testé : en suiveur, la matière dite au gardien pour une matière simple, un accord de zone, le grisou, la poix dans le temps, rien pour une bête sans numéro, la boule visqueuse ; en gardien, les six effets joués avec le bon lanceur (poussée loin de lui, « oublie » et « fuit » ce joueur), l'épouvante sur la voisine, la gangue redite aux suiveurs, les données fausses et les messages pour un autre ignorés. La case bonus sans sort, avec des sorts mais aucun en main, avec un sort en main, sans puis avec ceinture ; la touche L ; l'appui ; la recharge au début, à mi-course, à la fin, et l'éclat de fin ; l'égide parmi les états. Les aides de rareté, puis à l'écran le sac, la cuisine, l'atlas, le carnet de pêche, la bête visée. Les essais de §85 à §88 rejoués sans écart.
+
+Dans le code (`index.html`) : `matiereSur(o, m, de)`, le geste `matiere` et le geste `englue` (`fauneGeste`) ; `KeyL`, la case `data-sortx` dans `majCases`, `majRecharge`, les styles `.bonus`, `.cd`, `.cd-on`, `.pret` ; `NOM_RARE`, `RANG_RARE`, `clRar`, `nomRare`, `rareIngr`, `rareEspece`, `rareVariante`, `rareBete`, `rareIcone` (lu par `caseObjet`), `qPlat`, `legendeRare`, les styles `.rar2`…`.rar6` et `.case.r2`…`.r6`. `faune.js` : `gesteDistantFaune` (`matiere`, `englue`), `etatFaune` et `appliquerFaune` (`eg`, `gg`). Aucun changement dans la base.
+
+**À déposer** : `index.html`, `faune.js` et `sw.js` (qui passe en `stone-valley-57`).
+
+## 90. De la matière partout : les bêtes, le héros, le campement, les troncs, les décors
+
+Le sol avait son grain, les maisons du village aussi. Tout le reste était en aplat. Chaque pièce dessinée porte maintenant un motif, toujours selon le même principe : du noir et du blanc transparents posés sur la couleur. **Aucune teinte ne change**, tout prend du grain.
+
+**Onze motifs de plus** : pelage, plume, écaille, chitine, métal riveté, écorce, toile, tissu (sergé), cuir, peau nue, corde.
+
+**Qui porte quoi**
+
+| Quoi | Matière |
+|---|---|
+| Rampants (brouteur, bossu, glaneur, traqueur, spectre), Mille-gueules, oglodon | chitine |
+| Automates, machines du souterrain, Tisseuse de fer | métal riveté |
+| Coursiers, sterne | plume |
+| Doux, félin, bramard | pelage |
+| Dragon, varan, salamandre | écaille |
+| Crapaud-buffle | peau nue |
+| Vesseron | mycélium |
+| Cerf de verre | facettes |
+| Silencieux | os |
+| Autres Telluriens | roche |
+| Nomades, villageois | tissu |
+| Le héros et les autres joueurs | tissu pour l'habit, cuir pour le sombre ; **la peau reste lisse** |
+| Le campement, la marmite, le lutrin, la pêche, la fourmilière | d'après la couleur de chaque pièce : le gris est de la pierre taillée (du fer s'il est sombre), le brun du bois en planches, le vert et le clair de la toile, le vif de l'étoffe |
+| Le souterrain | pareil, mais le gris y est de la tôle |
+| Les arches | pierre taillée pour les montants et le linteau ; le voile reste lisse |
+| La flore | les troncs et les branches prennent de l'écorce ; le feuillage garde son motif |
+| Les plantes rares | feuillage, écorce ou herbe, d'après la couleur de chaque pièce |
+
+Ce qui luit (flammes, cristaux, sorts, yeux, voiles) reste lisse : un motif y éteindrait la lumière.
+
+**Le grain à la mesure de la pièce.** Avant, une tuile de 16 pixels était étirée sur chaque face, quelle que soit sa taille : fine sur une patte, énorme sur un grand sapin. Les pièces nouvellement texturées, et **tout le feuillage**, mesurent maintenant leurs faces : le grain a la même taille partout (une tuile et demie par case pour le feuillage, deux pour le bâti et les troncs, deux et demie pour les bêtes, quatre pour le héros), et il est décalé d'une pièce à l'autre pour ne pas se répéter. Les maisons du village, qui avaient déjà leur matière, ne changent pas.
+
+**Le réglage « Textures »** coupe tout cela comme avant.
+
+**Ce que j'ai décidé seul** : les onze motifs et leur dessin ; la matière de chaque famille ; la matière du campement devinée d'après la couleur des pièces, plutôt que notée pièce par pièce ; le feuillage repris à la mesure ; la peau du héros et ce qui luit laissés lisses.
+
+**Pas fait** : le rendu en canvas (sans WebGL 2) ne reçoit pas ces nouvelles matières. **Pas vérifié** : en mouvement sur un vrai téléphone. Le grain, plus fin que celui du sol, peut scintiller de loin ; s'il gêne, une ligne règle chaque densité.
+
+Testé à l'écran : le campement (plancher, établi, coffre cerclé de fer, tente, muret), le héros, seize bêtes de toutes les familles, une forêt de pins, une arche, un lutrin, le souterrain et son coffre. Les essais de §85 à §89 rejoués sans écart.
+
+Dans le code (`index.html`) : `TEX.pelage` … `TEX.corde`, `MAT_CORPS`, `MAT_FAM`, `matiereEspece`, `matiereCouleur(c, genre)` (genres `bati`, `corps`, `flore`, `pierre`, `tronc`, `meca`) ; dans le rendu, `kCouleur`, `kEspece`, et un dernier argument `dens` à `boite` (tuiles par case ; 0 : une tuile étirée, comme avant). Les numéros de tuile se rangent désormais par paquets de 128 au lieu de 64 (`K`, et `vK` dans le programme de sommets) : il y a plus de 63 tuiles.
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-58`).
+
+## 91. Le dragon revu : la marche, le sommeil, les poses au sol
+
+Une vérification complète du dragon à plumes (§44), mesurée os par os : pour chaque pose, on regarde si un os passe sous le sol, si les pattes marchent sur place, si la bête saute. Ce qui était faux, et ce qui change :
+
+- **Les pattes qui marchaient sur place.** Posé après un vol, le dragon gardait sa vitesse de vol : au sol, ses pattes continuaient de pédaler sans qu'il avance (plus de 2 000 images sur 2 600 dans l'essai). Au sol, sa vitesse est désormais celle qu'il a vraiment ; ses pattes ne bougent plus que lorsqu'il marche ou **tourne**.
+- **Les demi-tours d'un coup.** Il pivotait instantanément pour faire face à vous ou à sa proie. Il tourne maintenant sur place, à son pas (environ 90° par seconde), en piétinant. Endormi, il ne tourne plus du tout.
+- **Le sommeil.** En s'endormant, la tête et le cou s'enfonçaient dans le sol (jusqu'à près d'une demi-case) et les genoux se croisaient sous le ventre. Le sommeil vient maintenant doucement : le cou descend puis se couche à plat, la tête se pose, les pattes se replient sur les côtés, la respiration ralentit.
+- **Les pieds** étaient à moitié dans le sol ; ils sont posés dessus, griffes au ras.
+- **En mangeant**, la tête et surtout la mâchoire ouverte passaient sous le sol. La tête descend un peu moins bas, et la mâchoire s'ouvre au plus jusqu'au ras du sol.
+- **Où il se pose.** Posé face à une marche ou dans un creux, il s'enfonçait dans la pente en dormant (cou, tête, ailes). Il choisit désormais son aire : un sol où rien ne dépasse sous son corps, les quatre pattes à plat, ni arbre ni dalle autour, de l'eau à la rigueur. Faute d'aire parfaite, il prend la moins mauvaise et se pose sur le haut du relief. Cela vaut pour son nid (le plus haut sommet **plat** de l'île), pour se poser près de vous (à quatre cases au plus de l'endroit visé, sinon il redécollerait aussitôt), près du campement, près d'une proie, et quand vous le rappelez ou le renvoyez au campement.
+- **Le nid** ne peut plus tomber dans un arbre.
+
+**Ce que j'ai décidé seul** : la vitesse de rotation ; la façon de se coucher (cou à plat, tête tournée vers le flanc) ; le barème qui classe les aires (une marche sous le corps compte bien plus qu'un arbre, un arbre plus qu'une flaque) ; si la seule aire possible près de vous l'obligerait à se percher sur une marche de plus de deux cases, le dragon apprivoisé continue de tourner au-dessus de vous plutôt que de s'y poser.
+
+**Pas vérifié** : sur un vrai téléphone ; les anciennes parties dont le nid est déjà placé sur un relief gardent ce nid (il n'est pas déplacé).
+
+Testé : sept poses × quatre caps sur sol plat, aucun os sous le sol ; six minutes de vie (jour puis nuit), deux minutes de nuit au nid, un dragon apprivoisé qui vous suit, s'arrête, se pose et s'endort près de vous : aucun os sous le sol, aucune valeur aberrante, aucun saut ; les quatre poses regardées à l'écran. Les essais de §85 à §90 rejoués sans écart.
+
+Dans le code (`index.html`) : `majDragon` (rotation au sol, `b.vit` au sol), `osDragon` (`dk`, le sommeil lissé ; `COU_DORT` ; la mâchoire bornée), `aireDragon(x, y)` (null, ou `{ z, c }` : la hauteur où se poser et le coût, 0 = parfait), `lieuDragon(b, x, y, R)` (la meilleure aire près d'un point, gardée dans `b.aire`), `poserDragon` (le nid). Dans `faune.js`, le dragon vu par les autres joueurs suit la même règle de vitesse au sol.
+
+**À déposer** : `index.html`, `faune.js` et `sw.js` (qui passe en `stone-valley-59`).
+
+
+## 92. Les horreurs du Korlaz revues : le Décharné, la Silhouette, ce que voit l'infecté
+
+Les visions du Korlaz (§46) n'étaient pas crédibles. La cause principale était un défaut de rendu : **les épaisseurs des pièces ne suivaient pas la taille de la bête**, seules les positions la suivaient. Le Décharné, qui est petit, avait donc des volumes 1,7 fois trop épais : d'où sa tête en cube et son air de robot. La Silhouette, qui est grande, avait au contraire des membres 1,3 fois trop minces : des bâtons. Depuis le §90, le Décharné prenait en plus la matière « pierre », à cause de sa couleur grise. Ce qui change :
+
+- **Le Décharné**, refait pièce par pièce : voûté, la colonne droite au bassin puis courbée, les vertèbres qui saillent dans le dos, le cou maigre qui pousse la tête en avant. Un **crâne en œuf** (voûte, dôme, occiput, tempes creuses, arcade qui avance) sur un visage étroit qui finit en menton pointu. **Deux grandes orbites noires** au fond desquelles luit une pupille minuscule, l'arête du nez, deux fentes pour narines, des pommettes saillantes sur des joues creuses, une bouche fine qui s'ouvre en trou noir sur deux rangées de petites dents. Des côtes qu'on compte, en chevrons du sternum vers les flancs, et qui respirent ; le ventre rentré, le bassin et ses crêtes, les clavicules, les omoplates. Les bras descendent jusqu'aux genoux : coudes et poignets noueux, quatre doigts à deux phalanges qui se recourbent, des ongles. Les jambes sont en X et un peu fléchies, avec de gros genoux et de longs pieds. Des veines sombres sur les membres et le crâne. La peau est pâle, lisse, couleur cadavre. Il vous regarde par en dessous, la tête qui penche.
+- **La Silhouette** : une taille de guêpe sous une poitrine étroite, des épaules hautes et pointues, voûtée ; un long cou qui plie vers l'épaule ; une tête petite, étirée en hauteur, **couchée sur l'épaule**, avec seulement deux points blancs. Des bras à trois articulations qui descendent sous les genoux, des mains aux **cinq longs doigts qui remuent** ; des jambes qui **se défont en fumée** ; des volutes d'ombre qui se détachent du dos. Quand elle se rue, elle se couche presque à l'horizontale, les mains ouvertes en avant, les jambes traînant derrière elle en fumée. Elle est d'un noir mat, sans matière.
+- **Les têtes penchent pour de bon** : jusqu'ici, une tête inclinée gardait ses volumes d'aplomb (un escalier de boîtes). Une pièce peut maintenant donner son propre « haut », et elle tourne avec lui (`o.ref`, `refBete`). Seules les visions s'en servent ; les autres bêtes ne changent pas.
+- **Ce que voit l'infecté** : le sang coule en vraies coulures (une tache en haut de l'image, un filet qui ondule, une goutte plus lourde au bout, un reflet) au lieu de traits droits. Les vrilles noires qui rentrent par les bords sont effilées, au bord flou, et ondulent. Le visage dans la brume se lit enfin : un crâne à peine plus clair que la brume, l'arcade, les pommettes, deux orbites où luit une pupille, une bouche ouverte en long.
+
+**Ce que j'ai décidé seul** : les deux silhouettes et leurs proportions (le Décharné fait environ 1,10 m, la Silhouette un peu plus de 3 m) ; la peau lisse plutôt que grenue (la matière « peau » le faisait ressembler à de la pierre) ; la couleur cadavre ; garder le style en volumes du jeu plutôt que de chercher le réalisme.
+
+**Pas fait** : le rendu en canvas (sans WebGL 2) garde les têtes d'aplomb. **Pas vérifié** : sur un vrai téléphone ; l'effet en mouvement (les tests regardent des images arrêtées et une minute de visions en simulation).
+
+Testé : les deux visions regardées de face, de profil, de près et de loin, en 1re personne et en vue 3D, debout, surgie et ruée ; le Décharné bouche ouverte ; l'image de l'infecté avec le sang, les yeux, la brume et le visage. Quarante visions en simulation (Décharnés, Silhouettes qui surgissent puis se ruent) : aucune valeur aberrante, aucune erreur. Les essais de magie, de faune et de textures rejoués sans écart.
+
+Dans le code : `etats.js` — `osIllusion` (les épaisseurs mises à l'échelle par `K` ; les repères `rep`, `tete`, `cadre`, `chaine` ; `bloc`, un volume posé dans un repère), `dessinerFiltre` (les vrilles, le visage, le sang) ; `index.html` — `refBete` et les deux lignes qui posent les pièces des bêtes en 3D, `matiereEspece` (les visions : `lisse`, sans matière).
+
+**À déposer** : `index.html`, `etats.js` et `sw.js` (qui passe en `stone-valley-60`).
+
+## 93. Korlaz : plus de visions, des griffes sur l'image, le mycélium, le noir et blanc
+
+L'infecté voit davantage de choses, et ce qu'il voit lui colle à la peau.
+
+- **Le mycélium** remplace les grosses vrilles noires. Ce sont des filaments noirs, fins, ramifiés, qui poussent des bords de l'image, surtout du bas, là où est le corps. Ils ondulent à peine, et leur front de pousse luit d'un vert pâle. Au début de l'infection, ce n'est qu'une frange ; au bout d'un quart d'heure, ils ont gagné une bonne partie de l'image, et la brume les fait avancer d'un coup. **Sur le corps** (vue 3D), des filaments noirs courent le long des membres du personnage et gagnent avec l'infection, sans toucher au sac ni aux cheveux.
+- **Des griffes lacèrent l'image** : trois ou quatre entailles parallèles, en biais, s'ouvrent en un éclair. Chacune a une déchirure noire au bord déchiqueté, de la chair rouge autour et un liseré vif ; il y a des éclaboussures, et chaque entaille saigne en coulure. L'image tremble, avec un bruit de déchirure. Elles remplacent l'ancienne « blessure de nulle part » et viennent aussi quand une Silhouette, un Rampant ou une Main vous frappe. Le coup est réel, mais léger.
+- **Le noir et blanc** (nouvelle vision) : le monde se vide de ses couleurs en moins d'une seconde, avec plus de contraste, un grain de vieux film, une rayure et un bord noir, pendant 9 à 19 secondes (plus longtemps quand l'infection dure). Le sang, lui, reste rouge. Dans le gris, des Décharnés vous regardent ; quand la couleur revient, il n'y a plus personne.
+- **Le Rampant** (nouvelle vision) : un Décharné à quatre pattes, comme une araignée. Le dos est arqué, les coudes et les genoux plus hauts que l'échine, les mains à plat loin devant ; la **tête est retournée**, le menton en l'air. Il apparaît dans votre dos, et l'on entend des ongles sur la pierre. **Il ne bouge que si vous ne le regardez pas** : dos tourné, il détale (4,6 cases/s) ; regardé, il se fige et sa bouche s'ouvre. Il se dissipe si vous le fixez quatre secondes. S'il vous atteint, il vous griffe.
+- **Les Mains** (nouvelle vision) : la terre s'ouvre autour de vous, dans un grondement et des mottes qui sautent. Trois à sept mains sortent l'une après l'autre : un avant-bras gris taché de terre, une main tournée vers vous dont les doigts trop longs griffent l'air. Elles restent quatre à six secondes puis replongent. Si vous passez à moins d'une case d'une main, elle vous **agrippe la cheville** : cloué sur place 1,4 s (l'état « Agrippé »), un coup léger, des griffes.
+- La musique ment aussi pour le Rampant qui détale et les Mains qui cherchent : elle sonne comme un vrai danger.
+- **Le tirage** : huit visions au lieu de cinq, chacune avec son poids : brume 15, regards 15, griffes 13, visage 8, Silhouette 13, Rampant 12, Mains 10, noir et blanc 8 (14 à la fin de l'infection). Les visions qui ajoutent des êtres ne sont pas tirées quand il y en a déjà trop.
+
+**Ce que j'ai décidé seul** : les deux nouvelles visions (le Rampant et les Mains, que je vous avais proposées) ; leurs vitesses, durées, distances et dégâts ; le noir et blanc qui fait apparaître des Décharnés ; le mycélium tiré au hasard une fois pour toutes (il change si la taille de l'image change) ; le vert pâle du front de pousse ; la couleur et la largeur des entailles.
+
+**Pas fait** : le mycélium sur le corps ne se voit pas en 1re personne (on n'y voit pas son corps : c'est celui des bords de l'image qui le remplace). **Pas vérifié** : sur un vrai téléphone, en particulier le coût du mycélium à l'image (0,6 ms par image ici) ; le son des trois nouveaux bruits (`lacere`, `grattement`, `terre`), que je n'ai pas pu entendre.
+
+Testé : chaque vision forcée quatre fois, avec 3 s de jeu après chacune : aucune erreur, aucune valeur aberrante. Les Mains sortent, griffent et replongent ; le Rampant se fige quand on le regarde ; les Décharnés du noir et blanc disparaissent avec lui. Regardés à l'écran : le Rampant de face, de profil et en vue 3D, les Mains, les griffes (en couleur et en noir et blanc), le mycélium au début et à la fin de l'infection, le corps de l'infecté. Le Décharné et la Silhouette du §92 sont inchangés.
+
+Dans le code : `etats.js` — `vision(I, force)` (le tableau des poids ; `force` impose une vision, pour les essais), `griffer`, `noirEtBlanc`, `mainsDeTerre`, `majIllusion` (les branches `rampant` et `mains`), `osIllusion` (`crane`, la tête partagée par le Décharné et le Rampant ; les modèles `rampant` et `mains`), `mycelium` (la trame), `myceliumHeros` (le corps), `dessinerFiltre` (le noir et blanc, le mycélium, les griffes, les coulures qui partent d'une entaille). `index.html` — `heroBones` (appelle `myceliumHeros`), les sons `lacere`, `grattement`, `terre`, l'état « Agrippé » (`P.agrippe`), la musique de danger.
+
+**À déposer** : `index.html`, `etats.js` et `sw.js` (qui passe en `stone-valley-61`).
