@@ -35,10 +35,11 @@ const ETATS_SPEC = [
 const ETAT = { id: null, cases: null, annonce: false, brume: 0, flash: 0, rouge: 0, visage: 0, inv: 0, yeux: [], sang: [], souffleT: 0, griffes: [], nb: 0, nbT: 0, myc: null, mycCle: 0 };
 const KORLAZ_BIO = 21;
 const KORLAZ_SEUIL = 30;                                  // secondes de spores (pondérées) avant l'infection
-function etatGraine(g, niv) {                             // une île sur six environ, dès l'exploration 6
-  if (!Number.isInteger(g) || niv < 6) return null;
+function etatGraine(g, niv) {                             // le Korlaz : une île sur six environ, dès l'exploration 6
+  if (!Number.isInteger(g) || niv < 6) return null;       // la brume sanglante (brume.js) : une sur dix, dès l'exploration 8
   let n = (g ^ 0x6b0f1a) >>> 0; n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
-  return ((n ^ (n >>> 16)) >>> 0) % 100 < 17 ? 'korlaz' : null;
+  const v = ((n ^ (n >>> 16)) >>> 0) % 100;
+  return v < 17 ? 'korlaz' : niv >= 8 && v < 27 && typeof brumeIle === 'function' ? 'brume' : null;
 }
 function etatsInit() {
   if (typeof REMARQUABLES !== 'undefined' && !REMARQUABLES.some(r => r.id === 'serum'))
@@ -59,6 +60,7 @@ function etatsSolDOrigine() {
 function etatsIle() {
   etatsSolDOrigine();
   ETAT.id = etatGraine(SEED, profondeur()); ETAT.cases = null; ETAT.annonce = false;
+  if (ETAT.id === 'brume') { brumeIle(); return; }        // la brume sanglante (brume.js)
   if (ETAT.id !== 'korlaz') return;
   let s = (SEED ^ 0x9e3779b9) >>> 0 || 1; const r = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
   const C = ETAT.cases = new Uint8Array(WS * WS), roc = [], avant = ETAT.bioAvant = new Map();
@@ -546,6 +548,7 @@ function myceliumHeros(B) {
 // ---------- à chaque image ----------
 let filtreEl = null, filtreG = null, filtreCss = '';
 function majEtats(dt) {
+  if (typeof majBrume === 'function') majBrume(dt);        // la brume sanglante (brume.js)
   const ici = ETAT.id === 'korlaz';
   if (ici && !ETAT.annonce) { ETAT.annonce = true; say('Korlaz · la roche de cette île est rongée · ne restez pas dans ses spores', 5); }
   if (ici) {
@@ -574,7 +577,8 @@ function majEtats(dt) {
   dessinerFiltre(ici, K);
 }
 function dessinerFiltre(ici, K) {
-  const actif = ici || K || ETAT.flash || ETAT.rouge || ETAT.visage || ETAT.sang.length || ETAT.griffes.length;
+  const sang = typeof brumeSang === 'function' ? brumeSang() : 0;
+  const actif = ici || K || sang || ETAT.flash || ETAT.rouge || ETAT.visage || ETAT.sang.length || ETAT.griffes.length;
   // le noir et blanc : il vient en 0,8 s, repart en 1,5 s
   const nb = ETAT.nb > 0 ? Math.max(0, Math.min(1, ETAT.nb / 1.5, (ETAT.nbT - ETAT.nb) / .8)) : 0;
   // le filtre sur l'image même : la couleur s'en va, le contraste monte ; une inversion d'un éclair quand elle frappe
@@ -593,6 +597,7 @@ function dessinerFiltre(ici, K) {
   g.clearRect(0, 0, W, H);
   const vign = (a, c, r0 = .25) => { const gr = g.createRadialGradient(W / 2, H / 2, R * r0, W / 2, H / 2, R); gr.addColorStop(0, `rgba(${c},0)`); gr.addColorStop(1, `rgba(${c},${a})`); g.fillStyle = gr; g.fillRect(0, 0, W, H); };
   if (ici) vign(.3, '22,30,18');
+  if (sang) dessinerBrume(g, W, H, R, vign);
   if (K) {
     const I = Math.min(1, K.duree / 900), br = Math.min(1, ETAT.brume / 3);
     vign(.38 + I * .2 + br * .42 + Math.sin(t * .4) * .06, '3,2,5', .2);                 // la brume noire qui respire
