@@ -9,8 +9,8 @@
 // Dès votre arrivée, ils lancent dans la brume des Rôdeurs (des loups de brume) à vos trousses. Qui
 // approche, deux d'entre eux le combattent (le fouet de sang, qui tire vers eux ; la volée de cinq
 // traits) pendant que les autres chantent. Chaque mage qui tombe éclaircit la brume ; le dernier tombé,
-// elle se lève sur l'île. Mais s'ils achèvent leur incantation (sept minutes, plus lente à mesure qu'ils
-// tombent), un DÉMON cornu sort du cercle, massacre les mages, puis s'en prend à vous ; la brume ne se
+// elle se lève sur l'île. Mais s'ils achèvent leur incantation (quatre minutes, plus lente à mesure qu'ils
+// tombent ; une barre en haut de l'écran dit le temps qu'il reste), un DÉMON cornu sort du cercle, massacre les mages, puis s'en prend à vous ; la brume ne se
 // lève qu'à sa mort.
 // Le jeu (index.html, etats.js) appelle, s'ils existent :
 //   brumeIle()          à chaque île marquée « brume » (etatsIle) ;
@@ -22,7 +22,7 @@
 //   butinBrume(b)       ce qu'ils laissent (butin) ; brumeMonde / brumeAppliquer : l'état du cercle, partagé (faune.js).
 
 const SANG = { k: 0, annonce: false, chantT: 0, cercle: null, incant: 0, phase: 'libre', total: 0, invT: 0, seuil: 0, leveeT: 0, dirT: 0 };
-const INCANT_DUREE = 420;                                  // l'incantation complète : sept minutes, tous les mages vivants
+const INCANT_DUREE = 240;                                  // l'incantation complète : quatre minutes, tous les mages vivants
 const NB_MAGES = 6, R_CERCLE = 3.2;
 const BRUME_PORTEE = 12;                                   // la fureur ne voit pas plus loin que la brume
 
@@ -81,6 +81,7 @@ function fureurIci(b) {
 
 function majBrume(dt) {
   if (ETAT.id === 'brume') majCercle(dt);
+  barreIncant();
   const k = brumeSang(); if (!k) return;
   if (!SANG.annonce) { SANG.annonce = true; say('Brume sanglante · ici, tout ce qui vit s\'entretue · vos compagnes aussi', 5); }
   // des volutes rouges qui traînent au ras du sol, autour de vous
@@ -107,6 +108,21 @@ function dessinerBrume(g, W, H, R, vign) {
     const gr = g.createRadialGradient(x, y, 0, x, y, r); gr.addColorStop(0, `rgba(110,14,16,${.1 * k})`); gr.addColorStop(1, 'rgba(110,14,16,0)'); g.fillStyle = gr; g.fillRect(0, 0, W, H);
   }
 }
+// La barre de l'incantation, en haut de l'écran (#incant, index.html) : elle se vide à mesure que les mages
+// chantent ; le temps affiché est celui qu'il leur faut encore au rythme d'à présent (chaque mage tué le
+// ralentit) ; dans les trente dernières secondes, elle bat. On ne touche la page que quand ça change.
+const BARRE = { el: null, w: -1, txt: '', urg: null, vu: false };
+function barreIncant() {
+  const B = BARRE; if (!B.el) { B.el = typeof document !== 'undefined' && document.getElementById('incant'); if (!B.el) return; }
+  const on = SANG.phase === 'chant' && !!SANG.cercle && brumeSang() > 0;
+  if (on !== B.vu) { B.vu = on; B.el.style.display = on ? 'block' : 'none'; document.body.classList.toggle('incant', on); }
+  if (!on) return;
+  const viv = magesVivants().length, vit = (.4 + .6 * viv / (SANG.total || NB_MAGES)) / INCANT_DUREE, s = Math.ceil(Math.max(0, 1 - SANG.incant) / vit);
+  const w = Math.round((1 - SANG.incant) * 1000) / 10, txt = `Incantation · ${s / 60 | 0}:${String(s % 60).padStart(2, '0')} · ${viv} mage${viv > 1 ? 's' : ''}`;
+  if (w !== B.w) { B.w = w; B.el.firstElementChild.style.width = w + '%'; }
+  if (txt !== B.txt) { B.txt = txt; B.el.lastElementChild.textContent = txt; }
+  const urg = s <= 30; if (urg !== B.urg) { B.urg = urg; B.el.classList.toggle('urgent', urg); }
+}
 // Pour la valse (index.html, SON) : 0,45 au calme, jusqu'à 1 quand la fureur rôde près de vous.
 function brumeIntensite() {                              // (et plus près du cercle, plus l'incantation avance ; le démon : tout)
   if (t < (SANG.intT || 0)) return SANG.int;
@@ -132,10 +148,10 @@ const estMage = b => !!b && !!b.sp && b.sp.corps === 'mage';
 const autorite = () => !(typeof fauneSuiveur === 'function' && fauneSuiveur());    // seul (ou gardien de l'île) : c'est ici que tout se décide
 const magesVivants = () => beasts.filter(b => estMage(b) && !b.dead && b.pv > 0 && !b.horsJeu);
 // Ceux qu'ils combattent : les joueurs, et les compagnes (pas les bêtes : la fureur s'en charge).
-function cibleBrume(b, R) {
+function cibleBrume(b, R, dz = 4) {                        // (dz : l'écart de hauteur au-delà duquel on ne le voit plus ; les Rôdeurs sautent)
   let best = null, bd = R * R;
-  for (const J of (typeof joueursFaune === 'function' ? joueursFaune() : [P])) if (J.pv > 0 && Math.abs(J.z - b.z) < 4) { const d = (J.x - b.x) ** 2 + (J.y - b.y) ** 2; if (d < bd) { bd = d; best = J; } }
-  for (const o of beasts) if (o.tame && !o.dead && o.pv > 0 && !o.loin && Math.abs(o.z - b.z) < 4) { const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd * .7) { bd = d; best = o; } }
+  for (const J of (typeof joueursFaune === 'function' ? joueursFaune() : [P])) if (J.pv > 0 && Math.abs(J.z - b.z) < dz) { const d = (J.x - b.x) ** 2 + (J.y - b.y) ** 2; if (d < bd) { bd = d; best = J; } }
+  for (const o of beasts) if (o.tame && !o.dead && o.pv > 0 && !o.loin && Math.abs(o.z - b.z) < dz) { const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd * .7) { bd = d; best = o; } }
   return best;
 }
 // Frapper : un joueur (le vôtre ou celui d'en face, par faune.js), une bête.
@@ -158,6 +174,38 @@ function pasBrume(b, tx, ty, vit, dt, marche = 1.2) {
   }
   b.z = sol(b.x, b.y);
 }
+// Le saut des Rôdeurs : sur un relief de quatre cases au plus, et par-dessus un trou ou de l'eau de quatre
+// cases au plus ; s'il n'y a pas d'autre bord, ils se laissent tomber dedans (quatre cases au plus). Un arc :
+// b.saut = [x0, y0, z0, x1, y1, z1, durée, hauteur], b.sautT = son départ (partagés : arcSaut, chez qui suit).
+const SAUT_HAUT = 4, SAUT_LONG = 4;
+function solLibre(x, y) { const i = x | 0, j = y | 0, h = hAt(i, j); return i > 2 && j > 2 && i < WS - 3 && j < WS - 3 && h > SEA && !eauAt(i, j) && !PlT[j * WS + i] ? h : null; }
+function chercherSaut(b, a) {
+  const h0 = hAt(b.x | 0, b.y | 0), cx = Math.cos(a), cy = Math.sin(a), h1 = solLibre(b.x + cx * .9, b.y + cy * .9);
+  if (h1 !== null && Math.abs(h1 - h0) <= 1.3) return null;                                   // ça se marche
+  if (h1 !== null && h1 > h0) return h1 - h0 <= SAUT_HAUT ? [b.x + cx * 1.15, b.y + cy * 1.15] : null;   // un mur : dessus, s'il n'est pas trop haut
+  for (let r = 1.5; r <= SAUT_LONG + 1.01; r += .5) {                                         // un trou, une chute, de l'eau : l'autre bord
+    const x = b.x + cx * r, y = b.y + cy * r, h = solLibre(x, y);
+    if (h !== null && h >= h0 - 1.3 && h - h0 <= SAUT_HAUT) return [x, y];
+  }
+  return h1 !== null && h0 - h1 <= SAUT_HAUT ? [b.x + cx * 1.15, b.y + cy * 1.15] : null;   // pas d'autre bord : dedans
+}
+function sauterBrume(b, x1, y1) {
+  const z0 = b.z, z1 = sol(x1, y1), dz = z1 - z0, dist = Math.hypot(x1 - b.x, y1 - b.y);
+  b.saut = [b.x, b.y, z0, x1, y1, z1, .3 + .07 * dist + .05 * Math.abs(dz), Math.abs(dz) * (dz > 0 ? .9 : .3) + 1]; b.sautT = t;
+  b.dir = b.dirT = Math.atan2(y1 - b.y, x1 - b.x); b.etat = 'sauter'; SON.jouer('saut', {}, b.x, b.y, b.z);
+}
+function arcSaut(b) {
+  const S = b.saut; if (!Array.isArray(S) || S.length < 8 || b.sautT == null) return null;
+  const u = (t - b.sautT) / S[6]; return u < 0 || u >= 1 ? null : S[2] + (S[5] - S[2]) * u + S[7] * 4 * u * (1 - u);
+}
+function majSaut(b) {
+  const S = b.saut, u = Math.min(1, (t - b.sautT) / S[6]);
+  b.x = S[0] + (S[3] - S[0]) * u; b.y = S[1] + (S[4] - S[1]) * u; b.vit = Math.hypot(S[3] - S[0], S[4] - S[1]) / S[6]; b.etat = 'sauter';
+  if (u < 1) { b.z = arcSaut(b) ?? sol(b.x, b.y); return; }
+  b.z = sol(b.x, b.y); b.saut = null; b.sautPret = t + .25; b.vit = 0; b.etat = 'traquer';
+  SON.jouer('atterrir', { k: .5 }, b.x, b.y, b.z);
+  for (let q = 0; q < 8; q++) parts.push({ x: b.x, y: b.y, z: b.z + .05, vx: (Math.random() - .5) * 2, vy: (Math.random() - .5) * 2, vz: .4 + Math.random() * .6, g: -.1, life: .6, age: 0, col: '#5a0a0e', tl: .09 });
+}
 function tournerBrume(b, dt, v = 4) {
   let dd = b.dirT - b.dir; while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832;
   b.dir += Math.max(-v * dt, Math.min(v * dt, dd));
@@ -173,7 +221,7 @@ function majBrumeBete(b, dt) {
   if (k === 'mage') majMage(b, dt);
   else if (k === 'rodeur') majRodeur(b, dt);
   else if (k === 'demon') majDemon(b, dt);
-  b.gph = (b.gph || 0) + dt * (b.vit || 0) * .9;
+  pasBrumeVisuel(b, dt);
 }
 
 // ---------- les mages ----------
@@ -245,6 +293,7 @@ function actionMage(b, dt) {
 // ramassent, bondissent, mordent, puis se défont en brume (au bout de quarante secondes, au plus).
 function majRodeur(b, dt) {
   if ((b.vie = (b.vie ?? 40) - dt) <= 0) { b.pv = 0; mourirBete(b, 'brume'); return; }
+  if (b.saut) return majSaut(b);
   if (b.act === 'bond') {
     const u = t - b.actT, c = b.actC;
     if (u < .35) { b.vit = 0; b.etat = 'ramasser'; if (c) b.dirT = Math.atan2(c.y - b.y, c.x - b.x); tournerBrume(b, dt, 8); return; }
@@ -260,11 +309,12 @@ function majRodeur(b, dt) {
     }
     b.act = null; b.repos = t + .6; b.vit = 0; return;
   }
-  const c = cibleBrume(b, 30);
+  const c = cibleBrume(b, 30, SAUT_HAUT + 2.5);
   if (!c) { b.vit = 0; b.etat = 'rôder'; return; }
   const d = Math.hypot(c.x - b.x, c.y - b.y);
   b.dirT = Math.atan2(c.y - b.y, c.x - b.x); b.etat = 'traquer';
-  if (d < 2.6 && t > (b.repos || 0)) { agirBrume(b, 'bond', c); return; }
+  if (d < 2.6 && t > (b.repos || 0) && Math.abs(c.z - b.z) < 1.5) { agirBrume(b, 'bond', c); return; }
+  if (d > 1.2 && t > (b.sautPret || 0)) { const L = chercherSaut(b, b.dirT); if (L) return sauterBrume(b, L[0], L[1]); }
   pasBrume(b, c.x, c.y, t < (b.repos || 0) ? 2 : 5.4, dt, 1.3); tournerBrume(b, dt, 7);
 }
 function invoquerRodeurs() {
@@ -292,13 +342,13 @@ function invoquerDemon() {
   const b = naitre(specById.demon_sang, C.x, C.y); b.variante = null; b.z = C.z; b.pv = 1; b.age = 1e6; b.ech = 1; b.etat = 'surgir'; b.emerge = 0;
   b.blinde = 1 + Math.max(0, profondeur() - 8) * .06; b.dir = b.dirT = Math.atan2(P.y - C.y, P.x - C.x);
   beasts.push(b);
-  SON.jouer('rugissement'); say('L\'incantation est achevée · quelque chose sort du cercle', 4); P.secousse = t; P.secousseK = .6;
+  SON.jouer('rugDemon'); say('L\'incantation est achevée · quelque chose sort du cercle', 4); P.secousse = t; P.secousseK = .6;
 }
 function majDemon(b, dt) {
   const ph = b.phaseD || 'surgir';                           // (b.etat dit ce qui se voit ; b.phaseD, où il en est)
   if (ph === 'surgir') {                                     // il sort du cercle, lentement
     b.etat = 'surgir'; b.emerge = Math.min(1, (b.emerge || 0) + dt / 4); b.vit = 0; P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, .25);
-    if (b.emerge >= 1) { b.phaseD = 'rugir'; b.etat = 'rugir'; b.actT = t; SON.jouer('rugissement', {}, b.x, b.y, b.z + 3); }
+    if (b.emerge >= 1) { b.phaseD = 'rugir'; b.etat = 'rugir'; b.actT = t; SON.jouer('rugDemon', {}, b.x, b.y, b.z + 3); }
     return;
   }
   if (ph === 'rugir') { b.etat = 'rugir'; b.vit = 0; if (t - b.actT > 2) b.phaseD = magesVivants().length ? 'massacrer' : 'chasser'; return; }
@@ -306,7 +356,7 @@ function majDemon(b, dt) {
   if (ph === 'massacrer') {                                  // les mages d'abord
     b.etat = 'massacrer';
     const M = magesVivants();
-    if (!M.length) { b.phaseD = 'rugir'; b.etat = 'rugir'; b.actT = t; SON.jouer('rugissement', {}, b.x, b.y, b.z + 3); return; }
+    if (!M.length) { b.phaseD = 'rugir'; b.etat = 'rugir'; b.actT = t; SON.jouer('rugDemon', {}, b.x, b.y, b.z + 3); return; }
     let m = M[0], dm = 1e9; for (const o of M) { const d = Math.hypot(o.x - b.x, o.y - b.y); if (d < dm) { dm = d; m = o; } }
     b.dirT = Math.atan2(m.y - b.y, m.x - b.x); tournerBrume(b, dt, 2.5);
     if (dm < 3.4) agirBrume(b, 'marteler', m); else pasBrume(b, m.x, m.y, 3, dt, 2.5);
@@ -342,7 +392,7 @@ function actionDemon(b, dt) {
   } else if (b.act === 'marteler') {                         // le martèlement : un cercle rouge au sol, puis les deux poings
     if (!b.impact) b.impact = [b.x + Math.cos(b.dir) * 2.4, b.y + Math.sin(b.dir) * 2.4];
     if (u >= 1.1 && !b.fait) {
-      b.fait = true; const [x, y] = b.impact; SON.jouer('impact', {}, x, y, b.z); SON.jouer('rugissement', {}, b.x, b.y, b.z + 3);
+      b.fait = true; const [x, y] = b.impact; SON.jouer('impact', {}, x, y, b.z); SON.jouer('rugDemon', {}, b.x, b.y, b.z + 3);
       P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, Math.hypot(P.x - x, P.y - y) < 14 ? .8 : .3);
       for (let j = 0; j < 30; j++) { const a = Math.random() * 6.2832, r = Math.random() * 4.5; parts.push({ x: x + Math.cos(a) * r, y: y + Math.sin(a) * r, z: sol(x, y) + .1, vx: Math.cos(a) * 2, vy: Math.sin(a) * 2, vz: 2 + Math.random() * 3, g: 6, life: .8, age: 0, col: Math.random() < .5 ? '#5a4030' : '#a01418', tl: .1 }); }
       toucher(x, y, 4.6, .34, 5, estMage(c) ? null : c);
@@ -546,11 +596,11 @@ function osMage(f, O) {
 function osRodeur(f, O) {
   const { add, tete, bloc, os2, pl, chaine, cadre } = O;
   const corps = [92, 12, 16], sombre = [46, 4, 8], fume = [120, 22, 26], oeil = [255, 70, 50];
-  const ram = f.etat === 'ramasser', bond = f.etat === 'bondir', v = Math.min(1, (f.vit || 0) / 5), ph = (f.gph || 0) * 6.2832, mort = f.dead > 0 ? Math.min(1, f.dead) : 0;
+  const ram = f.etat === 'ramasser', bond = f.etat === 'bondir' || f.etat === 'sauter', v = Math.min(1, (f.vit || 0) / 5), ph = (f.gph || 0) * 6.2832, mort = f.dead > 0 ? Math.min(1, f.dead) : 0;
   const hz = (ram ? .34 : .5) * (1 - mort * .6), AN = [1.62, 1.57, 1.52, 1.48], S = chaine([-.45, 0, hz + .02], AN, .22), Q = k => cadre(S[k], AN[Math.min(k, 3)]);
   bloc(Q(0), -.12, .1, 0, 0, .22, .26, corps); bloc(Q(1), -.11, .08, 0, 0, .2, .26, corps); bloc(Q(2), -.14, .14, 0, 0, .26, .26, corps); bloc(Q(3), -.14, .12, 0, 0, .27, .22, corps);
   for (let k = 0; k < 4; k++) bloc(Q(k), -.17, -.12, 0, 0, .05, .08, sombre);                                            // l'échine
-  const N = pl(S[4], [.14, 0, .1]), ouv = ram ? .8 : bond ? 1 : .15 + .1 * Math.sin(t * 6);
+  const N = pl(S[4], [.14, 0, .1]), ouv = ram ? .8 : f.etat === 'sauter' ? .35 : bond ? 1 : .15 + .1 * Math.sin(t * 6);
   const M = tete(N, -.12, 0);
   bloc(M, -.06, .14, 0, 0, .18, .16, corps); bloc(M, .12, .3, 0, -.03, .1, .09, sombre); bloc(M, .1, .27, 0, -.1 - ouv * .05, .08, .03, sombre);
   if (ouv > .4) bloc(M, .12, .25, 0, -.07, .07, .03, [200, 40, 30], true);
@@ -568,55 +618,109 @@ function osRodeur(f, O) {
 // aux griffes noires ; une tête de taureau aux deux cornes qui balaient vers l'arrière puis remontent ;
 // des yeux et une gueule de braise ; la peau sombre fendue de lave qui palpite ; des épines sur l'échine,
 // une queue en pointe. Il sort du cercle, rugit les bras ouverts, arme ses coups sous vos yeux.
+// LA MARCHE (revue) : un pas lourd et lent (un cycle pour un peu plus de deux mètres), le pied posé recule
+// sous lui sans glisser, celui qui avance se lève ; le corps plonge à chaque appui et se déhanche sur la
+// jambe qui porte ; les bras balancent à l'opposé des jambes (le bras gauche avec la jambe droite).
+// LA CHARGE (revue) : il gratte le sol du sabot droit, tête basse, en soufflant ; puis il se jette à quatre
+// pattes et galope comme un gorille — les deux mains loin devant, puis les deux pattes de bouc qui
+// poussent —, l'échine presque à l'horizontale, les cornes en avant.
+const DEMON_PAS = .55;                                       // la demi-foulée (dans son repère) : un pas fait deux fois ça
+// un genou par deux os de longueur donnée, entre deux points, plié vers « dir »
+function genouD(A, B, L1, L2, dir) {
+  const dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2], d0 = Math.hypot(dx, dy, dz) || 1, d = Math.min(L1 + L2 - .01, d0);
+  const u = [dx / d0, dy / d0, dz / d0], a = (L1 * L1 - L2 * L2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, L1 * L1 - a * a));
+  const p = dir[0] * u[0] + dir[1] * u[1] + dir[2] * u[2]; let n = [dir[0] - u[0] * p, dir[1] - u[1] * p, dir[2] - u[2] * p]; const nl = Math.hypot(...n) || 1; n = n.map(q => q / nl);
+  return [A[0] + u[0] * a + n[0] * h, A[1] + u[1] * a + n[1] * h, A[2] + u[2] * a + n[2] * h];
+}
 function osDemon(f, O) {
   const { B, add, tete, bloc, os2, mi, pl, chaine, cadre } = O;
   const peau = [64, 16, 14], sombre = [30, 8, 8], corne = [40, 32, 28], corneB = [86, 74, 62], ongle = [20, 16, 14];
-  const E = f.etat, u = f.actT != null ? t - f.actT : 9, v = Math.min(1, (f.vit || 0) / 3), ph = (f.gph || 0) * 6.2832;
+  const E = f.etat, u = f.actT != null ? t - f.actT : 9, ph = (((f.gph || 0) % 1) + 1) % 1;
   const mort = f.dead > 0 ? Math.min(1, f.dead) : 0, respire = .5 + .5 * Math.sin(t * 1.6), lave = [255, 90 + 70 * respire * (1 - mort) | 0, 30];
-  const rug = E === 'rugir' || E === 'surgir', charge = E === 'charger' && u >= .9, sonne = E === 'charger' && f.sonne > t;
-  const plus = charge ? .35 : sonne ? .15 : 0, AN = [.25, .45, .62, .78].map(a => a + plus + (rug ? -.15 : 0)), S = chaine([0, 0, 1.15], AN, .22), Q = k => cadre(S[k], AN[Math.min(k, 3)]);
+  const rug = E === 'rugir' || E === 'surgir', sonne = f.sonne > t, galop = E === 'charger' && u >= .9 && !sonne, gratte = E === 'charger' && u < .9;
+  const marche = !galop && !rug && !mort && !sonne && E !== 'marteler' && E !== 'revers';
+  const v = marche ? Math.min(1, Math.max((f.vit || 0) / 2.2, (f._tour || 0) * .4)) : 0;
+  // le pied d'une jambe dans son cycle (0 : il se pose devant) : à l'appui il recule à plat, en l'air il revient en se levant
+  const cycle = (q, A, H) => q < .6 ? [A - 2 * A * q / .6, 0] : [-A + 2 * A * (q - .6) / .4, Math.sin(Math.PI * (q - .6) / .4) * H];
+  // le corps : le plongeon à chaque appui, le déhanchement ; au galop, l'échine à l'horizontale qui tangue
+  const bob = galop ? -.4 + Math.sin(ph * 6.2832) * .06 : gratte ? -.12 : sonne ? -.15 : -.08 * v * Math.cos(ph * 12.566) ** 2;
+  const sway = marche ? .07 * v * Math.sin(ph * 6.2832) : 0;
+  const plus = galop ? .72 + Math.sin(ph * 6.2832 + 1) * .08 : gratte ? .3 : sonne ? .15 : 0;
+  const AN = [.25, .45, .62, .78].map(a => a + plus + (rug ? -.15 : 0)), S = chaine([0, sway, 1.15 + bob], AN, .22), Q = k => cadre(S[k], AN[Math.min(k, 3)]);
   bloc(Q(0), -.2, .18, 0, 0, .5, .26, peau); bloc(Q(1), -.22, .2, 0, 0, .52, .26, peau); bloc(Q(2), -.26, .26, 0, 0, .7, .26, peau);
   bloc(Q(3), -.26, .24, 0, 0, .9, .24, peau); bloc(Q(4), -.22, .1, 0, 0, .62, .16, sombre);
   for (let k = 1; k <= 4; k++) { const A = Q(k)(-.22, 0, 0); os2(A, pl(A, [-.08, 0, .2]), .06, corne); }                // les épines de l'échine
   for (const [k, a, b] of [[2, -.18, .1], [2, .05, .2], [3, -.25, -.05], [1, .1, -.1]]) { const R = Q(k); add(R(.27, a, -.08), R(.27, b, .06), .028, .028, lave, true); }   // la lave, dans les fentes
-  // la tête : de taureau, les cornes, la gueule de braise
-  const N0 = Q(4)(.06, 0, .06), H = pl(N0, [.24, 0, .04]), ouv = rug ? .9 + .1 * Math.sin(t * 20) : E === 'revers' || E === 'marteler' ? .5 : .12;
+  // la tête : de taureau, les cornes, la gueule de braise ; elle dodeline au pas, plonge à la charge
+  const N0 = Q(4)(.06, 0, .06), H = pl(N0, [.24, 0, .04]), ouv = rug ? .9 + .1 * Math.sin(t * 20) : E === 'revers' || E === 'marteler' ? .5 : gratte ? .3 + .2 * Math.sin(t * 9) : .12;
   os2(N0, H, .3, peau);
-  const M = tete(H, rug ? .45 : charge ? -.65 : sonne ? Math.sin(t * 9) * .3 : -.15, sonne ? Math.sin(t * 7) * .25 : 0);
+  const pitch = rug ? .45 : galop ? -.35 : gratte ? -.7 : sonne ? Math.sin(t * 9) * .3 : -.15 + .05 * v * Math.sin(ph * 12.566);
+  const M = tete(H, pitch, sonne ? Math.sin(t * 7) * .25 : marche ? -sway * 1.5 : 0);
   bloc(M, -.14, .16, 0, .05, .34, .28, peau); bloc(M, .12, .2, 0, .14, .36, .07, sombre); bloc(M, .1, .3, 0, -.08, .26, .14, peau);
   bloc(M, .06, .28, 0, -.2 - ouv * .12, .22, .06, sombre); bloc(M, .12, .26, 0, -.14 - ouv * .06, .18, .03 + ouv * .1, lave, true);
   for (const s of [-1, 1]) {
     bloc(M, .2, .215, s * .09, .1, .06, .035, [255, 160, 60], true);
     for (const z of [-.1, -.17]) bloc(M, .27, .29, s * .07, z, .025, .05, [230, 220, 200]);                              // les crocs
     let p = M(-.02, s * .16, .2);                                                                                        // la corne : en arrière, puis vers le ciel
-    [[-.1, .1, .12, .14], [-.12, .06, .14, .12], [-.04, .02, .16, .1], [.08, 0, .14, .07], [.14, -.02, .08, .045]].forEach(([a, b, c, w], i) => {
+    [.14, .12, .1, .07, .045].forEach((w, i) => {
       const n = M(-.02 + [-.1, -.22, -.26, -.18, -.04][i], s * (.16 + [.1, .16, .18, .18, .16][i]), .2 + [.12, .26, .42, .56, .64][i]); os2(p, n, w, i < 3 ? corne : corneB); p = n; });
   }
-  // les bras
+  // les jambes de bouc : la hanche, le genou en avant, le jarret en arrière, le sabot
+  const pieds = [];
   for (const s of [-1, 1]) {
-    const Sh = Q(3)(0, s * .48, .05); let El, Hd;
-    if (rug) { El = pl(Sh, [0, s * .45, .2]); Hd = pl(El, [.05, s * .25, .35]); }
-    else if (E === 'revers' && s < 0) { if (u < .75) { El = pl(Sh, [-.2, -.3, .35]); Hd = pl(El, [-.1, -.2, .4]); } else { El = pl(Sh, [.4, -.05, -.05]); Hd = pl(El, [.45, .35, -.1]); } }
-    else if (E === 'marteler') { if (u < 1.1) { El = pl(Sh, [.1, -s * .05, .45]); Hd = [Sh[0] + .32, s * .14, Sh[2] + .95]; } else { El = pl(Sh, [.45, -s * .02, -.3]); Hd = [Sh[0] + .95, s * .14, .12]; } }
-    else if (charge) { El = pl(Sh, [-.25, s * .15, -.25]); Hd = pl(El, [-.25, s * .05, -.2]); }
-    else { const bal = Math.sin(ph + (s > 0 ? 0 : Math.PI)) * .18 * v; El = pl(Sh, [.15 + bal, s * .12, -.45]); Hd = pl(El, [.2 + bal, s * .02, -.45]); }
+    const hip = Q(0)(0, s * .24, 0); let F;
+    if (galop) { const [x, z] = cycle(ph, .62, .34); F = [x - .25, s * .3, z]; }                                 // les deux pattes ensemble : elles poussent
+    else if (gratte && s < 0) { const g = Math.sin(t * 11); F = [.12 + g * .26, s * .3, Math.max(0, g) * .1]; }   // le sabot droit gratte le sol
+    else { const [x, z] = cycle((ph + (s > 0 ? 0 : .5)) % 1, DEMON_PAS * v, .24 * v); F = [x + .06, s * .29, z]; }
+    const A = pl(F, [-.12, 0, .34]), K = genouD(hip, A, .55, .48, [1, 0, -.15]);
+    os2(hip, K, .27, peau); os2(K, A, .19, peau); os2(A, F, .13, sombre); bloc(O.rep(F, [1, 0, 0], [0, 1, 0], [0, 0, 1]), -.06, .14, 0, .03, .17, .07, ongle);
+    pieds.push(F);
+  }
+  // les bras : ils balancent à l'opposé des jambes ; au galop, ils deviennent des pattes de devant
+  for (const s of [-1, 1]) {
+    const Sh = Q(3)(0, s * .48, .05); let Hd, dirC = [-.2, s * .6, -.6];
+    if (rug) Hd = pl(Sh, [.05, s * .7, .55]);
+    else if (E === 'revers' && s < 0) Hd = u < .75 ? pl(Sh, [-.3, -.5, .75]) : pl(Sh, [.85, .3, -.15]);
+    else if (E === 'marteler') Hd = u < 1.1 ? [Sh[0] + .32, s * .14, Sh[2] + .95] : [Sh[0] + .95, s * .14, .12];
+    else if (galop) { const [x, z] = cycle((ph + .5) % 1, .55, .3); Hd = [Sh[0] + .35 + x * .8, s * .55, .1 + z]; dirC = [-.5, s * .5, .3]; }   // les mains loin devant, à plat
+    else if (gratte) Hd = pl(Sh, [.35, s * .2, -.75]);
+    else if (sonne) Hd = pl(Sh, [.2 + Math.sin(t * 5 + s) * .1, s * .15, -.85]);
+    else { const [x] = cycle((ph + (s > 0 ? .5 : 0)) % 1, DEMON_PAS * v, 0); Hd = pl(Sh, [.32 + x * .55, s * .14, -.88]); }   // à l'opposé de la jambe du même côté
+    const El = genouD(Sh, Hd, galop ? .62 : .52, galop ? .6 : .5, dirC);
     os2(Sh, El, .22, peau); os2(El, Hd, .18, peau); add(mi(Sh, El, .2), mi(Sh, El, .8), .03, .03, lave, true);
-    const dd = [Hd[0] - El[0], Hd[1] - El[1], Hd[2] - El[2]], dl = Math.hypot(...dd) || 1, ud = dd.map(q => q / dl), Pm = pl(Hd, ud.map(q => q * .14));
+    const dd = [Hd[0] - El[0], Hd[1] - El[1], Hd[2] - El[2]], dl = Math.hypot(...dd) || 1, ud = dd.map(q => q / dl), Pm = galop ? pl(Hd, [.12, 0, -.06]) : pl(Hd, ud.map(q => q * .14));
     os2(Hd, Pm, .2, sombre);
-    for (const q of [-.07, -.023, .023, .07]) { const a = pl(Pm, [0, q, 0]); os2(a, pl(a, [ud[0] * .16 + .04, ud[1] * .16 + q * .3, ud[2] * .16 - .05]), .045, ongle); }
+    for (const q of [-.07, -.023, .023, .07]) { const a = pl(Pm, [0, q, 0]); os2(a, galop ? pl(a, [.16, q * .3, -.04]) : pl(a, [ud[0] * .16 + .04, ud[1] * .16 + q * .3, ud[2] * .16 - .05]), .045, ongle); }
   }
-  // les pattes de bouc : la cuisse en avant, le jarret en arrière, le sabot
-  for (const s of [-1, 1]) {
-    const p = ph + (s > 0 ? 0 : Math.PI), hip = Q(0)(0, s * .24, 0), K = pl(hip, [.18 + Math.sin(p) * .12 * v, s * .04, -.42]);
-    const A = pl(K, [-.22, 0, -.32]), F = [A[0] + .06 + Math.sin(p) * .22 * v, s * .28, .04 + Math.max(0, Math.cos(p)) * .14 * v];
-    os2(hip, K, .27, peau); os2(K, A, .19, peau); os2(A, F, .13, sombre); bloc(O.rep(F, [1, 0, 0], [0, 1, 0], [0, 0, 1]), -.06, .14, 0, -.02, .17, .07, ongle);
-  }
-  let q = S[0];                                                                                                          // la queue, en pointe
-  for (let j = 1; j <= 5; j++) { const n = [S[0][0] - j * .2, Math.sin(t * 1.3 + j * .6) * .07 * j, S[0][2] - .08 * j + .02 * j * j]; os2(q, n, .16 - j * .022, peau); q = n; }
+  let q = S[0];                                                                                                          // la queue, en pointe, qui fouette
+  for (let j = 1; j <= 5; j++) { const n = [S[0][0] - j * .2, S[0][1] + Math.sin(t * 1.3 + j * .6 + ph * 6.28) * .07 * j, S[0][2] - .08 * j + .02 * j * j + (galop ? .05 * j : 0)]; os2(q, n, .16 - j * .022, peau); q = n; }
   os2(q, pl(q, [-.14, 0, .06]), .09, corne);
   // il sort du cercle, ou s'effondre : tout descend
   const bas = (1 - (f.emerge ?? 1)) * 2.7 + mort * 1.3;
   if (bas) for (const o of B) { o.a = [o.a[0], o.a[1], o.a[2] - bas]; o.b = [o.b[0], o.b[1], o.b[2] - bas]; }
+}
+// La cadence de leurs pas, ici comme chez qui les voit passer (faune.js) : le démon pose un pied pour un peu
+// plus de deux mètres (sans glisser : la cadence suit la vitesse) et fait trembler le sol ; au galop, près de deux bonds et demi par seconde ; tourner sur place le fait
+// piétiner ; les Rôdeurs trottent vite ; les mages glissent sous leur robe.
+function pasBrumeVisuel(b, dt) {
+  const k = b.sp.corps, avant = b.gph || 0;
+  if (k === 'demon') {
+    let dd = (b.dir || 0) - (b._dirV ?? b.dir ?? 0); while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832; b._dirV = b.dir;
+    const galop = b.etat === 'charger' && b.actT != null && t - b.actT >= .9 && !(b.sonne > t);
+    const marche = b.etat === 'chasser' || b.etat === 'massacrer';
+    // sans glisser : à l'appui (60 % du cycle) le pied recule d'une foulée, juste ce que le corps avance
+    const vv = b.vit || 0, tour = Math.abs(dd) / Math.max(dt, 1e-3); b._tour = Math.min(1, tour * .5);
+    const amp = 2 * DEMON_PAS * (b.sp.sz || 1) * Math.max(Math.min(1, vv / 2.2), b._tour * .4);
+    const pas = galop ? 2.4 : marche ? Math.max(amp > .01 ? vv * .6 / amp : 0, tour * .35) : 0;
+    b.gph = avant + dt * Math.min(2.4, pas);
+    if ((pas > .2) && Math.floor(avant * 2) !== Math.floor(b.gph * 2)) {                 // un pied (ou les mains) frappe le sol
+      const d = Math.hypot(b.x - P.x, b.y - P.y);
+      SON.jouer('pasDemon', {}, b.x, b.y, b.z);
+      if (d < 16) { P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, (galop ? .35 : .18) * (1 - d / 16)); }
+      for (let j = 0; j < 6; j++) parts.push({ x: b.x + (Math.random() - .5) * 2, y: b.y + (Math.random() - .5) * 2, z: b.z + .05, vx: (Math.random() - .5) * 1.5, vy: (Math.random() - .5) * 1.5, vz: .6 + Math.random(), g: 3, life: .6, age: 0, col: '#4a3a30', tl: .08 });
+    }
+  } else if (k === 'rodeur') b.gph = avant + dt * Math.min(3.2, (b.vit || 0) / .5);
+  else b.gph = avant + dt * (b.vit || 0) * .9;
 }
 // LE CERCLE : deux anneaux de runes au sol, un pentagramme, des glyphes ; au centre, un pilier de lumière
 // rouge qui monte dans la brume et s'épaissit à mesure que l'incantation avance. Levée : des runes éteintes.
@@ -628,4 +732,154 @@ function osCercle(f, O) {
   for (let i = 0; i < 5; i++) { const a = i / 5 * 6.2832 - 1.5708, b = (i + 2) / 5 * 6.2832 - 1.5708; add([Math.cos(a) * 2.3, Math.sin(a) * 2.3, .035], [Math.cos(b) * 2.3, Math.sin(b) * 2.3, .035], .07, .02, col(i * 3), on); }
   for (let i = 0; i < 8; i++) { const a = i / 8 * 6.2832 + .2, x = Math.cos(a) * 3.65, y = Math.sin(a) * 3.65; add([x - .12, y, .03], [x + .12, y, .03], .05, .02, col(i), on); add([x, y - .12, .03], [x, y + .12, .03], .05, .02, col(i + 1), on); }
   if (on) { os2([0, 0, .05], [0, 0, 14], .25 + .55 * k + .05 * Math.sin(t * 7), [255, 36, 32], true); os2([0, 0, .05], [0, 0, 14], .1 + .2 * k, [255, 190, 170], true); }
+}
+
+// ---------- la musique : « La Valse rouge » ----------
+// Un morceau de combat écrit pour la brume (composition originale), joué par le moteur du jeu : des cordes,
+// une basse, une batterie, des timbales et des toms, un chœur, des cuivres, un violon solo, des cloches,
+// une salle qui résonne. En 6/8, ré mineur, la croche à 0,19 s. Cinq parties qui s'enchaînent selon le
+// danger (brumeIntensite) : l'OUVERTURE (un bourdon, le chœur qui monte, l'horloge des pizzicati), le
+// RIFF (l'ostinato des cordes, la batterie), le THÈME (le violon chante par-dessus, les cuivres, le chœur),
+// le SOMMET (tout, une octave plus haut, deux violons, les cuivres à chaque mesure, les timbales), et le
+// PONT (un cœur qui bat, les cloches qui rappellent le thème, puis la montée et le roulement de caisse).
+// valseBrume(ctx, sortie) rend un lecteur : lecteur.maj(maintenant, intensité), appelé à chaque image ;
+// il pose les notes une demi-seconde à l'avance. Le même code sert au rendu hors ligne (essais).
+function valseBrume(ctx, sortie, depart = 'O') {          // (depart : une autre partie pour commencer, pour les essais)
+  const E = .19, f = n => 293.66 * 2 ** (n / 12);
+  // la sortie : un bus, une salle (réverbération) propre au morceau, un compresseur qui tient l'ensemble
+  const bus = ctx.createGain(); bus.gain.value = .55;
+  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 10; comp.ratio.value = 3.5; comp.attack.value = .006; comp.release.value = .2;
+  bus.connect(comp); comp.connect(sortie);
+  const salle = ctx.createConvolver(), L = Math.round(ctx.sampleRate * 2.1), ir = ctx.createBuffer(2, L, ctx.sampleRate);
+  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < L; i++) { const x = i / L; d[i] = i < ctx.sampleRate * .012 ? 0 : (Math.random() * 2 - 1) * Math.pow(1 - x, 2.4) * (1 - .5 * x); } }
+  salle.buffer = ir; const retour = ctx.createGain(); retour.gain.value = .32; salle.connect(retour); retour.connect(bus);
+  const BR = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), bd = BR.getChannelData(0); for (let i = 0; i < bd.length; i++) bd[i] = Math.random() * 2 - 1;
+  // Les places : cinq positions dans l'espace, chacune sèche ou dans la salle, créées une fois pour toutes ;
+  // une note n'y ajoute que son gain d'enveloppe (sinon, au sommet, le son coûtait trop cher à un téléphone).
+  const PLACES = [-.3, -.15, 0, .15, .3], SORTIES = PLACES.map(pan => [.06, .45].map(verb => {
+    const G = ctx.createGain(); let n = G;
+    if (pan && ctx.createStereoPanner) { const P = ctx.createStereoPanner(); P.pan.value = pan; G.connect(P); n = P; }
+    n.connect(bus); const S = ctx.createGain(); S.gain.value = verb; n.connect(S); S.connect(salle); return G;
+  }));
+  const voie = (verb, pan = 0) => {
+    const i = Math.max(0, Math.min(4, Math.round((pan + .3) / .15))), G = ctx.createGain();
+    G.connect(SORTIES[i][verb > .2 ? 1 : 0]); return G;
+  };
+  const env = (G, t0, a, pic, tenue, rel) => { const g = G.gain; g.setValueAtTime(.0001, t0); g.exponentialRampToValueAtTime(Math.max(.0002, pic), t0 + a); if (tenue > 0) g.setValueAtTime(Math.max(.0002, pic), t0 + a + tenue); g.exponentialRampToValueAtTime(.0001, t0 + a + tenue + rel); return t0 + a + tenue + rel + .02; };
+  const osc = (type, fr, t0, fin, dest, det = 0) => { const O = ctx.createOscillator(); O.type = type; O.frequency.setValueAtTime(fr, t0); if (det) O.detune.value = det; O.connect(dest); O.start(t0); O.stop(fin); return O; };
+  const bruit = (t0, fin, dest) => { const S = ctx.createBufferSource(); S.buffer = BR; S.loop = true; S.connect(dest); S.start(t0, Math.random() * 1.5); S.stop(fin); return S; };
+  const filtre = (type, fr, q, dest) => { const F = ctx.createBiquadFilter(); F.type = type; F.frequency.value = fr; F.Q.value = q; F.connect(dest); return F; };
+  // ---- les instruments ----
+  const corde = (fr, t0, d, v, pan = 0, mince) => {                  // les cordes piquées (spiccato) : trois scies, un filtre qui se referme
+    const G = voie(.32, pan), fin = env(G, t0, .006, v, d * .25, .11), F = filtre('lowpass', 900, 1.2, G);
+    F.frequency.setValueAtTime(6000, t0); F.frequency.exponentialRampToValueAtTime(1900, t0 + d);
+    for (const c of mince ? [0] : [-8, 8]) osc('sawtooth', fr, t0, fin, F, c);
+  };
+  const violon = (fr, t0, d, v, pan = .12, seul) => {               // le violon solo : l'archet qui attaque, le vibrato qui vient
+    const G = voie(.5, pan), fin = env(G, t0, .07, v, Math.max(0, d - .07), .3), F = filtre('lowpass', 6500, .9, G), B = filtre('peaking', 3000, 1.2, F); B.gain.value = 6;
+    const Lf = ctx.createOscillator(), Lg = ctx.createGain(); Lf.frequency.value = 5.6; Lg.gain.setValueAtTime(0, t0); Lg.gain.linearRampToValueAtTime(fr * .008, t0 + Math.min(.35, d * .6)); Lf.connect(Lg); Lf.start(t0); Lf.stop(fin);
+    for (const c of seul ? [0] : [-6, 6]) { const O = osc('sawtooth', fr * .985, t0, fin, B, c); O.frequency.exponentialRampToValueAtTime(fr, t0 + .05); Lg.connect(O.frequency); }
+  };
+  const basse = (fr, t0, d, v) => { const G = voie(.04), fin = env(G, t0, .006, v, d * .45, .22), F = filtre('lowpass', 420, 1.5, G), S = ctx.createGain(); S.gain.value = .35; S.connect(G); osc('sawtooth', fr, t0, fin, F); osc('sine', fr, t0, fin, S); };
+  const grosse = (t0, v) => {                                 // la grosse caisse : une chute de hauteur, un claquement
+    const G = voie(.08), fin = env(G, t0, .002, v, .02, .32), O = osc('sine', 155, t0, fin, G); O.frequency.exponentialRampToValueAtTime(48, t0 + .12);
+    const C = voie(0), F = filtre('highpass', 3200, .7, C); env(C, t0, .001, v * .45, 0, .025); bruit(t0, t0 + .05, F);
+  };
+  const caisse = (t0, v, court) => {                          // la caisse claire : du bruit et un ton
+    const G = voie(.35, -.06), fin = env(G, t0, .002, v, 0, court ? .09 : .17); bruit(t0, fin, filtre('bandpass', 1900, .8, G));
+    const T = voie(.2, -.06), f2 = env(T, t0, .002, v * .5, 0, .09); const O = osc('triangle', 210, t0, f2, T); O.frequency.exponentialRampToValueAtTime(165, t0 + .08);
+  };
+  const charley = (t0, v, ouvert) => { const G = voie(.08, .25), fin = env(G, t0, .001, v, 0, ouvert ? .2 : .035); bruit(t0, fin, filtre('highpass', 7600, .7, G)); };
+  const crash = (t0, v) => { const G = voie(.4, -.2), fin = env(G, t0, .002, v, .05, 1.7), F = filtre('highpass', 4800, .6, G); bruit(t0, fin, F); };
+  const tom = (fr, t0, v) => { const G = voie(.5, fr > 130 ? .2 : -.2), fin = env(G, t0, .003, v, .02, .32), O = osc('sine', fr * 1.5, t0, fin, G); O.frequency.exponentialRampToValueAtTime(fr, t0 + .1); const N = voie(.3), f2 = env(N, t0, .002, v * .3, 0, .06); bruit(t0, f2, filtre('lowpass', 500, .7, N)); };
+  const timbale = (fr, t0, v, rel = .9) => { const G = voie(.5), fin = env(G, t0, .004, v, .02, rel), O = osc('sine', fr * 1.06, t0, fin, G); O.frequency.exponentialRampToValueAtTime(fr, t0 + .15); osc('triangle', fr * 2.01, t0, Math.min(fin, t0 + .4), G); };
+  const choeur = (fr, t0, d, v, voy = 'a', pan = 0) => {      // des voix : quatre scies désaccordées, trois formants, un vibrato
+    const G = voie(.75, pan), fin = env(G, t0, .45, v, Math.max(0, d - .45), .9), Fm = voy === 'a' ? [[730, 6, 1.1], [1090, 8, .7]] : [[480, 6, 1.1], [820, 8, .55]];
+    const Sm = ctx.createGain(); Sm.gain.value = 1;
+    for (const [fq, q, g] of Fm) { const F = ctx.createBiquadFilter(), Gf = ctx.createGain(); F.type = 'bandpass'; F.frequency.value = fq; F.Q.value = q; Gf.gain.value = g * 3.6; Sm.connect(F); F.connect(Gf); Gf.connect(G); }
+    const Lf = ctx.createOscillator(), Lg = ctx.createGain(); Lf.frequency.value = 4.8; Lg.gain.value = fr * .006; Lf.connect(Lg); Lf.start(t0); Lf.stop(fin);
+    for (const c of [-9, 9]) { const O = osc('sawtooth', fr, t0, fin, Sm, c); Lg.connect(O.frequency); }
+  };
+  const cuivre = (frs, t0, d, v) => {                         // les cuivres : l'éclat qui s'ouvre puis se referme
+    for (const fr of frs) {
+      const G = voie(.38, (Math.random() - .5) * .3), fin = env(G, t0, .02, v, d, .16), F = filtre('lowpass', 500, 2, G);
+      F.frequency.setValueAtTime(500, t0); F.frequency.exponentialRampToValueAtTime(5000, t0 + .05); F.frequency.exponentialRampToValueAtTime(1400, t0 + .05 + d);
+      for (const c of [-7, 7]) { const O = osc('sawtooth', fr * .97, t0, fin, F, c); O.frequency.exponentialRampToValueAtTime(fr, t0 + .04); }
+    }
+  };
+  const cloche = (fr, t0, v) => { for (const [r, g, dd] of [[1, 1, 2.2], [2.76, .35, 1.2], [5.4, .15, .6], [8.9, .06, .3]]) { const G = voie(.6, .15), fin = env(G, t0, .002, v * g, 0, dd); osc('sine', fr * r, t0, fin, G); } };
+  const pizz = (fr, t0, v, pan) => { const G = voie(.3, pan), fin = env(G, t0, .003, v, 0, .16), F = filtre('lowpass', 2200, .8, G); osc('triangle', fr, t0, fin, F); osc('sawtooth', fr, t0, fin, filtre('lowpass', 1400, .7, G)); };
+  const bourdon = (fr, t0, d, v) => { const G = voie(.5), fin = env(G, t0, 1.5, v, Math.max(0, d - 2), 2), F = filtre('lowpass', 520, .9, G); osc('sawtooth', fr, t0, fin, F, -5); osc('sawtooth', fr * 1.5, t0, fin, F, 5); osc('sine', fr / 2, t0, fin, G); };
+  const montee = (t0, d, v) => { const G = voie(.5), fin = env(G, t0, d * .9, v, 0, .15), F = filtre('bandpass', 400, 1.4, G); F.frequency.setValueAtTime(350, t0); F.frequency.exponentialRampToValueAtTime(7000, t0 + d); bruit(t0, fin, F); };
+  // ---- la partition ----
+  const Dm = [0, 3, 7], C = [-2, 2, 5], Bb = [-4, 0, 3], A = [-5, -1, 2], F = [3, 7, 10], Gm = [-7, -4, 0];
+  const PARTIES = {
+    O: { acc: [Dm, Dm, Bb, A] },
+    R: { acc: [Dm, Dm, Bb, Bb, Gm, Gm, A, A] },
+    T: { acc: [Dm, C, Bb, A, Dm, F, [Gm, A], Dm],
+         chant: [[[12, 3], [10, 1], [12, 1], [15, 1]], [[14, 4], [12, 1], [10, 1]], [[10, 3], [8, 1], [10, 1], [12, 1]], [[11, 3], [7, 3]],
+                 [[12, 3], [10, 1], [12, 1], [15, 1]], [[19, 4], [17, 1], [15, 1]], [[17, 2], [15, 1], [14, 2], [11, 1]], [[12, 6]]] },
+    S: { acc: [Bb, C, Dm, Dm, Bb, C, A, A],
+         chant: [[[10, 2], [12, 1], [15, 3]], [[14, 3], [15, 1], [14, 1], [12, 1]], [[12, 6]], [[7, 2], [10, 2], [12, 2]],
+                 [[17, 3], [15, 1], [14, 1], [15, 1]], [[19, 3], [17, 3]], [[23, 3], [19, 3]], [[19, 2], [17, 2], [14, 2]]] },
+    P: { acc: [Dm, Dm, Bb, Bb, Gm, Gm, A, A] },
+  };
+  const suite = (p, I, n) => p === 'O' ? 'R' : p === 'R' ? (I < .5 ? 'P' : 'T') : p === 'T' ? (I > .75 ? 'S' : 'R') : p === 'S' ? (I > .85 && n % 2 ? 'T' : I > .85 ? 'S' : 'P') : (I > .6 ? 'S' : 'R');
+  // l'harmonie du second violon : la note de l'accord juste en dessous (d'une tierce au moins)
+  const tierce = (n, ac) => { let best = n - 12; for (const a of ac) for (const o of [-12, 0, 12, 24]) { const q = a + o; if (q <= n - 3 && q > best) best = q; } return best; };
+  const st = { t: 0, p: 'O', m: 0, s: 0, n: 0, ok: false };
+  function pas(t0, I) {
+    const Pt = PARTIES[st.p], m = st.m, s = st.s, bar = Pt.acc[m], ac = Array.isArray(bar[0]) ? (s < 3 ? bar[0] : bar[1]) : bar, R = ac[0];
+    const T3 = ac[1], Q5 = ac[2], nb = Pt.acc.length, p = st.p, k = .6 + .4 * I;
+    const riff = (oct, v, pan, mince) => {
+      const pat = m % 2 ? [R, Q5, R + 12, T3 + 12, Q5 + 12, T3 + 12] : [R, Q5, R + 12, Q5, T3 + 12, Q5];
+      corde(f(pat[s] - 12 + oct), t0, E * .85, v * (s === 0 || s === 3 ? 1.25 : 1), pan, mince);
+    };
+    const leChant = (oct, v, harm) => { let b = 0; for (const [n, d] of Pt.chant[m]) { if (b === s) { violon(f(n + oct), t0, d * E * .97, v); if (harm) violon(f(tierce(n, ac) + oct), t0, d * E * .97, v * .7, -.15, true); } b += d; } };
+    if (p === 'O') {                                          // l'ouverture
+      if (m === 0 && s === 0) { bourdon(f(-24), t0, nb * 6 * E, .05 * k); choeur(f(-12), t0, nb * 6 * E, .05, 'o'); choeur(f(-5), t0 + E * 6, (nb - 1) * 6 * E, .04, 'o', .2); }
+      if (s === 0) timbale(f(R - 24), t0, .22 * k);
+      pizz(f(s % 2 ? 19 : 12), t0, .03 + .015 * (s === 0), s % 2 ? .3 : -.3);
+      if (m === nb - 1 && s === 0) montee(t0, 6 * E, .07);
+      if (m === nb - 1 && s >= 3) tom([150, 125, 100][s - 3], t0, .28);
+    } else if (p === 'P') {                                   // le pont : un cœur qui bat, les cloches, puis la montée
+      if (m === 0 && s === 0) { bourdon(f(-24), t0, 6 * 6 * E, .04); choeur(f(-12), t0, 6 * 6 * E, .04, 'o'); }
+      if (m < 6) {
+        if (s === 0) grosse(t0, .35); if (s === 1) grosse(t0, .22);
+        if (s === 0 || s === 3) { const ch = PARTIES.T.chant[m]; cloche(f((s === 0 ? ch[0][0] : ch[Math.min(ch.length - 1, 1)][0])), t0, .06); }
+        if (s === 0) basse(f(R - 24), t0, E * 5, .1);
+      } else {
+        if (m === 6 && s === 0) { montee(t0, 12 * E, .1); timbale(f(-24), t0, .2, 2.2); }
+        const r = ((m - 6) * 6 + s) / 12;                     // le roulement : deux coups par croche, qui enflent
+        caisse(t0, .06 + .22 * r, true); caisse(t0 + E / 2, .06 + .22 * r, true);
+        if (m === 7 && s === 5) { tom(110, t0, .4); tom(90, t0 + E / 2, .45); }
+      }
+    } else {                                                  // le riff, le thème, le sommet
+      const sommet = p === 'S', theme = p === 'T' || sommet, plein = I > .45;
+      if (sommet) { riff(12, .07 * k, -.3); riff(0, .05 * k, .3, true); }           // au sommet, le violon chante une octave au-dessus : les cordes montent
+      else if (theme) { riff(0, .075 * k, -.3); riff(12, .032 * k, .3, true); }  // (riff 0 : altos et violoncelles ; 12 : violons)
+      else { riff(0, .07 * k, -.3); riff(12, .045 * k, .3, true); }
+      if (s === 0 || s === 3) basse(f(R - 24 + (sommet && s === 3 ? 12 : 0)), t0, E * 2.6, .13 * k);
+      if (s === 0) grosse(t0, .45); if (s === 3) { if (plein) caisse(t0, .34); else grosse(t0, .3); }
+      if (plein && ((m % 2 && s === 5) || (sommet && s === 2))) grosse(t0, .4);
+      if (plein) charley(t0, s === 0 || s === 3 ? .1 : .065, sommet && m % 2 && s === 5);
+      if (m === 0 && s === 0 && theme) crash(t0, sommet ? .22 : .14);
+      if (s === 0 && (theme || I > .55)) for (const [i, n] of [[0, ac[0] - 12], [1, ac[1]], [2, ac[2]]]) choeur(f(n), t0, 6 * E, (sommet ? .07 : .05) * k, sommet ? 'a' : 'o', (i - 1) * .3);
+      if (theme) leChant(sommet ? 12 : 0, sommet ? .06 : .055, sommet);
+      if (p === 'T' && (m === 0 || m === 4) && s === 0) cuivre([f(R - 12), f(Q5 - 12), f(T3)], t0, E * 2, .04);
+      if (sommet && s === 0) cuivre([f(R - 12), f(T3)], t0, E * 2.4, .055);
+      if (sommet && m % 2 && s === 5) cuivre([f(R - 12), f(T3)], t0, E * .7, .045);
+      if (sommet && (s === 0 || s === 3)) timbale(f(R - 24), t0, .17, .6);
+      if ((m === 3 && sommet) || m === nb - 1) if (s >= 3) tom([170, 140, 110][s - 3], t0, .32);   // les roulements de toms
+    }
+    // la croche suivante
+    if (++st.s === 6) { st.s = 0; if (++st.m === nb) { st.m = 0; st.n++; st.p = suite(p, I, st.n); } }
+  }
+  return {
+    maj(now, I) {
+      if (!st.ok || st.t < now - .5) { st.ok = true; st.t = now + .08; st.p = depart; st.m = 0; st.s = 0; }   // (re)partir de l'ouverture
+      while (st.t < now + .5) { pas(st.t, Math.max(0, Math.min(1, I))); st.t += E; }
+    },
+    get partie() { return st.p; },
+  };
 }

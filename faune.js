@@ -404,7 +404,7 @@ const SAC_FAUNE = {
   vill: [['cache', 'v'], ['assis', 'v'], ['porte', 'v'], ['peche', 'v'], ['cuisine', 'v'], ['gesteT', 't']],
   arche: [['ouv', 'n'], ['camo', 'n']],
   myco: [['lanceT', 't'], ['rireT', 't'], ['nuageT', 't'], ['farce', 'o']],
-  brume: [['actT', 't'], ['vise', 'a'], ['emerge', 'n'], ['sonne', 't'], ['place', 'n'], ['impact', 'a']],   // la brume sanglante (brume.js)
+  brume: [['actT', 't'], ['vise', 'a'], ['emerge', 'n'], ['sonne', 't'], ['place', 'n'], ['impact', 'a'], ['saut', 'a'], ['sautT', 't']],   // la brume sanglante (brume.js)
 };
 function codeSac(b, v, c) {
   if (v === undefined || v === null) return null;
@@ -567,6 +567,13 @@ function gesteDistantFaune(d) {
 // ---------- les marionnettes des bêtes à part ----------
 const vitesseLisse = (b, d, dt) => (b.vit = (b.vit || 0) + (d / Math.max(dt, 1e-3) - (b.vit || 0)) * Math.min(1, dt * 8));
 const VISUEL_FAUNE = {
+  // les êtres de la brume sanglante (brume.js) : leur pas se règle sur ce qu'ils parcourent
+  brume(b, dt) {
+    b.t += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
+    if (b.dead) { b.dead += dt * (b.sp.corps === 'demon' ? .35 : 1); b.z = sol(b.x, b.y); return; }
+    vitesseLisse(b, glisserFaune(b, dt), dt); b.z = (typeof arcSaut === 'function' ? arcSaut(b) : null) ?? sol(b.x, b.y);   // en plein saut : l'arc
+    if (typeof pasBrumeVisuel === 'function') pasBrumeVisuel(b, dt); else b.gph = (b.gph || 0) + dt * (b.vit || 0) * .9;
+  },
   // le Silencieux : sa démarche boiteuse, ses tics, son hurlement quand il change d'humeur
   sil(b, dt) {
     b.t += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;

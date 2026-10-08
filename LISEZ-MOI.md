@@ -2197,3 +2197,107 @@ Testé : le bouton trouve une graine (264018365, exploration 8) ; « Y aller » 
 Dans le code (`index.html`) : `VISEES` (l'entrée `brume`), `viserBiome`, `voeuxPossibles`, `infoGraine`, `ETATS_NOMS`.
 
 **À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-64`).
+
+## 97. « La Valse rouge » : la musique de la brume sanglante, réécrite
+
+La valse du §94 était une improvisation légère. Elle est remplacée par un vrai morceau de combat, une composition originale : une valse en 6/8 en ré mineur, la croche à 0,19 s (la noire pointée à 105 battements par minute), jouée par son propre petit orchestre.
+
+- **L'orchestre** : des cordes piquées (deux pupitres, altos et violoncelles, puis violons) ; une basse ; une batterie (grosse caisse, caisse claire, charleston, cymbale) ; des toms et des timbales ; un chœur (des voix sur un « a » ou un « o ») ; des cuivres qui éclatent ; un violon solo avec son vibrato ; des cloches ; un bourdon ; un souffle qui monte. Tout joue dans une **salle** qui résonne, avec un compresseur qui tient l'ensemble.
+- **Cinq parties**, qui s'enchaînent selon le danger autour de vous (la fureur proche, la distance au cercle, l'avancée de l'incantation, le démon) :
+  - l'**ouverture** (4 mesures) : le bourdon et le chœur qui montent, l'horloge des pizzicati, une timbale à chaque mesure, puis la montée et un roulement de toms ;
+  - le **riff** (8 mesures) : l'ostinato des cordes en croches sur ré mineur, si bémol, sol mineur et la majeur, la basse sur les deux temps, la batterie quand ça chauffe ;
+  - le **thème** (8 mesures) : le violon chante la mélodie par-dessus le riff (ré mineur, do, si bémol, la, ré mineur, fa, sol mineur et la, ré mineur), le chœur tient les accords, les cuivres éclatent, la cymbale ouvre la partie ;
+  - le **sommet** (8 mesures) : tout, une octave plus haut. Deux violons à la tierce, les cuivres à chaque mesure et en contretemps, les timbales sur les deux temps, la grosse caisse qui double, des roulements de toms. La progression si bémol, do, ré mineur pousse vers le haut, la majeur relance ;
+  - le **pont** (8 mesures) : un cœur qui bat, les cloches qui rappellent le thème, le bourdon ; puis deux mesures de montée, avec un roulement de caisse claire qui enfle jusqu'à la reprise.
+- **L'enchaînement** : au calme, le riff alterne avec le pont ; dès qu'il y a du danger, on passe au thème ; au plus fort (combat, démon), le thème et le sommet se relaient. Revenir dans la brume, ou y entrer, fait repartir le morceau de l'ouverture.
+
+Mesuré sur un rendu hors ligne de 90 secondes : les parties s'enchaînent comme prévu, aucune saturation (crête à −2,6 dB), un niveau tenu (−19 dB au calme, −15 dB au sommet). Le moteur reste raisonnable : au sommet, le morceau demande à peu près le sixième d'un cœur de processeur (des sorties partagées, deux voix par note de chœur, des doublures à une voix). Dans le jeu, la musique passe bien sur la valse dès qu'on arrive dans la brume.
+
+**Ce que j'ai décidé seul** : la mesure (6/8 plutôt que 3/4, pour que ça pousse), le tempo, les mélodies et les enchaînements, l'orchestre, le niveau (plus fort que la musique d'exploration, comme il sied à un combat).
+
+**Pas vérifié** : à l'oreille (je ne peux pas écouter : tout est réglé à la mesure et au calcul) ; sur un vrai téléphone.
+
+Dans le code : `brume.js`, `valseBrume(ctx, sortie, depart)` : les instruments, `PARTIES` (les accords et les deux mélodies), `suite` (l'enchaînement), `pas` (une croche) ; `index.html` : la musique appelle ce lecteur quand l'humeur est « brume » (l'ancienne `valse` est retirée).
+
+**À déposer** : `index.html`, `brume.js` et `sw.js` (qui passe en `stone-valley-65`). Rappel : `etats.js` et `faune.js` des livraisons précédentes doivent aussi être en ligne (§96).
+
+## 98. Le démon : sa marche et sa charge, revues
+
+Ce qui n'allait pas : le bras et la jambe d'un même côté partaient ensemble (comme un pantin), ses pas allaient au même rythme quelle que soit sa vitesse (presque trois foulées par seconde en marchant, une douzaine pendant la charge) et ses pieds glissaient sur le sol ; la charge n'était qu'une marche penchée.
+
+**La marche** : une vraie foulée. Chaque pied se pose devant, recule à plat pendant l'appui, puis revient en se levant ; les jambes sont pliées comme celles d'un taureau (le genou se calcule à chaque image, le pied reste au sol). Les bras balancent à l'opposé : bras gauche avec la jambe droite. Le corps plonge à chaque appui et se déhanche, la tête dodeline. La cadence suit ce qu'il parcourt vraiment : un pas d'un peu plus de deux mètres, à peu près un pas et demi par seconde, sans glisser ; tourner sur place le fait piétiner.
+
+**La charge** : d'abord il gratte le sol du sabot (la poussière vole), tête basse, cornes en avant, en soufflant ; puis il se jette à quatre pattes : l'échine à l'horizontale, les mains loin devant qui frappent le sol, les jambes qui poussent ensemble, deux bonds et demi par seconde. Quand il percute un relief, il reste sonné (la tête qui roule) : cette pose ne s'affichait jamais, c'est réparé.
+
+**Le poids** : chaque pas sonne sourd (un nouveau son, « pas lourd »), soulève de la poussière et fait trembler l'écran si l'on est à moins de seize cases.
+
+En coopération et en PvP, les autres joueurs voient le même pas : leurs copies des êtres de la brume suivent maintenant la même cadence (`faune.js`).
+
+**Ce que j'ai décidé seul** : la longueur du pas, la cadence du galop, la pose de la charge (à quatre pattes, comme un gorille ou un taureau), le tremblement et la poussière à chaque pas.
+
+**Pas vérifié** : sur un vrai téléphone ; vu en vidéo (je l'ai vérifié image par image et en simulation : il marche, charge, galope, frappe, sans erreur).
+
+Dans le code : `brume.js`, `osDemon(f, O)` (la pose ; `cycle` : un pied dans sa foulée ; `genouD` : le genou et le coude), `pasBrumeVisuel(b, dt)` (la cadence, les pas qui sonnent) ; `faune.js`, `VISUEL_FAUNE.brume` ; `index.html`, le son `pasLourd`.
+
+**À déposer** : `index.html`, `brume.js`, `faune.js` et `sw.js` (qui passe en `stone-valley-66`).
+
+## 99. « La Valse rouge », deuxième version : une vraie valse, comme les Dames Mante
+
+*Abandonnée : Romain préfère la première version, remise en place au §100.*
+
+Romain m'a fait écouter sa référence (le combat des Dames Mante, Hollow Knight). Je ne l'entends pas, mais je l'ai mesurée : do mineur, une valse à trois temps vers 125 à la minute (une mesure toutes les 1,4 s), le médium aussi présent que la basse, peu de notes à la fois. La première version de la Valse rouge (§97) avait les mêmes couleurs d'accords mais galopait en 6/8, plus vite, avec un début trop sourd et beaucoup de notes : je l'ai réécrite entièrement.
+
+**Ce qui change** : une vraie valse (la basse sur le premier temps, les cordes piquées sur le deuxième et le troisième), en do mineur, la noire à 126. Moins d'instruments : un piano, des cordes, un alto et un violon solos, des timbales ; les cors, la grosse caisse d'orchestre et le chœur seulement au plus fort. Plus de batterie. Des mélodies nouvelles (toujours une composition originale).
+
+**Les cinq parties** (même enchaînement selon le danger) :
+- **L'ouverture** : le salut. Une note tenue grave, le piano seul qui pose le motif, puis la valse s'éveille en pizzicati et l'alto entre ; un roulement de timbales lance la suite.
+- **La valse** (calme) : l'alto chante dans le bas ; quand ça chauffe, le piano ajoute des contretemps.
+- **Le thème** (danger) : le violon s'envole, le piano court en croches, les cors enflent.
+- **Le sommet** (combat, démon) : les violons en tierces à l'aigu, les altos à l'octave en dessous, les timbales à chaque mesure, les cors ; le chœur quand le démon est là.
+- **Le pont** (accalmie) : le piano seul au-dessus d'une note tenue, puis le trémolo des cordes et le roulement de timbales qui ramènent le combat (vers le thème, ou le sommet si le danger est au plus haut).
+
+Mesuré sur un rendu de 100 s, comparé à la référence : même tonalité, même tempo (123 à 129 mesuré), même équilibre grave/médium au début, même densité de notes. Au sommet, c'est plus brillant que la référence : la mélodie y monte haut, c'est voulu. Aucune saturation (crête −3,8 dB). Coût pour un téléphone inchangé (au sommet, environ le sixième d'un cœur de processeur ; le reste du temps, bien moins). Dans le jeu, la musique passe bien sur la valse dès qu'on arrive dans la brume.
+
+**Ce que j'ai décidé seul** : les mélodies et les enchaînements d'accords, l'orchestration, de supprimer la batterie, l'ordre des parties (après le sommet ou le pont, on repasse par le thème plutôt que de sauter directement au sommet).
+
+**Pas vérifié** : à l'oreille (tout est réglé à la mesure) ; sur un vrai téléphone.
+
+Dans le code : `brume.js`, `valseBrume(ctx, sortie, depart)` : les instruments (`piano`, `corde`, `violon` avec l'alto, `nappe`, `timbale`, `cor`…), `PARTIES` (accords et mélodies), `suite` (l'enchaînement), `pas` (une croche).
+
+**À déposer** : `brume.js` et `sw.js` (qui passe en `stone-valley-67`), plus ceux du §98 s'ils ne sont pas encore en ligne (`index.html`, `faune.js`) : en ligne, le jeu était encore à `stone-valley-64`.
+
+## 100. Retour à la première « Valse rouge »
+
+Après écoute des deux, Romain préfère la première version (§97, en 6/8, ré mineur). Elle est remise telle quelle dans `brume.js` ; la deuxième (§99) est retirée. Rien d'autre ne change (le démon du §98 reste).
+
+**À déposer** : `brume.js` et `sw.js` (qui passe en `stone-valley-68`), plus `index.html` et `faune.js` du §98 s'ils ne sont pas encore en ligne.
+
+## 101. Brume sanglante : l'incantation en quatre minutes, et sa barre en haut de l'écran
+
+**Quatre minutes** au lieu de sept pour que les mages achèvent leur incantation (tous vivants ; chaque mage tué la ralentit, comme avant : un mage seul y mettrait huit minutes).
+
+**La barre** : sous la boussole, une barre rouge qui se vide à mesure que les mages chantent, avec le temps qu'il leur reste et le nombre de mages encore debout (« Incantation · 3:12 · 5 mages »). Le temps est celui qu'il leur faut encore au rythme présent : tuer un mage le rallonge. Dans les trente dernières secondes, elle bat en rouge. Elle disparaît quand le démon sort, quand la brume se lève, ou dans un donjon. Sur téléphone, elle est sous la boussole, à droite ; la carte du joueur et la fiche de la cible descendent d'un cran pour lui laisser la place. En coopération, ceux qui suivent voient la même barre (l'avancement du chant est partagé).
+
+**Ce que j'ai décidé seul** : la place (sous la boussole), le texte (temps et nombre de mages), le battement à trente secondes.
+
+**Pas vérifié** : sur un vrai téléphone (vérifié en capture, format ordinateur et téléphone).
+
+Dans le code : `brume.js`, `INCANT_DUREE` (240 s), `barreIncant()` (appelée par `majBrume`) ; `index.html`, l'élément `#incant` et son style (avec `body.incant` qui décale la fiche de la cible et, sur téléphone, la carte du joueur).
+
+**À déposer** : `index.html`, `brume.js`, `sw.js` (qui passe en `stone-valley-69`), plus `faune.js` du §98 s'il n'est pas encore en ligne.
+
+## 102. Brume sanglante : les Rôdeurs sautent
+
+**Les Rôdeurs** sautent maintenant sur un relief de quatre cases de haut au plus, et par-dessus un trou ou de l'eau de quatre cases de large au plus ; s'il n'y a pas d'autre bord, ils se laissent tomber dedans (quatre cases au plus). Ils sautent plutôt que de contourner : un bond en arc (plus haut pour monter), un souffle au départ, un choc sourd et un peu de brume à l'arrivée. Ils voient désormais leur proie jusqu'à six cases et demie plus haut ou plus bas (avant : quatre), et ne lancent leur morsure bondissante que de plain-pied. En coopération, les autres joueurs voient le même saut (l'arc est partagé).
+
+**Réparé au passage** : deux sons du démon portaient le même nom que des sons déjà là (son rugissement, celui du dragon ; son pas, un « pied de fer ») : c'étaient ceux-là qu'on entendait. Ils s'appellent maintenant `rugDemon` et `pasDemon`.
+
+Vérifié en simulation : un Rôdeur monte d'un bond sur une falaise de trois cases, en franchit un trou de trois cases, et rejoint sa proie.
+
+**Ce que j'ai décidé seul** : qu'ils préfèrent sauter plutôt que contourner ; qu'ils se laissent tomber dans un trou sans autre bord ; la hauteur et la durée du bond.
+
+**Pas vérifié** : sur un vrai téléphone ; à l'œil (la pose du saut reprend celle de leur morsure bondissante, la gueule moins ouverte).
+
+Dans le code : `brume.js`, `chercherSaut`, `sauterBrume`, `majSaut`, `arcSaut`, `solLibre`, `SAUT_HAUT` et `SAUT_LONG` (4 et 4) ; `cibleBrume(b, R, dz)` ; `faune.js`, le saut partagé (`SAC_FAUNE.brume`) et l'arc chez qui suit (`VISUEL_FAUNE.brume`).
+
+**À déposer** : `index.html`, `brume.js`, `faune.js`, `sw.js` (qui passe en `stone-valley-70`).

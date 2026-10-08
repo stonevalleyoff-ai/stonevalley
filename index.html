@@ -278,6 +278,20 @@
        sous elle, et le texte du HUD se resserre à gauche tant qu'elle est là */
     #cible{top:calc(58px + env(safe-area-inset-top));left:auto;right:calc(14px + env(safe-area-inset-right));transform:none;width:148px;}
   }
+  /* La barre de l'incantation (brume sanglante, brume.js) : sous la boussole, elle se vide ; la fiche de la cible descend d'un cran. */
+  #incant{display:none;top:calc(47px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:min(460px,calc(100vw - 440px));
+    height:15px;border-radius:8px;overflow:hidden;background:rgba(26,6,8,.78);border:1px solid rgba(255,90,80,.4);}
+  #incant i{position:absolute;left:0;top:0;bottom:0;width:100%;background:linear-gradient(90deg,#6e0a10,#d8302a);transition:width .25s linear;}
+  #incant span{position:absolute;inset:0;font-size:10px;line-height:15px;text-align:center;color:#ffe2da;letter-spacing:.3px;text-shadow:0 1px 2px #000,0 0 4px #000;white-space:nowrap;}
+  #incant.urgent{animation:incantBat .8s ease-in-out infinite;border-color:#ff5a48;}
+  @keyframes incantBat{50%{box-shadow:0 0 12px 2px rgba(255,50,40,.75);}}
+  body.incant #cible{top:calc(68px + env(safe-area-inset-top));}
+  @media (max-width:760px){
+    #incant{top:calc(51px + env(safe-area-inset-top));left:auto;right:calc(14px + env(safe-area-inset-right));transform:none;
+      width:calc(100vw - 112px - env(safe-area-inset-left) - env(safe-area-inset-right));}
+    body.incant #cible{top:calc(72px + env(safe-area-inset-top));}
+    body.incant #hud{top:calc(74px + env(safe-area-inset-top)) !important;}
+  }
   #cible b{font-weight:600;color:#ffd68a;} #cible.lie b{color:#e8a0a8;} #cible.meca b{color:#8fe3ff;}
   #cible .br{height:6px;margin:4px 0 3px;border-radius:3px;background:rgba(0,0,0,.4);overflow:hidden;}
   #cible .br i{display:block;height:100%;background:#e8505e;}
@@ -688,6 +702,7 @@
   <div id="statuts" aria-label="États du joueur"></div>
 </div><div id="hudtxt"></div><button id="bnotif" type="button" aria-expanded="false" aria-controls="journal" aria-label="Journal" title="Journal (J)"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M7 1.6c-2.2 0-3.6 1.6-3.6 3.8v2.4L2.2 9.9h9.6l-1.2-2.1V5.4C10.6 3.2 9.2 1.6 7 1.6z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M5.6 11.4c.3.7.8 1 1.4 1s1.1-.3 1.4-1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg><b></b></button><button id="bcomp" type="button" aria-expanded="false" aria-controls="compvol" aria-label="Compagnes" title="Compagnes (K)"><svg viewBox="0 0 14 14" aria-hidden="true"><ellipse cx="7" cy="9.6" rx="3" ry="2.6" fill="currentColor"/><circle cx="2.6" cy="6.2" r="1.35" fill="currentColor"/><circle cx="5.2" cy="3.4" r="1.35" fill="currentColor"/><circle cx="8.8" cy="3.4" r="1.35" fill="currentColor"/><circle cx="11.4" cy="6.2" r="1.35" fill="currentColor"/></svg><b></b></button></div>
 <div class="ui" id="boussole" aria-hidden="true"><canvas id="bous"></canvas></div>
+<div class="ui" id="incant" aria-hidden="true"><i></i><span></span></div>
 <div id="cible" hidden></div>
 <div class="ui" id="msg" aria-hidden="true"></div><div class="ui" id="avis" role="status" aria-live="polite"></div>
 <div class="ui" id="bref" aria-live="polite"></div><div id="gains" aria-hidden="true"></div>
@@ -920,10 +935,14 @@ const SON = (() => {
       for (let i = 0; i < 5; i++) souffle(o, t + i * .03, 'bandpass', 700 + i * 200, 2600, 1.6, .3, .03, .05);
       return .5;
     },
-    rugissement(o, t) {                                  // le démon : un grondement qui monte de la terre
+    rugDemon(o, t) {                                     // le démon : un grondement qui monte de la terre
       const F = filtre(o, 'lowpass', 520, 1.2); osc(F, t, 'sawtooth', 72, 44, 1.7, .12, .16); osc(F, t + .05, 'square', 54, 36, 1.6, .15, .08);
       souffle(o, t, 'lowpass', 420, 140, 1, 1.6, .15, .16);
       return 2.1;
+    },
+    pasDemon(o, t) {                                     // le pas du démon : la terre qui encaisse
+      osc(o, t, 'sine', 58, 34, .32, .003, .16); souffle(o, t, 'lowpass', 220, 90, 1, .22, .003, .1);
+      return .4;
     },
     impact(o, t) {                                       // un coup qui fait trembler le sol
       osc(o, t, 'sine', 60, 30, .6, .003, .3); souffle(o, t, 'lowpass', 260, 90, 1, .5, .003, .22);
@@ -1452,48 +1471,9 @@ const SON = (() => {
       O.connect(F); F.connect(G); G.connect(bus.m); O.start(t0); O.stop(t0 + dur + 2.6);
     }
   }
-  // ---------- la valse de la brume sanglante ----------
-  // Un morceau écrit, pas une improvisation : une valse rapide en ré mineur, pour un combat. La basse au
-  // premier temps, les cordes qui piquent les deux autres ; puis, à mesure que la brume se fait menaçante
-  // (des bêtes en fureur autour, le cercle qui approche), l'ostinato d'arpèges en croches, le chœur, le
-  // violon et sa mélodie, les timbales. Huit mesures : ré mineur, si bémol, sol mineur, la majeur.
-  // (Composition originale, dans l'esprit des grandes valses de combat ; aucune mélodie n'est reprise.)
-  const VALSE = { noire: .31,
-    accords: [[0, 3, 7], [0, 3, 7], [-4, 0, 3], [-4, 0, 3], [-7, -4, 0], [-7, -4, 0], [-5, -1, 2], [-5, -1, 2]],
-    chant: [[[12, 1], [10, 1], [8, 1]], [[7, 3]], [[5, 1], [7, 1], [8, 1]], [[10, 2], [8, 1]], [[7, 1], [5, 1], [3, 1]], [[2, 2], [3, 1]], [[7, 1], [11, 1], [14, 1]], [[11, 3]]] };
-  const ARPEGE = [0, 2, 1, 2, 0, 1];
-  function basse(f, t0, d) { const F = filtre(bus.m, 'lowpass', 420, .8); osc(F, t0, 'sawtooth', f, 0, d, .02, .045); osc(bus.m, t0, 'sine', f, 0, d, .02, .05); }
-  function pique(f, t0, d, v) { const F = filtre(bus.m, 'lowpass', 2600, .7); osc(F, t0, 'sawtooth', f, 0, d, .004, v); }
-  function violon(f, t0, d, v) {                         // deux scies à peine désaccordées, un vibrato
-    const O = ctx.createOscillator(), O2 = ctx.createOscillator(), L = ctx.createOscillator(), LG = ctx.createGain(), F = ctx.createBiquadFilter(), G = ctx.createGain();
-    O.type = O2.type = 'sawtooth'; O.frequency.value = f; O2.frequency.value = f * 1.004; L.frequency.value = 5.6; LG.gain.value = f * .007;
-    L.connect(LG); LG.connect(O.frequency); LG.connect(O2.frequency); F.type = 'lowpass'; F.frequency.value = 3200; F.Q.value = .8;
-    G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(v, t0 + .08); G.gain.setValueAtTime(v, t0 + d * .75); G.gain.exponentialRampToValueAtTime(.0001, t0 + d + .12);
-    O.connect(F); O2.connect(F); F.connect(G); G.connect(bus.m);
-    for (const o of [O, O2, L]) { o.start(t0); o.stop(t0 + d + .2); }
-  }
-  function choeur(f, t0, d, v) {                         // des voix : trois scies désaccordées dans les deux formants d'un « a »
-    const G = ctx.createGain(), F1 = ctx.createBiquadFilter(), F2 = ctx.createBiquadFilter();
-    G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(v, t0 + .6); G.gain.setValueAtTime(v, t0 + d * .7); G.gain.exponentialRampToValueAtTime(.0001, t0 + d + .8); G.connect(bus.m);
-    F1.type = F2.type = 'bandpass'; F1.frequency.value = 760; F1.Q.value = 5; F2.frequency.value = 1180; F2.Q.value = 7; F1.connect(G); F2.connect(G);
-    for (const dt of [-.006, 0, .006]) { const O = ctx.createOscillator(); O.type = 'sawtooth'; O.frequency.value = f * (1 + dt); O.connect(F1); O.connect(F2); O.start(t0); O.stop(t0 + d + .9); }
-  }
-  function timbale(f, t0, v) { osc(bus.m, t0, 'sine', f * 1.5, f, .7, .003, .12 * v, .25); souffle(bus.m, t0, 'lowpass', 300, 120, 1, .25, .002, .08 * v); }
-  function valse(M, now) {
-    const V = VALSE, q = V.noire, I = typeof brumeIntensite === 'function' ? brumeIntensite() : .5, f = s => 293.66 * 2 ** (s / 12);
-    if (!M.vb || M.vb.t < now - 1) M.vb = { t: now + .15, n: 0, phrase: 0 };
-    while (M.vb.t < now + .6) {
-      const n = M.vb.n, mes = (n / 3 | 0) % 8, tps = n % 3, t0 = M.vb.t, A = V.accords[mes], ph = M.vb.phrase;
-      if (tps === 0) basse(f(A[0] - 24 + (A[0] < -2 ? 12 : 0)), t0, q * 2.6);
-      else for (const s of A.slice(1)) pique(f(s - 12), t0, .12, .026);
-      if (I > .25 || ph % 2) for (let k = 0; k < 2; k++) pique(f(A[ARPEGE[tps * 2 + k]] + (k ? 12 : 0)), t0 + k * q / 2, .09, .018);
-      if (I > .4 && tps === 0 && mes % 2 === 0) for (const s of [A[0], A[2]]) choeur(f(s - 12), t0, q * 6, .06 * I);
-      if (I > .3 && (ph % 2 === 1 || I > .7)) { let b = 0; for (const [s, d] of V.chant[mes]) { if (b === tps) violon(f(s), t0, q * d * .95, .032); b += d; } }
-      if (I > .55 && tps === 0) timbale(73.42 * 2 ** ((((A[0] % 12) + 12) % 12) / 12), t0, .9);
-      if (I > .55 && mes === 7) timbale(73.42, t0 + q * .5, .5 + tps * .2);
-      M.vb.t += q; M.vb.n++; if (M.vb.n % 24 === 0) M.vb.phrase++;
-    }
-  }
+  // ---------- la brume sanglante a sa musique ----------
+  // « La Valse rouge » : un morceau écrit, joué par son propre lecteur (brume.js, valseBrume), branché sur le
+  // bus de la musique ; il suit le danger (brumeIntensite).
   const MUS = {
     monter() {
       this.prochain = 0; this.silence = ctx.currentTime + (horsLigne ? 0 : 5); this.reste = 0; this.deg = 0; this.humeur = 'jour'; this.notes = 0;
@@ -1524,7 +1504,10 @@ const SON = (() => {
           this.nappe.O[4].frequency.setTargetAtTime(220 + w * 5, now, .4); }
       }
       if (h !== this.humeur) { this.humeur = h; this.reste = 0; this.enPhrase = false; this.silence = Math.min(this.silence, now + (h === 'danger' || h === 'korlazDanger' ? .3 : 2)); this.prochain = this.silence; }
-      if (this.humeur === 'brume') { valse(this, now); return; }
+      if (this.humeur === 'brume') {
+        if (typeof valseBrume === 'function') { if (!this.rouge) this.rouge = valseBrume(ctx, bus.m); this.rouge.maj(now, typeof brumeIntensite === 'function' ? brumeIntensite() : .5); }
+        return;
+      }
       if (now < this.silence) return;
       const H = HUMEURS[this.humeur];
       if (this.prochain < now) this.prochain = now + .05;
