@@ -735,6 +735,7 @@
 <script src="donjon.js"></script>
 <script src="nomades.js"></script>
 <script src="etats.js"></script>
+<script src="brume.js"></script>
 <script src="village.js"></script>
 <script src="coop.js"></script>
 <script src="faune.js"></script>
@@ -910,6 +911,23 @@ const SON = (() => {
       for (let i = 0; i < 5; i++) { const t0 = t + i * (.12 + Math.random() * .1); souffle(o, t0, 'bandpass', 1400 + Math.random() * 1600, 900, 5, .1 + Math.random() * .12, .02, .05); }
       osc(o, t, 'sine', 70, 60, 1.2, .3, .03);
       return 1.4;
+    },
+    fouet(o, t) {                                        // le fouet de sang : le sifflement, le claquement
+      souffle(o, t, 'bandpass', 900, 3200, 1.2, .16, .02, .05); souffle(o, t + .17, 'highpass', 2600, 2600, 1, .05, .002, .22); osc(o, t + .17, 'square', 1800, 500, .05, .002, .05);
+      return .4;
+    },
+    volee(o, t) {                                        // la volée : cinq traits qui partent en sifflant
+      for (let i = 0; i < 5; i++) souffle(o, t + i * .03, 'bandpass', 700 + i * 200, 2600, 1.6, .3, .03, .05);
+      return .5;
+    },
+    rugissement(o, t) {                                  // le démon : un grondement qui monte de la terre
+      const F = filtre(o, 'lowpass', 520, 1.2); osc(F, t, 'sawtooth', 72, 44, 1.7, .12, .16); osc(F, t + .05, 'square', 54, 36, 1.6, .15, .08);
+      souffle(o, t, 'lowpass', 420, 140, 1, 1.6, .15, .16);
+      return 2.1;
+    },
+    impact(o, t) {                                       // un coup qui fait trembler le sol
+      osc(o, t, 'sine', 60, 30, .6, .003, .3); souffle(o, t, 'lowpass', 260, 90, 1, .5, .003, .22);
+      return .8;
     },
     lacere(o, t) {                                       // des griffes : trois déchirures sèches, un coup sourd
       for (let i = 0; i < 3; i++) souffle(o, t + i * .075, 'bandpass', 4200 - i * 600, 1500, 1.5, .07, .004, .09);
@@ -1434,6 +1452,48 @@ const SON = (() => {
       O.connect(F); F.connect(G); G.connect(bus.m); O.start(t0); O.stop(t0 + dur + 2.6);
     }
   }
+  // ---------- la valse de la brume sanglante ----------
+  // Un morceau écrit, pas une improvisation : une valse rapide en ré mineur, pour un combat. La basse au
+  // premier temps, les cordes qui piquent les deux autres ; puis, à mesure que la brume se fait menaçante
+  // (des bêtes en fureur autour, le cercle qui approche), l'ostinato d'arpèges en croches, le chœur, le
+  // violon et sa mélodie, les timbales. Huit mesures : ré mineur, si bémol, sol mineur, la majeur.
+  // (Composition originale, dans l'esprit des grandes valses de combat ; aucune mélodie n'est reprise.)
+  const VALSE = { noire: .31,
+    accords: [[0, 3, 7], [0, 3, 7], [-4, 0, 3], [-4, 0, 3], [-7, -4, 0], [-7, -4, 0], [-5, -1, 2], [-5, -1, 2]],
+    chant: [[[12, 1], [10, 1], [8, 1]], [[7, 3]], [[5, 1], [7, 1], [8, 1]], [[10, 2], [8, 1]], [[7, 1], [5, 1], [3, 1]], [[2, 2], [3, 1]], [[7, 1], [11, 1], [14, 1]], [[11, 3]]] };
+  const ARPEGE = [0, 2, 1, 2, 0, 1];
+  function basse(f, t0, d) { const F = filtre(bus.m, 'lowpass', 420, .8); osc(F, t0, 'sawtooth', f, 0, d, .02, .045); osc(bus.m, t0, 'sine', f, 0, d, .02, .05); }
+  function pique(f, t0, d, v) { const F = filtre(bus.m, 'lowpass', 2600, .7); osc(F, t0, 'sawtooth', f, 0, d, .004, v); }
+  function violon(f, t0, d, v) {                         // deux scies à peine désaccordées, un vibrato
+    const O = ctx.createOscillator(), O2 = ctx.createOscillator(), L = ctx.createOscillator(), LG = ctx.createGain(), F = ctx.createBiquadFilter(), G = ctx.createGain();
+    O.type = O2.type = 'sawtooth'; O.frequency.value = f; O2.frequency.value = f * 1.004; L.frequency.value = 5.6; LG.gain.value = f * .007;
+    L.connect(LG); LG.connect(O.frequency); LG.connect(O2.frequency); F.type = 'lowpass'; F.frequency.value = 3200; F.Q.value = .8;
+    G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(v, t0 + .08); G.gain.setValueAtTime(v, t0 + d * .75); G.gain.exponentialRampToValueAtTime(.0001, t0 + d + .12);
+    O.connect(F); O2.connect(F); F.connect(G); G.connect(bus.m);
+    for (const o of [O, O2, L]) { o.start(t0); o.stop(t0 + d + .2); }
+  }
+  function choeur(f, t0, d, v) {                         // des voix : trois scies désaccordées dans les deux formants d'un « a »
+    const G = ctx.createGain(), F1 = ctx.createBiquadFilter(), F2 = ctx.createBiquadFilter();
+    G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(v, t0 + .6); G.gain.setValueAtTime(v, t0 + d * .7); G.gain.exponentialRampToValueAtTime(.0001, t0 + d + .8); G.connect(bus.m);
+    F1.type = F2.type = 'bandpass'; F1.frequency.value = 760; F1.Q.value = 5; F2.frequency.value = 1180; F2.Q.value = 7; F1.connect(G); F2.connect(G);
+    for (const dt of [-.006, 0, .006]) { const O = ctx.createOscillator(); O.type = 'sawtooth'; O.frequency.value = f * (1 + dt); O.connect(F1); O.connect(F2); O.start(t0); O.stop(t0 + d + .9); }
+  }
+  function timbale(f, t0, v) { osc(bus.m, t0, 'sine', f * 1.5, f, .7, .003, .12 * v, .25); souffle(bus.m, t0, 'lowpass', 300, 120, 1, .25, .002, .08 * v); }
+  function valse(M, now) {
+    const V = VALSE, q = V.noire, I = typeof brumeIntensite === 'function' ? brumeIntensite() : .5, f = s => 293.66 * 2 ** (s / 12);
+    if (!M.vb || M.vb.t < now - 1) M.vb = { t: now + .15, n: 0, phrase: 0 };
+    while (M.vb.t < now + .6) {
+      const n = M.vb.n, mes = (n / 3 | 0) % 8, tps = n % 3, t0 = M.vb.t, A = V.accords[mes], ph = M.vb.phrase;
+      if (tps === 0) basse(f(A[0] - 24 + (A[0] < -2 ? 12 : 0)), t0, q * 2.6);
+      else for (const s of A.slice(1)) pique(f(s - 12), t0, .12, .026);
+      if (I > .25 || ph % 2) for (let k = 0; k < 2; k++) pique(f(A[ARPEGE[tps * 2 + k]] + (k ? 12 : 0)), t0 + k * q / 2, .09, .018);
+      if (I > .4 && tps === 0 && mes % 2 === 0) for (const s of [A[0], A[2]]) choeur(f(s - 12), t0, q * 6, .06 * I);
+      if (I > .3 && (ph % 2 === 1 || I > .7)) { let b = 0; for (const [s, d] of V.chant[mes]) { if (b === tps) violon(f(s), t0, q * d * .95, .032); b += d; } }
+      if (I > .55 && tps === 0) timbale(73.42 * 2 ** ((((A[0] % 12) + 12) % 12) / 12), t0, .9);
+      if (I > .55 && mes === 7) timbale(73.42, t0 + q * .5, .5 + tps * .2);
+      M.vb.t += q; M.vb.n++; if (M.vb.n % 24 === 0) M.vb.phrase++;
+    }
+  }
   const MUS = {
     monter() {
       this.prochain = 0; this.silence = ctx.currentTime + (horsLigne ? 0 : 5); this.reste = 0; this.deg = 0; this.humeur = 'jour'; this.notes = 0;
@@ -1444,6 +1504,7 @@ const SON = (() => {
         O.type = i ? 'sine' : 'triangle'; O.frequency.value = f; g.gain.value = [1, 1, .6, .3, .3][i]; O.connect(g); g.connect(F); O.start(); return O; }) };
     },
     choisir() {
+      if (typeof brumeSang === 'function' && brumeSang() > .3) return 'brume';   // la brume sanglante a sa valse
       const K = !!P.korlaz && P.pv > 0;                    // infecté : la musique ment, elle aussi — une silhouette qui surgit sonne comme un vrai danger
       for (const b of beasts) if (!b.dead && !b.tame && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 18 * 18
         && (b.etat === 'viser' || b.etat === 'assaut' || (b.cible === P && (b.etat === 'chasser' || b.etat === 'traquer'))
@@ -1463,6 +1524,7 @@ const SON = (() => {
           this.nappe.O[4].frequency.setTargetAtTime(220 + w * 5, now, .4); }
       }
       if (h !== this.humeur) { this.humeur = h; this.reste = 0; this.enPhrase = false; this.silence = Math.min(this.silence, now + (h === 'danger' || h === 'korlazDanger' ? .3 : 2)); this.prochain = this.silence; }
+      if (this.humeur === 'brume') { valse(this, now); return; }
       if (now < this.silence) return;
       const H = HUMEURS[this.humeur];
       if (this.prochain < now) this.prochain = now + .05;
@@ -1684,9 +1746,14 @@ const SUNX = Math.cos(SUN_AZ) * Math.cos(SUN_EL), SUNY = Math.sin(SUN_AZ) * Math
 // brouillard doit toujours virer vers ce que l'on voit derrière, sinon il se voit.
 function couleurCiel() {
   if (djIci()) return [16, 18, 26];                    // la roche, au loin
-  const l = clarte();
-  return [30 + 118 * l, 38 + 126 * l, 58 + 118 * l];
+  const l = clarte(), c = [30 + 118 * l, 38 + 126 * l, 58 + 118 * l];
+  const k = typeof brumeSang === 'function' ? brumeSang() * .88 : 0;   // la brume sanglante (brume.js) : le ciel et l'horizon virent au rouge sombre
+  if (!k) return c;
+  const r = .35 + .65 * l;
+  return [c[0] + (104 * r - c[0]) * k, c[1] + (14 * r - c[1]) * k, c[2] + (16 * r - c[2]) * k];
 }
+// la brume sanglante resserre la vue : où le brouillard commence, où il culmine (vue de dessus et canvas)
+const bruSang = () => { const k = typeof brumeSang === 'function' ? brumeSang() : 0; return k ? [BRU0 + (1.5 - BRU0) * k, BRU1 + (8 - BRU1) * k] : null; };
 // Sans perspective atmosphérique, une falaise à trente cases a le même contraste qu'une à
 // deux, et toute la profondeur s'écrase. On fond donc vers l'horizon avec la distance.
 const BRU_MAX = .72;                                 // (BRU0 et BRU1 : avec le zoom, plus haut)
@@ -1699,11 +1766,13 @@ function brumeAbime(c, d) {
   return [c[0] + (k[0] - c[0]) * f, c[1] + (k[1] - c[1]) * f, c[2] + (k[2] - c[2]) * f];
 }
 function brumeF(d) {
+  const S = bruSang(); if (S) return Math.min(.9, Math.max(0, (d - S[0]) / (S[1] - S[0])) * .9);
   const b1 = BRU0 + (BRU1 - BRU0) * met('brume');      // couvert : l'horizon se rapproche
   return Math.min(BRU_MAX, Math.max(0, (d - BRU0) / (b1 - BRU0)) * BRU_MAX);
 }
 function brume(c, d) {
-  const f = Math.min(BRU_MAX, Math.max(0, (d - BRU0) / (BRU1 - BRU0)) * BRU_MAX);
+  const S = bruSang(), b0 = S ? S[0] : BRU0, b1 = S ? S[1] : BRU1, mx = S ? .9 : BRU_MAX;
+  const f = Math.min(mx, Math.max(0, (d - b0) / (b1 - b0)) * mx);
   if (f <= 0) return c;
   const k = couleurCiel();
   return [c[0] + (k[0] - c[0]) * f, c[1] + (k[1] - c[1]) * f, c[2] + (k[2] - c[2]) * f];
@@ -3629,6 +3698,7 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
 // les os — donc toute la branche des armes — resteraient hors d'atteinte tant qu'on
 // n'aurait pas d'arme, et rien ne permettait d'en fabriquer une.
 function butin(b) {
+  if (b.sp.brume) { if (typeof butinBrume === 'function') butinBrume(b); return; }   // un mage, un rôdeur, le démon (brume.js)
   if (b.sp.pnj || b.pnjSuit) { nmButin(b); return; }   // un nomade (nomades.js)
   if (automate(b.sp)) {                              // son cœur d'éclat, et ce qui reste de sa carcasse
     const pi = 2 + (Math.random() * 2 | 0), ec = b.sp.coeur || 1;   // l'élite porte un plus gros cœur
@@ -5137,6 +5207,7 @@ function apportsCamp(niv) {
 // Elles obéissent aux règles du portail (île signée, permise à ce niveau, gardée s'il le faut).
 let propoCache = null;
 const voeuxPossibles = niv => VISEES.filter(v => v.k === 'meca' ? niv >= NIV_MECA : v.k === 'korlaz' ? niv >= 6 && typeof etatGraine === 'function'
+  : v.k === 'brume' ? niv >= 8 && typeof etatGraine === 'function' && typeof brumeIle === 'function'
   : (RARES.find(r => 'b' + r.b === v.k) || { niv: 1e9 }).niv <= niv);
 function voeuPortail() {
   if (voeuxPortail(nivCamp()) < 1 || !P.portailVoeu) return null;
@@ -5162,7 +5233,7 @@ function propositions() {
 const ESP_EFFROI = ['silencieux', 'millegueule'];
 const dangerEspece = sp => sp.tir ? 'tir' : ESP_EFFROI.includes(sp.id) ? 'effroi' : predateur(sp) ? 'pred' : '';
 const RISQUES = ['paisible', 'calme', 'risquée', 'dangereuse', 'mortelle'];
-const ETATS_NOMS = { korlaz: 'Korlaz · roche rongée, spores neurotoxiques' };   // les états d'île (etats.js)
+const ETATS_NOMS = { korlaz: 'Korlaz · roche rongée, spores neurotoxiques', brume: 'Brume sanglante · un cercle de mages, tout ce qui vit s\'y entretue' };   // les états d'île (etats.js)
 function apercuIle(g, niv, det) {
   if (det < 1) return { texte: '', risque: '' };
   const meca = ileMecaGraine(g) && niv >= NIV_MECA, L = [], pl = (n, m) => n + ' ' + m + (n > 1 ? 's' : '');
@@ -6337,7 +6408,7 @@ const DITS_ETAT = { 'écouter': 'écoute…', hurler: 'hurle', charger: 'fonce s
   suivre: 'vous suit', 'récolter': 'travaille', repos: 'se repose', rappel: 'accourt',
   'défendre': 'se bat pour vous', garder: 'garde le campement', patrouiller: 'patrouille', viser: 'met en joue', veille: 'en veille',
   boire: 'boit', brouter: 'broute', chasser: 'chasse', assaut: 'se bat', fuir: 'fuit', 'acculé': 'fait front',
-  'décrocher': 'se dégage', errer: 'flâne', troupeau: 'flâne', curieux: 'vous observe', 'pas de loup': 'avance à pas de loup', 'affût': 'est à l\'affût', bondir: 'bondit', dormir: 'dort', 'quête': 'rôde', traquer: 'traque',
+  'décrocher': 'se dégage', furie: 'pris de fureur', errer: 'flâne', troupeau: 'flâne', curieux: 'vous observe', 'pas de loup': 'avance à pas de loup', 'affût': 'est à l\'affût', bondir: 'bondit', dormir: 'dort', 'quête': 'rôde', traquer: 'traque',
   guet: 'fait le guet', 'monté': 'vous porte', 'rodéo': 'se cabre', 'se poster': 'cherche l\'angle',
   'lézarder': 'lézarde au soleil', rentrer: 'rentre chez lui', guetter: 'vous tient à l\'œil', charger: 'charge',
   cueillir: 'va aux baies', rapporter: 'rapporte une baie', grignoter: 'grignote la pierre', 'suivre sa mère': 'suit sa mère', enfoui: 's\'est enfoui dans la boue', regagner: 'regagne les braises' };
@@ -6883,7 +6954,8 @@ function infoGraine(g, n) {
   const L = [], meca = ileMecaGraine(g) && n >= NIV_MECA;
   if (meca) L.push('<b>Terre des automates</b>');
   else for (const b of biomesGraine(g)) L.push('<b>' + rareDe(b).n + '</b>');
-  if (typeof etatGraine === 'function' && etatGraine(g, n)) L.push('<b>Korlaz</b>');
+  const et = typeof etatGraine === 'function' ? etatGraine(g, n) : null;
+  if (et) L.push('<b>' + (et === 'brume' ? 'Brume sanglante' : 'Korlaz') + '</b>');
   const ng = nivGraine(g);
   return 'Cette graine : ' + (L.length ? L.join(' · ') : signee(g) ? 'les biomes de base seulement' : 'les biomes de base seulement (elle ne peut pas porter de biome rare)')
     + (ileMecaGraine(g) && !meca ? ' · terre des automates à l\'exploration ' + NIV_MECA : '')
@@ -6895,13 +6967,14 @@ const VISEES = [
     ok: (g, n) => signee(g) && biomesGraine(g).includes(r.b) && !(ileMecaGraine(g) && n >= NIV_MECA), niv: g => nivGraine(g) })),
   { k: 'meca', n: 'Terre des automates', t: 'l\'île des automates · dès l\'exploration ' + NIV_MECA, ok: g => ileMecaGraine(g), niv: () => NIV_MECA },
   { k: 'korlaz', n: 'Korlaz', t: 'la roche rongée et ses spores · dès l\'exploration 6', ok: (g, n) => typeof etatGraine === 'function' && etatGraine(g, n) === 'korlaz', niv: () => 6 },
+  { k: 'brume', n: 'Brume sanglante', t: 'le cercle des mages, la fureur, le démon · dès l\'exploration 8', ok: (g, n) => typeof etatGraine === 'function' && etatGraine(g, n) === 'brume', niv: () => 8 },
 ];
 function viserBiome(k) {
   const v = VISEES.find(o => o.k === k); if (!v) return;
   const n0 = Number(tpNiv ?? profondeur()) || 0;
   for (let i = 0; i < 400000; i++) {
     const g = (Math.random() * 1e9) | 0; if (g === SEED) continue;
-    const n = Math.max(n0, k === 'korlaz' ? 6 : 0, v.niv(g));
+    const n = Math.max(n0, k === 'korlaz' ? 6 : k === 'brume' ? 8 : 0, v.niv(g));
     if (!v.ok(g, n)) continue;
     tpGraine = g; tpNiv = Math.min(NIV_PLAFOND, n);
     say(v.n + ' · graine ' + g + ' · exploration ' + tpNiv + ' · « Y aller »', 3, 'info');
@@ -7409,7 +7482,7 @@ const HORREURS = [
   { id:'millegueule', n:'Mille-gueules', corps:'millegueule', horreur:1, terre:20, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
     shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
 ];
-SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
+SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof BRUME_SPEC !== 'undefined' ? BRUME_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -11625,7 +11698,7 @@ const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
 const rayonCorps = b => b.sp.batiment ? (b.forme === 'puits' ? .85 : b.forme === 'foyer' ? .7 : b.forme === 'longue' ? 1.7 : 1.45) : .38 * b.sp.sz * (b.ech || 1);
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
-const aCorps = b => !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !b.sp.plante && !b.cache && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
+const aCorps = b => !b.sp.cercle && !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !b.sp.plante && !b.cache && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
   corpsGrille.clear();
@@ -11957,7 +12030,7 @@ function impactTir(f, nx, ny, nz) {
   const de = f.de, sien = de.comp;
   if (f.fantome) {                                  // le tir d'une bête du gardien, rejoué ici : chacun encaisse chez lui
     if ((nx - P.x) ** 2 + (ny - P.y) ** 2 < .36 && nz > P.z - .1 && nz < P.z + 1.4) { porterCoup(de, P, f.deg); return true; }
-    for (const o of beasts) if (o !== de && !o.dead && o.pv > 0 && toucheBete(o, nx, ny, nz)) return true;
+    for (const o of beasts) if (o !== de && !o.dead && o.pv > 0 && !o.sp.cercle && !(o.sp.brume && de.sp && de.sp.brume) && toucheBete(o, nx, ny, nz)) return true;
     for (const j of Autres.values()) if (j.pv > 0 && (nx - j.x) ** 2 + (ny - j.y) ** 2 < .36 && nz > j.z - .1 && nz < j.z + 1.4) return true;
     return false;
   }
@@ -11967,7 +12040,7 @@ function impactTir(f, nx, ny, nz) {
     return true;
   }
   for (const o of beasts) {
-    if (o === de || o.dead || o.pv <= 0) continue;
+    if (o === de || o.dead || o.pv <= 0 || o.sp.cercle || (o.sp.brume && de.sp && de.sp.brume)) continue;   // les traits d'un mage traversent les siens
     if (sien && o.tame) continue;                    // une compagne ne blesse pas les vôtres
     if (!sien && o.tame && de.cibleC !== o) continue;  // un sauvage ne vise vos compagnes que si elles le visent
     if (toucheBete(o, nx, ny, nz)) {
@@ -12745,6 +12818,7 @@ function majBete(b, dt) {
   if (sp.boss) return majTisseuse(b, dt);
   if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi
   if (sp.illusion) return majIllusion(b, dt);          // une vision du Korlaz (etats.js)
+  if (sp.brume) return majBrumeBete(b, dt);            // le cercle de la brume sanglante : mages, rôdeurs, démon (brume.js)
   if (sp.plante) return majPlante(b, dt);              // la flore rare (flore.js)
   if (sp.villageois || sp.batiment) return majVillageois(b, dt);   // le village (village.js)              // la Tisseuse de fer (voir LA TISSEUSE DE FER)
   if (automate(sp)) return majAutomate(b, dt);
@@ -12785,6 +12859,7 @@ function majBete(b, dt) {
   const vue = sp.vue;
   majAise(b, dt);
   let [men, dM, pr, dP] = menaceEtProie(b, vue);
+  const furie = typeof fureurIci === 'function' ? fureurIci(b) : null;   // la brume sanglante (brume.js) : la cible de sa fureur
   // une proie qui s'est bien défendue est laissée en paix un moment
   if (pr && pr === b.epargne && b.t < b.epargneT) { pr = null; dP = 1e9; }
   // engagement : on garde sa proie. Sans mémoire de cible, le chasseur bascule sur la
@@ -12832,6 +12907,7 @@ function majBete(b, dt) {
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
   if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
   else if (b.as) etat = 'assaut';
+  else if (furie) etat = 'furie';
   else if (b.brame > t && b.brameDe && !b.brameDe.dead && !b.tame) { etat = 'fuir'; men = b.brameDe; dM = (b.x - men.x) ** 2 + (b.y - men.y) ** 2; }   // le brame d'un bramard lié
   else if (panique) { etat = 'fuir'; men = J; dM = dJ * dJ; }
   else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15 && (!besoin || presse) && !(b.tame && (b.rappel > 0 || (b.role === 'defense' && b.pv > .3)))) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
@@ -12880,6 +12956,14 @@ function majBete(b, dt) {
         portee: 2.0, recul: .45, pause: .55 };
       if (large) porterCoup(b, pr, prof.deg); else lancerAssaut(b, pr, prof);
     }
+  } else if (etat === 'furie') {
+    // La brume sanglante : elle fonce sur ce qui vit le plus près — vous, une bête, une compagne, son
+    // propre maître si elle est liée — et frappe dès qu'elle l'a à portée. Ni faim, ni peur, ni fatigue.
+    const c = furie, dC = Math.hypot(c.x - b.x, c.y - b.y), joueur = estJoueur(c);
+    tx = c.x; ty = c.y; sprint = dC > 4 ? 1.5 : 1.1; b.nrj = Math.max(.4, b.nrj);
+    const prof = joueur ? (COMBAT[sp.id] || COMBAT.traqueur) : { deg: (.45 + sp.sz * .2 - (c.sp.riposte || 0) * .25) * (c.comp ? .5 : 1), ramasse: .2, bond: .22, portee: 2.0, recul: .45, pause: .55 };
+    const allonge = .55 + sp.sz * .35 + (joueur ? .4 : c.sp.sz * .3) + (prof.portee || 2) * .25;
+    if (dC < allonge && Math.abs(c.z - b.z) < 1.4 && b.t >= (b.pret || 0) && b.t - (b.lastAtk || 0) > .8 && (!joueur || (c.hurt || 0) <= .25)) { b.lastAtk = b.t; lancerAssaut(b, c, prof); }
   } else if (etat === 'assaut') {
     vit = 0;                                        // l'attaque mène la bête, plus bas
   } else if (etat === 'décrocher') {
@@ -14029,8 +14113,10 @@ function varier(f, B) {
   return O;
 }
 function foeBones(f) {
-  const B = osDeBase(f);
-  return f.variante ? varier(f, B) : B;
+  const B0 = osDeBase(f), B = f.variante ? varier(f, B0) : B0;
+  if (f.etat === 'furie' && f.sp.oeil) for (let i = 0; i < B.length; i++) if (memeCouleur(B[i].c, f.sp.oeil) || memeCouleur(B[i].c, f.variante ? OEIL_ROBE[(lireVariante(f.variante) || {}).robe] : null))
+    B[i] = Object.assign({}, B[i], { c: [255, 40, 30], luit: true });   // la fureur de la brume : les yeux rouges, qui luisent
+  return B;
 }
 // Le carnet : chaque variante croisée, une fois pour toutes — on la compte ensuite.
 function noterVariante(b) {
@@ -14073,6 +14159,7 @@ function osDeBase(f) {
   if (sp && sp.boss) return osTisseuse(f);
   if (sp && sp.horreur) return sp.corps === 'silencieux' ? osSilencieux(f) : osMille(f);
   if (sp && sp.illusion) return osIllusion(f);
+  if (sp && sp.brume) return osBrume(f);                // la brume sanglante (brume.js)
   if (sp && sp.plante) return osPlante(f);
   if (sp && sp.villageois) return osVillageois(f);
   if (sp && sp.batiment) return osMaison(f);
@@ -19060,7 +19147,7 @@ TEX.corde = motif(60, (x, y, h) => (x + y * 2) % 4 === 0 ? [-.24] : (x + y * 2) 
 // La matière d'une bête : son corps d'abord, sa famille ensuite ; à défaut c'est un Rampant, un insecte.
 // « * » : pas de matière d'ensemble, chaque pièce prend celle de sa couleur (les plantes rares, un seuil).
 const MAT_CORPS = { bramard: 'pelage', carillon: 'pelage', cerf: 'facette', cotonnier: 'pelage', crapaud: 'peau', dragon: 'ecaille', felin: 'pelage',
-  lentigrade: 'pelage', millegueule: 'chitine', myconide: 'myce', oglodon: 'chitine', saurien: 'ecaille', silencieux: 'os', sterne: 'plume', tisseuse: 'metal' };
+  lentigrade: 'pelage', mage: 'tissu', rodeur: 'lisse', demon: 'peau', millegueule: 'chitine', myconide: 'myce', oglodon: 'chitine', saurien: 'ecaille', silencieux: 'os', sterne: 'plume', tisseuse: 'metal' };
 const MAT_FAM = { automate: 'metal', coursier: 'plume', doux: 'pelage', tellurien: 'roche' };
 const matiereEspece = sp => !sp ? null : sp.illusion ? 'lisse' : sp.plante || sp.batiment ? '*' : sp.pnj || sp.villageois ? 'tissu' : MAT_CORPS[sp.corps] || MAT_FAM[sp.fam] || (sp.donjon ? 'metal' : 'chitine');
 // La matière d'une pièce d'après sa couleur, quand rien d'autre ne la dit : le gris est de la pierre
@@ -19400,6 +19487,7 @@ function actionContexte() {
     if (pr.sp.plante) return { v: 'CUEILLIR', o: pr.pl ? pr.pl.n : nom, f: () => cueillirPlante(pr), r: rareBete(pr) };
     if (pr.sp.villageois) return { v: 'PARLER', o: pr.nm ? pr.nm.nom : nom, f: () => vlParler(pr) };
     if (automate(pr.sp)) { if (!pr.tame && pr.etat === 'veille') return { v: 'RALLUMER', o: nom, f: nourrirQ }; }
+    else if (pr.sp.illusion || pr.sp.brume) { /* une vision, un être de la brume : on ne nourrit pas ça */ }
     else if (pr.sp.volant && !pr.tame && !poissonADonner()) { /* la sterne : rien qu'un poisson */ }
     else if (pr.sp.horreur && !pr.tame) { const id = pr.sp.corps === 'silencieux' ? 'p_oscep' : 'p_lanterneau'; if (INGR[id] && sacIngr(id) > 0) return { v: 'OFFRIR', o: nom, f: nourrirQ }; }
     else if (pr.sp.dragon) { if (!pr.enVol && INGR_GARDE().some(id => INGR[id].fam === 'viande' && sacIngr(id) > 0)) return { v: 'NOURRIR', o: nom, f: nourrirQ }; }
@@ -20913,6 +21001,12 @@ void main() { o = uC; }`;
     distVue = iso ? BRU1 : (tierce || 0) + Math.max(tierce ? 30 : 0, 10 + 54 * met('brume'));
     const brume = djIci() ? (iso ? [14, 34, textures ? 1 : 0] : [6 + (tierce || 0), 26 + (tierce || 0), textures ? 1 : 0])   // sous terre, le noir vient vite
       : iso ? [BRU0, BRU1, textures ? 1 : 0] : [10 + (tierce || 0), distVue, textures ? 1 : 0];
+    const kSang = typeof brumeSang === 'function' ? brumeSang() : 0;   // la brume sanglante : on n'y voit qu'à quelques cases
+    if (kSang && !djIci()) {
+      const S = bruSang();
+      if (iso) { brume[0] = S[0]; brume[1] = S[1]; }
+      else { brume[0] = (tierce || 0) + 2 + 8 * (1 - kSang); brume[1] = (tierce || 0) + 11 + 40 * (1 - kSang); distVue = Math.min(distVue, brume[1] + 2); }
+    }
     const coupe = 1e18;
 
     // le ciel, sans profondeur
@@ -21362,7 +21456,7 @@ function photo() {
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
-    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, soins: Object.assign({}, P.soins), defense: { mur: P.defense.mur | 0, tours: P.defense.tours | 0 }, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -21468,6 +21562,7 @@ function appliquer(d, vivantes) {
   P.groupeCible = d.groupeCible && Number.isInteger(d.groupeCible.g) ? { g: d.groupeCible.g, niv: nb(d.groupeCible.niv, 0, NIV_PLAFOND, 1) | 0, n: String(d.groupeCible.n || '?').slice(0, 18), u: String(d.groupeCible.u || '') } : null;
   P.korlaz = d.korlaz && typeof d.korlaz === 'object' ? { duree: nb(d.korlaz.duree, 0, 1e7, 0), prochain: 0 } : null; P.korlazExpo = 0;   // l'infection suit le personnage
   P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
+  P.brumesLevees = Array.isArray(d.brumesLevees) ? d.brumesLevees.filter(Number.isInteger).slice(-300) : [];   // les îles dont vous avez levé la brume sanglante
   for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
   // le nectar d'oglodon était une matière : celui du sac passe au garde-manger, celui du coffre au cellier

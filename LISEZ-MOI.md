@@ -2183,3 +2183,17 @@ Testé (graine 29, niveau 8) : le cercle est placé à 78 cases de l'arrivée, e
 Dans le code : `brume.js` — `brumeIle` et `placerCercle` (le cercle et les mages, posés avec le peuplement de l'île), `BRUME_SPEC` (les quatre espèces), `majBrumeBete`, `majMage` et `actionMage`, `majRodeur` et `invoquerRodeurs`, `invoquerDemon`, `majDemon` et `actionDemon`, `butinBrume`, `leverBrume`, `majCercle` (l'incantation, les invocations, l'épaisseur de la brume, les annonces), `osBrume` (`osMage`, `osRodeur`, `osDemon`, `osCercle`), `brumeMonde` et `brumeAppliquer`. `index.html` — l'aiguillage dans `majBete`, `osDeBase` et `butin`, les traits qui traversent les leurs (`impactTir`), `P.brumesLevees` dans la sauvegarde, les quatre sons, pas de « Nourrir » pour eux. `faune.js` — leur sac (`SAC_FAUNE.brume`) et l'état du cercle dans le monde partagé.
 
 **À déposer** : `index.html`, `brume.js`, `faune.js` et `sw.js` (qui passe en `stone-valley-63`).
+
+## 96. Bêta · Se téléporter : la brume sanglante
+
+- **Viser un biome** a un bouton de plus, **Brume sanglante**, à côté de Korlaz. Il cherche une graine qui la porte, au niveau tapé ou au moins à l'exploration 8, et remplit la graine et le niveau ; « Y aller » vous y mène.
+- Sous les champs, **« Cette graine »** dit maintenant « Brume sanglante » quand c'est elle (jusqu'ici, tout état d'île s'affichait « Korlaz »).
+- Comme le Korlaz, la brume entre dans les vœux du portail (« Chercher un biome », dès l'exploration 8), et l'aperçu d'une île au portail la nomme : « Brume sanglante · un cercle de mages, tout ce qui vit s'y entretue ».
+
+Testé : le bouton trouve une graine (264018365, exploration 8) ; « Y aller » arrive sur une île en brume, avec son cercle et ses six mages. Les vœux du portail la proposent à l'exploration 8, pas à la 7.
+
+**Ce que j'ai décidé seul** : la brume entre aussi dans les vœux du portail, comme le Korlaz.
+
+Dans le code (`index.html`) : `VISEES` (l'entrée `brume`), `viserBiome`, `voeuxPossibles`, `infoGraine`, `ETATS_NOMS`.
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-64`).
