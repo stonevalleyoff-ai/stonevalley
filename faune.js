@@ -436,7 +436,7 @@ function appliquerSac(b, s, idx) {
 // bête, l'aire du dragon, l'antre de la Tisseuse, la machine d'en bas qu'elle est).
 function identiteFaune(b) {
   const k = {};
-  if (b.nm && b.sp.pnj) k.nm = b.nm.nom;
+  if (b.nm && b.sp.pnj) k.nm = typeof nmIdentite === 'function' ? nmIdentite(b.nm) : b.nm.nom;   // un inconnu (§110) : tout ce qui le fait
   if (b.poste) k.po = [r2(b.poste[0]), r2(b.poste[1])];
   if (b.rang !== undefined) k.rg = b.rang;
   if (b.pnjSuit && b.pnjSuit.num !== undefined) k.ps = b.pnjSuit.num;
@@ -448,7 +448,7 @@ function identiteFaune(b) {
   return Object.keys(k).length ? k : null;
 }
 function poserIdentite(b, k, idx) {
-  if (typeof k.nm === 'string') b.nm = NM_GENS.find(g => g.nom === k.nm) || b.nm;
+  if (k.nm !== undefined) b.nm = (typeof nmLireIdentite === 'function' ? nmLireIdentite(k.nm) : typeof k.nm === 'string' ? NM_GENS.find(g => g.nom === k.nm) : null) || b.nm;
   if (Array.isArray(k.po)) b.poste = k.po.slice();
   if (k.rg !== undefined) b.rang = k.rg;
   if (k.ps !== undefined) { const m = idx.get(k.ps); if (m) b.pnjSuit = m; else b.pnjSuitN = k.ps; }

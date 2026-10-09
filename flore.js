@@ -45,6 +45,7 @@ const FL_BIOMES = [
   [19, [[190, 182, 166], [150, 140, 130], [236, 230, 214], [200, 40, 50], [130, 20, 30]], "Étoile d'os|Clochettes funèbres|Éventail de côtes|Crosse vertébrale|Orbe-crâne|Arbuste de deuil|Lys des morts|Saule des pleureuses|Linceul flottant|Arbre-reliquaire|Gueule d'ossements|Fouet de vertèbres"],
   [20, [[40, 40, 60], [50, 60, 90], [90, 210, 255], [200, 255, 255], [160, 100, 255]], "Étoile des fosses|Clochettes abyssales|Éventail des profondeurs|Crosse luisante|Orbe des gouffres|Arbuste-lanterne|Lys des abîmes|Saule des fosses|Méduse des gouffres|Arbre-veine|Gueule des fosses|Cracheuse abyssale"],
   [22, [[90, 120, 60], [100, 150, 70], [220, 60, 80], [255, 236, 120], [255, 255, 255]], "Rose trémière|Campanule|Fougère des jardins|Crosse de vigne|Lanterne de fête|Pommier fleuri|Tournesol-roi|Saule du puits|Voile de glycine|Cerisier millénaire|Gueule du potager|Fouet de ronces"],
+  [23, [[96, 70, 66], [150, 186, 120], [255, 182, 208], [255, 236, 160], [255, 250, 252]], "Étoile de sakura|Clochettes de glycine|Éventail d'érable rouge|Crosse de jade|Lampion de pétales|Prunier du Japon|Pivoine-reine|Saule de pétales|Voile de pétales|Arbre aux mille fleurs|Gueule de camélia|Fouet d'églantier"],   // la cerisaie (§112)
 ];
 const FLORE_RARES = [], FLORE_PRODUITS = [];
 const flElide = s => { const m = s.charAt(0).toLowerCase() + s.slice(1); return (/^[aeiouyéèêàâîôûœh]/i.test(m) ? "d'" : 'de ') + m; };

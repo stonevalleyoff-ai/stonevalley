@@ -818,7 +818,7 @@ function signalDecor(quoi, i) { if (crochetDecor) crochetDecor(quoi, i); }
 //  navigateur n'ouvre le son qu'après un premier geste du joueur : on attend ce geste.
 // ============================================================
 const SON = (() => {
-  const CLE = 'stone_valley:son', PORTEE = 26, VOIX_MAX = 44;
+  const CLE = 'stone_valley:son', PORTEE = 26, VOIX_MAX = 24;   // (§113) 24 voix d'effets à la fois au plus, au lieu de 44
   const R = { g: .7, e: .85, a: .6, m: .4 };              // général, effets, ambiance, musique
   try { const s = JSON.parse(localStorage.getItem(CLE) || 'null');
     if (s) for (const k in R) if (Number.isFinite(s[k])) R[k] = Math.max(0, Math.min(1, s[k])); } catch (e) { /* stockage fermé */ }
@@ -835,8 +835,14 @@ const SON = (() => {
     const comp = c.createDynamicsCompressor();
     comp.threshold.value = -16; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = .004; comp.release.value = .22;
     maitre = c.createGain(); maitre.connect(comp); comp.connect(c.destination);
-    const echo = c.createConvolver(); echo.buffer = impulsion(c, 1.8, 2.8);
-    const retour = c.createGain(); retour.gain.value = .5; echo.connect(retour); retour.connect(maitre);
+    // L'écho (§113) : deux retards croisés (un à gauche, un à droite), filtrés, qui se renvoient le son. Le convolveur
+    // d'avant (une salle de 1,8 s en stéréo) coûtait à lui seul plus que toute l'ambiance ; ceci, presque rien.
+    const echo = c.createBiquadFilter(); echo.type = 'lowpass'; echo.frequency.value = 2600;
+    const rA = c.createDelay(1), rB = c.createDelay(1), fA = c.createGain(), fB = c.createGain(), lp = c.createBiquadFilter(), M = c.createChannelMerger(2);
+    rA.delayTime.value = .083; rB.delayTime.value = .127; fA.gain.value = .5; fB.gain.value = .5; lp.type = 'lowpass'; lp.frequency.value = 1800;
+    echo.connect(rA); rA.connect(fA); fA.connect(rB); rB.connect(fB); fB.connect(lp); lp.connect(rA);
+    rA.connect(M, 0, 0); rB.connect(M, 0, 1);
+    const retour = c.createGain(); retour.gain.value = .45; M.connect(retour); retour.connect(maitre);
     bus = {};
     for (const [k, envoi] of [['e', .1], ['a', .05], ['m', .38]]) {
       bus[k] = c.createGain(); bus[k].connect(maitre);
@@ -859,7 +865,12 @@ const SON = (() => {
     if (horsLigne) return;
     if (ctx) { if (ctx.state === 'suspended') ctx.resume(); return; }
     const AC = globalThis.AudioContext || globalThis.webkitAudioContext; if (!AC) return;
-    try { brancher(new AC()); } catch (e) { ctx = null; }
+    // (§113) 24 kHz : tout le calcul du son coûte moitié moins (rien ici ne monte au-dessus de 10 kHz) ; une latence
+    // « équilibrée » plutôt que la plus courte possible : moins de réveils du fil audio, moins d'à-coups.
+    let c = null;
+    for (const o of [{ latencyHint: 'balanced', sampleRate: 24000 }, { latencyHint: 'balanced' }, null]) { try { c = o ? new AC(o) : new AC(); break; } catch (e) { c = null; } }
+    if (!c) return;
+    try { brancher(c); } catch (e) { ctx = null; }
   }
   for (const ev of ['pointerdown', 'keydown', 'touchstart']) addEventListener(ev, demarrer, { capture: true, passive: true });
   // un onglet caché se tait
@@ -882,7 +893,7 @@ const SON = (() => {
     if (!ctx || (!horsLigne && ctx.state !== 'running')) return null;
     let g = vol, p = 0;
     if (pos) { const q = placer(pos[0], pos[1], pos[2]); if (!q) return null; g *= q.g; p = q.p; }
-    if (g < .003 || voix >= VOIX_MAX) return null;
+    if (g < .012 || voix >= VOIX_MAX) return null;     // (§113) un son à peine audible ne se joue plus
     const G = ctx.createGain(); G.gain.value = g;
     if (p && ctx.createStereoPanner) { const S = ctx.createStereoPanner(); S.pan.value = p; G.connect(S); S.connect(bus[k]); }
     else G.connect(bus[k]);
@@ -897,7 +908,7 @@ const SON = (() => {
     O.type = type; O.frequency.setValueAtTime(f0, t0);
     if (f1 && f1 !== f0) O.frequency.exponentialRampToValueAtTime(f1, t0 + (glisse || a + dur));
     G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(pic, t0 + a); G.gain.exponentialRampToValueAtTime(.0001, t0 + a + dur);
-    O.connect(G); G.connect(o); O.start(t0); O.stop(t0 + a + dur + .03);
+    O.connect(G); G.connect(o); O.start(t0); O.stop(t0 + a + dur + .03); O.onended = () => G.disconnect();
     return O;
   }
   function souffle(o, t0, type, f0, f1, q, dur, a, pic) {   // du bruit filtré
@@ -905,7 +916,7 @@ const SON = (() => {
     S.buffer = BRUIT; S.loop = true;
     F.type = type; F.frequency.setValueAtTime(f0, t0); if (f1 && f1 !== f0) F.frequency.exponentialRampToValueAtTime(f1, t0 + a + dur); F.Q.value = q;
     G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(pic, t0 + a); G.gain.exponentialRampToValueAtTime(.0001, t0 + a + dur);
-    S.connect(F); F.connect(G); G.connect(o); S.start(t0, Math.random() * 1.5); S.stop(t0 + a + dur + .03);
+    S.connect(F); F.connect(G); G.connect(o); S.start(t0, Math.random() * 1.5); S.stop(t0 + a + dur + .03); S.onended = () => G.disconnect();
   }
   const cloche = (o, t0, f, parts, dur) => parts.forEach(([r, g], i) => osc(o, t0, 'sine', f * r, 0, dur * (1 - i * .14), .002, g));
   const filtre = (o, type, f, q) => { const F = ctx.createBiquadFilter(); F.type = type; F.frequency.value = f; F.Q.value = q; F.connect(o); return F; };
@@ -1209,6 +1220,7 @@ const SON = (() => {
     lentigrade: { k: 'soupir', f: 92 }, carillonneur: { k: 'cloche', f: 1250 }, oglodon: { k: 'stridule', f: 2600 },
     sterne: { k: 'cri', f: 1750 },
     dragon: { k: 'rugit', f: 95 },
+    sika: { k: 'verre', f: 1500 }, renard: { k: 'trille', f: 3600, n: 2 }, lentisakura: { k: 'soupir', f: 78 },   // la cerisaie (§112)
     cotonnier: { k: 'trille', f: 5290, n: 2 },        // 3400 quand il était à sz 0,62 : grossi, il garde sa voix
   };
   function crier(b, genre) {
@@ -1388,50 +1400,56 @@ const SON = (() => {
     for (let j = 0; j < m; j++) d[j] = d[j] * (j / m) + d[n - m + j] * (1 - j / m);   // un fondu, pour que la boucle ne claque pas
     let pk = 0; for (let i = 0; i < n - m; i++) pk = Math.max(pk, Math.abs(d[i])); for (let i = 0; i < n; i++) d[i] *= .9 / (pk || 1);
     const S = ctx.createBufferSource(), G = ctx.createGain(); S.buffer = B; S.loop = true; S.loopEnd = (n - m) / sr; G.gain.value = 0; S.connect(G);
-    let Pn = null; if (ctx.createStereoPanner) { Pn = ctx.createStereoPanner(); G.connect(Pn); Pn.connect(bus.a); } else G.connect(bus.a);
-    S.start(0, Math.random() * 5); return { G, Pn };
+    let Pn = null; if (ctx.createStereoPanner) { Pn = ctx.createStereoPanner(); Pn.connect(bus.a); }
+    S.start(0, Math.random() * 5); return { G, Pn, dest: Pn, on: false };   // (§113) débranché loin du feu
   }
   const AMB = {
     monter() {
       const boucle = (type, f, q) => {
         const S = ctx.createBufferSource(), F = ctx.createBiquadFilter(), G = ctx.createGain();
         S.buffer = BRUIT; S.loop = true; F.type = type; F.frequency.value = f; F.Q.value = q; G.gain.value = 0;
-        S.connect(F); F.connect(G); G.connect(bus.a); S.start(0, Math.random() * 1.5);
-        return { F, G };
+        S.connect(F); F.connect(G); S.start(0, Math.random() * 1.5);   // (§113) débranchée tant qu'elle se tait (voir AMB.maj)
+        return { F, G, on: false };
       };
       this.vent = boucle('bandpass', 500, 1.6); this.feuilles = boucle('highpass', 3800, .5); this.pluie = boucle('bandpass', 3200, .35);
       this.eau = boucle('bandpass', 800, 1.6); this.mer = boucle('lowpass', 420, .5); this.feu = feuDeCamp();
       // les grillons : une note aiguë hachée par un oscillateur lent, et ouverte par phrases
       const O = ctx.createOscillator(), H = ctx.createGain(), L = ctx.createOscillator(), LG = ctx.createGain(), G = ctx.createGain();
       O.frequency.value = 4300; L.type = 'square'; L.frequency.value = 28; LG.gain.value = .5; H.gain.value = .5; G.gain.value = 0;
-      L.connect(LG); LG.connect(H.gain); O.connect(H); H.connect(G); G.connect(bus.a); O.start(); L.start();
-      this.grillons = { G };
+      L.connect(LG); LG.connect(H.gain); O.connect(H); H.connect(G); O.start(); L.start();
+      this.grillons = { G, on: false };
       // la rumeur des machines (île des automates) et le bourdon des lasers
       const M = ctx.createOscillator(), MF = ctx.createBiquadFilter(), MG = ctx.createGain();
       M.type = 'sawtooth'; M.frequency.value = 55; MF.type = 'lowpass'; MF.frequency.value = 180; MG.gain.value = 0;
-      M.connect(MF); MF.connect(MG); MG.connect(bus.a); M.start();
-      this.machine = { G: MG };
+      M.connect(MF); MF.connect(MG); M.start();
+      this.machine = { G: MG, on: false };
       const Z = ctx.createOscillator(), ZF = ctx.createBiquadFilter(), ZG = ctx.createGain();
       Z.type = 'square'; Z.frequency.value = 118; ZF.type = 'lowpass'; ZF.frequency.value = 900; ZG.gain.value = 0;
-      Z.connect(ZF); ZF.connect(ZG); ZG.connect(bus.a); Z.start();
-      this.laser = { G: ZG };
+      Z.connect(ZF); ZF.connect(ZG); Z.start();
+      this.laser = { G: ZG, on: false };
       this.raf = 1; this.evt = 0;
     },
     maj(dt) {
-      const now = ctx.currentTime, vers = (n, v, tc = .5) => n.G.gain.setTargetAtTime(v, now, tc);
+      // (§113) Une boucle qui se tait est débranchée : le navigateur ne la calcule plus. Elle se rebranche dès qu'il faut
+      // l'entendre, à zéro, et monte doucement.
+      const now = ctx.currentTime, vers = (n, v, tc = .5) => {
+        const g = n.G.gain;
+        if (v > .0004) { if (!n.on) { g.cancelScheduledValues(now); g.setValueAtTime(0, now); n.G.connect(n.dest || bus.a); n.on = true; } n.coupe = 0; g.setTargetAtTime(v, now, tc); }
+        else if (n.on) { if (!n.coupe) { g.setTargetAtTime(0, now, Math.min(tc, .4)); n.coupe = now + 2.5; } else if (now > n.coupe) { n.G.disconnect(); n.on = false; n.coupe = 0; } }
+      };
       const x = P.x | 0, y = P.y | 0, bio = bAt(x, y), nk = nuitK(), pl = met('pluie');
       const autour = pr => { let n = 0; for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832, u = (x + Math.cos(a) * 5) | 0, v = (y + Math.sin(a) * 5) | 0; if (pr(u, v)) n++; } return n / 12; };
       this.raf = Math.max(.55, Math.min(1.5, this.raf + (Math.random() - .5) * dt * 1.6));   // les rafales
       const alt = djIci() ? 0 : Math.max(0, Math.min(1, (P.z - SEA) / 26)), vent = djIci() ? 0 : Math.min(1.8, Meteo.vent);
       vers(this.vent, (.022 + .04 * vent * (.5 + alt)) * this.raf);
-      this.vent.F.frequency.setTargetAtTime(300 + 260 * vent * this.raf + 300 * alt, now, .6);
+      if (this.vent.on) this.vent.F.frequency.setTargetAtTime(300 + 260 * vent * this.raf + 300 * alt, now, .6);
       const foret = autour((u, v) => Flo[v * WS + u] && ESP[Flo[v * WS + u] - 1].res === 'bois');
       vers(this.feuilles, .012 * vent * foret * this.raf);
       const neige = P.z - SEA > 22;
-      vers(this.pluie, pl * (neige ? .02 : .075)); this.pluie.F.frequency.setTargetAtTime(neige ? 900 : 3200, now, 1);
-      if (!neige) for (let n = pl * dt * 26; n > 0; n--) if (Math.random() < n) jouer('goutte', { bus: 'a', vol: alea(.3, 1) }, P.x + alea(-3, 3), P.y + alea(-3, 3), P.z);   // des gouttes, une à une
+      vers(this.pluie, pl * (neige ? .02 : .075)); if (this.pluie.on) this.pluie.F.frequency.setTargetAtTime(neige ? 900 : 3200, now, 1);
+      if (!neige) for (let n = pl * dt * 12; n > 0; n--) if (Math.random() < n) jouer('goutte', { bus: 'a', vol: alea(.3, 1) }, P.x + alea(-3, 3), P.y + alea(-3, 3), P.z);   // des gouttes, une à une
       const dE = distEau(x, y), eau = eauAt(x, y) ? 1 : Math.max(0, 1 - dE / 7);
-      vers(this.eau, .045 * eau); this.eau.F.frequency.setTargetAtTime(alea(600, 1150), now, .15);
+      vers(this.eau, .045 * eau); if (this.eau.on) this.eau.F.frequency.setTargetAtTime(alea(600, 1150), now, .15);
       const mer = autour((u, v) => bAt(u, v) === 0 && hAt(u, v) <= SEA);
       vers(this.mer, .06 * mer * (.55 + .45 * Math.sin(t * .35)), 1.2);
       vers(this.grillons, nk > .4 && pl < .3 && bio >= 2 && bio <= 4 ? .006 * nk * (Math.sin(now * 8.2) > .25 ? 1 : 0) : 0, .02);
@@ -1444,7 +1462,7 @@ const SON = (() => {
       let fc = null, df = 99;
       for (const c of campsIci()) { const d = Math.hypot(c.x - P.x, c.y - P.y); if (d < df) { df = d; fc = c; } }
       const qf = fc && !djIci() ? placer(fc.x, fc.y, (fc.z ?? P.z) + .3) : null;
-      vers(this.feu, qf ? .2 * qf.g : 0, .25); if (qf && this.feu.Pn) this.feu.Pn.pan.setTargetAtTime(qf.p, now, .1);
+      vers(this.feu, qf ? .2 * qf.g : 0, .25); if (qf && this.feu.Pn && this.feu.on) this.feu.Pn.pan.setTargetAtTime(qf.p, now, .1);
       // les petits événements : la lave qui bout, le carillon du cristal, un choc de métal au loin
       if ((this.evt -= dt) <= 0) {
         this.evt = alea(.6, 2.5);
@@ -1473,6 +1491,10 @@ const SON = (() => {
   };
   // Le large lointain (§108) : au-delà de la moitié du chemin vers la barrière, un mode dorien, plus grave.
   HUMEURS.lointain = { base: 196, deg: [0, 2, 3, 5, 7, 9, 10, 12, 14, 15, 17], acc: [0, 7, 15], pas: .74, timbre: 'pluck', repos: [5, 13] };
+  // La cerisaie (§112) : le jour, la gamme yo (pentatonique sans demi-ton), lente, pincée comme un koto ; la nuit, la gamme
+  // miyako-bushi (ses deux demi-tons), en cloches. Ni le large ni le combat n'y entrent : on n'y est pas chassé.
+  HUMEURS.cerisaie = { base: 293.66, deg: [0, 2, 5, 7, 9, 12, 14, 17, 19], acc: [0, 7, 12], pas: .95, timbre: 'pluck', repos: [7, 18] };
+  HUMEURS.cerisaieNuit = { base: 220, deg: [0, 1, 5, 7, 8, 12, 13, 17], acc: [0, 7, 12], pas: 1.15, timbre: 'cloche', repos: [9, 22] };
   // Les phrases composées (§108). Une phrase : quatre mesures de trois temps, chacune sur un accord. Elles vont
   // par deux : la question (elle s'arrête sur un accord ouvert, la note en l'air) puis la réponse (elle revient
   // au repos, sur la tonique, longue). La mélodie : un motif (un rythme et un contour) en mesure 1, un autre en
@@ -1484,6 +1506,8 @@ const SON = (() => {
     danger: [[[0, 3, 7], [1, 5, 8], [0, 3, 7], [-2, 2, 5]], [[0, 3, 7], [1, 5, 8], [-2, 2, 5], [0, 3, 7]]],
     automates: [[[0, 3, 7], [6, 10, 13], [0, 3, 7], [10, 13, 17]], [[0, 3, 7], [3, 6, 10], [6, 10, 13], [0, 3, 7]]],
     lointain: [[[0, 3, 7], [5, 9, 12], [0, 3, 7], [10, 14, 17]], [[0, 3, 7], [5, 9, 12], [7, 10, 14], [0, 3, 7]]],
+    cerisaie: [[[0, 5, 7], [2, 5, 9], [-3, 2, 5], [7, 9, 14]], [[0, 5, 7], [-3, 2, 5], [2, 7, 9], [0, 5, 7]]],
+    cerisaieNuit: [[[0, 7, 12], [5, 8, 12], [1, 5, 8], [7, 12, 13]], [[0, 7, 12], [1, 5, 8], [5, 8, 12], [0, 7, 12]]],
   };
   function composer(H, Q, question, serre) {
     const D = H.deg, N = D.length, md = x => ((x % 12) + 12) % 12, pick = a => a[Math.random() * a.length | 0];
@@ -1510,27 +1534,34 @@ const SON = (() => {
     G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(vol, t0 + Math.min(1.2, dur * .4)); G.gain.setValueAtTime(vol, t0 + dur * .8); G.gain.exponentialRampToValueAtTime(.0001, t0 + dur + 1.4);
     O.connect(G); G.connect(F); O.start(t0); O.stop(t0 + dur + 1.5); O.onended = () => G.disconnect();
   }
+  // (§113) Les filtres des notes sont partagés : un par timbre, au lieu d'un par note (ils étaient tous pareils).
+  const FILTRES = new Map();
+  function filtreCommun(cle, type, f, q) {
+    let F = FILTRES.get(cle); if (F && F.context === ctx) return F;
+    F = ctx.createBiquadFilter(); F.type = type; F.frequency.value = f; F.Q.value = q; F.connect(bus.m); FILTRES.set(cle, F); return F;
+  }
   function note(f, t0, timbre, r, vol = 1) {
     const o = bus.m;
     if (timbre === 'cloche') { cloche(o, t0, f, [[1, .045 * vol], [2.76, .012 * vol], [5.4, .005 * vol]], 2.2); return; }
     if (timbre === 'fele') {                               // la boîte fêlée : la note, jamais tout à fait juste, sa voisine un quart de ton à côté — et toutes deux fléchissent
-      const d = 2 ** ((Math.random() - .5) * .8 / 12), F = filtre(o, 'lowpass', 3200, .7), l = Math.min(2.2, r * 2);
+      const d = 2 ** ((Math.random() - .5) * .8 / 12), F = filtreCommun('fele', 'lowpass', 3200, .7), l = Math.min(2.2, r * 2);
       osc(F, t0, 'triangle', f * d, f * d * (Math.random() < .5 ? .962 : 1.022), l, .006, .05 * vol, l * .9);
       osc(F, t0 + .02, 'sine', f * d * 1.0293, f * d * .99, Math.min(1.6, r * 1.6), .006, .03 * vol);
       cloche(o, t0, f * d * 2.02, [[1, .012 * vol], [2.41, .007 * vol]], 1.1);
       return;
     }
     if (timbre === 'metal') { const F = filtre(o, 'bandpass', f * 2.2, 3); osc(F, t0, 'square', f, 0, .5, .004, .05 * vol); osc(o, t0, 'sine', f * 2.23, 0, .4, .004, .012 * vol); return; }
-    const F = filtre(o, 'lowpass', 2400, .5);
+    const F = filtreCommun('pluck', 'lowpass', 2400, .5);
     osc(F, t0, 'triangle', f, 0, Math.min(1.8, r * 1.8), .006, .06 * vol); osc(F, t0, 'sine', f * 2, 0, Math.min(1, r), .006, .015 * vol);
   }
   function tenir(f, t0, dur, vol) {                        // une nappe : deux voix désaccordées, qui montent lentement
+    const F = filtreCommun('nappe', 'lowpass', 900, 1);
     for (const dt of [-.004, .004]) {
-      const O = ctx.createOscillator(), F = ctx.createBiquadFilter(), G = ctx.createGain();
-      O.type = 'triangle'; O.frequency.value = f * (1 + dt); F.type = 'lowpass'; F.frequency.value = 900;
+      const O = ctx.createOscillator(), G = ctx.createGain();
+      O.type = 'triangle'; O.frequency.value = f * (1 + dt);
       G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(vol, t0 + Math.min(2, dur * .4));
       G.gain.setValueAtTime(vol, t0 + dur * .7); G.gain.exponentialRampToValueAtTime(.0001, t0 + dur + 2.5);
-      O.connect(F); F.connect(G); G.connect(bus.m); O.start(t0); O.stop(t0 + dur + 2.6);
+      O.connect(G); G.connect(F); O.start(t0); O.stop(t0 + dur + 2.6); O.onended = () => G.disconnect();
     }
   }
   // ---------- la brume sanglante a sa musique ----------
@@ -1562,8 +1593,8 @@ const SON = (() => {
     phrases(now) {
       const dt = Math.min(.25, Math.max(0, now - (this.vu || now))); this.vu = now;
       const cible = this.humeur === 'danger' ? 1 : 0; this.c = (this.c || 0) + (cible - (this.c || 0)) * Math.min(1, dt * (cible > (this.c || 0) ? 3 : .3));
-      const c = this.c, chez = campIci() || (!P.camp && !profondeur()), e = P.camp ? ecart() : profondeur(), s = chez ? 0 : Math.min(1, .12 + .11 * Math.max(1, e)), nk = nuitK();
-      const base = ileMeca || djIci() ? 'automates' : !chez && s >= .5 ? 'lointain' : nk > .6 ? 'nuit' : 'jour';
+      const cer = biomeIci === 23, c = this.c, chez = campIci() || (!P.camp && !profondeur()), e = P.camp ? ecart() : profondeur(), s = chez || cer ? 0 : Math.min(1, .12 + .11 * Math.max(1, e)), nk = nuitK();
+      const base = ileMeca || djIci() ? 'automates' : cer ? (nk > .6 ? 'cerisaieNuit' : 'cerisaie') : !chez && s >= .5 ? 'lointain' : nk > .6 ? 'nuit' : 'jour';
       const pasK = Math.max(.6, (1 - .22 * s) * (1 - .35 * c) * (nk > .6 ? 1.08 : 1)), reposK = (1 - .6 * s) * (1 - .9 * c);
       if (c > .5 && !this.phrase && this.silence > now + .5) this.silence = this.prochain = now + .25;   // le combat : pas d'attente
       if (now < this.silence) return;
@@ -1633,9 +1664,12 @@ const SON = (() => {
   };
 
   // ---------- chaque image ----------
+  // (§113) Les pas, les cris : à chaque image. L'ambiance et la musique, dix fois par seconde : elles planifient de toute
+  // façon une demi-seconde d'avance, et chaque réglage envoyé au fil audio a un coût.
+  let lent = 0;
   function maj(dt) {
     if (!ctx || horsLigne || ctx.state !== 'running') return;
-    try { guetterJoueur(); guetterBetes(); AMB.maj(dt); MUS.maj(); } catch (e) { /* le son ne doit jamais arrêter le jeu */ }
+    try { guetterJoueur(); guetterBetes(); if ((lent += dt) >= .1) { AMB.maj(lent); MUS.maj(); lent = 0; } } catch (e) { /* le son ne doit jamais arrêter le jeu */ }
   }
   return { maj, jouer, crier, regler, demarrer, brancher, RECETTES, VOIX, AMB, MUS, placer, note, tenir,
     get reglages() { return R; }, get ctx() { return ctx; }, get voix() { return voix; }, get bus() { return bus; } };
@@ -1683,6 +1717,7 @@ const BIOME = [
   { n: 'terres creuses',      top: [40, 42, 58],    side: [28, 28, 40],     food: .15 },
   { n: 'roche rongée',        top: [36, 34, 42],    side: [24, 22, 30],     food: 0 },     // le Korlaz (etats.js)
   { n: 'village',             top: [148, 126, 92],  side: [104, 80, 56],    food: .5 },    // le village (village.js) : la terre battue
+  { n: 'cerisaie',            top: [238, 180, 200], side: [118, 86, 80],    food: .7 },    // la cerisaie en fleur (§112) : un tapis de pétales
 ];
 // ============================================================
 //  LES BIOMES RARES
@@ -1719,7 +1754,15 @@ const RARES = [
   { b: 22, id: 'village', n: 'Village', rang: 'vie', niv: 4, chance: .14, part: .07,
     sur: [2, 3], alt: [.05, .55], eau: [1, 255], coul: '#ffd27d',
     d: 'des toits, un puits, un feu · des familles qui vivent, et qui parlent' },
+  // la cerisaie en fleur (§112) : la seule qu'on ne croise qu'au début, de la première à la cinquième exploration ;
+  // après, seule une île gardée y ramène (max : le portail ne la tire plus au-delà)
+  { b: 23, id: 'cerisaie', n: 'Cerisaie en fleur', rang: 'merveille', niv: 1, max: 5, chance: .16, part: .2,
+    sur: [2, 3, 4], alt: [.04, .62], eau: [1, 255], coul: '#ffb3cf',
+    d: 'des pétales tombent sans fin · sous les cerisiers, les bêtes sont en paix et la vie revient' },
 ];
+const quandRare = r => r.max ? 'de l\'exploration ' + r.niv + ' à ' + r.max : 'dès l\'exploration ' + r.niv;
+// Une île qui porte un biome passé de saison (la cerisaie, au-delà de la cinquième) : le portail ne la tire plus.
+const horsSaison = (g, niv) => biomesGraine(g).some(b => (rareDe(b).max || 1e9) < niv);
 const N_RARES_BASE = 5;
 const famille = b => b === 14 ? 13 : b;               // les braises sont de la caldeira
 const rareDe = b => RARES.find(r => r.b === famille(b)) || null;
@@ -1756,7 +1799,7 @@ function tirerGraine(niv, sauf) {
   let g = 0;
   for (let i = 0; i < 60000; i++) {
     g = (Math.random() * 1e9) | 0;
-    if (g !== sauf && signee(g) && nivGraine(g) <= niv && (!k || tireursGraine(g, niv) >= k)) return g;
+    if (g !== sauf && signee(g) && nivGraine(g) <= niv && !horsSaison(g, niv) && (!k || tireursGraine(g, niv) >= k)) return g;
   }
   return g;
 }
@@ -2534,7 +2577,7 @@ P.sac = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, spore: 0 
 // Les baies sont une matière du sac comme les autres ; P.baies n'en est plus qu'un raccourci.
 P.sac.baies = P.baies | 0; delete P.baies;
 Object.defineProperty(P, 'baies', { get: () => P.sac.baies || 0, set: v => { P.sac.baies = Math.max(0, v | 0); }, configurable: true });
-P.equip = { arme: null, outil: null, armure: null, grimoire: null, accessoire: null, lumiere: null };
+P.equip = { arme: null, outil: null, armure: null, grimoire: null, accessoire: null, lumiere: null, breloque: null, breloque2: null };   // (breloques : les curiosités, §109)
 P.endu = 1; P.epuise = false; P.courseT = -9;   // l'endurance, de 0 à 1
 P.raccourcis = Array(15).fill(null);               // les cases du bord droit : trois barres de cinq, ouvertes par la ceinture
 P.ceinture = 0; P.barre = 0;                       // le niveau de la ceinture (0 : pas de barre), et la barre affichée
@@ -2850,6 +2893,20 @@ const ESP = [
     bio:[21], alt:[0,1], eau:[0,99], dens:0, grain:9, seuil:9, bas:[200,200,190], haut:[236,236,226], luit:1 },
   { id:'excroissance', n:'Excroissance', forme:'cristal', res:'pierre', rend:2, pousse:300, h:.55, larg:.14,
     bio:[21], alt:[0,1], eau:[0,99], dens:0, grain:9, seuil:9, bas:[18,16,22], haut:[88,120,52], luit:1 },   // ce que le Korlaz fait pousser sur la roche
+  // la cerisaie en fleur (§112) : les lanternes d'abord (rares, elles ne doivent pas être évincées), les iris au bord de l'eau,
+  // les cerisiers, les bambous en bosquets, les pivoines entre deux ; le griottier, posé par loadWorld (seuil 9)
+  { id:'toro',     n:'Lanterne de pierre', forme:'toro',   res:'pierre', rend:4, pousse:300, h:.95, larg:.2,
+    bio:[23], alt:[0,1], eau:[0,99], dens:.07, grain:13, seuil:.6,  bas:[150,148,140], haut:[255,214,140], luit:1 },
+  { id:'iris',     n:'Iris d\'eau',      forme:'fleur',   res:'fibre',  rend:4, pousse:80,  h:.62, larg:.11,
+    bio:[23], alt:[0,1], eau:[0,2],  dens:.5,  grain:7,  seuil:.36, bas:[86,140,96],  haut:[140,116,230] },
+  { id:'sakura',   n:'Cerisier en fleur', forme:'sakura',  res:'bois',   rend:6, pousse:240, h:2.8, larg:.24,
+    bio:[23], alt:[0,1], eau:[0,99], dens:.2,  grain:16, seuil:.44, bas:[92,66,64],  haut:[255,184,208] },
+  { id:'bambou',   n:'Bambou',           forme:'roseau',  res:'bois',   rend:3, pousse:90,  h:2.4, larg:.12,
+    bio:[23], alt:[0,1], eau:[0,99], dens:.45, grain:9,  seuil:.6,  bas:[110,150,70], haut:[150,198,98] },
+  { id:'pivoine',  n:'Pivoine',          forme:'fleur',   res:'fibre',  rend:4, pousse:80,  h:.5,  larg:.13,
+    bio:[23], alt:[0,1], eau:[2,99], dens:.26, grain:8,  seuil:.46, bas:[90,140,80],  haut:[246,130,176] },
+  { id:'griottier',n:'Griottier',        forme:'buisson', res:'baies',  rend:3, pousse:130, h:.66, larg:.26,
+    bio:[23], alt:[0,1], eau:[0,99], dens:0, grain:9, seuil:9, bas:[90,120,70], haut:[150,184,104], baie:[200,30,58] },
 ];
 const FLORE = {}; for (const e of ESP) FLORE[e.id] = e;
 // Carte de peuplement, calculée une fois : sans elle il faudrait éprouver vingt et un
@@ -3763,6 +3820,28 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
         if (det > 1) pose([cx + sg * ux * 1.3, cy + sg * uy * 1.3, zc], [cx + sg * ux * 1.5, cy + sg * uy * 1.5, zc], hh * .3, hh * .3, A);   // le moyeu
       }
       break; }
+    case 'sakura': {                             // le cerisier (§112) : un tronc sombre qui se tord, des bras, des nuages de fleurs
+      const tx = cx + pen * hh * .9, zt = z + hh * .42, r = w * 2.6, a0 = ha * 6.2832;
+      const v = ha < .2 ? 1 : ha > .84 ? 2 : 0;                                     // le blanc, le rose franc, le rose tendre
+      const Bc = v === 1 ? [B[0], Math.min(255, B[1] * 1.2), Math.min(255, B[2] * 1.1)] : v === 2 ? [B[0] * .95, B[1] * .7, B[2] * .8] : B;
+      const Bp = [Math.min(255, Bc[0] * 1.04), Math.min(255, Bc[1] * 1.12), Math.min(255, Bc[2] * 1.08)];
+      if (det) pose([cx, cy, z], [tx, cy, zt], w * .62, w * .55, A);
+      const n = det > 1 ? 3 : 2;
+      for (let e = 0; e < n; e++) {
+        const a = a0 + e * 6.2832 / n, bx = tx + Math.cos(a) * r * .7, by = cy + Math.sin(a) * r * .7, bz = z + hh * (.6 + .08 * (e % 2));
+        if (det) pose([tx, cy, zt], [bx, by, bz], w * .32, w * .3, A);
+        pose([bx - r * .5, by, bz + hh * .07], [bx + r * .5, by, bz + hh * .07], r * .9, hh * .24, e % 2 ? Bp : Bc);
+      }
+      pose([tx - r * .5, cy, z + hh * .85], [tx + r * .5, cy, z + hh * .85], r * .95, hh * .22, Bp);   // la cime
+      break; }
+    case 'toro': {                               // la lanterne de pierre (§112) : un socle, un fût, le foyer qui luit la nuit, un toit
+      const feu = noirceur() > .3 ? [255, 214, 140] : B;
+      pose([cx - w * .9, cy, z + hh * .05], [cx + w * .9, cy, z + hh * .05], w * 1.8, hh * .1, A);
+      pose([cx, cy, z + hh * .08], [cx, cy, z + hh * .52], w * .6, w * .6, A);
+      pose([cx - w * .62, cy, z + hh * .63], [cx + w * .62, cy, z + hh * .63], w * 1.3, hh * .2, feu);
+      pose([cx - w * 1.4, cy, z + hh * .79], [cx + w * 1.4, cy, z + hh * .79], w * 2.6, hh * .1, A);
+      if (det) pose([cx, cy, z + hh * .84], [cx, cy, z + hh * .98], w * .4, w * .4, A);
+      break; }
     case 'verre': {                              // un fût de verre, une couronne d'aiguilles
       const zt = z + hh * .45;
       pose([cx, cy, z], [cx, cy, zt], w * .55, w * .55, A);
@@ -3779,6 +3858,7 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
 // les os — donc toute la branche des armes — resteraient hors d'atteinte tant qu'on
 // n'aurait pas d'arme, et rien ne permettait d'en fabriquer une.
 function butin(b) {
+  if (curioFx('eclat') && !b.tame) { P.sac.eclat = (P.sac.eclat || 0) + curioFx('eclat'); }   // la bourse du Seuil, la couronne (§109)
   if (b.sp.brume) { if (typeof butinBrume === 'function') butinBrume(b); return; }   // un mage, un rôdeur, le démon (brume.js)
   if (b.sp.pnj || b.pnjSuit) { nmButin(b); return; }   // un nomade (nomades.js)
   if (automate(b.sp)) {                              // son cœur d'éclat, et ce qui reste de sa carcasse
@@ -4236,7 +4316,8 @@ function ouvrirPortail() {
   return portailNormal();
 }
 function portailNormal() {
-  const g = tirerGraine(profondeur() + 1, SEED);      // une île permise à l'exploration suivante
+  const o = P.oracle, g = o && o.de === SEED && o.n === profondeur() + 1 ? o.g : tirerGraine(profondeur() + 1, SEED);   // une île permise à l'exploration suivante (celle qu'a vue le devin, §110)
+  P.oracle = null;
   burst(P.x, P.y, P.z + .8, 24, '#8fe3ff'); SON.jouer('portail');
   const r = typeof coopPortail === 'function' ? coopPortail(g, profondeur() + 1) : null;   // le groupe : le rendez-vous, et les autres prévenus
   if (r) return voyagerVers(r.g, null, r.mot, r.niv);
@@ -5289,7 +5370,7 @@ function apportsCamp(niv) {
 let propoCache = null;
 const voeuxPossibles = niv => VISEES.filter(v => v.k === 'meca' ? niv >= NIV_MECA : v.k === 'korlaz' ? niv >= 6 && typeof etatGraine === 'function'
   : v.k === 'brume' ? niv >= 8 && typeof etatGraine === 'function' && typeof brumeIle === 'function'
-  : (RARES.find(r => 'b' + r.b === v.k) || { niv: 1e9 }).niv <= niv);
+  : (R => R.niv <= niv && !(R.max < niv))(RARES.find(r => 'b' + r.b === v.k) || { niv: 1e9 }));
 function voeuPortail() {
   if (voeuxPortail(nivCamp()) < 1 || !P.portailVoeu) return null;
   return voeuxPossibles(profondeur() + 1).find(v => v.k === P.portailVoeu) || null;
@@ -5301,7 +5382,7 @@ function propositions() {
   let s = hash32((SEED ^ 0x70a7a11) + Math.imul(niv, 7919) + Math.imul(P.portailT | 0, 104729)) || 1;
   const tir = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return (s / 4294967296 * 1e9) | 0; };
   const garde = gardeRequise(niv), L = [];
-  const bon = g => g !== SEED && !L.includes(g) && signee(g) && nivGraine(g) <= niv && (!garde || tireursGraine(g, niv) >= garde);
+  const bon = g => g !== SEED && !L.includes(g) && signee(g) && nivGraine(g) <= niv && !horsSaison(g, niv) && (!garde || tireursGraine(g, niv) >= garde);
   for (let i = 0; i < 300000 && L.length < nv; i++) { const g = tir(); if (signee(g) && v.ok(g, niv) && bon(g)) L.push(g); }
   const voulues = L.length;
   for (let i = 0; i < 300000 && L.length < n; i++) { const g = tir(); if (bon(g)) L.push(g); }
@@ -5655,6 +5736,7 @@ function equiper(id) {
   const o = objet(id); if (!P.objets[id]) return;
   if (id === 'canne') { prendreCanne(); majSac(); return; }
   if (id === 'marmite') { poserMarmite(); majSac(); return; }
+  if (o.cur) { porterCurio(id); majSac(); return; }      // une curiosité : une breloque, ou l'accessoire libre (§109)
   P.equip[o.emp] = P.equip[o.emp] === id ? null : id; majSac();
 }
 // ---------- icônes pixel ----------
@@ -6084,6 +6166,7 @@ function dessinTellurien(d, sp) {
     d.rect(4, 7, 11, 10, sp.shell); d.rect(3, 7, 3, 8, [236, 250, 250]);
     d.ligne(11, 7, 12, 4, sp.shell, 2); d.disque(13, 3.6, 1.5, sp.shell); d.net(14, 4, sp.dark);
     d.ligne(12, 2, 10, 0, sp.bois); d.ligne(13, 2, 15, 0, sp.bois); d.net(11, 0, sp.bois);
+    if (sp.fleurBois) { d.net(10, 0, sp.fleurBois); d.net(11, 1, sp.fleurBois); d.net(15, 0, sp.fleurBois); d.net(14, 1, sp.fleurBois); }
     d.net(13, 3, sp.oeil); d.net(12, 2, sp.pierre);
   }
 }
@@ -6235,6 +6318,8 @@ const EMPLACEMENTS = [
   { id: 'armure', n: 'Armure', fantome: 'tunique', vide: 'Aucune armure portée' },
   { id: 'grimoire', n: 'Grimoire', fantome: 'aube', vide: 'Aucun grimoire emporté' },
   { id: 'accessoire', n: 'Accessoire', fantome: 'sifflet', vide: 'Aucun accessoire' },
+  { id: 'breloque', n: 'Breloque', fantome: 'cu_vide', vide: 'Aucune curiosité portée' },
+  { id: 'breloque2', n: 'Breloque', fantome: 'cu_vide', vide: 'Aucune curiosité portée' },
   { id: 'lumiere', n: 'Lumière', fantome: 'lanterne', vide: 'Aucune lumière' },
 ];
 const FILTRES = [['tout', 'Tout'], ['main', 'À la main'], ['outil', 'Outils'], ['arme', 'Armes'], ['armure', 'Armures'],
@@ -6319,7 +6404,7 @@ function pageSac() {
     + `<span>${r === 'spore' ? 'spore' : RES[r]}</span></div>`).join('');
   const possedes = OBJETS.filter(o => !enSerie(o) && P.objets[o.id]);
   const grille = possedes.length
-    ? `<div class="grille">${possedes.map(o => caseObjet(o.id, { porte: P.equip[o.emp] === o.id, choisie: choixSac === o.id,
+    ? `<div class="grille">${possedes.map(o => caseObjet(o.id, { porte: o.cur ? curioPortee(o.id) : P.equip[o.emp] === o.id, choisie: choixSac === o.id,
         attr: ` data-choix="${o.id}"`, label: o.n + (o.emp === 'ceinture' ? ', niveau ' + nivCeinture() : P.equip[o.emp] === o.id ? ', porté' : ''),
         ...(o.emp === 'ceinture' ? { nb: nivCeinture() } : {}) })).join('')}</div>`
     : `<div class="vide-texte">Rien n'a encore été fabriqué.<button class="btn" data-onglet="etabli">Ouvrir la fabrication</button></div>`;
@@ -6360,13 +6445,28 @@ function ficheSac() {
   if (estSoin(choixSac)) return ficheSoin(choixSac);
   if (choixSac.startsWith('vide:')) {
     const emp = choixSac.slice(5), e = EMPLACEMENTS.find(x => x.id === emp);
+    if (emp.startsWith('breloque')) {                   // les breloques : les curiosités (§109)
+      const libres = CURIOS.filter(c => P.objets[c.id] && !curioPortee(c.id));
+      return `<div class="fiche" id="sac-fiche">${caseObjet(e.fantome, { taille: 'grande', vide: true, inerte: true })}`
+        + `<div class="fiche-texte"><h4>${e.vide}</h4><p>${libres.length ? 'Choisir une curiosité ci-dessus, puis « Porter ».' : 'Les curiosités s\'achètent aux voyageurs du Seuil : une seule de chaque, plus rares à mesure qu\'on s\'éloigne.'}</p>`
+        + `<p class="note">Trois au plus : les deux breloques, et l'accessoire s'il est libre.</p></div></div>`;
+    }
     const dispo = OBJETS.filter(o => o.emp === emp && P.objets[o.id]);
     return `<div class="fiche" id="sac-fiche">${caseObjet(e.fantome, { taille: 'grande', vide: true, inerte: true })}`
       + `<div class="fiche-texte"><h4>${e.vide}</h4>`
       + `<p>${dispo.length ? 'Choisir un objet ci-dessus pour le porter.' : 'À fabriquer.'}</p>`
       + `<div class="gestes"><button class="btn" data-voir="${emp}">Voir la fabrication</button></div></div></div>`;
   }
-  const o = objet(choixSac), porte_ = P.equip[o.emp] === o.id, autre = !porte_ && porte(o.emp);
+  const o = objet(choixSac);
+  if (o.cur) {                                          // une curiosité : sa rareté, son histoire, où elle se porte (§109)
+    const c = CURIO[o.id], ici = curioPortee(o.id), place = CURIO_PLACES.find(s => !P.equip[s]), rempl = !ici && !place && objet(P.equip.breloque);
+    return `<div class="fiche" id="sac-fiche">${caseObjet(o.id, { taille: 'grande', porte: ici, inerte: true })}`
+      + `<div class="fiche-texte"><h4>${nomRare(c.n, c.r)}</h4><p><span class="${clRar(c.r)}">${NOM_RARE[c.r]}</span> · curiosité unique</p>`
+      + `<p>${ESC(texteCurio(c).replace(/^./, x => x.toUpperCase()))}, tant qu'on la porte.</p><p class="note"><i>${ESC(c.h)}</i></p>`
+      + `<div class="gestes"><button class="btn${ici ? '' : ' principal'}" data-eq="${o.id}">${ici ? 'Retirer' : 'Porter'}</button>`
+      + (rempl ? `<span class="note">à la place de ${ESC(rempl.n)}</span>` : '') + `</div></div></div>`;
+  }
+  const porte_ = P.equip[o.emp] === o.id, autre = !porte_ && porte(o.emp);
   if (o.emp === 'ceinture') {                           // ni portée ni rangée : elle ouvre les cases
     const n = nivCeinture();
     return `<div class="fiche" id="sac-fiche">${caseObjet(o.id, { taille: 'grande', inerte: true })}`
@@ -6560,7 +6660,7 @@ function pageJournal() {
     return `<div class="sac-corps lignes"><div class="vide-texte">`
       + `<p style="margin:10px 0 0">Le journal est celui du campement : posez-en un pour l'ouvrir.</p>`
       + `<p style="margin:0">Il garde les graines des îles visitées, ce qu'on y trouve, et permet d'y retourner.</p>`
-      + `<button class="btn principal" data-voletcamp="camp">Voir le campement</button></div>${blocAtlas()}${blocCarnet()}${blocPeche()}</div>`;
+      + `<button class="btn principal" data-voletcamp="camp">Voir le campement</button></div>${blocAtlas()}${blocRumeurs()}${blocCarnet()}${blocPeche()}</div>`;
   const j = P.journal, m = memoireJournal(), n = (j.gardees || []).length;
   const ici = j.visites.find(v => v.g === SEED) || ficheIle(SEED, composerIle());
   const passees = (j.visites || []).filter(v => v.g !== SEED).slice(0, 8);
@@ -6573,6 +6673,7 @@ function pageJournal() {
     + (passees.length ? passees.map(v => ficheGraine(v, false)).join('')
       : `<p class="note" style="margin:2px 2px 0">Aucune autre île visitée. Le portail du campement en ouvre une.</p>`)
     + blocAtlas()
+    + blocRumeurs()
     + blocCarnet()
     + blocPeche()
     + `</div>`;
@@ -7044,7 +7145,7 @@ function infoGraine(g, n) {
 }
 // Viser un biome : une graine qui le porte, et le niveau qu'il demande (au moins celui qu'on a tapé).
 const VISEES = [
-  ...RARES.map(r => ({ k: 'b' + r.b, n: r.n, t: r.n + ' · ' + r.rang + ' · dès l\'exploration ' + r.niv + ' · ' + r.d,
+  ...RARES.map(r => ({ k: 'b' + r.b, n: r.n, t: r.n + ' · ' + r.rang + ' · ' + quandRare(r) + ' · ' + r.d,
     ok: (g, n) => signee(g) && biomesGraine(g).includes(r.b) && !(ileMecaGraine(g) && n >= NIV_MECA), niv: g => nivGraine(g) })),
   { k: 'meca', n: 'Terre des automates', t: 'l\'île des automates · dès l\'exploration ' + NIV_MECA, ok: g => ileMecaGraine(g), niv: () => NIV_MECA },
   { k: 'korlaz', n: 'Korlaz', t: 'la roche rongée et ses spores · dès l\'exploration 6', ok: (g, n) => typeof etatGraine === 'function' && etatGraine(g, n) === 'korlaz', niv: () => 6 },
@@ -7564,6 +7665,21 @@ const HORREURS = [
     shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
 ];
 SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof BRUME_SPEC !== 'undefined' ? BRUME_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
+// La cerisaie en fleur (§112) : trois bêtes qui n'y vivent que là. En QUEUE de SPEC : rien ne bouge des autres.
+// Le cerf des cerisiers (un Tellurien, ses bois fleurissent), le renard des pétales (trois queues ; leur bout blanc
+// luit la nuit) et le lentigrade-cerisier (un Doux, qui porte un cerisier en fleur sur le dos).
+const CERISAIE_SPEC = [
+  { id:'sika', n:'Cerf des cerisiers', fam:'tellurien', corps:'cerf', biome:23, diet:'h', sz:1.3, spd:3.3, vue:18, peur:.85, herd:1, cap:7, mat:120,
+    shell:[246,238,232], dark:[214,188,192], leg:[226,206,204], oeil:[40,30,36], bois:[112,84,80], fleurBois:[255,178,206], bio:[23], dur:1, lueur:1.2, anneau:.9,
+    lien:.45, travail:{ fibre:1, baies:1 }, metier:'cueille les fleurs et les cerises', grimpe:0, bond:2 },
+  { id:'renard', n:'Renard des pétales', corps:'felin', renard:1, queues:3, biome:23, diet:'h', sz:.85, spd:3.4, vue:20, peur:.9, herd:0, cap:4, mat:100,
+    shell:[246,226,214], dark:[232,138,164], leg:[238,218,208], ventre:[255,250,246], oeil:[255,196,96], bio:[23], dur:.9, lueur:.9,
+    lien:.4, travail:{ baies:1.2 }, metier:'rapporte les cerises ; la nuit, ses queues éclairent', grimpe:.5 },
+  { id:'lentisakura', n:'Lentigrade-cerisier', fam:'doux', corps:'lentigrade', arbre:1, biome:23, diet:'h', sz:2.2, spd:.8, vue:10, peur:.1, herd:0, cap:2, mat:260,
+    shell:[150,128,118], dark:[100,84,80], leg:[124,106,98], oeil:[40,34,30], mousse:[236,200,206], mousseF:[204,160,170], fleurs:[[255,190,212],[255,236,242],[244,140,176]],
+    bio:[23], dur:3, lien:.7, travail:{ fibre:1.4 }, metier:'porte un cerisier sur le dos, et vous en rapporte des brassées de fleurs', grimpe:0 },
+];
+SPEC.push(...CERISAIE_SPEC);
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -7591,6 +7707,7 @@ const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
   moissonneur: [5, 5, 5, 2, 3, 4, 1, 1],  traceur: [1, 2, 1, 1, 2, 4, 4, 3],      mercenaire: [1, 1, 1, 1, 1, 3, 3, 5],
   sentinelle: [1, 2, 1, 1, 1, 3, 2, 5],   tireur: [1, 1, 1, 1, 1, 2, 4, 5],       mortier: [1, 3, 1, 1, 1, 3, 2, 5],
   sterne: [1, 1, 2, 2, 4, 1, 0, 2],     silencieux: [1, 1, 1, 1, 1, 1, 0, 5], millegueule: [1, 1, 1, 1, 1, 1, 0, 5],     dragon: [1, 1, 1, 1, 1, 1, 5, 4],
+  sika: [1, 1, 4, 4, 2, 1, 0, 2],        renard: [1, 1, 2, 5, 2, 1, 0, 3],       lentisakura: [3, 2, 5, 3, 2, 1, 0, 5],   // la cerisaie (§112)
 };
 const aptDe = esp => APT[esp] || [1, 1, 1, 1, 1, 1, 0, 2];
 const PECHE_APT = { sterne: 5 };                     // la pêche : qui sait pêcher (hors du tableau, dont la 8e case est la défense)
@@ -7611,7 +7728,7 @@ for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.plante ? (typeof dessi
   : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'dragon' ? dessinDragon(d, sp) : sp.corps === 'sterne' ? dessinSterne(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;   // berries : l'index des buissons à baies (des pieds de la flore)
 const BUISSON_BIO = { 2: ESP.findIndex(e => e.id === 'groseillier'), 3: ESP.findIndex(e => e.id === 'ronce'),
-  9: ESP.findIndex(e => e.id === 'airelle'), 11: ESP.findIndex(e => e.id === 'murier') };
+  9: ESP.findIndex(e => e.id === 'airelle'), 11: ESP.findIndex(e => e.id === 'murier'), 23: ESP.findIndex(e => e.id === 'griottier') };
 const baieMure = br => Flo[br.i] === ESP.indexOf(br.e) + 1 && maturite(br.i, br.e) >= 1;
 const JOUR = 240;
 // Le soleil se lève à 6 h et se couche à 20 h : quatorze heures de jour, dix de nuit. Le noir
@@ -7834,7 +7951,23 @@ const AMBIANCE = {
   19: { col: '#ecebe6', z: [.1, 1.4], v: .25, vz: .05, g: 0, vie: 3.6, tl: .14, n: 9 },                    // le brouillard pâle
   20: { col: '#5ad0ff', z: [0, .3], v: .1, vz: .45, g: -.05, vie: 2.6, luit: 1, tl: .05, n: 7 },            // des spores bleues qui montent
   15: { col: '#ffd878', z: [.3, 1.6], v: .9, vz: 1.2, g: 1.6, vie: .7, luit: 1, tl: .05, n: 3 },          // étincelles
+  23: [{ col: '#ffc2d8', z: [1.2, 2.9], v: .25, vz: -.4, g: 0, vie: 4.5, vent: 1.2, tl: .06, n: 8, ond: 1 },   // les pétales (§112)
+       { col: '#ffd2ee', nuit: 1, z: [.4, 1.8], v: .3, vz: 0, g: 0, vie: 3, luit: 1, tl: .07, n: 8 }],             // et la nuit, des lucioles roses
 };
+// La cerisaie (§112) : sous les cerisiers, on ne chasse pas (voir majBete) ; la vie y revient ; les pétales tombent des
+// arbres en fleur, et du cerisier que le lentigrade porte sur le dos.
+const paixIci = (x, y) => bAt(x | 0, y | 0) === 23;
+const petale = (x, y, z) => ({ x, y, z, vx: (Math.random() - .5) * .5 + Math.cos(Meteo.dir) * Meteo.vent * 1.2, vy: (Math.random() - .5) * .5 + Math.sin(Meteo.dir) * Meteo.vent * 1.2,
+  vz: -.3 - Math.random() * .25, g: 0, life: 4 + Math.random() * 2.5, age: 0, col: Math.random() < .25 ? '#fff0f5' : '#ffbcd4', tl: .055, ond: 1 + Math.random() * 6 });
+let petaleT = 0;
+function majCerisaie(dt) {
+  if (biomeIci === 23 && P.pv > 0 && P.pv < 1 && t - (P.dernierCoup || -99) > 4) P.pv = Math.min(1, P.pv + dt * .008);   // la vie revient doucement
+  if ((petaleT += dt) < .03) return; petaleT = 0;
+  const x = P.x + (Math.random() * 2 - 1) * 10, y = P.y + (Math.random() * 2 - 1) * 10, k = typeFlore(x | 0, y | 0);
+  if (k === 'sakura' && maturite((y | 0) * WS + (x | 0), FLORE.sakura) > .6) parts.push(petale(x + Math.random() - .5, y + Math.random() - .5, solFlore(x | 0, y | 0) + FLORE.sakura.h * (.55 + Math.random() * .3)));
+  if (Math.random() < .25) for (const b of beasts) if (b.sp.arbre && !b.dead && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 400 && Math.random() < .5)
+    parts.push(petale(b.x + (Math.random() - .5) * .6, b.y + (Math.random() - .5) * .6, b.z + 1.3 * b.sp.sz));
+}
 function majBiome(dt) {
   const x = P.x | 0, y = P.y | 0;
   // le sol sous les pieds — pas celui qu'on survole d'une île volante, ni le fond d'un lac ;
@@ -7867,6 +8000,7 @@ function majBiome(dt) {
   if (typeof majFaune === 'function') majFaune(dt);       // qui fait vivre la faune de l'île (faune.js)
   if (effet('antidote')) { P.poison = 0; P.spores = 0; }   // l'antidote : ni poison, ni spores
   if (P.regenT > t && P.pv > 0) P.pv = Math.min(1, P.pv + dt * (P.regenV || 0));   // la régénération (plats légendaires, épiques)
+  if (RaresIle.includes(23)) majCerisaie(dt);          // la cerisaie en fleur (§112)
   if (P.poison > t && P.pv > 0) {                     // empoisonné : la vie baisse un peu ; le poison ne tue pas
     P.pv = Math.max(.05, P.pv - dt * .014);
     if (Math.random() < dt * 6) burst(P.x, P.y, P.z + .9, 1, '#b8e07a');
@@ -7887,12 +8021,12 @@ function majBiome(dt) {
   if ((!RaresIle.length && !ileMeca) || (ambT += dt) < .07) return;   // l'air : une dizaine de tirages par seconde
   ambT = 0;
   const ax = P.x + (Math.random() * 2 - 1) * 8, ay = P.y + (Math.random() * 2 - 1) * 8;
-  const A = AMBIANCE[famille(bAt(ax | 0, ay | 0))];
+  const A0 = AMBIANCE[famille(bAt(ax | 0, ay | 0))], A = Array.isArray(A0) ? A0[noirceur() > .35 && Math.random() < .4 ? 1 : 0] : A0;
   if (!A || Math.random() * 8 > A.n || (A.nuit && noirceur() < .35) || (A.jour && lumiere() < .5) || eauAt(ax | 0, ay | 0)) return;
   const vent = A.vent ? A.vent * Meteo.vent : 0;
   parts.push({ x: ax, y: ay, z: hAt(ax | 0, ay | 0) + A.z[0] + Math.random() * (A.z[1] - A.z[0]),
     vx: (Math.random() - .5) * 2 * A.v + Math.cos(Meteo.dir) * vent, vy: (Math.random() - .5) * 2 * A.v + Math.sin(Meteo.dir) * vent,
-    vz: A.vz, g: A.g, life: A.vie * (.7 + Math.random() * .6), age: 0, col: A.col, luit: A.luit, tl: A.tl });
+    vz: A.vz, g: A.g, life: A.vie * (.7 + Math.random() * .6), age: 0, col: A.col, luit: A.luit, tl: A.tl, ond: A.ond ? 1 + Math.random() * 6 : 0 });
 }
 // L'atlas du journal : les cinq, trouvés ou non, et ce qu'il faut pour y prétendre.
 function blocAtlas() {
@@ -7902,8 +8036,8 @@ function blocAtlas() {
     const vu = P.biomes.includes(r.b), ouvert = profondeur() >= r.niv;
     l += `<div class="obj" data-atlas="${r.id}"><div style="flex:1;min-width:0">`
       + `<div class="n ${vu ? clRar(RANG_RARE[r.rang]) : ''}" style="color:${vu ? (RANG_RARE[r.rang] ? 'var(--texte)' : r.coul) : 'var(--texte2)'}">${vu ? ESC(r.n) : '? ? ?'}</div>`
-      + `<div class="d">${nomRare(r.rang, RANG_RARE[r.rang] || 1)} · dès l'exploration ${r.niv}<br>`
-      + (vu ? ESC(r.d) + '<br>' + ESC(habitantDe(r.b)) : ouvert ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
+      + `<div class="d">${nomRare(r.rang, RANG_RARE[r.rang] || 1)} · ${quandRare(r)}<br>`
+      + (vu ? ESC(r.d) + '<br>' + ESC(habitantDe(r.b)) : r.max && profondeur() + 1 > r.max ? 'sa saison est passée : seule une île gardée y ramène' : ouvert ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
   }
   l += `<div class="obj" data-atlas="meca"><div style="flex:1;min-width:0">`
     + `<div class="n" style="color:${vuM ? '#b4c0d0' : 'var(--texte2)'}">${vuM ? 'Terre des automates' : '? ? ?'}</div>`
@@ -7912,7 +8046,7 @@ function blocAtlas() {
       : profondeur() >= NIV_MECA ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
   return l;
 }
-const habitantDe = b => { const sp = SPEC.find(s => s.biome === b); return sp ? 'y vit : ' + sp.n + ', de la famille des Telluriens' : ''; };
+const habitantDe = b => { const L = SPEC.filter(s => s.biome === b); return L.length > 1 ? 'y vivent : ' + L.map(s => s.n).join(', ') : L.length ? 'y vit : ' + L[0].n + ', de la famille des Telluriens' : ''; };
 // Tant qu'on foule un biome rare : son nom, son rang, et ce qu'il fait. Le HUD ne l'affiche plus
 // (v11) ; la ligne reste pour les bancs et, un jour, le journal.
 function ligneBiome() {
@@ -7992,7 +8126,7 @@ function poser(sp) {
 const HABITATS_RARES = { brouteur: [9, 11], glaneur: [9, 10, 11], bosseu: [9, 10], traqueur: [10, 11, 13],
   spectre: [11, 12], moissonneur: [12, 13], traceur: [10, 12], sentinelle: [12, 13], mercenaire: [10, 13],
   tireur: [10, 12, 13], mortier: [10, 13], coursier: [10], coursier_o: [9, 10], coursier_r: [13, 14, 10], coursier_a: [12, 11],
-  lentigrade: [9, 11], cotonnier: [9], carillonneur: [10, 12], felin: [9, 11] };
+  lentigrade: [9, 11], cotonnier: [9, 23], carillonneur: [10, 12], felin: [9, 11] };
 for (const sp of SPEC) for (const b of HABITATS_RARES[sp.id] || []) if (!sp.bio.includes(b)) sp.bio.push(b);
 for (const sp of SPEC) if (automate(sp)) sp.bio.push(15, 16);   // l'île des automates est à eux, jusqu'aux flaques
 // ---------- le hasard de la graine ----------
@@ -8070,7 +8204,7 @@ function loadWorld() {
   for (let k = 0; k < 260; k++) {
     const x = (8 + tirB() * (WS - 16)) | 0, y = (8 + tirB() * (WS - 16)) | 0;
     const bi = bAt(x, y);
-    if (hAt(x, y) > SEA && (bi === 2 || bi === 3 || bi === 9 || bi === 11))   // airelles de tourbière, mûres de sylve
+    if (hAt(x, y) > SEA && (bi === 2 || bi === 3 || bi === 9 || bi === 11 || bi === 23))   // airelles de tourbière, mûres de sylve
       { const i = y * WS + x, e = BUISSON_BIO[bi]; if (PlT[i] || Eau[i] || (Flo[i] && ESP[Flo[i] - 1].res === 'baies')) continue;
         Flo[i] = e + 1; berries.push({ i, x: x + .5, y: y + .5, z: hAt(x, y), e: ESP[e] }); }
   }
@@ -8761,6 +8895,10 @@ function update(dt) {
   for (let i = parts.length - 1; i >= 0; i--) {
     const p = parts[i]; p.age += dt;
     p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt; p.vz -= (p.g ?? 9) * dt;   // g : les braises montent, les spores flottent
+    if (p.ond) {                                       // un pétale (§112) : il se balance en tombant, puis se pose
+      p.x += Math.sin(p.age * 2.7 + p.ond) * dt * .5; p.y += Math.cos(p.age * 2.1 + p.ond) * dt * .3;
+      const so = hAt(p.x | 0, p.y | 0) + .03; if (p.z < so) { p.z = so; p.vz = 0; p.vx *= .9; p.vy *= .9; }
+    }
     if (p.age > p.life) parts.splice(i, 1);
   }
   for (const c of crates) if (c.slide > 0) {
@@ -8997,6 +9135,7 @@ function update(dt) {
     break;                                          // une retombée, une bête
   }
   // Sans soin, chaque rencontre usait le personnage pour de bon : loin des coups, on se remet.
+  if (P.pv > 0 && P.pv < 1 && curioFx('regen')) P.pv = Math.min(1, P.pv + dt * .003 * curioFx('regen'));   // une curiosité qui régénère (§109)
   if (P.pv < 1 && t - (P.dernierCoup ?? -99) > 8 - .8 * rangAlch('recup')) P.pv = Math.min(1, P.pv + dt * .015 * (1 + .2 * rangAlch('recup')));
 
   // --- caméra : elle suit en douceur ---
@@ -12943,16 +13082,17 @@ function majBete(b, dt) {
   const furie = typeof fureurIci === 'function' ? fureurIci(b) : null;   // la brume sanglante (brume.js) : la cible de sa fureur
   // une proie qui s'est bien défendue est laissée en paix un moment
   if (pr && pr === b.epargne && b.t < b.epargneT) { pr = null; dP = 1e9; }
+  if (pr && !b.tame && paixIci(pr.x, pr.y)) { pr = null; dP = 1e9; }   // la cerisaie (§112) : sous les cerisiers, on ne chasse pas
   // engagement : on garde sa proie. Sans mémoire de cible, le chasseur bascule sur la
   // première proie devenue plus proche, coupe sa course, et n'aboutit presque jamais.
   if (b.cible && (b.cible.pv <= 0 || b.cible.dead || b.cible.enfoui > 0 || !beasts.includes(b.cible)
-      || (b.x - b.cible.x) ** 2 + (b.y - b.cible.y) ** 2 > (vue * 2.2) ** 2 || b.t - b.cibleT > 16)) { b.cible = null; b.renonce = b.t; }
+      || (b.x - b.cible.x) ** 2 + (b.y - b.cible.y) ** 2 > (vue * 2.2) ** 2 || b.t - b.cibleT > 16 || (!b.tame && paixIci(b.cible.x, b.cible.y)))) { b.cible = null; b.renonce = b.t; }
   if (!b.cible && pr && b.faim > .5 && b.t - b.renonce > 2.5) { b.cible = pr; b.cibleT = b.t; }
   if (b.cible) { pr = b.cible; dP = (b.x - pr.x) ** 2 + (b.y - pr.y) ** 2; }
   // Le joueur comme proie. Un chasseur qui renonce ne revient pas avant vingt secondes.
   // (J : le joueur que cette bête considère — le plus proche, quand cet appareil est le gardien)
   const J = JC, dJ = Math.hypot(J.x - b.x, J.y - b.y), dzJ = Math.abs(J.z - b.z);
-  const veut = envieDuJoueur(b, actif, dJ, dzJ) && (b.traque || b.colere > 0 || b.t - (b.renonceJ ?? -99) > 20);
+  const veut = envieDuJoueur(b, actif, dJ, dzJ) && (b.traque || b.colere > 0 || b.t - (b.renonceJ ?? -99) > 20) && (b.colere > 0 || !paixIci(J.x, J.y));   // la cerisaie : on n'y est chassé que si l'on a frappé
   if (veut && !b.traque) {
     b.traque = true; b.traqueT = 0;
     if (J === P && t - dernierAvis > 6 && !sp.camo) { dernierAvis = t; say('un ' + sp.n.toLowerCase() + ' vous a repéré', 1.8); }   // le félin, lui, ne s'annonce pas
@@ -13549,7 +13689,7 @@ function libererCompagne(c) {
 // Un coup de sifflet, et toutes celles qui sont dehors accourent — même celles au repos, qui
 // reprendront leur repos là où elles vous auront rejoint.
 function siffler() {
-  if (!porte('accessoire')) { say('aucun accessoire porté', 1.4); return; }
+  if (!porte('accessoire') || porte('accessoire').id !== 'sifflet') { say('aucun sifflet porté', 1.4); return; }
   if (t - (P.siffle ?? -9) < .8) return;
   P.siffle = t;
   burst(P.x, P.y, P.z + .9, 8, '#e8e2d0');
@@ -14222,6 +14362,17 @@ function guetterVariantes() {
     if (sacOuvert) majSac();
   }
 }
+// Le carnet des rumeurs (§111) : ce que les voyageurs ont dit, le plus récent d'abord ; ce qui est sur l'île où l'on est
+// dit où (et c'est marqué à la boussole).
+function blocRumeurs() {
+  const L = P.rumeurs || [];
+  let h = `<h3>Rumeurs <span class="compte">${L.length} entendue${L.length > 1 ? 's' : ''}</span></h3>`;
+  if (!L.length) return h + `<p class="note" style="margin:2px 2px 8px">Ce que disent les voyageurs du Seuil s'écrit ici : ce qu'il y a sur l'île, ce qui vous manque, ce qui vous coûte.</p>`;
+  for (const r of L.slice(0, 20))
+    h += `<div class="obj"><div style="flex:1;min-width:0"><div class="n" style="font-weight:400;white-space:normal">${ESC(r.t)}</div>`
+      + `<div class="d">exploration ${r.n | 0}${r.g === SEED && typeof nmDirection === 'function' ? ' · ici, ' + nmDirection([r.x, r.y]) : r.g ? ' · une autre île' : ''}</div></div></div>`;
+  return h;
+}
 function blocCarnet() {
   const l = P.variantes.filter(e => specById[e[0].split(':')[0]] && lireVariante(e[0].split(':')[1]));
   let h = `<h3>Carnet des variantes <span class="compte">${l.length} croisée${l.length > 1 ? 's' : ''}</span></h3>`;
@@ -14575,6 +14726,8 @@ function osTellurien(f) {
     add(b1, [b1[0] + .07, b1[1] + s * .02, b1[2] + .10], .022, .022, sp.bois);
     add(mixP(b1, b2, .5), [b2[0] + .02, b2[1] + s * .07, b2[2] - .02], .02, .02, sp.bois);
     add(b2, [b2[0] + .04, b2[1] - s * .01, b2[2] + .08], .018, .018, sp.bois);
+    if (sp.fleurBois) for (const q of [b1, b2, [b1[0] + .07, b1[1] + s * .02, b1[2] + .1], [b2[0] + .02, b2[1] + s * .07, b2[2] - .02], [b2[0] + .04, b2[1] - s * .01, b2[2] + .08]])
+      add(q, [q[0] + .012, q[1], q[2] + .02], .055, .05, sp.fleurBois);   // le cerf des cerisiers (§112) : ses bois fleurissent
   }
   add([tete[0] + .01, 0, tete[2] + .06], [tete[0] + .03, 0, tete[2] + .09], .045, .045, sp.pierre);   // la pierre natale, au front
   // le trot en diagonale, pieds posés : le genou pointe devant, le jarret derrière
@@ -14818,7 +14971,13 @@ function osDoux(f) {
       if (om) addT([x + sw - .022, y + sw2, z + L], [x + sw + .022, y + sw2, z + L + .008], .045, .012, [240, 236, 214]);   // une ombelle
       else addT([x + sw, y + sw2, z + L], [x + sw + .012, y + sw2, z + L + .03], .032, .032, sp.fleurs[i % 3]);
     }
-    if ((f.jardin & 3) === 0) {                                                       // un champignon, parfois
+    if (sp.arbre) {                                                                   // le lentigrade-cerisier (§112) : un cerisier en fleur sur le dos
+      const ba = Math.sin(t * 1.1 + f.bob) * (.01 + vent * .02), tz = bz + .24, BR = [92, 66, 64], cime = [-.08 + ba * .6, ba * .3, tz + .2];
+      addT([-.06, 0, tz], cime, .045, .045, BR);
+      addT(cime, [-.2 + ba, .1, tz + .27], .022, .022, BR); addT(cime, [.04 + ba, -.1, tz + .26], .022, .022, BR);
+      for (const [x, y, z, c] of [[-.22, .1, .3, 0], [.05, -.1, .29, 1], [-.08, 0, .37, 2], [-.1, -.16, .26, 1], [-.13, .18, .25, 0], [-.02, .08, .33, 1]])
+        addT([x - .1 + ba, y, tz + z], [x + .1 + ba, y, tz + z], .2, .11, sp.fleurs[c]);
+    } else if ((f.jardin & 3) === 0) {                                                       // un champignon, parfois
       addT([-.08, .05, bz + .24], [-.08, .05, bz + .28], .022, .022, [214, 190, 156]);
       addT([-.11, .05, bz + .28], [-.05, .05, bz + .285], .07, .025, [150, 104, 78]);
     }
@@ -14985,6 +15144,7 @@ function dessinDoux(d, sp) {
     for (const x of [4, 6, 10, 12]) d.ligne(x, 11, x, 14, sp.leg, 2);
     d.rect(3, 7, 12, 11, sp.shell); d.rect(3, 5, 12, 7, sp.mousse); d.rect(5, 4, 10, 4, sp.mousse);
     d.net(5, 4, sp.fleurs[0]); d.net(8, 3, sp.fleurs[1]); d.net(10, 5, sp.fleurs[2]); d.net(7, 5, sp.fleurs[0]);
+    if (sp.arbre) { d.ligne(7, 4, 7, 2, [92, 66, 64]); d.disque(7, 1.4, 2.2, sp.fleurs[0]); d.net(5, 0, sp.fleurs[1]); d.net(9, 1, sp.fleurs[2]); }
     d.ligne(13, 8, 14, 11, sp.shell, 2); d.net(15, 11, sp.dark); d.net(14, 10, sp.oeil); d.net(14, 13, sp.mousseF);
   } else if (c === 'cotonnier') {                                   // une boule de duvet, une petite face sombre
     d.ligne(6, 11, 6, 14, sp.leg); d.ligne(10, 11, 10, 14, sp.leg);
@@ -15243,7 +15403,7 @@ function boireNectar() {
 }
 // À la naissance de l'île, des familles : autour de certaines mères, un à trois petits.
 function peuplerDoux() {
-  const PETITS = { cotonnier: [.55, 3], lentigrade: [.35, 1], carillonneur: [.3, 1] };
+  const PETITS = { cotonnier: [.55, 3], lentigrade: [.35, 1], carillonneur: [.3, 1], sika: [.35, 1], renard: [.45, 2], lentisakura: [.3, 1] };
   for (const m of beasts.slice()) {
     const q = PETITS[m.sp.id]; if (!q || m.tame || Math.random() > q[0]) continue;
     const n = 1 + (Math.random() * q[1] | 0);
@@ -15281,6 +15441,9 @@ const POISSONS = [
     c:[122, 112, 98], d:[72, 64, 56], f:[214, 178, 100], dit:'océan · la nuit', mot:'on dirait qu\'elle compte les secondes' },
   { id:'lune',     n:'Lune-de-fond',       le:'une', ou:['ocean'], quand:'orage', taille:'enorme', cm:[90, 160], p:.3, soin:.45, rare:1,
     c:[152, 162, 192], d:[88, 96, 132], f:[232, 238, 255], dit:'océan · seulement par orage', mot:'on la dit plus vieille que les Horlogers', luit:1 },
+  // la cerisaie (§112) : dans les eaux qui la bordent, le jour
+  { id:'koi',      n:'Carpe koï',          le:'une', ou:['lac', 'riviere'], quand:'jour', taille:'grande', cm:[40, 90], p:1.4, soin:.3, bio:23, taches:[236, 88, 48],
+    c:[250, 246, 240], d:[214, 206, 200], f:[255, 160, 120], dit:'eaux des cerisaies · le jour', mot:'elle se souvient, dit-on, de chaque pétale tombé' },
 ];
 const poissonDe = id => POISSONS.find(f => f.id === id);
 const OMBRE = { petite: [.3, .12], moyenne: [.46, .17], grande: [.66, .26], longue: [.95, .08], plate: [.62, .58], enorme: [1.15, .46] };
@@ -15308,6 +15471,7 @@ function dessinPoisson(d, f) {
   const q = Math.round(8 - r - .5);
   d.ligne(q - 2, 8 - r * .8, q, 8, f.f); d.ligne(q - 2, 8 + r * .8, q, 8, f.f); d.ligne(q - 2, 8 - r * .8, q - 2, 8 + r * .8, f.f);   // la queue
   d.ligne(6, Math.round(8 - r), 10, Math.round(8 - r), f.d);                                                                        // le dos
+  if (f.taches) { d.net(7, 7, f.taches); d.net(8, 7, f.taches); d.net(9, 9, f.taches); d.net(5, 9, f.taches); d.net(10, 8, f.taches); }   // la koï : ses taches
   d.net(Math.round(8.5 + r * .55), 7, oe);
 }
 // L'eau d'une case : rivière, lac, océan — ou pas d'eau.
@@ -15326,8 +15490,10 @@ function quandOk(f) {
   if (f.quand === 'orage') return Meteo.vers === 'orage';
   return true;
 }
-function tirerPoisson(hab) {
-  const L = POISSONS.filter(f => f.ou.includes(hab) && quandOk(f));
+// Une eau qui borde la cerisaie (§112) : la koï n'est que là.
+function presBiome(x, y, b, r = 3) { x |= 0; y |= 0; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (bAt(x + dx, y + dy) === b) return true; return false; }
+function tirerPoisson(hab, x, y) {
+  const L = POISSONS.filter(f => f.ou.includes(hab) && quandOk(f) && (!f.bio || (x !== undefined && presBiome(x, y, f.bio))));
   let tot = 0; const w = L.map(f => { const v = f.p * (f.id === 'carpe' && met('pluie') > .3 ? 2 : 1); tot += v; return v; });
   let r = Math.random() * tot;
   for (let i = 0; i < L.length; i++) if ((r -= w[i]) <= 0) return L[i];
@@ -15350,7 +15516,7 @@ function majOmbres(dt) {
     const hab = habitatEau(x, y); if (!hab) continue;
     let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (habitatEau(x + dx, y + dy) === hab) n++;
     if (n < 3) continue;                                             // pas dans une flaque
-    const sp = tirerPoisson(hab); if (!sp) continue;
+    const sp = tirerPoisson(hab, x, y); if (!sp) continue;
     const u = Math.random(), cm = Math.round(sp.cm[0] + (sp.cm[1] - sp.cm[0]) * u * u);   // les grands sont plus rares
     Ombres.push({ sp, hab, cm, x: (x | 0) + .5, y: (y | 0) + .5, dir: Math.random() * 6.2832, tx: null, ty: null, t: 0, age: 0, etat: 'nage', n: ++ombreN });
     return;
@@ -15677,6 +15843,120 @@ const EFFETS = { nuit: 'vision de nuit', braise: 'insensible aux braises', vif: 
   repousse: 'prédateurs à distance', invisible: 'invisible', cueilleur: 'récolte abondante', saut: 'grand saut', plume: 'chute de plume',
   silence: 'pas feutrés', epines: 'épines', vampire: 'vol de vie', apprivoiseur: 'main douce', antidote: 'antidote', gel: 'coups glacés', meute: 'meute galvanisée' };
 const EFFETS_UNIQUES = new Set(['surplus', 'coeur', 'second']);
+// ============================================================
+//  LES CURIOSITÉS (§109)
+//  Des objets uniques — un seul exemplaire de chacun, jamais deux —, qu'on achète aux voyageurs du Seuil
+//  (pour l'instant : à la marchande de la caravane). Chacun a sa rareté (peu commune à épique), son
+//  histoire, et un effet tant qu'on le porte : la plupart reprennent, en permanence et plus doucement, les
+//  effets des plats (fx : { effet: puissance }) ; quelques-uns ont le leur (regen, eclat, sang, lutrins,
+//  marchand). On en porte trois au plus : deux breloques, et l'accessoire s'il est libre (le sifflet y reste
+//  sinon). Ce que le voyageur propose dépend du niveau de l'île : près de chez soi, des peu communes ; loin,
+//  des légendaires, et parfois une épique.
+// ============================================================
+const CURIOS = [
+  // r : 2 peu commune, 3 rare, 4 très rare, 5 légendaire, 6 épique ; mat : la matière qu'en demande le voyageur
+  { id: 'cu_lanterne', n: 'Lanterne de tourbe', r: 2, forme: 'lanterne', c: [196, 150, 80], mat: 'fibre', fx: { nuit: 1 }, h: 'Elle brûle sans flamme, comme la tourbe sous la pluie.' },
+  { id: 'cu_plume', n: 'Plume de héron', r: 2, forme: 'plume', c: [222, 228, 236], mat: 'fibre', fx: { plume: 1 }, h: 'Le héron ne tombe jamais : il se pose.' },
+  { id: 'cu_mousse', n: 'Semelles de mousse', r: 2, forme: 'bourse', c: [96, 150, 84], mat: 'fibre', fx: { silence: 1 }, h: 'Cousues par une veuve qui ne voulait plus réveiller personne.' },
+  { id: 'cu_serpette', n: 'Serpette de cueilleuse', r: 2, forme: 'lame', c: [176, 182, 190], mat: 'bois', fx: { cueilleur: 1 }, h: 'Sa lame a coupé plus de tiges qu\'il n\'y a d\'étoiles.' },
+  { id: 'cu_grelot', n: 'Grelot du berger', r: 2, forme: 'grelot', c: [214, 176, 84], mat: 'os', fx: { apprivoiseur: 1 }, h: 'Les bêtes le reconnaissent avant de vous reconnaître.' },
+  { id: 'cu_cendre', n: 'Fiole de cendre froide', r: 2, forme: 'fiole', c: [150, 146, 140], mat: 'pierre', fx: { braise: 1 }, h: 'Ramassée au cœur d\'une caldeira, le lendemain d\'un incendie.' },
+  { id: 'cu_bottes', n: 'Bottes de vent', r: 3, forme: 'botte', c: [126, 156, 186], mat: 'fibre', fx: { vif: 1 }, h: 'Le cuir sent encore le canyon d\'ocre.' },
+  { id: 'cu_ressort', n: 'Ressort d\'horloger', r: 3, forme: 'ressort', c: [200, 170, 90], mat: 'ferraille', fx: { saut: 1 }, h: 'Arraché à une horloge qui battait encore.' },
+  { id: 'cu_ecaille', n: 'Écaille de garde', r: 3, forme: 'ecaille', c: [110, 150, 126], mat: 'os', fx: { robuste: 1 }, h: 'Elle a arrêté une flèche. Le tireur ne l\'a jamais su.' },
+  { id: 'cu_poing', n: 'Poing de laiton', r: 3, forme: 'anneau', c: [214, 170, 80], mat: 'ferraille', fx: { fort: 1 }, h: 'Il a appartenu à un dresseur qui ne dressait plus.' },
+  { id: 'cu_bogue', n: 'Bogue de châtaigne', r: 3, forme: 'bogue', c: [150, 120, 70], mat: 'bois', fx: { epines: 1 }, h: 'Qui la serre trop fort s\'en souvient.' },
+  { id: 'cu_conque', n: 'Conque des marées', r: 3, forme: 'conque', c: [236, 196, 170], mat: 'pierre', fx: { souffle: 1 }, h: 'Collez-la à l\'oreille : la mer respire pour vous.' },
+  { id: 'cu_hibou', n: 'Œil de hibou', r: 4, forme: 'pierre', c: [226, 186, 60], mat: 'os', fx: { nuit: 2, silence: 1 }, h: 'Une pierre jaune, ronde, qui ne cligne jamais.' },
+  { id: 'cu_givre', n: 'Givre en bouteille', r: 4, forme: 'fiole', c: [170, 226, 246], mat: 'pierre', fx: { gel: 1 }, h: 'Il ne fond pas. On ne sait pas pourquoi.' },
+  { id: 'cu_croc', n: 'Croc de meute', r: 4, forme: 'croc', c: [236, 228, 204], mat: 'os', fx: { meute: 1 }, h: 'Porté au cou, il fait aboyer les vôtres plus fort.' },
+  { id: 'cu_carte', n: 'Carte des lutrins', r: 4, forme: 'carte', c: [236, 226, 200], mat: 'fibre', fx: { lutrins: 1 }, d: 'les lutrins de l\'île se marquent à la boussole, même jamais vus', h: 'Recopiée de mémoire par un conteur aveugle.' },
+  { id: 'cu_bourse', n: 'Bourse du Seuil', r: 4, forme: 'bourse', c: [150, 96, 60], mat: 'fibre', fx: { eclat: 1 }, d: 'un éclat de plus par bête abattue', h: 'Elle n\'est jamais tout à fait vide.' },
+  { id: 'cu_sceau', n: 'Sceau des nomades', r: 4, forme: 'sceau', c: [176, 70, 60], mat: 'pierre', fx: { marchand: 1 }, d: 'les voyageurs du Seuil vous font un quart du prix en moins', h: 'Qui le porte est des leurs, un peu.' },
+  { id: 'cu_chene', n: 'Cœur de chêne', r: 5, forme: 'coeur', c: [140, 100, 60], mat: 'bois', fx: { regen: 1, robuste: 1 }, d: 'la vie revient d\'elle-même, doucement ; peau dure', h: 'Taillé dans le premier arbre de la première île.' },
+  { id: 'cu_demon', n: 'Dent du démon', r: 5, forme: 'croc', c: [178, 30, 36], mat: 'os', fx: { sang: 1, fort: 1 }, d: 'le Sang boit moitié plus ; coups puissants', h: 'Elle est encore tiède.' },
+  { id: 'cu_sterne', n: 'Aile de sterne', r: 5, forme: 'plume', c: [150, 196, 236], mat: 'fibre', fx: { saut: 2, plume: 2 }, h: 'La sterne ne se pose jamais. Elle, si : sur vous.' },
+  { id: 'cu_lieues', n: 'Bottes de sept lieues', r: 5, forme: 'botte', c: [110, 70, 50], mat: 'fibre', fx: { vif: 2 }, h: 'Plus vieilles que le Seuil, dit-on.' },
+  { id: 'cu_masque', n: 'Masque de l\'effroi', r: 5, forme: 'masque', c: [160, 118, 204], mat: 'os', fx: { epines: 2, robuste: 1 }, h: 'Ceux qui vous frappent voient d\'abord ce visage.' },
+  { id: 'cu_sablier', n: 'Sablier inversé', r: 5, forme: 'sablier', c: [226, 206, 150], mat: 'pierre', fx: { regen: 2 }, d: 'la vie revient d\'elle-même', h: 'Le sable y remonte. Le temps aussi, un peu.' },
+  { id: 'cu_couronne', n: 'Couronne du Seuil', r: 6, forme: 'couronne', c: [236, 196, 70], mat: 'ferraille', fx: { fort: 2, robuste: 2, eclat: 1 }, d: 'coups puissants, peau dure ; un éclat de plus par bête abattue', h: 'Le premier des Nomades l\'a laissée sur un seuil, et n\'est jamais revenu la chercher.' },
+  { id: 'cu_larme', n: 'Larme de la Tisseuse', r: 6, forme: 'pierre', c: [120, 226, 236], mat: 'ferraille', fx: { vampire: 2, regen: 1 }, d: 'vol de vie ; la vie revient d\'elle-même', h: 'Une goutte d\'huile figée, tombée d\'un œil de fer.' },
+  { id: 'cu_boussole', n: 'Boussole d\'or', r: 6, forme: 'boussole', c: [236, 190, 70], mat: 'ferraille', fx: { lutrins: 1, vif: 2, nuit: 2 }, d: 'pas vif, vision de nuit ; les lutrins de l\'île à la boussole', h: 'Son aiguille ne montre pas le nord : elle montre ce qu\'on cherche.' },
+  { id: 'cu_brume', n: 'Cœur de brume', r: 6, forme: 'coeur', c: [178, 16, 30], mat: 'os', fx: { sang: 2, vampire: 1 }, d: 'le Sang boit deux fois plus ; vol de vie', h: 'Il bat encore, au rythme d\'une valse.' },
+  { id: 'cu_corne', n: 'Corne de dragon', r: 6, forme: 'croc', c: [226, 170, 70], mat: 'os', fx: { braise: 2, fort: 2 }, d: 'insensible aux braises ; coups très puissants', h: 'Elle sent la fumée, même lavée cent fois.' },
+  { id: 'cu_phenix', n: 'Plume de phénix', r: 6, forme: 'plume', c: [255, 130, 50], mat: 'fibre', fx: { regen: 2, plume: 3, saut: 2 }, d: 'la vie revient d\'elle-même ; chute de plume, grand saut', h: 'Elle tiédit dans la main, et ne brûle jamais.' },
+];
+const CURIO = {}; for (const c of CURIOS) CURIO[c.id] = c;
+const CURIO_PLACES = ['breloque', 'breloque2', 'accessoire'];
+const ROMAINS_C = ['', '', ' II', ' III', ' IV'];
+// ce que fait une curiosité, en clair (les effets des plats, et les siens)
+const texteCurio = o => o.d || Object.entries(o.fx).map(([k, p]) => (EFFETS[k] || k) + ROMAINS_C[p]).join(', ');
+// elles entrent au registre des objets : on les possède (P.objets), on les porte (P.equip), sans les fabriquer
+for (const c of CURIOS) OBJETS.push({ id: c.id, n: c.n, emp: 'breloque', fil: 'curiosite', offert: 1, cur: 1, cout: {}, d: texteCurio(c).replace(/^./, x => x.toUpperCase()) + '.' });
+const estCurio = id => !!CURIO[id];
+const curioPortee = id => CURIO_PLACES.some(s => P.equip[s] === id);
+// La somme des effets portés (au plus 4), gardée tant que les places ne changent pas.
+let curioSig = '', curioFxs = {};
+function curioFx(k) {
+  const sig = CURIO_PLACES.map(s => P.equip[s] || '').join('|');
+  if (sig !== curioSig) { curioSig = sig; curioFxs = {}; for (const s of CURIO_PLACES) { const o = CURIO[P.equip[s]]; if (o) for (const [e, p] of Object.entries(o.fx)) curioFxs[e] = Math.min(4, (curioFxs[e] || 0) + p); } }
+  return curioFxs[k] || 0;
+}
+// Porter, retirer : la première place libre (les deux breloques, puis l'accessoire s'il est vide), sinon la première breloque.
+function porterCurio(id) {
+  const o = CURIO[id]; if (!o || !P.objets[id]) return;
+  const ici = CURIO_PLACES.find(s => P.equip[s] === id);
+  if (ici) { P.equip[ici] = null; say(o.n + ' · retirée', 1.4); return; }
+  const s = CURIO_PLACES.find(s => !P.equip[s]) || 'breloque', avant = P.equip[s] && objet(P.equip[s]);
+  P.equip[s] = id; say(o.n + ' · portée' + (avant ? ' à la place de ' + avant.n : '') + ' · ' + texteCurio(o), 2.6);
+}
+// Ce qu'un voyageur propose : selon le niveau de l'île, des raretés plus hautes ; jamais deux fois la même, ni ce qu'on a déjà.
+const CURIO_POIDS = [[0, [70, 25, 5, 0, 0]], [4, [35, 45, 17, 3, 0]], [8, [15, 35, 35, 13, 2]], [13, [5, 20, 35, 30, 10]]];
+function tirerCurios(niv, n = 3) {
+  const W = CURIO_POIDS.filter(([d]) => niv >= d).pop()[1], pris = new Set(), L = [];
+  for (let k = 0; k < n; k++) {
+    let x = Math.random() * W.reduce((a, b) => a + b, 0), r = 2; for (let i = 0; i < 5; i++) { if ((x -= W[i]) < 0) { r = i + 2; break; } }
+    for (const dr of [0, -1, 1, -2, 2, -3, 3, -4, 4]) {
+      const C = CURIOS.filter(c => c.r === r + dr && !P.objets[c.id] && !pris.has(c.id));
+      if (C.length) { const c = C[Math.random() * C.length | 0]; pris.add(c.id); L.push(c.id); break; }
+    }
+  }
+  return L;
+}
+const CURIO_PRIX = [0, 0, 12, 25, 45, 80, 140], CURIO_MAT = [0, 0, 8, 12, 16, 22, 30];
+function prixCurio(o, k = 1) {
+  const p = { eclat: Math.max(1, Math.round(CURIO_PRIX[o.r] * k)) }, q = Math.round(CURIO_MAT[o.r] * k * (o.mat === 'ferraille' ? .5 : 1));
+  if (q) p[o.mat] = q; return p;
+}
+// Les vignettes : une forme par famille, à la couleur de l'objet.
+const teinte = (c, k) => c.map(v => Math.max(0, Math.min(255, v * k | 0)));
+function dessinCurio(d, o) {
+  const c = o.c, cc = teinte(c, 1.25), cf = teinte(c, .7), f = o.forme;
+  if (f === 'lanterne') { d.ligne(6, 2, 10, 2, PIX.boisF); d.rect(5, 4, 11, 4, PIX.bois); d.rect(5, 13, 11, 13, PIX.bois); d.rect(6, 5, 10, 12, cc); d.rect(7, 7, 9, 10, c); d.ligne(5, 5, 5, 12, PIX.boisF); d.ligne(11, 5, 11, 12, PIX.boisF); }
+  else if (f === 'plume') { d.ligne(4, 13, 12, 2, cf, 1); for (let k = 0; k < 6; k++) { d.ligne(5 + k * 1.3, 11 - k * 1.6, 3 + k * 1.3, 8 - k * 1.6, c); d.ligne(6 + k * 1.3, 12 - k * 1.6, 9 + k * 1.3, 11 - k * 1.6, cc); } }
+  else if (f === 'bourse') { d.disque(8, 10, 4.6, c); d.rect(6, 4, 10, 6, cf); d.ligne(5, 6, 11, 6, PIX.ficelle); d.net(8, 10, cc); }
+  else if (f === 'lame') { d.arc(8, 9, 5, -2.6, -.4, PIX.pierreC || [190, 196, 206], 2); d.ligne(3, 13, 6, 10, PIX.bois, 2); }
+  else if (f === 'grelot') { d.disque(8, 9, 4.6, c); d.ligne(5, 10, 11, 10, cf); d.net(8, 12, cf); d.ligne(8, 2, 8, 4, PIX.cuir); }
+  else if (f === 'fiole') { d.rect(5, 7, 11, 13, c); d.rect(6, 8, 10, 12, cc); d.rect(7, 4, 9, 6, [200, 214, 222]); d.rect(7, 2, 9, 3, PIX.bois); }
+  else if (f === 'botte') { d.rect(5, 2, 9, 11, c); d.rect(5, 10, 13, 13, c); d.ligne(5, 3, 9, 3, cc); d.ligne(5, 13, 13, 13, cf); }
+  else if (f === 'ressort') { for (let k = 0; k < 6; k++) d.ligne(4, 3 + k * 2, 12, 4 + k * 2, k % 2 ? cf : c); }
+  else if (f === 'ecaille') { d.disque(8, 8, 5.4, c); d.arc(8, 11, 5, -2.5, -.6, cf); d.arc(8, 7, 3, -2.4, -.7, cc); }
+  else if (f === 'anneau') { d.arc(8, 8, 5.5, 0, 6.2832, c, 2); d.disque(8, 3.5, 1.8, cc); }
+  else if (f === 'bogue') { d.disque(8, 8, 4, c); for (let k = 0; k < 10; k++) { const a = k / 10 * 6.2832; d.ligne(8 + Math.cos(a) * 4, 8 + Math.sin(a) * 4, 8 + Math.cos(a) * 6.5, 8 + Math.sin(a) * 6.5, cf); } }
+  else if (f === 'conque') { d.disque(8, 9, 5, c); for (let k = 0; k < 5; k++) d.ligne(8, 13, 4 + k * 2, 5, cf); d.disque(12, 5, 1.5, cc); }
+  else if (f === 'pierre') { d.disque(8, 8, 4.8, c); d.disque(7, 7, 2.4, cc); d.net(6, 6, [255, 255, 255]); }
+  else if (f === 'croc') { d.ligne(6, 2, 9, 14, c, 3); d.ligne(7, 2, 10, 12, cc); d.rect(5, 2, 9, 3, cf); }
+  else if (f === 'carte') { d.rect(3, 4, 13, 12, c); d.ligne(4, 6, 11, 6, cf); d.ligne(5, 9, 12, 10, cf); d.net(10, 8, [200, 40, 40]); d.net(11, 9, [200, 40, 40]); d.net(9, 9, [200, 40, 40]); }
+  else if (f === 'sceau') { d.disque(8, 8, 5.4, c); d.disque(8, 8, 3, cf); d.net(8, 8, cc); d.net(7, 7, cc); d.net(9, 9, cc); }
+  else if (f === 'coeur') { d.disque(6, 7, 3.2, c); d.disque(10, 7, 3.2, c); for (let y = 8; y <= 13; y++) d.ligne(3 + (y - 8) * .9, y, 13 - (y - 8) * .9, y, c); d.net(6, 6, cc); }
+  else if (f === 'masque') { d.rect(4, 4, 12, 11, c); d.rect(5, 12, 11, 13, c); d.rect(5, 6, 7, 7, [20, 16, 24]); d.rect(9, 6, 11, 7, [20, 16, 24]); d.ligne(6, 10, 10, 10, cf); }
+  else if (f === 'sablier') { d.rect(4, 2, 12, 3, PIX.bois); d.rect(4, 13, 12, 14, PIX.bois); for (let y = 4; y <= 12; y++) { const w = Math.abs(8 - y) * .55 + .5; d.ligne(8 - w, y, 8 + w, y, y > 8 ? c : [214, 226, 232]); } }
+  else if (f === 'couronne') { d.rect(3, 9, 13, 12, c); for (const x of [3, 8, 13]) d.ligne(x, 9, x, 4, c, 2); d.net(8, 10, [200, 40, 60]); d.net(5, 10, [60, 120, 220]); d.net(11, 10, [60, 160, 90]); }
+  else if (f === 'boussole') { d.disque(8, 8, 5.6, c); d.disque(8, 8, 4.2, PIX.papier); d.ligne(8, 8, 8, 4, [200, 40, 40]); d.ligne(8, 8, 8, 12, cf); }
+  else d.disque(8, 8, 5, c);
+}
+for (const c of CURIOS) DESSINS[c.id] = d => dessinCurio(d, c);
+DESSINS.cu_vide = d => { d.arc(8, 8, 5, 0, 6.2832, [150, 150, 150], 1); d.disque(8, 3, 1.4, [150, 150, 150]); };
 // Les ingrédients : un effet chacun, tiré dans les effets qui vont à sa famille (le cœur, seulement aux rares et au-delà :
 // les racines et les douceurs de la flore rare le portaient quand elles étaient légendaires ou épiques — elles le gardent).
 const EFFETS_FAM = {
@@ -15759,8 +16039,13 @@ const PRODUITS = [
   ['clavaire', 'Clavaire lumineuse', 'clavaire', 'champignon', 3, 'nuit', [150, 240, 220]],
   ['verre', 'Fruit de verre', 'fruit de verre', 'fruit', 4, 'nuit', [180, 240, 250]],
   ['fleurbraise', 'Pétale de braise', 'pétale de braise', 'fleur', 4, 'braise', [255, 120, 50]],
+  ['sakura', 'Fleurs de cerisier', 'fleurs de cerisier', 'fleur', 3, 'apprivoiseur', [255, 186, 210]],   // la cerisaie (§112)
+  ['griottier', 'Cerises', 'cerises', 'fruit', 2, 'vif', [196, 32, 60]],
+  ['bambou', 'Pousses de bambou', 'bambou', 'racine', 2, 'robuste', [214, 222, 150]],
+  ['pivoine', 'Pétales de pivoine', 'pivoine', 'fleur', 2, 'souffle', [244, 128, 174]],
+  ['iris', 'Iris d\'eau', 'iris', 'fleur', 2, 'nuit', [140, 116, 230]],
 ];
-const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], anguille: [3, 'nuit'], sardine: [1, null], raie: [3, 'robuste'], lune: [5, 'souffle'] };
+const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], anguille: [3, 'nuit'], sardine: [1, null], raie: [3, 'robuste'], lune: [5, 'souffle'], koi: [4, 'apprivoiseur'] };
 // Tous les ingrédients, par identifiant : les poissons gardent le leur ; viandes et produits de la
 // flore en prennent un préfixé (v_brouteur, p_chene) ; et la baie, le nectar.
 const INGR = {};
@@ -15801,6 +16086,9 @@ const REMARQUABLES = [
   { id: 'lanterne', n: 'Gelée-lanterne', indice: 'deux lueurs : l\'une nage, l\'autre pousse', ok: ids => ids.includes('anguille') && ids.includes('p_clavaire') },
   { id: 'braise', n: 'Bouillon de braise', indice: 'le feu de la caldeira, et une racine', ok: (ids, F) => (ids.includes('v_salamandre') || ids.includes('p_fleurbraise')) && F.has('racine') },
   { id: 'premiers', n: 'Pain des premiers jours', indice: 'deux poignées de l\'herbe haute, et une baie', ok: ids => ids.filter(x => x === 'p_herbe').length >= 2 && ids.includes('baie') },
+  // la cerisaie (§112)
+  { id: 'hanami', n: 'Panier d\'hanami', indice: 'sous les cerisiers : leurs fleurs, leurs fruits, et une poignée de graines', ok: (ids, F) => ids.includes('p_sakura') && ids.includes('p_griottier') && F.has('graine') },
+  { id: 'printemps', n: 'Thé du printemps', indice: 'des fleurs de cerisier, une feuille, et rien d\'autre', ok: (ids, F) => ids.includes('p_sakura') && F.has('feuille') && [...F].every(f => f === 'fleur' || f === 'feuille') },
 ];
 function preparer(ids) {
   const L = ids.map(id => INGR[id]).filter(Boolean);
@@ -15859,7 +16147,7 @@ const PLATS_AU_SAC = true;
 const GARDE_MOMENT = 20 * 60, GARDE_CHAUD = 10 * 60;
 const CONSERVE = { ragout: [3, 0], soupe: [3, 0], bois: [3, 0], mt: [2, 0], tourte: [2, 1], confiture: [2, 1], sirop: [2, 1],
   caramel: [1, 1], pain: [2, 1], galette: [2, 1], 'r:lune': [3, 0], 'r:ambre': [4, 1], 'r:horlogers': [4, 0],
-  'r:lanterne': [2, 1], 'r:braise': [3, 0], 'r:premiers': [3, 1] };
+  'r:lanterne': [2, 1], 'r:braise': [3, 0], 'r:premiers': [3, 1], 'r:hanami': [4, 1], 'r:printemps': [2, 1] };
 const conserve = c => CONSERVE[c.startsWith('r:') ? c : c.split(':')[0]] || null;   // [parts, longue] ; null : un plat chaud
 const dureeTxt = s => { const m = Math.ceil(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min'; };
 const gardeTxt = p => ((p.parts || 1) > 1 ? p.parts + ' parts · ' : '') + (p.g === undefined ? 'longue conservation' : 'se garde encore ' + dureeTxt(p.g));
@@ -16016,10 +16304,11 @@ function mangerCru(id) {
   SON.jouer('ramasse'); say(i.n.toLowerCase() + ' · +' + Math.round(i.soin * 50) + ' % de vie', 1.6);
   majSac();
 }
-const effet = k => (P.effets[k] || 0) > t ? ((P.effetsN && P.effetsN[k]) || 1) : 0;   // 0, ou la puissance de l'effet (1 à 4)
+const effetRepas = k => (P.effets[k] || 0) > t ? ((P.effetsN && P.effetsN[k]) || 1) : 0;   // 0, ou la puissance de l'effet d'un plat (1 à 4)
+const effet = k => Math.max(effetRepas(k), curioFx(k));   // … ou d'une curiosité portée (§109)
 const ROMAIN = ['', '', ' II', ' III', ' IV'];
 function effetsHud() {
-  const L = Object.keys(EFFETS).filter(effet);
+  const L = Object.keys(EFFETS).filter(effetRepas);
   if (!L.length) return '';
   return ' · <span style="color:#ffd27d">' + L.map(k => { const s = Math.ceil(P.effets[k] - t); return EFFETS[k] + (ROMAIN[effet(k)] || '') + ' ' + Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); }).join(' · ') + '</span>';
 }
@@ -16094,7 +16383,7 @@ const rareVariante = s => { const v = s && lireVariante(s); return v ? (v.taille
 const rareBete = b => !b || !b.sp ? 1 : b.sp.plante ? (b.pl ? rareIngr(b.pl.ingr) : 1) : Math.max(rareEspece(b.sp), rareVariante(b.variante));
 function rareIcone(ic) {                                 // ce que porte une vignette, d'après son nom
   ic = String(ic || '');
-  return ic.startsWith('ingr_') ? rareIngr(ic.slice(5)) : ic.startsWith('poisson_') ? rareIngr(ic.slice(8)) : ic.startsWith('bete_') ? rareEspece(specById[ic.slice(5)]) : ic === 'nectar' ? rareIngr('nectar') : 1;
+  return ic.startsWith('cu_') ? (CURIO[ic] ? CURIO[ic].r : 1) : ic.startsWith('ingr_') ? rareIngr(ic.slice(5)) : ic.startsWith('poisson_') ? rareIngr(ic.slice(8)) : ic.startsWith('bete_') ? rareEspece(specById[ic.slice(5)]) : ic === 'nectar' ? rareIngr('nectar') : 1;
 }
 const qPlat = id => { const k = prochainPlat(id), r = P.recettes[lirePlat(id).cle]; return k >= 0 ? P.plats[k].q : r ? r.q : 1; };
 const legendeRare = () => `<p class="legende-rare">Rareté : ` + [1, 2, 3, 4, 5].map(r => nomRare(NOM_RARE[r], r)).join(' · ') + `</p>`;
@@ -16719,7 +17008,7 @@ function toucherSort(o, m, deg) {
 }
 // Le Sang boit : près d'un tiers du coup revient en vie (au plus 12 % d'un coup), et un filet rouge remonte vers vous.
 function boireSang(o, dg) {
-  if (!(P.pv > 0)) return; const a = P.pv; P.pv = Math.min(1, P.pv + Math.min(.12, dg * .3)); if (P.pv <= a) return;
+  if (!(P.pv > 0)) return; const a = P.pv, kc = 1 + .5 * curioFx('sang'); P.pv = Math.min(1, P.pv + Math.min(.12 * kc, dg * .3 * kc)); if (P.pv <= a) return;   // (kc : la dent du démon, le cœur de brume)
   for (let k = 0; k < 9; k++) { const u = .5 + Math.random() * .4, x = o.x + (Math.random() - .5) * .4, y = o.y + (Math.random() - .5) * .4, z = (o.z || 0) + .6;
     parts.push({ x, y, z, vx: (P.x - x) / u, vy: (P.y - y) / u, vz: (P.z + 1 - z) / u, g: 0, life: u, age: 0, col: k % 3 ? '#b2101e' : '#ff5a4a', luit: 1, tl: .07 }); }
 }
@@ -17339,7 +17628,7 @@ function blocServi() {
 const PLAT_FORME = { ragout: 'bol', soupe: 'bol', bois: 'bol', voyageur: 'bol', 'r:lune': 'bol', 'r:braise': 'bol',
   grillade: 'broche', brochette: 'broche', sucre: 'broche', fleurs: 'broche', mt: 'broche', tourte: 'tourte', 'r:ambre': 'tourte',
   confiture: 'pot', compote: 'pot', caramel: 'pot', 'r:lanterne': 'pot', sirop: 'flacon', infusion: 'tasse',
-  pain: 'pain', galette: 'pain', 'r:premiers': 'pain', poelee: 'poele', roti: 'poele', salade: 'salade', 'r:horlogers': 'festin', 'r:serum': 'fiole' };
+  pain: 'pain', galette: 'pain', 'r:premiers': 'pain', poelee: 'poele', roti: 'poele', salade: 'salade', 'r:horlogers': 'festin', 'r:serum': 'fiole', 'r:hanami': 'festin', 'r:printemps': 'tasse' };
 const EFFET_COUL = { nuit: [120, 140, 255], braise: [255, 120, 50], vif: [255, 220, 80], fort: [230, 60, 60], robuste: [150, 150, 160], souffle: [120, 220, 255],
   surplus: [255, 110, 140], coeur: [255, 60, 90], second: [170, 240, 255], repousse: [190, 120, 60], invisible: [220, 220, 245], cueilleur: [120, 200, 90],
   saut: [255, 170, 220], plume: [245, 245, 245], silence: [100, 110, 130], epines: [90, 150, 60], vampire: [150, 30, 60], apprivoiseur: [255, 190, 120],
@@ -18263,7 +18552,7 @@ function osFelin(f) {
   add([mid[0] - .1, frt * .5, mid[2]], [mid[0] + .1, 0, mid[2] + .01], .17, .16, pelage);
   add([S[0] - .1, 0, S[2]], [S[0] + .05, 0, S[2] + .005], .21, .21, pelage);
   add([H[0] + .03, 0, H[2] - .075], [S[0] - .02, 0, S[2] - .08], .12, .05, ventre);
-  for (let i = 0; i < 4; i++) {
+  if (!sp.renard) for (let i = 0; i < 4; i++) {
     const q = mixP(H, S, .12 + i * .21);
     add([q[0], q[1], q[2] + .085], [q[0] + .03, q[1], q[2] + .088], .2 - Math.abs(i - 1.5) * .015, .022, sombre);
   }
@@ -18279,26 +18568,31 @@ function osFelin(f) {
   const [hx, hy, hz] = tete;
   add([hx - .06, hy, hz], [hx + .05, hy, hz + .005], .17, .14, pelage);                   // le crâne, large
   add([hx - .02, hy, hz - .045], [hx + .04, hy, hz - .05], .19, .06, ventre);              // les joues, la collerette
-  add([hx + .04, hy, hz - .025], [hx + .1, hy, hz - .035], .085, .06, ventre);              // le museau
-  add([hx + .095, hy, hz - .02], [hx + .105, hy, hz - .021], .03, .022, [58, 52, 60]);      // la truffe
+  const mu = sp.renard ? .07 : 0;                                                          // le renard (§112) : un museau long et fin
+  add([hx + .04, hy, hz - .025], [hx + .1 + mu, hy, hz - .035 - mu * .2], .085 - mu * .3, .06 - mu * .2, ventre);   // le museau
+  add([hx + .095 + mu, hy, hz - .02 - mu * .2], [hx + .105 + mu, hy, hz - .021 - mu * .2], .03, .022, [58, 52, 60]);   // la truffe
   const plisse = tapi > .5 || ram > 0 ? .011 : dort ? .004 : .02;
   const oreille = Math.max(ram, tapi * .55, bond);                                          // couchées pour la traque et le bond
   for (const s2 of [-1, 1]) {
     add([hx + .045, hy + s2 * .038, hz + .02], [hx + .06, hy + s2 * .038, hz + .02], .032, plisse, sp.oeil, 1);   // les yeux, pâles
-    add([hx - .015, hy + s2 * .045, hz + .05], [hx - .03 - oreille * .05, hy + s2 * (.055 + oreille * .03), hz + .1 - oreille * .055], .04, .022, sombre);   // les oreilles
+    add([hx - .015, hy + s2 * .045, hz + .05], [hx - .03 - oreille * .05, hy + s2 * (.055 + oreille * .03), hz + .1 + (sp.renard ? .06 : 0) - oreille * .055], sp.renard ? .056 : .04, .022, sombre);   // les oreilles (grandes, chez le renard)
     add([hx + .08, hy + s2 * .03, hz - .035], [hx + .1, hy + s2 * .085, hz - .04], .007, .007, [226, 232, 238]);    // les moustaches
   }
   // la queue : longue, en six anneaux ; pendante et relevée au bout au pas, tendue au galop et au
   // bond, basse et droite à pas de loup (le bout seul fouette), enroulée autour de lui couché
-  let q0 = [H[0] - .07, H[1], H[2] + .06];
-  let ang = -.8 + galop * .75 + tapi * .5 + bond * .85 - couche * .55, lac = 0;
-  const sw = Math.sin(t * 1.3 + f.bob) * .22 * (1 - galop) * (1 - tapi * .8) * (1 - couche);
-  for (let i = 0; i < 6; i++) {
-    ang += couche ? 0 : (i > 1 ? .2 + (1 - tapi) * .08 : .05) * (1 - galop * .6) * (1 - bond);
-    lac += sw * .35 + couche * .5 + (i >= 4 && tapi > .5 ? Math.sin(t * 9 + f.bob + i) * .45 : 0);
-    const L = .09, q1 = [q0[0] - Math.cos(ang) * Math.cos(lac) * L, q0[1] + Math.cos(ang) * Math.sin(lac) * L, Math.max(.03, q0[2] + Math.sin(ang) * L)];
-    add(q0, q1, .06 - i * .005, .06 - i * .005, i === 5 ? sombre : i % 2 ? pelage : sombre);
-    q0 = q1;
+  // le renard des pétales (§112) : trois queues touffues en éventail ; leur bout blanc luit la nuit
+  const nq = sp.queues || 1, sw = Math.sin(t * 1.3 + f.bob) * .22 * (1 - galop) * (1 - tapi * .8) * (1 - couche), nuitQ = sp.renard && noirceur() > .3;
+  for (let k = 0; k < nq; k++) {
+    let q0 = [H[0] - .07, H[1], H[2] + .06];
+    let ang = -.8 + galop * .75 + tapi * .5 + bond * .85 - couche * .55 + (nq > 1 ? .3 : 0), lac = nq > 1 ? (k - (nq - 1) / 2) * .5 + Math.sin(t * .9 + k * 2 + f.bob) * .08 : 0;
+    for (let i = 0; i < 6; i++) {
+      ang += couche ? 0 : (i > 1 ? .2 + (1 - tapi) * .08 : .05) * (1 - galop * .6) * (1 - bond);
+      lac += sw * .35 + couche * .5 + (i >= 4 && tapi > .5 ? Math.sin(t * 9 + f.bob + i) * .45 : 0);
+      const L = sp.renard ? .085 : .09, q1 = [q0[0] - Math.cos(ang) * Math.cos(lac) * L, q0[1] + Math.cos(ang) * Math.sin(lac) * L, Math.max(.03, q0[2] + Math.sin(ang) * L)];
+      if (sp.renard) { const wq = .05 + Math.sin((i + 1) / 7 * Math.PI) * .04; add(q0, q1, wq, wq, i >= 4 ? [255, 252, 250] : pelage); if (i === 5 && nuitQ) B[B.length - 1].luit = 1; }
+      else add(q0, q1, .06 - i * .005, .06 - i * .005, i === 5 ? sombre : i % 2 ? pelage : sombre);
+      q0 = q1;
+    }
   }
   // les pattes : coudes en arrière, genoux en avant, jarrets hauts ; de larges pattes silencieuses
   for (const ft of f.feet || []) {
@@ -18323,7 +18617,15 @@ function osFelin(f) {
   return B;
 }
 // Le félin en pictogramme : long, bas, rayé, la queue relevée.
+function dessinRenard(d, sp) {                      // le renard des pétales (§112) : trois queues en éventail, de grandes oreilles
+  for (const [x0, x1] of [[5, 5], [7, 7], [10, 10], [12, 12]]) d.ligne(x0, 10, x1, 14, sp.leg);
+  d.rect(4, 7, 12, 10, sp.shell); d.rect(5, 10, 11, 10, sp.ventre);
+  for (const [x, y] of [[0, 3], [1, 7], [2, 11]]) { d.ligne(4, 8, x + 1, y, sp.shell, 2); d.net(x, y, [255, 252, 250]); }
+  d.disque(13, 6.5, 2, sp.shell); d.ligne(14, 7, 15, 8, sp.ventre); d.net(15, 8, [58, 52, 60]);
+  d.ligne(12, 4, 12, 2, sp.dark); d.ligne(14, 4, 14, 2, sp.dark); d.net(14, 6, sp.oeil);
+}
 function dessinFelin(d, sp) {
+  if (sp.renard) return dessinRenard(d, sp);
   for (const [x0, x1] of [[4, 3], [6, 6], [10, 10], [12, 13]]) d.ligne(x0, 10, x1, 14, sp.leg);
   d.rect(3, 7, 12, 10, sp.shell);
   d.net(5, 7, sp.dark); d.net(7, 7, sp.dark); d.net(9, 7, sp.dark);
@@ -18697,7 +18999,7 @@ function pecheLie(b, A) {
 // Le poisson pris : au sac, ou au cellier pour le campement ; à la note 5, parfois deux.
 function rapporterPoisson(b) {
   const c = b.comp, i = (b.peche.y | 0) * WS + (b.peche.x | 0), hab = EauT[i] === 1 ? 'lac' : EauT[i] === 2 ? 'riviere' : 'ocean';
-  const f = tirerPoisson(hab) || tirerPoisson('ocean') || POISSONS[0], coffre = c.mode === 'camp' && campIci() && aModule('coffre');
+  const f = tirerPoisson(hab, b.peche.x, b.peche.y) || tirerPoisson('ocean') || POISSONS[0], coffre = c.mode === 'camp' && campIci() && aModule('coffre');
   const n = 1 + (Math.random() < coefApt(b.sp.id, 'peche') - 1 ? 1 : 0) + (Math.random() < .1 * potComp(c, 'recolte') ? 1 : 0);   // la potion de récolte
   if (coffre) P.cellier[f.id] = (P.cellier[f.id] || 0) + n; else metSacIngr(f.id, sacIngr(f.id) + n);
   annonceCompagne(c, 'i:' + f.id, n, coffre); if (sacOuvert) majSac();
@@ -19212,17 +19514,18 @@ TEX.huile = motif(32, (x, y, h) => { const r = (x - 8) ** 2 * .6 + (y - 8) ** 2;
 // masse reste blanche et douce au lieu de se lire en pavés ; en flanc, l'ombre monte du dessous.
 TEX.nuage = motif(33, (x, y, h) => h > .9 ? [.18] : h > .78 ? [.08] : h < .05 ? [-.05] : null);
 TEX.nuageM = motif(34, (x, y, h) => y > 12 ? (h < .55 ? [-.10] : null) : h > .86 ? [.12] : h < .04 ? [-.05] : null);
+TEX.petales = motif(37, (x, y, h) => h > .9 ? [.36] : h > .83 ? [.2] : h < .2 ? [-.12] : null);   // la cerisaie : des pétales blancs semés sur le rose
 //                 eau     rivage  prairie bois    lande   falaise pierre  neige   vide    tourbe  ocre     sylve   cristal  cendre  braises  métal  huile  nuage  fourmilière
 const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.touffu, TEX.herbe, TEX.roche, TEX.roche, TEX.neige, TEX.roche,
   TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise, TEX.plaque, TEX.huile, TEX.nuage, TEX.ocre,
-  TEX.os, TEX.myce, TEX.basalte, TEX.battue];   // l'ossuaire, les terres creuses, la roche rongée, le village
+  TEX.os, TEX.myce, TEX.basalte, TEX.battue, TEX.petales];   // l'ossuaire, les terres creuses, la roche rongée, le village, la cerisaie
 const TEX_COTE = [null, TEX.sableM, TEX.terreM, TEX.terreM, TEX.terreM, TEX.rocheM, TEX.rocheM, TEX.rocheM, TEX.rocheM,
   TEX.terreM, TEX.strates, TEX.terreM, TEX.facetteM, TEX.rocheM, TEX.rocheM, TEX.plaqueM, TEX.plaqueM, TEX.nuageM, TEX.strates,
-  TEX.terreM, TEX.terreM, TEX.rocheM, TEX.terreM];
+  TEX.terreM, TEX.terreM, TEX.rocheM, TEX.terreM, TEX.terreM];
 const TEX_FORME = { conifere:TEX.touffu, feuillu:TEX.touffu, palme:TEX.touffu, buisson:TEX.touffu,
   touffe:TEX.herbe, roseau:TEX.herbe, fleur:TEX.herbe, champi:TEX.sable, rocher:TEX.roche, cristal:TEX.onde,
   cactus:TEX.facetteM, josue:TEX.touffu, boule:TEX.sable, geant:TEX.sable, mort:TEX.terre, verre:TEX.facette,
-  pylone:TEX.plaqueM, engrenage:TEX.plaqueM, bobine:TEX.strates, geode:TEX.onde };
+  pylone:TEX.plaqueM, engrenage:TEX.plaqueM, bobine:TEX.strates, geode:TEX.onde, sakura:TEX.touffu, toro:TEX.roche };
 // ---------- LA MATIÈRE DE TOUT LE RESTE ----------
 // Le sol avait son grain, les maisons du village aussi ; les bêtes, le héros, le campement, l'arche,
 // les troncs et les décors restaient des aplats. Onze motifs de plus, toujours du noir et du blanc
@@ -19893,7 +20196,7 @@ function statutsJoueur() {
   if (biomeIci === 9 && P.ground) add('st_boue', 'mal', 'Boue', 'la tourbière ralentit la marche');
   if (biomeIci === 10 && lumiere() > .5) add('st_chaleur', 'mal', 'Chaleur', 'en plein jour, courir dans le canyon coupe le souffle plus vite');
   // les bienfaits
-  for (const k of Object.keys(EFFETS)) { const n = effet(k); if (n) add('st_' + k, 'bon', EFFETS[k] + (ROMAIN[n] || ''), 'l\'effet d\'un plat', P.effets[k], '', n); }
+  for (const k of Object.keys(EFFETS)) { const n = effetRepas(k); if (n) add('st_' + k, 'bon', EFFETS[k] + (ROMAIN[n] || ''), 'l\'effet d\'un plat', P.effets[k], '', n); }
   if (P.regenT > t) add('st_regen', 'bon', 'Régénération', 'la vie remonte d\'elle-même', P.regenT);
   if (egideActive() && MATIERE[P.egide.m]) add(icSort('egide.' + P.egide.m), 'bon', 'Égide ' + MATIERE[P.egide.m].de, 'un tiers des blessures en moins · sa matière est rendue à qui vous frappe', P.egide.fin);
   if (P.bonusPv > .005) add('st_surplus', 'bon', 'Vie en plus', 'la barre dorée sur la vie · elle prend les coups d\'abord');
@@ -20089,7 +20392,8 @@ function reperes() {
   for (const c of P.compagnes) if (c.dehors && c.b && !c.b.dead) L.push({ x: c.b.x, y: c.b.y, k: 'comp' });
   if (!(P.trouble > t)) for (const j of Autres.values()) L.push({ x: j.x, y: j.y, k: 'joueur', n: j.nom });   // des spores plein les yeux : on perd les autres de vue
   const nm = nmRepere(); if (nm) L.push(nm);          // la halte des nomades
-  for (const l of LUTRINS) if (l.vu && !l.lu && !tomeAcquis(l.m, l.n || 1)) L.push({ x: l.x, y: l.y, k: 'tome', c: hexSort(MATIERE[l.m].col) });   // un lutrin aperçu, pas encore lu
+  if (typeof nmMarques === 'function') for (const m of nmMarques()) L.push(m);   // ce qu'a marqué le cartographe, le sac de l'égaré (§110)
+  for (const l of LUTRINS) if ((l.vu || curioFx('lutrins')) && !l.lu && !tomeAcquis(l.m, l.n || 1)) L.push({ x: l.x, y: l.y, k: 'tome', c: hexSort(MATIERE[l.m].col) });   // un lutrin aperçu, pas encore lu
   return L;
 }
 function majBoussole(forcer) {
@@ -20130,6 +20434,9 @@ function majBoussole(forcer) {
       x.fillStyle = m.c; x.fillRect(X - 5.5, Y - 3.5, 5, 7.5); x.fillRect(X + .5, Y - 3.5, 5, 7.5);
     } else if (m.k === 'comp') {
       x.fillStyle = '#e8a0a8'; x.beginPath(); x.arc(X, Y, 3, 0, 6.2832); x.fill();
+    } else if (m.k === 'carte') {                   // une marque de cartographe : un losange de parchemin, une croix rouge
+      x.fillStyle = '#e8d9b0'; x.beginPath(); x.moveTo(X, Y - 5); x.lineTo(X + 5, Y); x.lineTo(X, Y + 5); x.lineTo(X - 5, Y); x.fill();
+      x.strokeStyle = '#b0302a'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(X - 2, Y - 2); x.lineTo(X + 2, Y + 2); x.moveTo(X + 2, Y - 2); x.lineTo(X - 2, Y + 2); x.stroke();
     } else {
       x.fillStyle = '#8fe3ff'; x.beginPath(); x.arc(X, Y, 4, 0, 6.2832); x.fill();
       x.fillStyle = '#16202c'; x.textAlign = 'center'; x.fillText((m.n || '?').slice(0, 1).toUpperCase(), X, Y + .5); x.textAlign = 'left';
@@ -21550,7 +21857,7 @@ function photo() {
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
-    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), brumeTomes: (P.brumeTomes || []).slice(-600), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), brumeTomes: (P.brumeTomes || []).slice(-600), rumeurs: (P.rumeurs || []).slice(0, 40), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, soins: Object.assign({}, P.soins), defense: { mur: P.defense.mur | 0, tours: P.defense.tours | 0 }, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -21613,7 +21920,7 @@ function appliquer(d, vivantes) {
   if (eq.grimoire === 'sifflet') { eq.grimoire = null; if (!eq.accessoire) eq.accessoire = 'sifflet'; }
   for (const emp of Object.keys(P.equip)) {
     const id = eq[emp], o = id && objet(id);
-    P.equip[emp] = o && P.objets[id] && o.emp === emp ? id : null;
+    P.equip[emp] = o && P.objets[id] && (o.emp === emp || (o.cur && CURIO_PLACES.includes(emp))) ? id : null;
   }
   // les cinq cases : ce qu'on possède, une fois chacun ; une sauvegarde d'avant les cases les garnit
   const rc = Array.isArray(d.raccourcis) ? d.raccourcis : null;
@@ -21657,6 +21964,7 @@ function appliquer(d, vivantes) {
   P.korlaz = d.korlaz && typeof d.korlaz === 'object' ? { duree: nb(d.korlaz.duree, 0, 1e7, 0), prochain: 0 } : null; P.korlazExpo = 0;   // l'infection suit le personnage
   P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
   P.brumesLevees = Array.isArray(d.brumesLevees) ? d.brumesLevees.filter(Number.isInteger).slice(-300) : [];
+  P.rumeurs = Array.isArray(d.rumeurs) ? d.rumeurs.filter(r => r && typeof r.t === 'string' && r.t.length < 400).slice(0, 40).map(r => ({ t: r.t, g: r.g | 0 ? r.g : 0, x: +r.x || 0, y: +r.y || 0, n: r.n | 0 })) : [];   // le carnet des rumeurs (§111)
   P.brumeTomes = Array.isArray(d.brumeTomes) ? d.brumeTomes.filter(k => typeof k === 'string' && k.length < 40).slice(-600) : [];   // les lutrins de la brume déjà lus (graine.cercle / graine.ile)   // les îles dont vous avez levé la brume sanglante
   for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
