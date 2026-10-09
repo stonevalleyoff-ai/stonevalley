@@ -2421,3 +2421,164 @@ Un aperçu de 108 secondes (rendu avec le moteur du jeu) : le camp de jour, un c
 Dans le code : `index.html`, `HUMEURS.lointain`, `SUITES` (les accords), `composer(H, Q, question, serré)` (une phrase), `tenirLeger` (la nappe), `MUS.phrases(now)` (le jeu des phrases, le combat, le large) ; `musiqueVive` est retirée.
 
 **À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-76`).
+
+## 109. Les voyageurs du Seuil, première livraison : les curiosités
+
+Le plan (accepté) : 1. les curiosités (ici) ; 2. les voyageurs au hasard, où la caravane se fond ; 3. des indices tirés de votre partie, et un carnet des rumeurs ; 4. les autres métiers.
+
+**Les curiosités** : trente objets uniques (un seul exemplaire de chacun, jamais deux), chacun avec sa rareté, son histoire et un effet tant qu'on le porte.
+- **Peu communes** (6) : Lanterne de tourbe (vision de nuit), Plume de héron (chute de plume), Semelles de mousse (pas feutrés), Serpette de cueilleuse (récolte abondante), Grelot du berger (main douce), Fiole de cendre froide (insensible aux braises).
+- **Rares** (6) : Bottes de vent (pas vif), Ressort d'horloger (grand saut), Écaille de garde (peau dure), Poing de laiton (coups puissants), Bogue de châtaigne (épines), Conque des marées (grand souffle).
+- **Très rares** (6) : Œil de hibou (vision de nuit II, pas feutrés), Givre en bouteille (coups glacés), Croc de meute (meute galvanisée), et trois à effet propre : la Carte des lutrins (les lutrins de l'île à la boussole, même jamais vus), la Bourse du Seuil (un éclat de plus par bête abattue), le Sceau des nomades (un quart du prix en moins chez les voyageurs).
+- **Légendaires** (6) : Cœur de chêne (la vie revient d'elle-même, peau dure), Dent du démon (le Sang boit moitié plus, coups puissants), Aile de sterne (grand saut II, chute de plume II), Bottes de sept lieues (pas vif II), Masque de l'effroi (épines II, peau dure), Sablier inversé (régénération II).
+- **Épiques** (6) : Couronne du Seuil, Larme de la Tisseuse, Boussole d'or, Cœur de brume, Corne de dragon, Plume de phénix (deux ou trois effets forts chacune).
+- Les effets sont ceux des plats, permanents tant qu'on porte l'objet (sans s'ajouter à la ligne des effets de plats, qui garde ses minuteries) ; deux curiosités au même effet s'additionnent (au plus IV).
+
+**Les porter** : trois au plus. Deux nouvelles places dans « Porté » (Breloque, Breloque), et l'accessoire s'il est libre (le sifflet y reste sinon ; la touche H ne siffle qu'avec le sifflet). « Porter » prend la première place libre, sinon remplace la première breloque (la fiche le dit). Dans l'onglet Sac, chaque curiosité a sa vignette, le tour à la couleur de sa rareté, et sa fiche : rareté, effet, histoire.
+
+**Les acheter** : en attendant les voyageurs (livraison 2), la marchande de la caravane en propose trois par halte (« Tu as des curiosités ? »), tirées selon le niveau de l'île : près de chez soi, surtout des peu communes ; vers 4, des rares ; vers 8, des très rares ; au-delà de 13, des légendaires et parfois une épique. Jamais une qu'on a déjà. Elles se paient en éclats et en matière (de 12 éclats et 8 fibres à 140 éclats et 30 os), moins cher pour un ami, et d'un quart avec le Sceau.
+
+Vérifié : le tirage selon le niveau, l'achat (éclats et matière retirés, l'objet au sac), les trois places et le remplacement, les effets (pas vif, vision de nuit, régénération, peau dure), la sauvegarde et le rechargement, la fiche du Sac (capture), le sifflet qui ne siffle plus avec une curiosité à l'accessoire.
+
+**Ce que j'ai décidé seul** : les trente objets, leurs effets, leurs prix et leurs histoires ; les chances de rareté par niveau ; la régénération (0,3 % de vie par seconde et par niveau) ; que la marchande les vende en attendant les voyageurs.
+
+**Pas vérifié** : sur un vrai téléphone ; l'équilibre en jeu.
+
+Dans le code : `index.html`, `CURIOS` (les trente), `curioFx`, `porterCurio`, `tirerCurios`, `prixCurio`, `dessinCurio` (les vignettes), `effet` (plats et curiosités ; `effetRepas` pour les seuls plats), les places `breloque` et `breloque2` ; `nomades.js`, `nmCurios`.
+
+**À déposer** : `index.html`, `nomades.js`, `sw.js` (qui passe en `stone-valley-77`).
+
+## 110. Les voyageurs du Seuil, deuxième livraison : les voyageurs (la caravane fondue dedans)
+
+**La caravane** (toujours une marchande, un dresseur, un conteur) n'existe plus : à sa place, des **haltes de un à trois voyageurs**, de métiers différents, tirés au hasard (une halte sur trois environ en compte un, une sur deux deux, une sur sept trois).
+- **Plus souvent** : la première halte une à trois minutes après l'arrivée sur l'île (au lieu de deux et demie à sept et demie), puis cinq à dix minutes après chaque départ (au lieu de huit à dix-huit).
+- **À un endroit qui s'y prête** : un replat sec, de préférence au bord de l'eau, sur une hauteur ou près de l'arche de l'île, à 14 à 32 cases (le message dit où : « un seuil s'ouvre au sud, à 28 cases · 3 voyageurs y font halte »), et marqué à la boussole. **La nuit**, un petit feu au milieu de la halte.
+- **Qui** : pour les trois métiers d'avant (marchande, dresseur, conteur), une fois sur deux l'un des neuf qu'on connaît (s'il vit encore : on les reconnaît, ils se souviennent de vous) ; sinon, et pour les nouveaux métiers, un **inconnu** : un nom tiré au hasard, une robe d'une teinte au hasard, et un caractère (bavard, méfiant, joyeux, pressé) qui colore son accueil.
+
+**Trois nouveaux métiers** :
+- **Le cartographe** (un chapeau plat, des cartes roulées dans le dos) : il vend ce qu'il sait de l'île, à marquer à la boussole (un losange de parchemin, une croix rouge) : un lutrin jamais vu (et son tome), la trappe du souterrain, le cercle des mages, la fourmilière, l'aire du dragon, l'antre de la Tisseuse, le cœur d'un biome rare. De 6 à 14 éclats la marque, moins pour un ami. Le lutrin marqué compte comme vu.
+- **Le devin** (à partir de l'exploration 3 ; capuche et orbe) : pour 6 éclats (rien pour un ami), il **voit l'île qui attend derrière l'arche** : son niveau, ses biomes rares, les automates, la brume sanglante ou le Korlaz. C'est bien elle que donnera le prochain portail. Et il peut **chercher un autre chemin** (12, puis 24, puis 36 éclats ; trois fois au plus) : on choisit un peu sa route.
+- **L'égaré** (un baluchon, rien d'autre) : il demande un service, au hasard parmi trois : **six baies** (il a faim), **son sac** (perdu à 18 à 35 cases en fuyant une bête : marqué à la boussole, il luit ; on le ramasse en passant dessus, puis on le lui rapporte), ou **l'escorter jusqu'à l'arche** de l'île (il vous suit à deux pas, puis s'en va par l'arche). En remerciement : **une curiosité** tirée selon le niveau de l'île (ou des éclats, si l'on a tout). Tant qu'un service est en cours, la halte attend.
+
+Ce qui ne change pas : la marchande (troc et curiosités), le dresseur (ses techniques, sa bête), le conteur (ses indices et les tomes : la livraison 3 les rendra vivants) ; l'amitié des neuf, la rancune, la défense quand on les frappe. En coopération, les inconnus se voient chez tous (tout ce qui les fait est partagé) ; l'escorte n'est proposée qu'à celui qui tient la halte.
+
+Vérifié en simulation : 300 haltes (tailles, métiers, connus et inconnus), les marques du cartographe (à la boussole), la vision du devin et l'autre chemin (le portail donne bien l'île vue), les trois services de l'égaré et leurs curiosités, l'identité d'un inconnu partagée ; une halte vue en jeu (capture) ; le partage de la faune passe toujours.
+
+**Ce que j'ai décidé seul** : les fréquences, les métiers et leurs chances, les prix du cartographe et du devin, les trois services de l'égaré, le petit feu de nuit, les noms des inconnus (deux syllabes tirées au hasard).
+
+**Pas vérifié** : sur un vrai téléphone ; à l'œil, les nouvelles tenues de près.
+
+Dans le code : `nomades.js`, `nmVoyageur` (les inconnus), `nmVenir` (qui vient, où), `NM_DIALOGUES.cartographe / devin / egare`, `nmLieux` / `nmCartes` / `nmMarques`, `nmVision` / `nmAutreChemin` / `nmDecrire`, `nmQuete` / `nmEgare` / `nmServices` / `nmRecompense` ; `faune.js`, `identiteFaune` / `poserIdentite` (les inconnus) ; `index.html`, `portailNormal` (l'île du devin), `reperes` et la boussole (les marques).
+
+**À déposer** : `index.html`, `nomades.js`, `faune.js`, `sw.js` (qui passe en `stone-valley-78`).
+
+## 111. Les voyageurs du Seuil, troisième livraison : de vrais indices, et le carnet des Rumeurs
+
+Ce que disent les voyageurs ne sort plus d'une liste fixe : c'est tiré de votre partie. Trois sortes d'indices :
+
+- **Sur cette île** : un lutrin pas encore vu, la trappe du souterrain, le cercle des mages de la brume, la fourmilière, l'aire du dragon, l'antre de la Tisseuse, le cœur d'un biome rare où vous n'êtes jamais allé. Le voyageur dit où (direction, distance) et **le marque à la boussole**, comme le cartographe, mais sans le faire payer.
+- **Ce qui vous manque** : un tome rapporté et pas déchiffré, le tome suivant de chaque matière et où le trouver, un accord jamais essayé (bibliothèque 2 et plus), un biome rare jamais vu (s'il est à votre portée, ou presque), la brume sanglante (à partir de la sixième exploration), pas de compagne, pas de curiosité, ou des curiosités qui dorment au sac.
+- **Ce qui vous coûte** : des cœurs déjà perdus sur l'expédition, peu d'éclats dans le sac (le mana), pas d'armure, pas d'arme, la nuit sans lumière, peu de vie.
+
+Un indice ne se redit pas (ceux d'une île : pas deux fois sur la même île). Quand il n'y a plus rien à dire, on retombe sur les anciennes phrases.
+
+Où les entendre : le conteur (« Que sais-tu de cette île ? », nouveau, et « Un conseil pour la route ? »), la marchande (« Quelles nouvelles des îles ? »), le cartographe (« Des nouvelles ? », gratuit, en plus des marques qu'il vend) et le devin (« Que vois-tu pour moi ? »).
+
+**Le carnet des Rumeurs** : dans le Journal du campement, entre l'Atlas et le Carnet des variantes. Chaque indice entendu s'y écrit, le plus récent en haut (les 20 derniers affichés, 40 gardés dans la sauvegarde), avec l'exploration où on l'a entendu et, s'il parle de l'île où vous êtes, sa direction.
+
+**Ce que j'ai décidé seul** : quand il y a quelque chose à dire sur l'île, une réponse sur quatre à dix en parle (quatre fois sur dix) ; « Que sais-tu de cette île ? » ne parle que d'elle ; les indices d'île sont gratuits alors que le cartographe vend ses marques (lui en propose jusqu'à cinq, au choix, les rumeurs en donnent une au hasard) ; le carnet n'est pas partagé en coopération.
+
+**Pas vérifié** : sur un vrai téléphone.
+
+Dans le code : `nomades.js`, `nmIndicesVivants` (tous les indices possibles), `nmIndiceVivant(pref)` (en choisit un pas encore dit, l'écrit au carnet, marque la boussole), `nmRumeur` ; `index.html`, `blocRumeurs` (le journal), `P.rumeurs` (sauvegarde).
+
+**À déposer** : `index.html`, `nomades.js`, `sw.js` (qui passe en `stone-valley-79`), `LISEZ-MOI.md`.
+
+## 112. La Cerisaie en fleur : un biome rare des premières îles
+
+Un neuvième biome rare, rang « merveille » (son nom s'écrit en rose dans l'Atlas). Il ne paraît que **de l'exploration 1 à la 5** : au-delà, le portail ne tire plus d'île qui le porte (ni au hasard, ni dans les propositions du portail du campement, ni dans les vœux). Pour y revenir plus tard, il faut avoir **gardé** l'île. Environ une île sur sept, de la 1re à la 5e exploration (mesuré : 15 % à l'exploration 1, 11 % à la 5e, 0 % ensuite).
+
+**Le lieu** : un sol couvert de pétales (rose, semé de blanc), qui prend des prairies, des bois et des landes.
+- **Cerisiers en fleur** : un tronc sombre qui se tord, des bras, des nuages de fleurs. Trois teintes selon l'arbre (rose tendre, blanc, rose franc). Ils donnent du bois. Leurs pétales tombent sans arrêt, se balancent, puis se posent au sol.
+- **Lanternes de pierre** : rares, souvent par petits groupes. La nuit, leur foyer luit et éclaire autour.
+- **Iris d'eau** au bord de l'eau, **bambous** en bosquets, **pivoines**, et des **griottiers** qui portent des cerises (les baies du biome).
+- **Douze plantes rares** de la cerisaie, comme dans les autres biomes : Étoile de sakura, Clochettes de glycine, Éventail d'érable rouge, Crosse de jade, Lampion de pétales, Prunier du Japon, Pivoine-reine, Saule de pétales, Voile de pétales, Arbre aux mille fleurs, et deux vives : Gueule de camélia, Fouet d'églantier.
+- **L'air** : des pétales le jour, des lucioles roses la nuit.
+
+**La paix des cerisiers** :
+- Sous les cerisiers, aucune bête ne chasse. Une proie qui s'y réfugie est laissée tranquille, et un chasseur qui vous suivait renonce dès que vous y entrez. La seule exception : une bête que vous avez frappée vous en veut toujours.
+- La vie y revient d'elle-même, doucement, quatre secondes après le dernier coup reçu (pleine en deux minutes environ).
+- La musique y change : le jour, une gamme pentatonique sans demi-ton (yo), lente, pincée comme un koto ; la nuit, la gamme miyako-bushi, en cloches. Le large et le combat n'y entrent pas.
+
+**Les bêtes** (elles ne vivent que là) :
+- **Cerf des cerisiers** : un Tellurien blanc dont les bois fleurissent, en harde. On peut le lier ; il cueille les fleurs et les cerises.
+- **Renard des pétales** : un renard crème aux oreilles roses, avec trois queues touffues en éventail. Le bout blanc de ses queues luit la nuit. Il est farouche ; lié, il rapporte les cerises.
+- **Lentigrade-cerisier** : un ou deux par île. Un lentigrade géant qui porte un cerisier en fleur sur le dos, d'où tombent aussi des pétales. Très calme, et la meilleure défense des trois.
+- Les cotonniers viennent aussi y paître.
+
+**À pêcher** : la **carpe koï**, blanche à taches orange. On ne la trouve que dans les lacs et les rivières qui bordent la cerisaie, et seulement le jour (environ 45 % des prises là-bas). Elle s'ajoute au carnet de pêche (8 poissons).
+
+**À cuisiner** : fleurs de cerisier, cerises, pousses de bambou, pétales de pivoine, iris d'eau, la koï et les douze plantes rares. Deux plats remarquables (leurs indices sont au livre de recettes) :
+- **Panier d'hanami** : fleurs de cerisier, cerises, et une graine.
+- **Thé du printemps** : fleurs de cerisier et une feuille, rien d'autre.
+
+Comme pour tous les ingrédients, leurs effets sont tirés par le jeu selon leur famille.
+
+**Ce que j'ai décidé seul** : le rang « merveille » ; la fenêtre 1 à 5 et sa fréquence ; la règle de la paix (une bête frappée garde sa rancune) ; la vitesse de la vie qui revient ; le nombre de bêtes (7 cerfs, 4 renards, 2 lentigrades au plus, et quelques petits) ; une île qui avait déjà été tirée peut maintenant porter une cerisaie (ses autres biomes ne bougent pas).
+
+**Pas vérifié** : sur un vrai téléphone (le nombre de pétales en l'air, à 60 images par seconde) ; en coopération.
+
+Dans le code : `index.html`, `RARES` (b 23, `max`), `horsSaison`, `quandRare`, `ESP` (toro, iris, sakura, bambou, pivoine, griottier), `formeFlore` (sakura, toro), `TEX.petales`, `AMBIANCE[23]`, `paixIci`, `majCerisaie`, `petale`, `CERISAIE_SPEC`, `osFelin` (le renard : `renard`, `queues`), `osDoux` (`arbre`), `osTellurien` (`fleurBois`), `POISSONS` (koi, `bio`), `presBiome`, `REMARQUABLES` (hanami, printemps), `HUMEURS.cerisaie` / `cerisaieNuit` ; `flore.js` (biome 23) ; `nomades.js` (l'indice sait que la cerisaie a une saison).
+
+**À déposer** : `index.html`, `flore.js`, `nomades.js`, `sw.js` (qui passe en `stone-valley-80`), `LISEZ-MOI.md`.
+
+## 113. Le son ne ralentit plus le jeu
+
+La musique, l'ambiance et les bruitages demandaient trop au téléphone : le fil audio prenait le processeur, et tout le jeu ralentissait. J'ai mesuré la charge du son (rendu hors ligne, 12 secondes, sur la même machine) :
+
+| scène | avant | après |
+|---|---|---|
+| calme (ambiance + musique) | 4,4 % | 1,1 % |
+| pluie + effets | 7,0 % | 1,4 % |
+| combat + effets | 6,5 % | 1,4 % |
+
+Soit quatre à cinq fois moins. Sur un téléphone, ces chiffres sont à multiplier par cinq à dix.
+
+Ce qui a changé :
+- **Le son tourne à 24 kHz** au lieu de 48 : tout le calcul coûte moitié moins. Rien dans le jeu ne monte au-dessus de 10 kHz. La latence est « équilibrée » plutôt que la plus courte possible. Si le navigateur refuse, on retombe sur le réglage d'avant.
+- **L'écho** : le convolveur (une salle de 1,8 s en stéréo) coûtait à lui seul plus que toute l'ambiance. Il est remplacé par deux retards croisés et filtrés, gauche et droite, qui se renvoient le son. La traîne est plus courte et un peu plus « écho ».
+- **L'ambiance** : vent, feuillage, pluie, eau, mer, feu de camp, grillons, machines et lasers tournaient en permanence, même muets. Une boucle qui se tait est maintenant débranchée au bout de 2,5 s, et le navigateur ne la calcule plus. Elle se rebranche dès qu'il faut l'entendre et monte doucement.
+- **La musique** : un filtre partagé par timbre au lieu d'un filtre par note, et chaque voix finie est débranchée.
+- **Les bruitages** : 24 voix à la fois au plus (au lieu de 44). Un son placé trop loin pour s'entendre (moins de 1,2 % du volume) ne se joue plus. Deux fois moins de gouttes sous la pluie.
+- **Le fil principal** : l'ambiance et la musique se mettent à jour dix fois par seconde au lieu de chaque image. Elles planifient de toute façon une demi-seconde d'avance. Les pas et les cris restent à chaque image.
+
+**Ce que j'ai décidé seul** : 24 kHz (on perd l'extrême aigu, au-dessus de 12 kHz) ; l'écho par retards plutôt qu'une salle ; les seuils (24 voix, 1,2 %).
+
+**Pas vérifié** : sur un vrai téléphone (le gain mesuré l'est sur ordinateur, en rendu hors ligne) ; à l'oreille, le nouvel écho et le son à 24 kHz.
+
+Dans le code : `index.html`, `SON` : `demarrer` (le contexte), `brancher` (l'écho), `sortie` (les seuils), `osc` / `souffle` (débranchés à la fin), `filtreCommun`, `note`, `tenir`, `AMB.maj` (`vers` : débrancher, rebrancher), `maj` (dix fois par seconde).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-81`), `LISEZ-MOI.md`.
+
+## 114. Le feu de camp se tait
+
+La boucle de crépitements du feu de camp (§106, placée au feu en §107) est retirée : le feu ne fait plus de bruit. Le reste de l'ambiance ne change pas.
+
+Dans le code : `index.html`, `SON` (la fonction `feuDeCamp` et sa ligne dans `AMB.maj` sont supprimées).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-82`), `LISEZ-MOI.md`.
+
+## 115. Le feu de camp crépite, sans bruit blanc
+
+Le feu reprend sa voix, refaite. L'ancienne boucle (§106) avait sous ses crépitements un lit de bruit qui, normalisé avec eux, s'entendait comme un bruit blanc en s'approchant : il était à −22 dB sous les crêtes. Il est maintenant à −39 dB : un grondement très bas, presque rien.
+
+Les crépitements sont refaits :
+- des clics nets (un échantillon, puis une petite résonance aiguë qui s'éteint en une ou deux millisecondes), au lieu de courtes rafales de bruit ;
+- six par seconde en moyenne, parfois en grappes ;
+- de temps en temps, le « pop » plus grave d'un nœud de bois.
+
+Comme avant (§107), le son est placé au feu : on l'entend en s'approchant, plus fort tout près, à gauche ou à droite selon où l'on regarde. Il est débranché loin du feu (§113), donc il ne coûte rien ailleurs.
+
+Dans le code : `index.html`, `SON`, `feuDeCamp` et sa ligne dans `AMB.maj`.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-83`), `LISEZ-MOI.md`.

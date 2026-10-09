@@ -1382,26 +1382,34 @@ const SON = (() => {
   }
 
   // ---------- l'ambiance ----------
-  // Le feu de camp (§106) : un enregistrement fabriqué une fois, qu'on fait tourner en boucle. Le souffle des
-  // flammes (un bruit sourd qui ondule) et les crépitements : des éclats brefs, de toutes tailles, parfois en
-  // grappes, et de temps en temps le « pop » d'un nœud de bois qui éclate.
+  // Le feu de camp (§115) : rien que des crépitements, nets — des clics brefs (un échantillon, et une petite résonance
+  // aiguë qui s'éteint en une ou deux millisecondes), parfois en grappes, de temps en temps le « pop » plus grave d'un
+  // nœud de bois. Plus de souffle : la boucle d'avant (§106) avait un lit de bruit qui s'entendait comme un bruit blanc
+  // en s'approchant. Dessous, seulement un grondement très bas, presque rien. Fabriqué une fois, joué en boucle, placé
+  // au feu (on l'entend en s'approchant, à gauche ou à droite selon où l'on regarde), débranché loin du feu.
   function feuDeCamp() {
-    const sr = ctx.sampleRate, D = 7, n = sr * D | 0, m = sr * .12 | 0, B = ctx.createBuffer(1, n, sr), d = B.getChannelData(0);
+    const sr = ctx.sampleRate, D = 8, n = sr * D | 0, m = sr * .1 | 0, B = ctx.createBuffer(1, n, sr), d = B.getChannelData(0);
+    const k1 = 1 - Math.exp(-6.2832 * 160 / sr), k2 = 1 - Math.exp(-6.2832 * 90 / sr);
     let a = 0, b = 0;
-    for (let i = 0; i < n; i++) { a += (Math.random() * 2 - 1 - a) * .02; b += (a - b) * .05; d[i] = b * 5 * (.65 + .35 * Math.sin(i / sr * 2.1) * Math.sin(i / sr * .7 + 1)); }
-    const eclat = (i0, A, tau, ton) => { const L = Math.min(n - i0, tau * 6 * sr | 0); let h = 0;
-      for (let j = 0; j < L; j++) { h = ton ? Math.sin(j / sr * 6.2832 * ton) : Math.random() * 2 - 1 - h * .5; d[i0 + j] += A * h * Math.exp(-j / (tau * sr)); } };
+    for (let i = 0; i < n; i++) { a += (Math.random() * 2 - 1 - a) * k1; b += (a - b) * k2; d[i] = b * .5 * (.6 + .4 * Math.sin(i / sr * 1.7) * Math.sin(i / sr * .5 + 1)); }
+    const crac = (i0, A, f, tau) => {
+      if (i0 >= n - 2) return;
+      const L = Math.min(n - i0, tau * 7 * sr | 0), w = 6.2832 * f / sr, ph = Math.random() * 6.2832, s0 = Math.random() < .5 ? 1 : -1;
+      d[i0] += A * s0; d[i0 + 1] -= A * s0 * .55;                                           // le clic
+      for (let j = 0; j < L; j++) d[i0 + j] += A * .45 * Math.sin(w * j + ph) * Math.exp(-j / (tau * sr));   // sa résonance
+    };
     for (let x = 0; ;) {
-      x += -Math.log(1 - Math.random()) / 7; const i0 = x * sr | 0; if (i0 >= n) break;   // sept éclats par seconde, en moyenne
-      const A = .12 + .88 * Math.random() ** 3; eclat(i0, A, .0012 + Math.random() * .004, 0);
-      if (Math.random() < .18) for (let g = 1 + Math.random() * 4 | 0; g > 0; g--) eclat(Math.min(n - 1, i0 + (Math.random() * .09 * sr | 0)), A * .5, .001 + Math.random() * .002, 0);
-      if (Math.random() < .06) eclat(i0, A * .5, .014, 280 + Math.random() * 520);
+      x += -Math.log(1 - Math.random()) / 6; const i0 = x * sr | 0; if (i0 >= n - m) break;   // six par seconde, en moyenne
+      const A = .15 + .85 * Math.random() ** 2.5;
+      crac(i0, A, 1800 + Math.random() * 2800, .0004 + Math.random() * .0011);
+      if (Math.random() < .2) for (let g = 1 + Math.random() * 5 | 0, j = i0; g > 0; g--) { j += (.004 + Math.random() * .02) * sr | 0; crac(j, A * (.3 + Math.random() * .5), 2000 + Math.random() * 3000, .0003 + Math.random() * .0008); }
+      if (Math.random() < .05) crac(i0, A * .7, 260 + Math.random() * 380, .006 + Math.random() * .008);   // le nœud qui éclate
     }
     for (let j = 0; j < m; j++) d[j] = d[j] * (j / m) + d[n - m + j] * (1 - j / m);   // un fondu, pour que la boucle ne claque pas
     let pk = 0; for (let i = 0; i < n - m; i++) pk = Math.max(pk, Math.abs(d[i])); for (let i = 0; i < n; i++) d[i] *= .9 / (pk || 1);
     const S = ctx.createBufferSource(), G = ctx.createGain(); S.buffer = B; S.loop = true; S.loopEnd = (n - m) / sr; G.gain.value = 0; S.connect(G);
     let Pn = null; if (ctx.createStereoPanner) { Pn = ctx.createStereoPanner(); Pn.connect(bus.a); }
-    S.start(0, Math.random() * 5); return { G, Pn, dest: Pn, on: false };   // (§113) débranché loin du feu
+    S.start(0, Math.random() * 6); return { G, Pn, dest: Pn, on: false };   // débranché loin du feu (§113)
   }
   const AMB = {
     monter() {
@@ -1458,11 +1466,11 @@ const SON = (() => {
       let dl = 99; for (const l of LASERS) if (l.etat !== 'off') { const d = Math.hypot((l.ax + l.bx) / 2 - P.x, (l.ay + l.by) / 2 - P.y); if (d < dl) dl = d;
         if (l._son !== l.etat) { if (l.etat === 'on' && d < 12) jouer('laser', {}, (l.ax + l.bx) / 2, (l.ay + l.by) / 2, l.z + .7); l._son = l.etat; } }
       vers(this.laser, dl < 9 ? .03 * (1 - dl / 9) : 0, .2);
-      // le feu crépite là où il est (§107) : plus fort tout près, à gauche ou à droite selon où l'on regarde
+      // le feu crépite là où il est (§107, §115) : on l'entend en s'approchant, plus fort tout près, à gauche ou à droite
       let fc = null, df = 99;
       for (const c of campsIci()) { const d = Math.hypot(c.x - P.x, c.y - P.y); if (d < df) { df = d; fc = c; } }
       const qf = fc && !djIci() ? placer(fc.x, fc.y, (fc.z ?? P.z) + .3) : null;
-      vers(this.feu, qf ? .2 * qf.g : 0, .25); if (qf && this.feu.Pn && this.feu.on) this.feu.Pn.pan.setTargetAtTime(qf.p, now, .1);
+      vers(this.feu, qf ? .22 * qf.g : 0, .25); if (qf && this.feu.Pn && this.feu.on) this.feu.Pn.pan.setTargetAtTime(qf.p, now, .1);
       // les petits événements : la lave qui bout, le carillon du cristal, un choc de métal au loin
       if ((this.evt -= dt) <= 0) {
         this.evt = alea(.6, 2.5);
