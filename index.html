@@ -1370,6 +1370,27 @@ const SON = (() => {
   }
 
   // ---------- l'ambiance ----------
+  // Le feu de camp (§106) : un enregistrement fabriqué une fois, qu'on fait tourner en boucle. Le souffle des
+  // flammes (un bruit sourd qui ondule) et les crépitements : des éclats brefs, de toutes tailles, parfois en
+  // grappes, et de temps en temps le « pop » d'un nœud de bois qui éclate.
+  function feuDeCamp() {
+    const sr = ctx.sampleRate, D = 7, n = sr * D | 0, m = sr * .12 | 0, B = ctx.createBuffer(1, n, sr), d = B.getChannelData(0);
+    let a = 0, b = 0;
+    for (let i = 0; i < n; i++) { a += (Math.random() * 2 - 1 - a) * .02; b += (a - b) * .05; d[i] = b * 5 * (.65 + .35 * Math.sin(i / sr * 2.1) * Math.sin(i / sr * .7 + 1)); }
+    const eclat = (i0, A, tau, ton) => { const L = Math.min(n - i0, tau * 6 * sr | 0); let h = 0;
+      for (let j = 0; j < L; j++) { h = ton ? Math.sin(j / sr * 6.2832 * ton) : Math.random() * 2 - 1 - h * .5; d[i0 + j] += A * h * Math.exp(-j / (tau * sr)); } };
+    for (let x = 0; ;) {
+      x += -Math.log(1 - Math.random()) / 7; const i0 = x * sr | 0; if (i0 >= n) break;   // sept éclats par seconde, en moyenne
+      const A = .12 + .88 * Math.random() ** 3; eclat(i0, A, .0012 + Math.random() * .004, 0);
+      if (Math.random() < .18) for (let g = 1 + Math.random() * 4 | 0; g > 0; g--) eclat(Math.min(n - 1, i0 + (Math.random() * .09 * sr | 0)), A * .5, .001 + Math.random() * .002, 0);
+      if (Math.random() < .06) eclat(i0, A * .5, .014, 280 + Math.random() * 520);
+    }
+    for (let j = 0; j < m; j++) d[j] = d[j] * (j / m) + d[n - m + j] * (1 - j / m);   // un fondu, pour que la boucle ne claque pas
+    let pk = 0; for (let i = 0; i < n - m; i++) pk = Math.max(pk, Math.abs(d[i])); for (let i = 0; i < n; i++) d[i] *= .9 / (pk || 1);
+    const S = ctx.createBufferSource(), G = ctx.createGain(); S.buffer = B; S.loop = true; S.loopEnd = (n - m) / sr; G.gain.value = 0; S.connect(G);
+    let Pn = null; if (ctx.createStereoPanner) { Pn = ctx.createStereoPanner(); G.connect(Pn); Pn.connect(bus.a); } else G.connect(bus.a);
+    S.start(0, Math.random() * 5); return { G, Pn };
+  }
   const AMB = {
     monter() {
       const boucle = (type, f, q) => {
@@ -1379,7 +1400,7 @@ const SON = (() => {
         return { F, G };
       };
       this.vent = boucle('bandpass', 500, 1.6); this.feuilles = boucle('highpass', 3800, .5); this.pluie = boucle('bandpass', 3200, .35);
-      this.eau = boucle('bandpass', 800, 1.6); this.mer = boucle('lowpass', 420, .5); this.feu = boucle('bandpass', 2400, 1.4);
+      this.eau = boucle('bandpass', 800, 1.6); this.mer = boucle('lowpass', 420, .5); this.feu = feuDeCamp();
       // les grillons : une note aiguë hachée par un oscillateur lent, et ouverte par phrases
       const O = ctx.createOscillator(), H = ctx.createGain(), L = ctx.createOscillator(), LG = ctx.createGain(), G = ctx.createGain();
       O.frequency.value = 4300; L.type = 'square'; L.frequency.value = 28; LG.gain.value = .5; H.gain.value = .5; G.gain.value = 0;
@@ -1419,10 +1440,11 @@ const SON = (() => {
       let dl = 99; for (const l of LASERS) if (l.etat !== 'off') { const d = Math.hypot((l.ax + l.bx) / 2 - P.x, (l.ay + l.by) / 2 - P.y); if (d < dl) dl = d;
         if (l._son !== l.etat) { if (l.etat === 'on' && d < 12) jouer('laser', {}, (l.ax + l.bx) / 2, (l.ay + l.by) / 2, l.z + .7); l._son = l.etat; } }
       vers(this.laser, dl < 9 ? .03 * (1 - dl / 9) : 0, .2);
-      let df = 99;
-      for (const c of campsIci()) df = Math.min(df, Math.hypot(c.x - P.x, c.y - P.y));
-      vers(this.feu, df < 8 ? .03 * (1 - df / 8) * alea(.4, 1.3) : 0, .05);
-      this.feu.F.frequency.setTargetAtTime(alea(1500, 4000), now, .05);
+      // le feu crépite là où il est (§107) : plus fort tout près, à gauche ou à droite selon où l'on regarde
+      let fc = null, df = 99;
+      for (const c of campsIci()) { const d = Math.hypot(c.x - P.x, c.y - P.y); if (d < df) { df = d; fc = c; } }
+      const qf = fc && !djIci() ? placer(fc.x, fc.y, (fc.z ?? P.z) + .3) : null;
+      vers(this.feu, qf ? .2 * qf.g : 0, .25); if (qf && this.feu.Pn) this.feu.Pn.pan.setTargetAtTime(qf.p, now, .1);
       // les petits événements : la lave qui bout, le carillon du cristal, un choc de métal au loin
       if ((this.evt -= dt) <= 0) {
         this.evt = alea(.6, 2.5);
@@ -1435,7 +1457,8 @@ const SON = (() => {
   };
 
   // ---------- la musique ----------
-  // Discrète, faite de phrases et de longs silences. Le jour : une gamme pentatonique claire ;
+  // Discrète, faite de phrases et de longs silences (§108 : hors du Korlaz, les phrases sont composées, voir
+  // MUS.phrases ; le combat et le large lointain les font évoluer). Le jour : une gamme pentatonique claire ;
   // la nuit : mineure, plus lente, en cloches ; le danger (un automate qui vise, un prédateur
   // sur vous) : un bourdon grave et des notes serrées ; l'île des automates : métallique.
   const HUMEURS = {
@@ -1448,6 +1471,45 @@ const SON = (() => {
     korlaz:       { base: 207.65, deg: [0, 1, 6, 7, 11, 13, 18, 19], acc: [0, 6, 13], pas: .74, timbre: 'fele', repos: [3, 9], faux: 1 },
     korlazDanger: { base: 155.56, deg: [0, 1, 6, 7, 11, 13], acc: [0, 1, 6], pas: .4, timbre: 'fele', repos: [1.2, 3], bourdon: 1, faux: 1 },
   };
+  // Le large lointain (§108) : au-delà de la moitié du chemin vers la barrière, un mode dorien, plus grave.
+  HUMEURS.lointain = { base: 196, deg: [0, 2, 3, 5, 7, 9, 10, 12, 14, 15, 17], acc: [0, 7, 15], pas: .74, timbre: 'pluck', repos: [5, 13] };
+  // Les phrases composées (§108). Une phrase : quatre mesures de trois temps, chacune sur un accord. Elles vont
+  // par deux : la question (elle s'arrête sur un accord ouvert, la note en l'air) puis la réponse (elle revient
+  // au repos, sur la tonique, longue). La mélodie : un motif (un rythme et un contour) en mesure 1, un autre en
+  // mesure 2, le premier repris en mesure 3 à partir de l'accord suivant, puis la cadence. Chaque premier temps
+  // tombe sur une note de l'accord ; entre deux, on va par degrés, un saut est suivi d'un pas en sens inverse.
+  const SUITES = {                                         // [question, réponse] : quatre accords chacune (demi-tons depuis la base)
+    jour: [[[0, 4, 7], [5, 9, 12], [-3, 0, 4], [7, 11, 14]], [[0, 4, 7], [5, 9, 12], [7, 11, 14], [0, 4, 7]]],
+    nuit: [[[0, 3, 7], [-4, 0, 3], [3, 7, 10], [7, 10, 14]], [[0, 3, 7], [-4, 0, 3], [-2, 2, 5], [0, 3, 7]]],
+    danger: [[[0, 3, 7], [1, 5, 8], [0, 3, 7], [-2, 2, 5]], [[0, 3, 7], [1, 5, 8], [-2, 2, 5], [0, 3, 7]]],
+    automates: [[[0, 3, 7], [6, 10, 13], [0, 3, 7], [10, 13, 17]], [[0, 3, 7], [3, 6, 10], [6, 10, 13], [0, 3, 7]]],
+    lointain: [[[0, 3, 7], [5, 9, 12], [0, 3, 7], [10, 14, 17]], [[0, 3, 7], [5, 9, 12], [7, 10, 14], [0, 3, 7]]],
+  };
+  function composer(H, Q, question, serre) {
+    const D = H.deg, N = D.length, md = x => ((x % 12) + 12) % 12, pick = a => a[Math.random() * a.length | 0];
+    const tons = ac => { const S = new Set(ac.map(md)), L = []; for (let i = 0; i < N; i++) if (S.has(md(D[i]))) L.push(i); return L.length ? L : [0]; };
+    const proche = (L, i) => L.reduce((a, b) => Math.abs(b - i) < Math.abs(a - i) ? b : a);
+    const CELLS = serre ? [[1, .5, .5, 1], [.5, .5, 1, 1], [1, 1, .5, .5], [1.5, .5, 1], [1, 1, 1]] : [[1, 1, 1], [2, 1], [1, 2], [1.5, .5, 1], [1, .5, .5, 1], [1, 1, 1]];
+    const contour = cell => { const c = [0]; let dir = Math.random() < .5 ? 1 : -1;
+      for (let k = 1; k < cell.length; k++) { const saut = Math.random() < .25, pas = saut ? dir * (2 + (Math.random() < .35 ? 1 : 0)) : dir; c.push(c[k - 1] + pas); if (saut || Math.random() < .3) dir = -dir; } return c; };
+    const A = pick(CELLS), B = pick(CELLS), mA = contour(A), mB = contour(B), ev = [], bord = i => Math.max(0, Math.min(N - 1, i));
+    let cur = proche(tons(Q[0]), Math.floor(N * .4));
+    [[A, mA], [B, mB], [A, mA]].forEach(([cell, mo], m) => {
+      const dep = proche(tons(Q[m]), cur);
+      cell.forEach((b, k) => { const i = bord(dep + mo[k]); ev.push({ b, i: k && !serre && Math.random() < .12 ? null : i, bar: m, first: !k }); if (ev[ev.length - 1].i !== null) cur = i; });
+    });
+    // la cadence : une note d'approche, puis le repos (la tonique) ou la note en l'air (un ton de l'accord, pas la tonique)
+    const T = tons(Q[3]), cible = question ? proche(T.filter(i => md(D[i]) !== 0).length ? T.filter(i => md(D[i]) !== 0) : T, cur) : proche(T.filter(i => md(D[i]) === 0), cur);
+    const app = bord(cible + (cur > cible ? 1 : -1));
+    if (serre) ev.push({ b: .5, i: bord(app + (cur > cible ? 1 : -1)), bar: 3, first: true }, { b: .5, i: app, bar: 3 }, { b: 2, i: cible, bar: 3, fin: true });
+    else ev.push({ b: 1, i: app, bar: 3, first: true }, { b: 2, i: cible, bar: 3, fin: true });
+    return ev;
+  }
+  function tenirLeger(F, f, t0, dur, vol) {                // une voix de nappe : un triangle, dans un filtre partagé
+    const O = ctx.createOscillator(), G = ctx.createGain(); O.type = 'triangle'; O.frequency.value = f;
+    G.gain.setValueAtTime(.0001, t0); G.gain.exponentialRampToValueAtTime(vol, t0 + Math.min(1.2, dur * .4)); G.gain.setValueAtTime(vol, t0 + dur * .8); G.gain.exponentialRampToValueAtTime(.0001, t0 + dur + 1.4);
+    O.connect(G); G.connect(F); O.start(t0); O.stop(t0 + dur + 1.5); O.onended = () => G.disconnect();
+  }
   function note(f, t0, timbre, r, vol = 1) {
     const o = bus.m;
     if (timbre === 'cloche') { cloche(o, t0, f, [[1, .045 * vol], [2.76, .012 * vol], [5.4, .005 * vol]], 2.2); return; }
@@ -1493,6 +1555,41 @@ const SON = (() => {
       if (ileMeca || djIci()) return 'automates';
       return nuitK() > .6 ? 'nuit' : 'jour';
     },
+    // Hors du Korlaz (§108) : les phrases composées. Elles évoluent avec le combat (c, qui monte vite et retombe
+    // lentement) et avec l'éloignement du campement (s, l'écart en îles) : le pas presse, les silences
+    // raccourcissent, le rythme se resserre, une pulsation grave bat les temps, la nappe s'épaissit ; au loin, la
+    // palette passe au mode dorien, et au plus loin une note frotte parfois (un demi-ton au-dessus).
+    phrases(now) {
+      const dt = Math.min(.25, Math.max(0, now - (this.vu || now))); this.vu = now;
+      const cible = this.humeur === 'danger' ? 1 : 0; this.c = (this.c || 0) + (cible - (this.c || 0)) * Math.min(1, dt * (cible > (this.c || 0) ? 3 : .3));
+      const c = this.c, chez = campIci() || (!P.camp && !profondeur()), e = P.camp ? ecart() : profondeur(), s = chez ? 0 : Math.min(1, .12 + .11 * Math.max(1, e)), nk = nuitK();
+      const base = ileMeca || djIci() ? 'automates' : !chez && s >= .5 ? 'lointain' : nk > .6 ? 'nuit' : 'jour';
+      const pasK = Math.max(.6, (1 - .22 * s) * (1 - .35 * c) * (nk > .6 ? 1.08 : 1)), reposK = (1 - .6 * s) * (1 - .9 * c);
+      if (c > .5 && !this.phrase && this.silence > now + .5) this.silence = this.prochain = now + .25;   // le combat : pas d'attente
+      if (now < this.silence) return;
+      if (!this.nf) { this.nf = ctx.createBiquadFilter(); this.nf.type = 'lowpass'; this.nf.frequency.value = 900; this.nf.connect(bus.m); }
+      if (this.prochain < now) this.prochain = now + .05;
+      while (this.prochain < now + .7) {
+        if (!this.phrase || this.k >= this.phrase.ev.length) {
+          if (this.phrase) {                               // la phrase finie : un silence (plus court au loin, presque rien au combat)
+            const R = this.phrase.H.repos; this.phrase = null;
+            this.silence = this.prochain + alea(R[0], R[1]) * reposK * (this.nPh % 2 ? .35 : 1); this.prochain = this.silence; return;   // (entre la question et la réponse, on ne fait que reprendre son souffle)
+          }
+          const nom = c > .5 ? 'danger' : base, H = HUMEURS[nom], question = (this.nPh = (this.nPh || 0) + 1) % 2 === 1;
+          const Q = SUITES[nom][question ? 0 : 1];
+          this.phrase = { H, Q, ev: composer(H, Q, question, c > .5 || s > .7) }; this.k = 0; this.beat = 0;
+        }
+        const ph = this.phrase, H = ph.H, ev = ph.ev[this.k], tps = H.pas * pasK, ac = ph.Q[ev.bar];
+        if (ev.first) for (const a of ac) tenirLeger(this.nf, H.base / 2 * 2 ** (a / 12), this.prochain, 3 * tps, .011 + .008 * s + .008 * c);
+        if (c > .35 || s > .6)                             // la pulsation : la fondamentale, grave, sur chaque temps
+          for (let q = Math.ceil(this.beat - 1e-6); q < this.beat + ev.b - 1e-6; q++) note(H.base / 2 * 2 ** (ac[0] / 12), this.prochain + (q - this.beat) * tps, 'pluck', H.pas, .4 + .5 * Math.max(c, s));
+        if (ev.i !== null) {
+          const f = H.base * 2 ** (H.deg[ev.i] / 12); note(f, this.prochain, H.timbre, ev.b * tps * (ev.fin ? 1.4 : 1), ev.fin ? .9 : 1);
+          if (s > .7 && !ev.fin && Math.random() < .15) note(f * 1.0595, this.prochain + ev.b * tps * .5, H.timbre, ev.b * tps * .5, .35);
+        }
+        this.prochain += ev.b * tps; this.beat += ev.b; this.k++;
+      }
+    },
     maj(forcer) {
       const now = ctx.currentTime, h = forcer || this.choisir();
       // l'infection qui dure : la nappe enfle, les silences raccourcissent, les fausses notes se multiplient
@@ -1508,6 +1605,7 @@ const SON = (() => {
         if (typeof valseBrume === 'function') { if (!this.rouge) this.rouge = valseBrume(ctx, bus.m); this.rouge.maj(now, typeof brumeIntensite === 'function' ? brumeIntensite() : .5); }
         return;
       }
+      if (!K) return this.phrases(now);                    // hors du Korlaz : les phrases composées (§108)
       if (now < this.silence) return;
       const H = HUMEURS[this.humeur];
       if (this.prochain < now) this.prochain = now + .05;
@@ -6995,7 +7093,7 @@ function outilBeta(k) {
   }
   if (k === 'codexTout') {
     const plein = P.codex.length >= MELANGES.length; P.codex = plein ? P.sorts.map(q => phraseDe(q).m).filter(M => M.mix).map(M => M.id).filter((x, i, L) => L.indexOf(x) === i) : MELANGES.map(M => M.id);
-    say(plein ? 'codex · seuls les accords inscrits restent connus' : 'codex · les quinze accords sont connus', 2.4); majSac(); return;
+    say(plein ? 'codex · seuls les accords inscrits restent connus' : 'codex · les ' + MELANGES.length + ' accords sont connus', 2.4); majSac(); return;
   }
   if (k === 'tomePorte') {
     for (let n = 1; n <= TOME_MAX; n++) { const m = tomeManquant(n); if (m && gagnerTome(m, n)) { say(nomTome(cleTome(m, n)) + ' · dans le sac, à déchiffrer', 2.4); majSac(); return; } }
@@ -16441,6 +16539,8 @@ const MATIERES = [   // k : ce que pèse son coup (le cristal perce, la fange re
   { id: 'effroi', n: 'Effroi', de: 'd\'effroi', c: 6, k: .4, col: [160, 118, 204], biome: 'les Terres de l\'effroi', d: 'met en fuite' },
   { id: 'cristal', n: 'Cristal', de: 'de cristal', c: 7, k: 1.6, col: [143, 228, 232], biome: 'les Champs de cristal', d: 'perce : les dégâts les plus forts' },
   { id: 'braise', n: 'Braise', de: 'de braise', c: 8, k: 1, col: [255, 150, 60], biome: 'la Caldeira de cendre', d: 'brûle, et laisse un brasier' },
+  // le Sang (§105) : ses trois tomes ne viennent que de la brume sanglante (brume.js) ; il n'entre dans aucun accord remarquable
+  { id: 'sang', n: 'Sang', de: 'de sang', c: 8, k: 1.4, col: [178, 16, 30], biome: 'la Brume sanglante', brume: true, d: 'frappe fort, et boit : près d\'un tiers du coup vous revient en vie' },
 ];
 const FORME = {}, MATIERE = {}; for (const f of FORMES) FORME[f.id] = f; for (const m of MATIERES) MATIERE[m.id] = m;
 // --- les accents (Tome III) : un signe posé sur la phrase, qui la presse, l'alourdit ou l'étend ---
@@ -16462,7 +16562,7 @@ const ACCORDS = {
   'spore+braise': { acc: 'grisou', n: 'Grisou', le: 'le Grisou', de: 'de grisou', k: 1, col: [226, 198, 90], d: 'explose : les bêtes à trois cases prennent la moitié du coup, et le sol brûle' },
   'effroi+cristal': { acc: 'glas', n: 'Glas', le: 'le Glas', de: 'de glas', k: 1.6, col: [126, 100, 196], d: 'perce, met en fuite, et frappe double une bête qui a perdu la moitié de sa vie' },
 };
-const MELANGES = [];                                      // les quinze paires
+const MELANGES = [];                                      // les vingt et une paires (quinze sans le Sang)
 for (let i = 0; i < MATIERES.length; i++) for (let j = i + 1; j < MATIERES.length; j++) {
   const a = MATIERES[i], b = MATIERES[j], id = a.id + '+' + b.id, R = ACCORDS[id];
   const M = Object.assign({ id, mix: [a.id, b.id], acc: null, n: a.n + ' et ' + b.n.toLowerCase(), de: a.de + ' et ' + b.de, c: a.c + b.c, k: Math.max(a.k, b.k),
@@ -16614,7 +16714,14 @@ function toucherSort(o, m, deg) {
     anneauSort(o.x, o.y, o.z, M.col2, 3, 18); P.secousse = t; P.secousseK = .35; SON.jouer('explosion', {}, o.x, o.y, o.z);
   }
   frapperSort(o, dg);
+  if (M.id === 'sang' || (M.mix && M.mix.includes('sang'))) boireSang(o, dg);
   return true;
+}
+// Le Sang boit : près d'un tiers du coup revient en vie (au plus 12 % d'un coup), et un filet rouge remonte vers vous.
+function boireSang(o, dg) {
+  if (!(P.pv > 0)) return; const a = P.pv; P.pv = Math.min(1, P.pv + Math.min(.12, dg * .3)); if (P.pv <= a) return;
+  for (let k = 0; k < 9; k++) { const u = .5 + Math.random() * .4, x = o.x + (Math.random() - .5) * .4, y = o.y + (Math.random() - .5) * .4, z = (o.z || 0) + .6;
+    parts.push({ x, y, z, vx: (P.x - x) / u, vy: (P.y - y) / u, vz: (P.z + 1 - z) / u, g: 0, life: u, age: 0, col: k % 3 ? '#b2101e' : '#ff5a4a', luit: 1, tl: .07 }); }
 }
 function anneauSort(x, y, z, col, r, n = 26) {
   const c = hexSort(col);
@@ -16839,6 +16946,7 @@ function toucherJoueur(j, m, deg, retour) {
   if (Z) for (const q of Autres.values()) if (q !== j && q.pv > 0 && !allieSort(q.u) && Math.abs(q.z - j.z) < 3 && (q.x - j.x) ** 2 + (q.y - j.y) ** 2 < Z[0] * Z[0]) {
     direSort({ q: 'touche', m: Z[1], d: r2(dg * Z[2]), r: 1 }, q.u); burst(q.x, q.y, q.z + .6, 8, c); }
   if (!retour) say(j.nom + ' · ' + Math.round(j.pv * 100) + '%', 1.2);
+  if (!retour && (M.id === 'sang' || (M.mix && M.mix.includes('sang')))) boireSang(j, dg);
   return true;
 }
 // Ce que fait une matière sur soi, quand elle vient d'un autre joueur.
@@ -16941,7 +17049,7 @@ function majSortsJoueurs(dt) {
 // bibliothèque, dans l'ordre : le II ne se lit pas sans le I.
 const LUTRINS = [];                                   // ceux de l'île : { m, x, y, z, vu }
 const BIOME_MATIERE = { 9: 'fange', 10: 'vent', 11: 'spore', 12: 'cristal', 13: 'braise', 19: 'effroi', 20: 'effroi' };
-const TOME_DE = { fange: 'de la Fange', vent: 'du Vent', spore: 'de la Spore', effroi: 'de l\'Effroi', cristal: 'du Cristal', braise: 'de la Braise' };
+const TOME_DE = { fange: 'de la Fange', vent: 'du Vent', spore: 'de la Spore', effroi: 'de l\'Effroi', cristal: 'du Cristal', braise: 'de la Braise', sang: 'du Sang' };
 const TOME_CH = ['', 'I', 'II', 'III'], DECHIFFRE = [0, 10, 25, 45];   // l'encre qu'il faut pour le déchiffrer
 const TOME_COFFRE = { grand: .5, garde: .15 }, TOME_CONTEUR = { eclat: 40 }, LUTRIN_R = 1.7, LUTRIN_VU = 14;
 const cleTome = (m, n) => m + '.' + n;
@@ -16958,7 +17066,7 @@ function gagnerTome(m, n, bas) {
 }
 // Un tome de ce rang qu'on n'a pas : d'abord parmi les matières dont on tient déjà le précédent.
 function tomeManquant(n, tir = Math.random) {
-  const L = MATIERES.filter(m => !tomeAcquis(m.id, n)); if (!L.length) return null;
+  const L = MATIERES.filter(m => !m.brume && !tomeAcquis(m.id, n)); if (!L.length) return null;   // (le Sang ne vient que de la brume)
   const pret = L.filter(m => n < 2 || tomeDe(m.id) >= n - 1 || tomePorte(m.id, n - 1)), C = pret.length ? pret : L;
   return C[Math.min(C.length - 1, tir() * C.length | 0)].id;
 }
@@ -16993,7 +17101,7 @@ function placerLutrins() {
 // recopié, ses pages ont la couleur de la matière, un signe flotte au-dessus, et la nuit le livre
 // luit : un fil de lumière monte, qui se voit de loin.
 function lutrinOs(l) {
-  const B = [], c = MATIERE[l.m].col, cl = c.map(v => Math.min(255, v + 70)), x = l.x, y = l.y, z = l.z, lu = tomeAcquis(l.m, 1), nuit = noirceur() > .3;
+  const B = [], c = MATIERE[l.m].col, cl = c.map(v => Math.min(255, v + 70)), x = l.x, y = l.y, z = l.z, lu = l.lu || tomeAcquis(l.m, l.n || 1), nuit = noirceur() > .3;
   const P1 = [132, 130, 124], P2 = [102, 100, 96], add = (a, b, w, h, col, lum) => B.push({ a, b, w, h, c: col, lum: lum ? 1 : 0 });
   add([x, y, z], [x, y, z + .14], .8, .8, P2);
   add([x, y, z + .14], [x, y, z + .84], .3, .3, P1);
@@ -17012,7 +17120,7 @@ function lutrinOs(l) {
 function majLutrins(dt) {
   for (const l of LUTRINS) {
     const d = Math.hypot(l.x - P.x, l.y - P.y); if (d > 46) continue;
-    const lu = tomeAcquis(l.m, 1);
+    const lu = l.lu || tomeAcquis(l.m, l.n || 1);
     if (!l.vu && d < LUTRIN_VU) { l.vu = true; if (!lu) say('un lutrin de pierre · un livre y est ouvert', 3.2); }
     if (!lu && Math.random() < dt * (noirceur() > .3 ? 5 : 1.4)) {
       const a = Math.random() * 6.2832, r = Math.random() * .3;
@@ -17027,15 +17135,17 @@ function lutrinProche() {
 }
 function lutrinAction() {
   const l = lutrinProche(); if (!l) return null;
-  const nom = 'tome I · ' + MATIERE[l.m].n.toLowerCase();
-  if (tomeDe(l.m) >= 1) return { v: 'DÉJÀ LU', o: nom, f: () => say(P.tomes[l.m] > 0 ? 'vous connaissez déjà ce tome' : 'le Souffle vous a déjà appris le vent', 1.8), vide: true };
-  if (tomePorte(l.m, 1)) return { v: 'RECOPIÉ', o: nom + ' · à déchiffrer au campement', f: () => say('déjà recopié · il se déchiffre au pupitre de la bibliothèque', 2.4), vide: true };
+  const n = l.n || 1, nom = 'tome ' + TOME_CH[n] + ' · ' + MATIERE[l.m].n.toLowerCase();   // (les lutrins de la brume sanglante portent aussi des tomes II et III)
+  if (l.lu) return { v: 'LU', o: 'le livre s\'est refermé', f: () => say('vous avez déjà recopié ce livre', 1.8), vide: true };
+  if (tomeDe(l.m) >= n) return { v: 'DÉJÀ LU', o: nom, f: () => say(P.tomes[l.m] > 0 || n > 1 ? 'vous connaissez déjà ce tome' : 'le Souffle vous a déjà appris le vent', 1.8), vide: true };
+  if (tomePorte(l.m, n)) return { v: 'RECOPIÉ', o: nom + ' · à déchiffrer au campement', f: () => say('déjà recopié · il se déchiffre au pupitre de la bibliothèque', 2.4), vide: true };
   return { v: 'LIRE', o: nom, f: () => lireLutrin(l) };
 }
 function lireLutrin(l) {
-  if (!gagnerTome(l.m, 1)) return false;
+  const n = l.n || 1; if (!gagnerTome(l.m, n)) return false;
+  if (l.surLu) l.surLu(l);
   SON.jouer('rare', {}, l.x, l.y, l.z + 1); burst(l.x, l.y, l.z + 1.2, 28, hexSort(MATIERE[l.m].col));
-  say(nomTome(cleTome(l.m, 1)) + ' recopié · à déchiffrer au pupitre de la bibliothèque' + (nivBiblio() ? '' : ' (elle se crée au campement)'), 4.5);
+  say(nomTome(cleTome(l.m, n)) + ' recopié · à déchiffrer au pupitre de la bibliothèque' + (nivBiblio() ? '' : ' (elle se crée au campement)'), 4.5);
   majSac(); return true;
 }
 // Au pupitre : dans l'ordre, et contre un peu d'encre d'éclat.
@@ -17109,9 +17219,10 @@ function ouTome(m, n) {
   const s = Math.max(n, P.tomes[m.id] | 0) + 1;
   if (s > TOME_MAX) return 'tout est lu';
   if (tomePorte(m.id, s)) return 'Tome ' + TOME_CH[s] + ' rapporté : à déchiffrer';
+  if (m.brume) return ['', 'Tome I : le lutrin qui sort du cercle de la brume sanglante, quand ses six mages sont tombés', 'Tome II : le démon de la brume sanglante le porte', 'Tome III : un lutrin caché quelque part sur une île de brume sanglante'][s];
   return s === 1 ? 'Tome I : sur un lutrin de pierre, dans ' + ESC(m.biome) : s === 2 ? 'Tome II : un coffre gardé du Centre des automates, ou le conteur des Nomades' : 'Tome III : la Tisseuse de fer le porte';
 }
-// Le Codex : les quinze accords (essayés ou non), les six remarquables, les trois accents.
+// Le Codex : les vingt et un accords (essayés ou non), les six remarquables, les trois accents.
 function blocCodex() {
   const past = c => `<i class="pastille" style="background:${hexSort(c)}"></i>`, maj = x => ESC(x[0].toUpperCase() + x.slice(1));
   const rem = MELANGES.filter(M => M.acc && accordConnu(M)).length;
@@ -19978,7 +20089,7 @@ function reperes() {
   for (const c of P.compagnes) if (c.dehors && c.b && !c.b.dead) L.push({ x: c.b.x, y: c.b.y, k: 'comp' });
   if (!(P.trouble > t)) for (const j of Autres.values()) L.push({ x: j.x, y: j.y, k: 'joueur', n: j.nom });   // des spores plein les yeux : on perd les autres de vue
   const nm = nmRepere(); if (nm) L.push(nm);          // la halte des nomades
-  for (const l of LUTRINS) if (l.vu && !tomeAcquis(l.m, 1)) L.push({ x: l.x, y: l.y, k: 'tome', c: hexSort(MATIERE[l.m].col) });   // un lutrin aperçu, pas encore lu
+  for (const l of LUTRINS) if (l.vu && !l.lu && !tomeAcquis(l.m, l.n || 1)) L.push({ x: l.x, y: l.y, k: 'tome', c: hexSort(MATIERE[l.m].col) });   // un lutrin aperçu, pas encore lu
   return L;
 }
 function majBoussole(forcer) {
@@ -21439,7 +21550,7 @@ function photo() {
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
-    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), brumeTomes: (P.brumeTomes || []).slice(-600), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, soins: Object.assign({}, P.soins), defense: { mur: P.defense.mur | 0, tours: P.defense.tours | 0 }, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -21545,7 +21656,8 @@ function appliquer(d, vivantes) {
   P.groupeCible = d.groupeCible && Number.isInteger(d.groupeCible.g) ? { g: d.groupeCible.g, niv: nb(d.groupeCible.niv, 0, NIV_PLAFOND, 1) | 0, n: String(d.groupeCible.n || '?').slice(0, 18), u: String(d.groupeCible.u || '') } : null;
   P.korlaz = d.korlaz && typeof d.korlaz === 'object' ? { duree: nb(d.korlaz.duree, 0, 1e7, 0), prochain: 0 } : null; P.korlazExpo = 0;   // l'infection suit le personnage
   P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
-  P.brumesLevees = Array.isArray(d.brumesLevees) ? d.brumesLevees.filter(Number.isInteger).slice(-300) : [];   // les îles dont vous avez levé la brume sanglante
+  P.brumesLevees = Array.isArray(d.brumesLevees) ? d.brumesLevees.filter(Number.isInteger).slice(-300) : [];
+  P.brumeTomes = Array.isArray(d.brumeTomes) ? d.brumeTomes.filter(k => typeof k === 'string' && k.length < 40).slice(-600) : [];   // les lutrins de la brume déjà lus (graine.cercle / graine.ile)   // les îles dont vous avez levé la brume sanglante
   for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
   for (const id in INGR) if (INGR[id].src === 'denree') { const n = nb(d.denrees && d.denrees[id], 0, 1e4, 0) | 0; if (n) P.denrees[id] = n; }
   // le nectar d'oglodon était une matière : celui du sac passe au garde-manger, celui du coffre au cellier

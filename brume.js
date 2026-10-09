@@ -9,7 +9,7 @@
 // Dès votre arrivée, ils lancent dans la brume des Rôdeurs (des loups de brume) à vos trousses. Qui
 // approche, deux d'entre eux le combattent (le fouet de sang, qui tire vers eux ; la volée de cinq
 // traits) pendant que les autres chantent. Chaque mage qui tombe éclaircit la brume ; le dernier tombé,
-// elle se lève sur l'île. Mais s'ils achèvent leur incantation (quatre minutes, plus lente à mesure qu'ils
+// elle se lève sur l'île. Mais s'ils achèvent leur incantation (une minute trente, plus lente à mesure qu'ils
 // tombent ; une barre en haut de l'écran dit le temps qu'il reste), un DÉMON cornu sort du cercle, massacre les mages, puis s'en prend à vous ; la brume ne se
 // lève qu'à sa mort.
 // Le jeu (index.html, etats.js) appelle, s'ils existent :
@@ -22,7 +22,7 @@
 //   butinBrume(b)       ce qu'ils laissent (butin) ; brumeMonde / brumeAppliquer : l'état du cercle, partagé (faune.js).
 
 const SANG = { k: 0, annonce: false, chantT: 0, cercle: null, incant: 0, phase: 'libre', total: 0, invT: 0, seuil: 0, leveeT: 0, dirT: 0 };
-const INCANT_DUREE = 240;                                  // l'incantation complète : quatre minutes, tous les mages vivants
+const INCANT_DUREE = 90;                                   // l'incantation complète : une minute trente, tous les mages vivants
 const NB_MAGES = 6, R_CERCLE = 3.2;
 const BRUME_PORTEE = 12;                                   // la fureur ne voit pas plus loin que la brume
 
@@ -80,7 +80,7 @@ function fureurIci(b) {
 }
 
 function majBrume(dt) {
-  if (ETAT.id === 'brume') majCercle(dt);
+  if (ETAT.id === 'brume') { majCercle(dt); majTomesBrume(); }
   barreIncant();
   const k = brumeSang(); if (!k) return;
   if (!SANG.annonce) { SANG.annonce = true; say('Brume sanglante · ici, tout ce qui vit s\'entretue · vos compagnes aussi', 5); }
@@ -423,12 +423,11 @@ function butinBrume(b) {
   if (k === 'rodeur') { P.sac.eclat += 1; say('le rôdeur se défait en brume · +1 éclat', 1.6); majSac(); return; }
   if (k === 'mage') {
     const ec = 4 + (Math.random() * 3 | 0); P.sac.eclat += ec;
-    let tm = ''; if (Math.random() < .25 && typeof tomeManquant === 'function') { const m = tomeManquant(2); if (m && gagnerTome(m, 2)) tm = nomTome(cleTome(m, 2)); }
-    say('un mage du cercle tombe · +' + ec + ' éclats' + (tm ? ' · ' + tm : ''), 2.4); majSac(); return;
+    say('un mage du cercle tombe · +' + ec + ' éclats', 2.4); majSac(); return;
   }
   if (k === 'demon') {
     P.sac.eclat += 40; let tm = '';
-    if (typeof tomeManquant === 'function') { const m = tomeManquant(3) || tomeManquant(2); if (m) { const n = tomeAcquis(m, 3) ? 2 : 3; if (gagnerTome(m, n)) tm = nomTome(cleTome(m, n)); } }
+    const q = choixTomeBrume(2); if (q && gagnerTome(q[0], q[1])) tm = nomTome(cleTome(q[0], q[1]));   // le Tome II du Sang (§104, §105)
     say('Le démon s\'effondre · +40 éclats' + (tm ? ' · ' + tm : ''), 4); majSac();
   }
 }
@@ -440,11 +439,54 @@ function leverBrume(demon) {
   (P.brumesLevees || (P.brumesLevees = [])).push(SEED); if (P.brumesLevees.length > 300) P.brumesLevees.shift();
   if (typeof Sauve !== 'undefined') Sauve.sale = true;
   if (!demon) {
-    P.sac.eclat += 15; let tm = '';
-    if (typeof tomeManquant === 'function') { const m = tomeManquant(3); if (m && gagnerTome(m, 3)) tm = nomTome(cleTome(m, 3)); }
-    say('Le cercle est brisé · la brume se lève · +15 éclats' + (tm ? ' · ' + tm : ''), 4.5); majSac();
+    P.sac.eclat += 15;
+    say('Le cercle est brisé · la brume se lève · +15 éclats', 4.5); majSac();
   } else say('La brume se lève', 3);
+  const ile = typeof LUTRINS !== 'undefined' && LUTRINS.find(l => l.brume === 'ile' && !l.lu);
+  if (ile) setTimeout(() => say('un livre attend encore, sur un lutrin, quelque part sur l\'île', 4), 5000);
   SON.jouer('ramasse');
+}
+
+// ---------- les tomes de la brume (§104) ----------
+// Le Tome I : quand les six mages sont tombés (sous vos coups, ou sous ceux du démon), un lutrin de pierre
+// sort du cercle éteint, un livre ouvert dessus. Le Tome II : le démon le porte. Le Tome III : sur un lutrin
+// posé au hasard sur l'île (toujours au même endroit pour une même graine), à trouver. Chaque lutrin offre
+// un tome qui vous manque, du rang voulu (sinon du plus proche) ; une fois recopié, il s'éteint pour de bon
+// (P.brumeTomes garde les lutrins lus, île par île). Les lutrins sont ceux des matières (index.html).
+function tomeBrume(n) {                                    // [matière, rang] : un tome qui vous manque, du rang n d'abord
+  if (typeof tomeManquant !== 'function') return null;
+  for (const r of n === 1 ? [1, 2, 3] : n === 2 ? [2, 3, 1] : [3, 2, 1]) { const m = tomeManquant(r); if (m) return [m, r]; }
+  return null;
+}
+function choixTomeBrume(n) {                              // le Tome n du Sang (§105) ; s'il est à vous, un autre tome qui vous manque
+  return typeof tomeAcquis === 'function' && MATIERE.sang && !tomeAcquis('sang', n) ? ['sang', n] : tomeBrume(n);
+}
+function lutrinBrume(cle, x, y, n) {
+  const q = choixTomeBrume(n) || [MATIERES[0].id, n], lu = (P.brumeTomes || []).includes(SEED + '.' + cle);
+  const l = { m: q[0], n: q[1], rang: n, x, y, z: hAt(x | 0, y | 0), vu: false, brume: cle, lu,
+    surLu: l => { l.lu = true; (P.brumeTomes || (P.brumeTomes = [])).push(SEED + '.' + l.brume); if (P.brumeTomes.length > 600) P.brumeTomes.shift(); if (typeof Sauve !== 'undefined') Sauve.sale = true; } };
+  LUTRINS.push(l); return l;
+}
+function placerTomeIle() {                                 // au hasard, mais le même pour une même graine
+  let g = (SEED ^ 0x5a17b3) >>> 0; const tir = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+  const C = SANG.cercle, S = P.spawn || [P.x, P.y], A = typeof PortailIle !== 'undefined' && PortailIle;
+  for (let k = 0; k < 800; k++) {
+    const x = 8 + tir() * (WS - 16) | 0, y = 8 + tir() * (WS - 16) | 0;
+    if (!placeArche(x, y) || typeFlore(x, y)) continue;
+    if ((C && Math.hypot(C.x - x, C.y - y) < 20) || Math.hypot(S[0] - x, S[1] - y) < 25 || (A && Math.hypot(A.x - x, A.y - y) < 8)) continue;
+    return lutrinBrume('ile', x + .5, y + .5, 3);
+  }
+  return null;
+}
+function majTomesBrume() {
+  if (typeof LUTRINS === 'undefined' || (typeof djIci === 'function' && djIci())) return;
+  let ile = null, cer = null; for (const l of LUTRINS) if (l.brume === 'ile') ile = l; else if (l.brume === 'cercle') cer = l;
+  if (!ile && SANG.essaiIle !== SEED) { SANG.essaiIle = SEED; placerTomeIle(); }
+  if (!cer && SANG.cercle && SANG.phase !== 'chant' && !magesVivants().length) {
+    const cb = beasts.find(b => b.sp.cercle && !b.horsJeu), C = cb || SANG.cercle, l = lutrinBrume('cercle', C.x, C.y, 1);
+    if (!l.lu && SANG.phase !== 'libre') { say('Le cercle s\'éteint · un lutrin de pierre en sort, un livre ouvert dessus', 4); burst(l.x, l.y, l.z + 1, 30, '#ff4030'); }
+  }
+  for (const l of LUTRINS) if (l.brume && !l.lu && tomeAcquis(l.m, l.n)) { const q = choixTomeBrume(l.rang); if (q) { l.m = q[0]; l.n = q[1]; } }   // eu ailleurs entre-temps : il en offre un autre
 }
 
 // ---------- à chaque image : le cercle, l'incantation, les invocations ----------
@@ -736,84 +778,19 @@ function osCercle(f, O) {
 
 // ---------- la musique : « La Valse rouge » ----------
 // Un morceau de combat écrit pour la brume (composition originale), joué par le moteur du jeu : des cordes,
-// une basse, une batterie, des timbales et des toms, un chœur, des cuivres, un violon solo, des cloches,
-// une salle qui résonne. En 6/8, ré mineur, la croche à 0,19 s. Cinq parties qui s'enchaînent selon le
+// une basse, une batterie, des timbales et des toms, un chœur, des cuivres, un violon solo, des cloches
+// (la salle est celle du jeu). En 6/8, ré mineur, la croche à 0,19 s. Cinq parties qui s'enchaînent selon le
 // danger (brumeIntensite) : l'OUVERTURE (un bourdon, le chœur qui monte, l'horloge des pizzicati), le
 // RIFF (l'ostinato des cordes, la batterie), le THÈME (le violon chante par-dessus, les cuivres, le chœur),
 // le SOMMET (tout, une octave plus haut, deux violons, les cuivres à chaque mesure, les timbales), et le
 // PONT (un cœur qui bat, les cloches qui rappellent le thème, puis la montée et le roulement de caisse).
-// valseBrume(ctx, sortie) rend un lecteur : lecteur.maj(maintenant, intensité), appelé à chaque image ;
-// il pose les notes une demi-seconde à l'avance. Le même code sert au rendu hors ligne (essais).
-function valseBrume(ctx, sortie, depart = 'O') {          // (depart : une autre partie pour commencer, pour les essais)
-  const E = .19, f = n => 293.66 * 2 ** (n / 12);
-  // la sortie : un bus, une salle (réverbération) propre au morceau, un compresseur qui tient l'ensemble
-  const bus = ctx.createGain(); bus.gain.value = .55;
-  const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -20; comp.knee.value = 10; comp.ratio.value = 3.5; comp.attack.value = .006; comp.release.value = .2;
-  bus.connect(comp); comp.connect(sortie);
-  const salle = ctx.createConvolver(), L = Math.round(ctx.sampleRate * 2.1), ir = ctx.createBuffer(2, L, ctx.sampleRate);
-  for (let c = 0; c < 2; c++) { const d = ir.getChannelData(c); for (let i = 0; i < L; i++) { const x = i / L; d[i] = i < ctx.sampleRate * .012 ? 0 : (Math.random() * 2 - 1) * Math.pow(1 - x, 2.4) * (1 - .5 * x); } }
-  salle.buffer = ir; const retour = ctx.createGain(); retour.gain.value = .32; salle.connect(retour); retour.connect(bus);
-  const BR = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), bd = BR.getChannelData(0); for (let i = 0; i < bd.length; i++) bd[i] = Math.random() * 2 - 1;
-  // Les places : cinq positions dans l'espace, chacune sèche ou dans la salle, créées une fois pour toutes ;
-  // une note n'y ajoute que son gain d'enveloppe (sinon, au sommet, le son coûtait trop cher à un téléphone).
-  const PLACES = [-.3, -.15, 0, .15, .3], SORTIES = PLACES.map(pan => [.06, .45].map(verb => {
-    const G = ctx.createGain(); let n = G;
-    if (pan && ctx.createStereoPanner) { const P = ctx.createStereoPanner(); P.pan.value = pan; G.connect(P); n = P; }
-    n.connect(bus); const S = ctx.createGain(); S.gain.value = verb; n.connect(S); S.connect(salle); return G;
-  }));
-  const voie = (verb, pan = 0) => {
-    const i = Math.max(0, Math.min(4, Math.round((pan + .3) / .15))), G = ctx.createGain();
-    G.connect(SORTIES[i][verb > .2 ? 1 : 0]); return G;
-  };
-  const env = (G, t0, a, pic, tenue, rel) => { const g = G.gain; g.setValueAtTime(.0001, t0); g.exponentialRampToValueAtTime(Math.max(.0002, pic), t0 + a); if (tenue > 0) g.setValueAtTime(Math.max(.0002, pic), t0 + a + tenue); g.exponentialRampToValueAtTime(.0001, t0 + a + tenue + rel); return t0 + a + tenue + rel + .02; };
-  const osc = (type, fr, t0, fin, dest, det = 0) => { const O = ctx.createOscillator(); O.type = type; O.frequency.setValueAtTime(fr, t0); if (det) O.detune.value = det; O.connect(dest); O.start(t0); O.stop(fin); return O; };
-  const bruit = (t0, fin, dest) => { const S = ctx.createBufferSource(); S.buffer = BR; S.loop = true; S.connect(dest); S.start(t0, Math.random() * 1.5); S.stop(fin); return S; };
-  const filtre = (type, fr, q, dest) => { const F = ctx.createBiquadFilter(); F.type = type; F.frequency.value = fr; F.Q.value = q; F.connect(dest); return F; };
-  // ---- les instruments ----
-  const corde = (fr, t0, d, v, pan = 0, mince) => {                  // les cordes piquées (spiccato) : trois scies, un filtre qui se referme
-    const G = voie(.32, pan), fin = env(G, t0, .006, v, d * .25, .11), F = filtre('lowpass', 900, 1.2, G);
-    F.frequency.setValueAtTime(6000, t0); F.frequency.exponentialRampToValueAtTime(1900, t0 + d);
-    for (const c of mince ? [0] : [-8, 8]) osc('sawtooth', fr, t0, fin, F, c);
-  };
-  const violon = (fr, t0, d, v, pan = .12, seul) => {               // le violon solo : l'archet qui attaque, le vibrato qui vient
-    const G = voie(.5, pan), fin = env(G, t0, .07, v, Math.max(0, d - .07), .3), F = filtre('lowpass', 6500, .9, G), B = filtre('peaking', 3000, 1.2, F); B.gain.value = 6;
-    const Lf = ctx.createOscillator(), Lg = ctx.createGain(); Lf.frequency.value = 5.6; Lg.gain.setValueAtTime(0, t0); Lg.gain.linearRampToValueAtTime(fr * .008, t0 + Math.min(.35, d * .6)); Lf.connect(Lg); Lf.start(t0); Lf.stop(fin);
-    for (const c of seul ? [0] : [-6, 6]) { const O = osc('sawtooth', fr * .985, t0, fin, B, c); O.frequency.exponentialRampToValueAtTime(fr, t0 + .05); Lg.connect(O.frequency); }
-  };
-  const basse = (fr, t0, d, v) => { const G = voie(.04), fin = env(G, t0, .006, v, d * .45, .22), F = filtre('lowpass', 420, 1.5, G), S = ctx.createGain(); S.gain.value = .35; S.connect(G); osc('sawtooth', fr, t0, fin, F); osc('sine', fr, t0, fin, S); };
-  const grosse = (t0, v) => {                                 // la grosse caisse : une chute de hauteur, un claquement
-    const G = voie(.08), fin = env(G, t0, .002, v, .02, .32), O = osc('sine', 155, t0, fin, G); O.frequency.exponentialRampToValueAtTime(48, t0 + .12);
-    const C = voie(0), F = filtre('highpass', 3200, .7, C); env(C, t0, .001, v * .45, 0, .025); bruit(t0, t0 + .05, F);
-  };
-  const caisse = (t0, v, court) => {                          // la caisse claire : du bruit et un ton
-    const G = voie(.35, -.06), fin = env(G, t0, .002, v, 0, court ? .09 : .17); bruit(t0, fin, filtre('bandpass', 1900, .8, G));
-    const T = voie(.2, -.06), f2 = env(T, t0, .002, v * .5, 0, .09); const O = osc('triangle', 210, t0, f2, T); O.frequency.exponentialRampToValueAtTime(165, t0 + .08);
-  };
-  const charley = (t0, v, ouvert) => { const G = voie(.08, .25), fin = env(G, t0, .001, v, 0, ouvert ? .2 : .035); bruit(t0, fin, filtre('highpass', 7600, .7, G)); };
-  const crash = (t0, v) => { const G = voie(.4, -.2), fin = env(G, t0, .002, v, .05, 1.7), F = filtre('highpass', 4800, .6, G); bruit(t0, fin, F); };
-  const tom = (fr, t0, v) => { const G = voie(.5, fr > 130 ? .2 : -.2), fin = env(G, t0, .003, v, .02, .32), O = osc('sine', fr * 1.5, t0, fin, G); O.frequency.exponentialRampToValueAtTime(fr, t0 + .1); const N = voie(.3), f2 = env(N, t0, .002, v * .3, 0, .06); bruit(t0, f2, filtre('lowpass', 500, .7, N)); };
-  const timbale = (fr, t0, v, rel = .9) => { const G = voie(.5), fin = env(G, t0, .004, v, .02, rel), O = osc('sine', fr * 1.06, t0, fin, G); O.frequency.exponentialRampToValueAtTime(fr, t0 + .15); osc('triangle', fr * 2.01, t0, Math.min(fin, t0 + .4), G); };
-  const choeur = (fr, t0, d, v, voy = 'a', pan = 0) => {      // des voix : quatre scies désaccordées, trois formants, un vibrato
-    const G = voie(.75, pan), fin = env(G, t0, .45, v, Math.max(0, d - .45), .9), Fm = voy === 'a' ? [[730, 6, 1.1], [1090, 8, .7]] : [[480, 6, 1.1], [820, 8, .55]];
-    const Sm = ctx.createGain(); Sm.gain.value = 1;
-    for (const [fq, q, g] of Fm) { const F = ctx.createBiquadFilter(), Gf = ctx.createGain(); F.type = 'bandpass'; F.frequency.value = fq; F.Q.value = q; Gf.gain.value = g * 3.6; Sm.connect(F); F.connect(Gf); Gf.connect(G); }
-    const Lf = ctx.createOscillator(), Lg = ctx.createGain(); Lf.frequency.value = 4.8; Lg.gain.value = fr * .006; Lf.connect(Lg); Lf.start(t0); Lf.stop(fin);
-    for (const c of [-9, 9]) { const O = osc('sawtooth', fr, t0, fin, Sm, c); Lg.connect(O.frequency); }
-  };
-  const cuivre = (frs, t0, d, v) => {                         // les cuivres : l'éclat qui s'ouvre puis se referme
-    for (const fr of frs) {
-      const G = voie(.38, (Math.random() - .5) * .3), fin = env(G, t0, .02, v, d, .16), F = filtre('lowpass', 500, 2, G);
-      F.frequency.setValueAtTime(500, t0); F.frequency.exponentialRampToValueAtTime(5000, t0 + .05); F.frequency.exponentialRampToValueAtTime(1400, t0 + .05 + d);
-      for (const c of [-7, 7]) { const O = osc('sawtooth', fr * .97, t0, fin, F, c); O.frequency.exponentialRampToValueAtTime(fr, t0 + .04); }
-    }
-  };
-  const cloche = (fr, t0, v) => { for (const [r, g, dd] of [[1, 1, 2.2], [2.76, .35, 1.2], [5.4, .15, .6], [8.9, .06, .3]]) { const G = voie(.6, .15), fin = env(G, t0, .002, v * g, 0, dd); osc('sine', fr * r, t0, fin, G); } };
-  const pizz = (fr, t0, v, pan) => { const G = voie(.3, pan), fin = env(G, t0, .003, v, 0, .16), F = filtre('lowpass', 2200, .8, G); osc('triangle', fr, t0, fin, F); osc('sawtooth', fr, t0, fin, filtre('lowpass', 1400, .7, G)); };
-  const bourdon = (fr, t0, d, v) => { const G = voie(.5), fin = env(G, t0, 1.5, v, Math.max(0, d - 2), 2), F = filtre('lowpass', 520, .9, G); osc('sawtooth', fr, t0, fin, F, -5); osc('sawtooth', fr * 1.5, t0, fin, F, 5); osc('sine', fr / 2, t0, fin, G); };
-  const montee = (t0, d, v) => { const G = voie(.5), fin = env(G, t0, d * .9, v, 0, .15), F = filtre('bandpass', 400, 1.4, G); F.frequency.setValueAtTime(350, t0); F.frequency.exponentialRampToValueAtTime(7000, t0 + d); bruit(t0, fin, F); };
-  // ---- la partition ----
+// valseBrume(ctx, sortie) rend un lecteur : lecteur.maj(maintenant, intensité), appelé à chaque image ; les
+// parties sont écrites d'avance dans des tampons (partitionValse, rendreValse), puis enchaînées (voir plus bas).
+// ---- la partition : les accords (en demi-tons depuis le ré) et les mélodies [note, croches] de chaque partie ----
+const VALSE_E = .19;                                       // une croche (6/8 : six par mesure)
+const VALSE_PARTIES = (() => {
   const Dm = [0, 3, 7], C = [-2, 2, 5], Bb = [-4, 0, 3], A = [-5, -1, 2], F = [3, 7, 10], Gm = [-7, -4, 0];
-  const PARTIES = {
+  return {
     O: { acc: [Dm, Dm, Bb, A] },
     R: { acc: [Dm, Dm, Bb, Bb, Gm, Gm, A, A] },
     T: { acc: [Dm, C, Bb, A, Dm, F, [Gm, A], Dm],
@@ -824,7 +801,74 @@ function valseBrume(ctx, sortie, depart = 'O') {          // (depart : une autre
                  [[17, 3], [15, 1], [14, 1], [15, 1]], [[19, 3], [17, 3]], [[23, 3], [19, 3]], [[19, 2], [17, 2], [14, 2]]] },
     P: { acc: [Dm, Dm, Bb, Bb, Gm, Gm, A, A] },
   };
-  const suite = (p, I, n) => p === 'O' ? 'R' : p === 'R' ? (I < .5 ? 'P' : 'T') : p === 'T' ? (I > .75 ? 'S' : 'R') : p === 'S' ? (I > .85 && n % 2 ? 'T' : I > .85 ? 'S' : 'P') : (I > .6 ? 'S' : 'R');
+})();
+const valseSuite = (p, I, n) => p === 'O' ? 'R' : p === 'R' ? (I < .5 ? 'P' : 'T') : p === 'T' ? (I > .75 ? 'S' : 'R') : p === 'S' ? (I > .85 && n % 2 ? 'T' : I > .85 ? 'S' : 'P') : (I > .6 ? 'S' : 'R');
+const valseDuree = p => VALSE_PARTIES[p].acc.length * 6 * VALSE_E;
+// L'orchestre : écrit une partie, note à note, dans un contexte audio (hors ligne : voir le lecteur, plus bas).
+function partitionValse(ctx, sortie) {
+  const E = VALSE_E, f = n => 293.66 * 2 ** (n / 12);
+  // La sortie : un seul gain, branché sur le bus de la musique du jeu, qui a déjà sa salle (l'écho) et son
+  // compresseur. Pour qu'un téléphone tienne (§103) : pas de salle ni de compresseur à part, des chaînes de
+  // filtres partagées (le corps du violon, les voyelles du chœur), un vibrato commun, une ou deux voix par
+  // note, et chaque note se débranche dès qu'elle s'est tue.
+  const bus = ctx.createGain(); bus.gain.value = .8; bus.connect(sortie);
+  const BR = ctx.createBuffer(1, ctx.sampleRate * 2, ctx.sampleRate), bd = BR.getChannelData(0); for (let i = 0; i < bd.length; i++) bd[i] = Math.random() * 2 - 1;
+  const PLACE = [-.25, 0, .25].map(pan => { const G = ctx.createGain(); if (pan && ctx.createStereoPanner) { const P = ctx.createStereoPanner(); P.pan.value = pan; G.connect(P); P.connect(bus); } else G.connect(bus); return G; });
+  const ici = pan => pan < -.1 ? 0 : pan > .1 ? 2 : 1;
+  const voie = (verb, pan = 0) => { const G = ctx.createGain(); G.connect(PLACE[ici(pan)]); return G; };
+  const env = (G, t0, a, pic, tenue, rel) => { const g = G.gain; g.setValueAtTime(.0001, t0); g.exponentialRampToValueAtTime(Math.max(.0002, pic), t0 + a); if (tenue > 0) g.setValueAtTime(Math.max(.0002, pic), t0 + a + tenue); g.exponentialRampToValueAtTime(.0001, t0 + a + tenue + rel); return t0 + a + tenue + rel + .02; };
+  const osc = (type, fr, t0, fin, dest, det = 0) => { const O = ctx.createOscillator(); O.type = type; O.frequency.setValueAtTime(fr, t0); if (det) O.detune.value = det; O.connect(dest); O.start(t0); O.stop(fin); return O; };
+  const bruit = (t0, fin, dest) => { const S = ctx.createBufferSource(); S.buffer = BR; S.loop = true; S.connect(dest); S.start(t0, Math.random() * 1.5); S.stop(fin); return S; };
+  const filtre = (type, fr, q, dest) => { const F = ctx.createBiquadFilter(); F.type = type; F.frequency.value = fr; F.Q.value = q; F.connect(dest); return F; };
+  const lacher = (S, G, vib) => { S.onended = () => { G.disconnect(); if (vib) try { vib.disconnect(S.detune); } catch (e) { /* déjà fait */ } }; };
+  // le vibrato commun, en cents (la même ondulation à toutes les hauteurs)
+  const vibrato = (fr, cents) => { const L = ctx.createOscillator(), G = ctx.createGain(); L.frequency.value = fr; G.gain.value = cents; L.connect(G); L.start(); return G; };
+  const VIB_V = vibrato(5.6, 13), VIB_C = vibrato(4.8, 10);
+  // les chaînes partagées : le corps du violon (à droite le premier, à gauche le second), les voyelles du chœur
+  const corps = pan => { const In = ctx.createGain(), F = filtre('lowpass', 6500, .9, PLACE[ici(pan)]), B = filtre('peaking', 3000, 1.2, F); B.gain.value = 6; In.connect(B); return In; };
+  const VIOLON = [corps(-.15), corps(.12)];
+  const voyelle = (Fm, pan) => { const In = ctx.createGain(); for (const [fq, q, g] of Fm) { const G = ctx.createGain(); G.gain.value = g * 3.6; G.connect(PLACE[ici(pan)]); In.connect(filtre('bandpass', fq, q, G)); } return In; };
+  const CHOEUR = { a: [-.3, 0, .3].map(p => voyelle([[730, 6, 1.1], [1090, 8, .7]], p)), o: [-.3, 0, .3].map(p => voyelle([[480, 6, 1.1], [820, 8, .55]], p)) };
+  // ---- les instruments ----
+  const corde = (fr, t0, d, v, pan = 0, mince) => {                  // les cordes piquées (spiccato) : une scie, un filtre qui se referme
+    const G = voie(.32, pan), fin = env(G, t0, .006, v * (mince ? 1 : 1.35), d * .25, .11), F = filtre('lowpass', 900, 1.2, G);
+    F.frequency.setValueAtTime(6000, t0); F.frequency.exponentialRampToValueAtTime(1900, t0 + d);
+    lacher(osc('sawtooth', fr, t0, fin, F, mince ? 0 : 5), G);
+  };
+  const violon = (fr, t0, d, v, pan = .12, seul) => {               // le violon solo : l'archet qui attaque, le vibrato commun
+    const G = ctx.createGain(), fin = env(G, t0, .07, v * (seul ? 1 : .8), Math.max(0, d - .07), .3); G.connect(VIOLON[pan < 0 ? 0 : 1]);
+    for (const c of seul ? [0] : [-6, 6]) { const O = osc('sawtooth', fr * .985, t0, fin, G, c); O.frequency.exponentialRampToValueAtTime(fr, t0 + .05); VIB_V.connect(O.detune); lacher(O, G, VIB_V); }
+  };
+  const basse = (fr, t0, d, v) => { const G = voie(.04), fin = env(G, t0, .006, v * 1.15, d * .45, .22), F = filtre('lowpass', 420, 1.6, G); lacher(osc('sawtooth', fr, t0, fin, F), G); };
+  const grosse = (t0, v) => {                                 // la grosse caisse : une chute de hauteur, un claquement
+    const G = voie(.08), fin = env(G, t0, .002, v, .02, .32), O = osc('sine', 155, t0, fin, G); O.frequency.exponentialRampToValueAtTime(48, t0 + .12); lacher(O, G);
+    const C = voie(0), F = filtre('highpass', 3200, .7, C); env(C, t0, .001, v * .45, 0, .025); lacher(bruit(t0, t0 + .05, F), C);
+  };
+  const caisse = (t0, v, court) => {                          // la caisse claire : du bruit et un ton
+    const G = voie(.35, -.06), fin = env(G, t0, .002, v, 0, court ? .09 : .17); lacher(bruit(t0, fin, filtre('bandpass', 1900, .8, G)), G);
+    if (!court) { const T = voie(.2, -.06), f2 = env(T, t0, .002, v * .5, 0, .09), O = osc('triangle', 210, t0, f2, T); O.frequency.exponentialRampToValueAtTime(165, t0 + .08); lacher(O, T); }
+  };
+  const charley = (t0, v, ouvert) => { const G = voie(.08, .25), fin = env(G, t0, .001, v, 0, ouvert ? .2 : .035); lacher(bruit(t0, fin, filtre('highpass', 7600, .7, G)), G); };
+  const crash = (t0, v) => { const G = voie(.4, -.2), fin = env(G, t0, .002, v, .05, 1.7); lacher(bruit(t0, fin, filtre('highpass', 4800, .6, G)), G); };
+  const tom = (fr, t0, v) => { const G = voie(.5, fr > 130 ? .2 : -.2), fin = env(G, t0, .003, v * 1.1, .02, .32), O = osc('sine', fr * 1.5, t0, fin, G); O.frequency.exponentialRampToValueAtTime(fr, t0 + .1); lacher(O, G); };
+  const timbale = (fr, t0, v, rel = .9) => { const G = voie(.5), fin = env(G, t0, .004, v, .02, rel), O = osc('sine', fr * 1.06, t0, fin, G); O.frequency.exponentialRampToValueAtTime(fr, t0 + .15); osc('triangle', fr * 2.01, t0, Math.min(fin, t0 + .4), G); lacher(O, G); };
+  const choeur = (fr, t0, d, v, voy = 'a', pan = 0) => {      // une voix : une scie dans les formants partagés, le vibrato commun
+    const G = ctx.createGain(), fin = env(G, t0, .45, v * 1.4, Math.max(0, d - .45), .9); G.connect(CHOEUR[voy][ici(pan)]);
+    const O = osc('sawtooth', fr, t0, fin, G, (Math.random() - .5) * 14); VIB_C.connect(O.detune); lacher(O, G, VIB_C);
+  };
+  const cuivre = (frs, t0, d, v) => {                         // les cuivres : l'éclat qui s'ouvre puis se referme
+    for (const fr of frs) {
+      const G = voie(.38, (Math.random() - .5) * .3), fin = env(G, t0, .02, v * 1.35, d, .16), F = filtre('lowpass', 500, 2, G);
+      F.frequency.setValueAtTime(500, t0); F.frequency.exponentialRampToValueAtTime(5000, t0 + .05); F.frequency.exponentialRampToValueAtTime(1400, t0 + .05 + d);
+      const O = osc('sawtooth', fr * .97, t0, fin, F, 4); O.frequency.exponentialRampToValueAtTime(fr, t0 + .04); lacher(O, G);
+    }
+  };
+  const cloche = (fr, t0, v) => { for (const [r, g, dd] of [[1, 1, 2.2], [2.76, .35, 1.2], [5.4, .15, .6]]) { const G = voie(.6, .15), fin = env(G, t0, .002, v * g, 0, dd); lacher(osc('sine', fr * r, t0, fin, G), G); } };
+  const pizz = (fr, t0, v, pan) => { const G = voie(.3, pan), fin = env(G, t0, .003, v * 1.2, 0, .16); lacher(osc('triangle', fr, t0, fin, filtre('lowpass', 2200, .8, G)), G); };
+  const bourdon = (fr, t0, d, v) => { const G = voie(.5), fin = env(G, t0, 1.5, v, Math.max(0, d - 2), 2), F = filtre('lowpass', 520, .9, G); lacher(osc('sawtooth', fr, t0, fin, F, -5), G); osc('sawtooth', fr * 1.5, t0, fin, F, 5); osc('sine', fr / 2, t0, fin, G); };
+  const montee = (t0, d, v) => { const G = voie(.5), fin = env(G, t0, d * .9, v, 0, .15), F = filtre('bandpass', 400, 1.4, G); F.frequency.setValueAtTime(350, t0); F.frequency.exponentialRampToValueAtTime(7000, t0 + d); lacher(bruit(t0, fin, F), G); };
+  // ---- la partition (VALSE_PARTIES, valseSuite : plus haut) ----
+  const PARTIES = VALSE_PARTIES, suite = valseSuite;
   // l'harmonie du second violon : la note de l'accord juste en dessous (d'une tierce au moins)
   const tierce = (n, ac) => { let best = n - 12; for (const a of ac) for (const o of [-12, 0, 12, 24]) { const q = a + o; if (q <= n - 3 && q > best) best = q; } return best; };
   const st = { t: 0, p: 'O', m: 0, s: 0, n: 0, ok: false };
@@ -876,10 +920,51 @@ function valseBrume(ctx, sortie, depart = 'O') {          // (depart : une autre
     if (++st.s === 6) { st.s = 0; if (++st.m === nb) { st.m = 0; st.n++; st.p = suite(p, I, st.n); } }
   }
   return {
-    maj(now, I) {
-      if (!st.ok || st.t < now - .5) { st.ok = true; st.t = now + .08; st.p = depart; st.m = 0; st.s = 0; }   // (re)partir de l'ouverture
-      while (st.t < now + .5) { pas(st.t, Math.max(0, Math.min(1, I))); st.t += E; }
+    jouer(p, I, t0 = .05) {                                   // toute la partie p, d'un coup, à l'intensité I
+      Object.assign(st, { p, m: 0, s: 0, n: 0 }); const n = PARTIES[p].acc.length * 6;
+      for (let i = 0; i < n; i++) { pas(t0 + i * E, I); st.p = p; if (st.m === 0 && st.s === 0 && i > 0) break; }
     },
-    get partie() { return st.p; },
+  };
+}
+// Le lecteur (§103). Jouer la valse note à note pendant la partie pesait trop sur un téléphone (le son
+// craquait, le jeu ralentissait). Chaque partie est donc rendue une fois, en tâche de fond, dans un tampon
+// (24 kHz, avec sa traîne), dès la première entrée dans la brume ; puis le lecteur enchaîne les tampons
+// selon le danger : un ou deux sons à la fois, presque rien à calculer. La valse a deux versions : calme
+// (sans batterie) et pleine. Tant qu'une partie n'est pas prête, on attend (l'ouverture l'est en un instant).
+// lecteur.maj(maintenant, intensité) doit être appelé à chaque image : s'il cesse de l'être (on quitte la
+// brume, l'onglet dort), la musique s'éteint d'elle-même en une seconde.
+const VALSE_RENDUS = {};                                   // les tampons, gardés pour toute la séance
+function rendreValse() {
+  if (VALSE_RENDUS.lance || typeof OfflineAudioContext === 'undefined') return; VALSE_RENDUS.lance = true;
+  const SR = 24000, TRAINE = 2.2, VERSIONS = [['O', 'O', .35], ['R', 'R', .6], ['T', 'T', .75], ['S', 'S', .95], ['Rc', 'R', .35], ['P', 'P', .35]];
+  (async () => {
+    for (const [cle, p, I] of VERSIONS) {
+      try { const off = new OfflineAudioContext(2, Math.ceil(SR * (valseDuree(p) + TRAINE)), SR); partitionValse(off, off.destination).jouer(p, I); VALSE_RENDUS[cle] = await off.startRendering(); }
+      catch (e) { /* cette partie restera muette */ }
+    }
+  })();
+}
+function valseBrume(ctx, sortie, depart = 'O') {           // (depart : une autre partie pour commencer, pour les essais)
+  rendreValse();
+  const G = ctx.createGain(); G.connect(sortie);
+  const st = { ok: false, vu: 0, p: depart, cour: depart, fin: 0, n: 0, sons: [] };
+  return {
+    maj(now, I) {
+      I = Math.max(0, Math.min(1, I));
+      if (!st.ok || now - st.vu > .5) {                       // (re)partir de l'ouverture
+        for (const S of st.sons) try { S.stop(); } catch (e) { /* déjà fini */ }
+        Object.assign(st, { ok: true, p: depart, cour: depart, fin: now + .05, n: 0, sons: [] });
+      }
+      st.vu = now;
+      G.gain.cancelScheduledValues(now); G.gain.setValueAtTime(1, now); G.gain.setTargetAtTime(0, now + .5, .25);   // l'homme mort
+      while (st.fin < now + .6) {
+        const B = VALSE_RENDUS[st.p === 'R' && I < .45 && VALSE_RENDUS.Rc ? 'Rc' : st.p];
+        if (!B) { st.fin = Math.max(st.fin, now + .05); break; }   // pas encore prête : on attend
+        const S = ctx.createBufferSource(), t0 = Math.max(st.fin, now); S.buffer = B; S.connect(G); S.start(t0);
+        S.onended = () => { S.disconnect(); st.sons = st.sons.filter(x => x !== S); }; st.sons.push(S);
+        st.cour = st.p; st.fin = t0 + valseDuree(st.p); st.n++; st.p = valseSuite(st.p, I, st.n);
+      }
+    },
+    get partie() { return st.cour; },
   };
 }

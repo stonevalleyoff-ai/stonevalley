@@ -2301,3 +2301,123 @@ Vérifié en simulation : un Rôdeur monte d'un bond sur une falaise de trois ca
 Dans le code : `brume.js`, `chercherSaut`, `sauterBrume`, `majSaut`, `arcSaut`, `solLibre`, `SAUT_HAUT` et `SAUT_LONG` (4 et 4) ; `cibleBrume(b, R, dz)` ; `faune.js`, le saut partagé (`SAC_FAUNE.brume`) et l'arc chez qui suit (`VISUEL_FAUNE.brume`).
 
 **À déposer** : `index.html`, `brume.js`, `faune.js`, `sw.js` (qui passe en `stone-valley-70`).
+
+## 103. La Valse rouge ne fait plus craquer le son ni ralentir le jeu
+
+**Le problème** (sur téléphone) : dans la brume, la musique saturait, les autres sons aussi, et le jeu ralentissait. La valse était jouée note à note pendant la partie : des centaines de petits instruments créés à la volée, plus une salle (réverbération) et un compresseur à elle. Au plus fort, cela demandait déjà le cinquième d'un cœur de processeur ici ; sur un téléphone, le son ne suivait plus (d'où les craquements, sur tous les sons) et le jeu en pâtissait.
+
+**La solution** : la valse est maintenant écrite d'avance. Dès la première entrée dans la brume, chaque partie (ouverture, valse calme, valse pleine, thème, sommet, pont) est rendue une fois, en tâche de fond, dans un enregistrement (24 kHz, stéréo) ; ensuite, le jeu ne fait plus que les enchaîner selon le danger, comme avant. Pendant la partie, la musique ne coûte presque plus rien (un ou deux sons à la fois au lieu de centaines). L'ouverture est prête en un instant ; le reste en quelques secondes (moins de trois ici). Les enregistrements occupent environ 12 Mo de mémoire, gardés pour la séance.
+
+**Aussi** : l'orchestre est allégé (plus de salle ni de compresseur à part : la valse passe par la salle et le compresseur du jeu ; le chœur et le violon partagent leurs filtres et leur vibrato ; une ou deux voix par note ; chaque note se débranche dès qu'elle s'est tue). Le rendu d'avance coûte ainsi deux fois moins. La musique reste la même (mêmes parties, mêmes mélodies) ; le timbre est un peu plus simple. Elle s'éteint d'elle-même en une seconde quand on quitte la brume.
+
+**Ce que j'ai décidé seul** : jouer des enregistrements plutôt que des notes ; deux versions de la valse (calme et pleine) au lieu d'une batterie qui entre selon le danger à la mesure près ; 24 kHz (les aigus au-delà de 12 kHz sont coupés, inaudible sur un téléphone).
+
+**Pas vérifié** : sur un vrai téléphone (le craquement n'est pas reproductible ici) ; vérifié dans le jeu : la musique part, les parties s'enchaînent, tout est prêt en moins de dix secondes même sous la charge du jeu.
+
+Dans le code : `brume.js`, `VALSE_PARTIES`, `valseSuite`, `valseDuree`, `partitionValse(ctx, sortie).jouer(partie, intensité)` (l'orchestre, hors ligne), `rendreValse()` (les rendus, `VALSE_RENDUS`), `valseBrume(ctx, sortie)` (le lecteur, inchangé pour `index.html`).
+
+**À déposer** : `brume.js` et `sw.js` (qui passe en `stone-valley-71`).
+
+## 104. Brume sanglante : l'incantation en une minute trente, et ses trois tomes
+
+**L'incantation** dure maintenant une minute trente (tous les mages vivants ; chaque mage tué la ralentit : un mage seul y mettrait trois minutes). La barre en haut de l'écran suit.
+
+**Les tomes** (ils remplacent ce que la brume donnait jusqu'ici : le Tome II d'un mage sur quatre, le Tome III du cercle brisé) :
+- **Tome I** : quand les six mages sont tombés, un **lutrin de pierre** sort du cercle éteint, un livre ouvert dessus. On le recopie comme les lutrins des biomes. Il apparaît aussi si c'est le démon qui a fini les mages.
+- **Tome II** : le **démon** le porte ; il vous revient quand il tombe.
+- **Tome III** : sur un **lutrin posé au hasard sur l'île** (toujours au même endroit pour une même graine, loin de l'arrivée et du cercle), à trouver. Il est là dès l'arrivée ; comme les autres lutrins, un signe flotte au-dessus et, la nuit, un fil de lumière monte vers le ciel ; une fois vu, il s'inscrit sur la boussole. Quand la brume se lève, un message rappelle qu'un livre attend encore quelque part.
+
+Chaque lutrin offre un tome qui vous manque, du rang voulu (sinon du rang le plus proche), d'abord dans une matière dont vous tenez le rang d'avant. Une fois recopié, il s'éteint pour de bon (même en revenant sur l'île) ; si vous obtenez ce tome ailleurs avant de l'avoir lu, il en propose un autre.
+
+Vérifié en simulation : les six mages tués, le lutrin sort du cercle (Tome I), celui de l'île donne un Tome III, le démon un Tome II, les mages ne donnent plus que leurs éclats.
+
+**Ce que j'ai décidé seul** : le lutrin du Tome I sort aussi quand c'est le démon qui tue les derniers mages ; les tomes restent ceux des six matières existantes (un tome qui vous manque) ; un rang de repli quand vous les avez tous ; le lutrin du Tome III présent dès l'arrivée ; le rappel quand la brume se lève.
+
+**Pas vérifié** : sur un vrai téléphone ; à l'œil (le lutrin est celui des biomes, posé au centre du cercle).
+
+Dans le code : `brume.js`, `INCANT_DUREE` (90 s), `tomeBrume`, `lutrinBrume`, `placerTomeIle`, `majTomesBrume` ; `butinBrume` (le démon : Tome II) ; `index.html`, les lutrins savent porter un tome II ou III (`l.n`) et s'éteindre une fois lus (`l.lu`, `l.surLu`), `P.brumeTomes` (sauvegardé).
+
+**À déposer** : `index.html`, `brume.js`, `sw.js` (qui passe en `stone-valley-72`).
+
+## 105. Une septième matière : le Sang, et ses trois tomes sanglants
+
+**Le Sang** rejoint les six matières de la magie (fange, vent, spore, effroi, cristal, braise). Il **frappe fort** (son coup pèse 1,4 : plus que la braise, un peu moins que le cristal, qui perce) et il **boit** : près d'un tiers du coup vous revient en vie (au plus 12 % de votre vie par coup), et l'on voit un filet rouge remonter de la bête vers vous. Il coûte 8 éclats, comme la braise (un Trait de sang : 13 éclats). Il marche avec les cinq formes : un Trait qui soigne, une Onde qui boit sur chaque bête touchée, un Piège, un Mur qui boit à chaque bête qui s'y heurte, une Égide qui vous rend de la vie quand on vous frappe. En PvP aussi, il vous rend de la vie quand il touche un autre joueur.
+
+**Ses tomes ne viennent que de la brume sanglante** (les tomes sanglants) : le **Tome I** sur le lutrin qui sort du cercle quand les six mages sont tombés, le **Tome II** sur le démon, le **Tome III** sur le lutrin caché quelque part sur l'île (§104). Ni les coffres, ni le conteur, ni la Tisseuse ne le donnent. Une fois un tome du Sang à vous, le lutrin ou le démon d'une autre île de brume donnent, à sa place, un tome qui vous manque dans une autre matière. On les déchiffre comme les autres, au pupitre de la bibliothèque, dans l'ordre.
+
+**Les accords** : le Sang se mêle aux six autres matières (le Codex passe de quinze à vingt et un accords). Ce sont des accords simples (les deux effets, et le Sang boit toujours) ; il n'entre dans aucun accord remarquable (chaque matière n'en a que deux, et toutes ont déjà les leurs). L'accent (Tome III) marche comme pour les autres.
+
+Vérifié : un Trait de sang soigne bien (12 % sur un mage), un accord braise et sang aussi ; le Sang n'est jamais tiré par les autres sources ; le lutrin de l'île porte le Tome III du Sang ; le test de la magie (formes, cases, sauvegarde, pupitre) passe, la sauvegarde garde les tomes du Sang.
+
+**Ce que j'ai décidé seul** : la force du coup (1,4) et la part bue (30 %, 12 % au plus par coup) ; le prix (8 éclats) ; pas d'accord remarquable ; le vol de vie aussi en PvP ; la couleur (rouge sang).
+
+**Pas vérifié** : sur un vrai téléphone ; l'équilibre en jeu (dites-moi s'il soigne trop ou pas assez).
+
+Dans le code : `index.html`, `MATIERES` (le Sang, `brume: true`), `TOME_DE`, `tomeManquant` (le Sang exclu), `ouTome` (où le trouver), `boireSang` (appelée par `toucherSort` et `toucherJoueur`) ; `brume.js`, `choixTomeBrume`.
+
+**À déposer** : `index.html`, `brume.js`, `sw.js` (qui passe en `stone-valley-73`).
+
+## 106. La musique vivante : le camp, le large, et le feu qui crépite
+
+Hors du Korlaz, de la brume sanglante, de l'île des automates et des donjons (qui gardent leur musique), la musique ne se fait plus par phrases et longs silences : elle joue sans s'arrêter et se règle, à chaque image, sur ce qui se passe. Tout est écrit (composition originale).
+
+**Sur l'île du camp** (celle où il est planté ; avant d'en planter un, l'île de départ) : un air guilleret, à la manière des musiques d'heure d'un village, en do majeur, seize mesures (accords de septième, une basse qui sautille sur les temps 1 et 3, des accords piqués sur les contretemps, le marimba qui chante, une grosse caisse douce, des balais, des grelots, un peu de swing), à 104 à la minute.
+- **La nuit** : il ralentit (jusqu'à 76), s'adoucit (le vibraphone, des accords tenus, une basse longue, presque plus de batterie) et respire : un tour sur deux sans mélodie.
+- **Au combat** (une bête qui vous vise, vous charge ou vous traque) : il accélère jusqu'à 140 en moins d'une seconde, se redresse (plus de swing), la grosse caisse frappe chaque temps, la caisse claire entre, la basse court en croches, la mélodie passe à un son plus mordant, doublé du marimba deux octaves plus haut, et un roulement de toms ferme la boucle. Le combat fini, il redescend en quelques secondes.
+
+**Au large** (toute autre île) : un air en ré mineur, huit mesures, et plus vous êtes loin de votre campement (l'écart en îles), plus il presse et se tend :
+- tout près (une île) : 100 à la minute, des arpèges en croches, une basse en blanches, des grelots, la mélodie au marimba un tour sur deux ;
+- plus loin : le tempo monte, la grosse caisse et la caisse claire entrent, la basse pulse en croches, les arpèges passent en doubles croches ;
+- au-delà de la barrière (cinq îles) et plus loin : jusqu'à 135, la basse galope en doubles croches et frotte (une seconde mineure), la mélodie passe à un son mordant, doublé à l'octave au plus loin, la batterie à plein, et des accords qui grincent (seconde mineure et triton) au début des mesures 4 et 8.
+- La nuit le calme un peu (un peu plus lent, plus doux) ; le combat le pousse d'un cran (jusqu'à 150).
+
+**Le feu de camp** : près du feu (à onze cases), on l'entend maintenant vraiment : le souffle sourd des flammes, et des crépitements de toutes tailles, parfois en grappes, avec de temps en temps le « pop » d'un nœud qui éclate. C'est un enregistrement fabriqué une fois au démarrage (sept secondes, qui tournent en boucle sans couture).
+
+**Pour le téléphone** (après la leçon de la valse, §103) : une ou deux voix par note, des filtres partagés par instrument, chaque note se débranche une fois tue, les notes posées deux dixièmes de seconde à l'avance. Mesuré : entre 1,3 % (camp, nuit, large proche) et 3,5 % (combat) d'un cœur de processeur ici, trois à six fois moins que l'ancienne valse. Le mélange est réglé pour un petit haut-parleur (la mélodie et les accords dans le médium, une basse qui garde ses harmoniques).
+
+Vérifié dans le jeu : la musique du camp part au démarrage (104), celle du large à l'exploration 6 (125). Un aperçu de 97 secondes passe par toutes les situations : camp de jour avec le feu, combat, nuit, puis le large de près, de loin, et au combat.
+
+**Ce que j'ai décidé seul** : les deux airs (mélodies, accords), les tempos (76, 104, 140 ; 90 à 150 au large), ce qui entre à chaque palier, que l'île des automates et les donjons gardent l'ancienne musique, la portée du feu (onze cases).
+
+**Pas vérifié** : à l'oreille (réglé à la mesure) ; sur un vrai téléphone.
+
+Dans le code : `index.html`, `musiqueVive(ctx, sortie)` (dans le moteur du son, avant la valse ; `PIECES` : les deux airs), branchée dans `MUS.maj` ; `feuDeCamp()` (l'ambiance).
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-74`).
+
+## 107. La musique vivante, plus calme ; le feu à sa place
+
+**Plus calme** (la première version courait trop) :
+- au camp : 86 à la minute le jour (au lieu de 104), 68 la nuit (au lieu de 76), 112 au combat (au lieu de 140) ; au combat, les grelots en croches (et non plus en doubles croches), la grosse caisse sur les temps 1 et 3 ;
+- au large : de 76 (une île) à 102 (au plus loin), au lieu de 90 à 135 ; 112 au plus au combat (au lieu de 150) ; plus de doubles croches : les arpèges restent en croches (ils s'étendent sur deux octaves quand on est loin), la basse pulse en croches au lieu de galoper, les grelots en croches. La tension vient de ce qui entre (la batterie, la seconde mineure, les accords qui grincent), plus de la vitesse ;
+- la musique part directement au bon tempo (sans la petite accélération du début).
+
+**Le feu** ne se mêle pas à la musique : il est sur le bus de l'ambiance (son curseur à lui), et maintenant **placé là où il est**, comme les autres sons du monde : fort tout près (à une case et demie), moitié moins à six cases, un souffle à quinze, rien au-delà de vingt-six ; à gauche ou à droite selon où l'on regarde. (Dans l'aperçu précédent, je l'avais mêlé à la musique pour qu'on l'entende : c'est ce qui prêtait à confusion.)
+
+Vérifié dans le jeu : campement planté, le feu à 0,15 tout près, 0,075 à six cases, 0,018 à quinze, muet à trente ; il passe à gauche ou à droite quand on tourne la tête ; la musique du camp à 86. Coût de la musique : entre 1,6 % et 2,9 % d'un cœur ici.
+
+**Ce que j'ai décidé seul** : les nouveaux tempos ; la portée du feu (celle des autres sons du monde).
+
+**Pas vérifié** : à l'oreille ; sur un vrai téléphone.
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-75`).
+
+## 108. Retour aux phrases et aux silences, mais composées ; elles évoluent avec le combat et le large
+
+La musique vivante (§106, §107) est retirée : on revient au système d'avant (des phrases, puis des silences), mais les phrases ne sont plus des notes tirées au hasard. Le feu de camp reste tel qu'au §107 (à sa place, sur l'ambiance). Le Korlaz garde exactement sa musique d'avant ; la brume, sa valse.
+
+**Des phrases composées** : une phrase fait quatre mesures de trois temps, chacune sur un accord (jour : en ré majeur pentatonique ; nuit : la mineur ; île des automates et donjons : leur mode grinçant). Elles vont par deux : la **question**, qui s'arrête sur un accord ouvert, la note en l'air, puis, après un souffle, la **réponse**, qui revient au repos sur la tonique, longue ; ensuite un vrai silence. La mélodie : un motif (un rythme et un contour) en mesure 1, un autre en mesure 2, le premier repris en mesure 3 à partir de l'accord suivant (on reconnaît l'idée), puis la cadence (une note d'approche, la note finale). Chaque premier temps tombe sur une note de l'accord ; entre deux, on va par degrés, et un saut est suivi d'un pas en sens inverse. La nappe change d'accord à chaque mesure (une voix légère par note, dans un filtre partagé).
+
+**Le combat** (une bête qui vous vise, vous charge, vous traque) : la phrase en cours presse aussitôt (le pas raccourcit d'un tiers), la suivante part sans attendre et passe au mode du danger (phrygien, grave), le rythme se resserre (des croches), une pulsation grave bat chaque temps, la nappe s'épaissit, les silences tombent presque à rien. Le combat fini, tout cela retombe en quelques secondes, et l'on revient à la palette du lieu.
+
+**Le large** : plus on est loin du campement (l'écart en îles), plus le pas presse (jusqu'à un cinquième plus vite), plus les silences raccourcissent (jusqu'aux deux cinquièmes), plus la nappe s'épaissit. À partir de trois îles de la maison, la palette passe au **mode dorien** (plus grave, entre l'aventure et l'inquiétude) ; à cinq îles et au-delà, la pulsation grave bat les temps ; au plus loin, le rythme se resserre et une note frotte parfois (un demi-ton au-dessus). Au camp, rien de tout cela : le jour et la nuit d'avant.
+
+Un aperçu de 108 secondes (rendu avec le moteur du jeu) : le camp de jour, un combat au camp, la nuit, une île à trois de la maison, une île à huit, puis un combat là-bas. Vérifié à la mesure : chaque palette est dans sa tonalité (ré majeur, mi phrygien au combat, la mineur la nuit, sol dorien au loin).
+
+**Ce que j'ai décidé seul** : les accords des phrases (question, réponse) pour chaque palette ; le mode dorien au loin, à partir de trois îles ; les seuils (pulsation à cinq îles, frottements au plus loin) ; garder la musique d'avant pour le Korlaz.
+
+**Pas vérifié** : à l'oreille ; sur un vrai téléphone.
+
+Dans le code : `index.html`, `HUMEURS.lointain`, `SUITES` (les accords), `composer(H, Q, question, serré)` (une phrase), `tenirLeger` (la nappe), `MUS.phrases(now)` (le jeu des phrases, le combat, le large) ; `musiqueVive` est retirée.
+
+**À déposer** : `index.html` et `sw.js` (qui passe en `stone-valley-76`).
