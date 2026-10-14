@@ -745,12 +745,13 @@
     <div class="gestes"><button id="retour-non">Fermer</button><button class="principal" id="retour-oui">Envoyer</button></div>
   </div>
 </div>
-<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · L SORT EN MAIN · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
+<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
 <script src="donjon.js"></script>
 <script src="nomades.js"></script>
 <script src="etats.js"></script>
 <script src="brume.js"></script>
+<script src="achromie.js"></script>
 <script src="village.js"></script>
 <script src="coop.js"></script>
 <script src="faune.js"></script>
@@ -1599,6 +1600,8 @@ const SON = (() => {
     // raccourcissent, le rythme se resserre, une pulsation grave bat les temps, la nappe s'épaissit ; au loin, la
     // palette passe au mode dorien, et au plus loin une note frotte parfois (un demi-ton au-dessus).
     phrases(now) {
+      const vx = typeof achromieVoix === 'function' ? achromieVoix() : 3;   // (§129) l'Achromie : la musique revient par couches
+      if (vx === 0) { this.vu = now; this.prochain = now + .5; return; }   // (§127) l'Achromie : la musique se tait
       const dt = Math.min(.25, Math.max(0, now - (this.vu || now))); this.vu = now;
       const cible = this.humeur === 'danger' ? 1 : 0; this.c = (this.c || 0) + (cible - (this.c || 0)) * Math.min(1, dt * (cible > (this.c || 0) ? 3 : .3));
       const cer = biomeIci === 23, c = this.c, chez = campIci() || (!P.camp && !profondeur()), e = P.camp ? ecart() : profondeur(), s = chez || cer ? 0 : Math.min(1, .12 + .11 * Math.max(1, e)), nk = nuitK();
@@ -1619,10 +1622,10 @@ const SON = (() => {
           this.phrase = { H, Q, ev: composer(H, Q, question, c > .5 || s > .7) }; this.k = 0; this.beat = 0;
         }
         const ph = this.phrase, H = ph.H, ev = ph.ev[this.k], tps = H.pas * pasK, ac = ph.Q[ev.bar];
-        if (ev.first) for (const a of ac) tenirLeger(this.nf, H.base / 2 * 2 ** (a / 12), this.prochain, 3 * tps, .011 + .008 * s + .008 * c);
-        if (c > .35 || s > .6)                             // la pulsation : la fondamentale, grave, sur chaque temps
+        if (ev.first && vx >= 1) for (const a of ac) tenirLeger(this.nf, H.base / 2 * 2 ** (a / 12), this.prochain, 3 * tps, .011 + .008 * s + .008 * c);
+        if (vx >= 3 && (c > .35 || s > .6))               // la pulsation : la fondamentale, grave, sur chaque temps
           for (let q = Math.ceil(this.beat - 1e-6); q < this.beat + ev.b - 1e-6; q++) note(H.base / 2 * 2 ** (ac[0] / 12), this.prochain + (q - this.beat) * tps, 'pluck', H.pas, .4 + .5 * Math.max(c, s));
-        if (ev.i !== null) {
+        if (ev.i !== null && vx >= 2) {
           const f = H.base * 2 ** (H.deg[ev.i] / 12); note(f, this.prochain, H.timbre, ev.b * tps * (ev.fin ? 1.4 : 1), ev.fin ? .9 : 1);
           if (s > .7 && !ev.fin && Math.random() < .15) note(f * 1.0595, this.prochain + ev.b * tps * .5, H.timbre, ev.b * tps * .5, .35);
         }
@@ -3133,6 +3136,7 @@ function noeudProche() {
     const ux = x + .5 - P.x, uy = y + .5 - P.y, d = ux * ux + uy * uy;
     if (d > 1.75 * 1.75) continue;
     const i = y * WS + x, sp = FLORE[ty], nd = { x, y, i, ty, sp, z };
+    { const cs = CHAMP_CASE.get(i); if (cs && cs.c.loin) continue; }   // (§125) le carré d'un autre : on y récolte pour lui (champAction)
     if (maturite(i, sp) < .35) { if (d < dj) { dj = d; jeune = nd; } continue; }
     const devant = d > 1e-4 ? Math.max(0, (ux * fx + uy * fy) / Math.sqrt(d)) : 1;
     const sc = d * (1.15 - .3 * devant) * (ENTAME.has(i) ? .4 : 1);
@@ -4141,7 +4145,8 @@ function placerPortailIle() {
   }
   return null;
 }
-const auPortailIle = () => !!PortailIle && (P.x - PortailIle.x) ** 2 + (P.y - PortailIle.y) ** 2 < PORTAIL_R * PORTAIL_R;
+const auPortailIle = () => !!PortailIle && !(typeof achromieArche === 'function' && achromieArche())   // (§127) l'arche éteinte de l'Achromie
+  && (P.x - PortailIle.x) ** 2 + (P.y - PortailIle.y) ** 2 < PORTAIL_R * PORTAIL_R;
 // ---------- le campement et ses modules ----------
 // Le camp de base : une tente (la couchette) et un feu, au centre d'un rond terrassé de sept cases
 // de large. Autour du feu, dix places sur un anneau : l'entrée (devant, à +x), la tente, et huit
@@ -4194,6 +4199,7 @@ function placeCamp(x, y) {
   if (cx < R + 3 || cy < R + 3 || cx >= WS - R - 3 || cy >= WS - R - 3) return null;
   // loin de l'arche de l'île : deux portails l'un dans l'autre, on ne saurait plus lequel on prend
   if (PortailIle && (cx - PortailIle.x) ** 2 + (cy - PortailIle.y) ** 2 < 81) return null;
+  if (typeof achromieZone === 'function' && achromieZone(cx, cy, 5)) return null;   // (§127) pas sur le sanctuaire de l'Achromie
   if (Fourmi && (cx - Fourmi.x) ** 2 + (cy - Fourmi.y) ** 2 < (Fourmi.r + CAMP_RAYON + 1) ** 2) return null;
   // ni sur une maison, ni sur une plante rare : le terrassement ne déloge personne
   for (const b of beasts) if (!b.dead && (b.sp.batiment || b.sp.plante) && (b.x - cx - .5) ** 2 + (b.y - cy - .5) ** 2 < (CAMP_RAYON + 1) ** 2) return null;
@@ -4226,7 +4232,7 @@ function majTerrasse() {
   if (typeof djIci === 'function' && djIci()) return;  // sous terre, le sol est celui du donjon
   const L = campsIci();
   let s = ''; for (const c of L) s += (c.x | 0) + ',' + (c.y | 0) + ',' + Math.round(c.z) + ';';
-  const LC = champsIci(); for (const c of LC) s += 'c' + c.x + ',' + c.y + ',' + Math.round(c.z) + ';';   // (§119) et les carrés de culture
+  const LC = champsVus(); for (const c of LC) s += 'c' + c.x + ',' + c.y + ',' + Math.round(c.z) + ';';   // (§119) et les carrés de culture (§125 : ceux des autres aussi)
   if (s === terrSig) return;
   terrSig = s;
   champsFloreRetirer();                                // (§119) les plantes des carrés s'en vont, et reviennent à la fin
@@ -4356,6 +4362,10 @@ const champsMax = () => 1 + (nivCamp() >= 3 ? 1 : 0) + (nivCamp() >= 8 ? 1 : 0);
 const carresTot = () => (P.carresN[1] | 0) + (P.carresN[2] | 0) + (P.carresN[3] | 0);
 const carresSac = n => (P.carresN[n] | 0) - P.champs.filter(c => c.n === n).length;
 const champsIci = () => campIci() ? P.champs.filter(c => c.g === SEED) : [];
+// (§125) Les carrés à plusieurs : ceux d'un autre joueur sur cette île, tels qu'il les décrit (CHAMPS_LOIN), se voient,
+// se terrassent et se soignent comme les siens ; ce qu'on y fait part chez lui, qui l'applique et répond.
+const CHAMPS_LOIN = new Map();
+const champsVus = () => { const L = champsIci().slice(); for (const [u, F] of CHAMPS_LOIN) if (Autres.has(u)) for (const c of F) L.push(c); return L; };
 const placesDe = c => CHAMP_PLACES[c.n].map(([dx, dy, ta]) => [c.x + dx, c.y + dy, ta]);
 const dansChamp = (c, x, y, m = 0) => Math.abs(x - c.x - .5) <= CHAMP_DEMI[c.n] + .5 + m && Math.abs(y - c.y - .5) <= CHAMP_DEMI[c.n] + .5 + m;
 const slotNeuf = () => ({ e: null, m: 0, eau: 1, t: Date.now(), h: 0, eng: 0 });
@@ -4395,7 +4405,7 @@ const CHAMP_RARES = new Map();                          // case -> le corps d'un
 function corpsRare(f, s) { f.ech = (f.pl.port === 'simple' ? 1.3 : 1) * (.25 + .75 * s.m); f.cueillie = s.m < 1; }
 function majPlace(c, k) {
   const [x, y, ta] = placesDe(c)[k], i = y * WS + x, s = c.s[k];
-  pousserPlace(s, i, Date.now(), ta);
+  if (!c.loin) pousserPlace(s, i, Date.now(), ta);    // (§125) le carré d'un autre : sa pousse est la sienne, il nous la dit
   CHAMP_CASE.set(i, { c, s, k, ta });
   const G = s.e ? graineInfo(s.e) : null, e = G && G.sp ? ESP.indexOf(G.sp) : -1;
   Flo[i] = e >= 0 ? e + 1 : 0;
@@ -4412,7 +4422,7 @@ function champsFloreRetirer() {
   for (const i of CHAMP_CASE.keys()) { coupes.delete(i); if (Flo[i]) { Flo[i] = 0; signalDecor('flore', i); } }
   CHAMP_CASE.clear(); CHAMP_RARES.clear();
 }
-function champsFloreMettre() { for (const c of champsIci()) c.s.forEach((_, k) => majPlace(c, k)); }
+function champsFloreMettre() { for (const c of champsVus()) c.s.forEach((_, k) => majPlace(c, k)); }
 // Où poser : un carré de terre ferme, presque plat, à l'écart du campement, de l'arche et des autres carrés.
 function placeChamp(x, y, n) {
   if (!campIci()) return null;
@@ -4420,8 +4430,9 @@ function placeChamp(x, y, n) {
   if (cx < D + 4 || cy < D + 4 || cx >= WS - D - 4 || cy >= WS - D - 4) return null;
   if ((cx + .5 - P.camp.x) ** 2 + (cy + .5 - P.camp.y) ** 2 < (CAMP_RAYON + CAMP_TALUS + D + 2.5) ** 2) return null;
   if (PortailIle && (cx - PortailIle.x) ** 2 + (cy - PortailIle.y) ** 2 < (D + 6) ** 2) return null;
+  if (typeof achromieZone === 'function' && achromieZone(cx, cy, D + 2)) return null;   // (§127)
   if (Fourmi && (cx - Fourmi.x) ** 2 + (cy - Fourmi.y) ** 2 < (Fourmi.r + D + 3) ** 2) return null;
-  for (const c of champsIci()) if (Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy)) < D + CHAMP_DEMI[c.n] + 3) return null;
+  for (const c of champsVus()) if (Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy)) < D + CHAMP_DEMI[c.n] + 3) return null;
   for (const b of beasts) if (!b.dead && (b.sp.batiment || b.sp.plante) && Math.abs(b.x - cx - .5) < D + 1.5 && Math.abs(b.y - cy - .5) < D + 1.5) return null;
   const compte = {}; let h = hAt(cx, cy);
   for (let dy = -D; dy <= D; dy++) for (let dx = -D; dx <= D; dx++) {
@@ -4455,7 +4466,7 @@ function reprendreChamp() {
 function placeProche() {
   let best = null, sb = 1;
   const fa = P.faceS ?? P.face ?? 0, fx = Math.cos(fa), fy = Math.sin(fa);
-  for (const c of champsIci()) {
+  for (const c of champsVus()) {
     if (!dansChamp(c, P.x, P.y, 1.5) || Math.abs(c.z - P.z) > 2) continue;
     placesDe(c).forEach(([x, y, ta], k) => {
       const ux = x + .5 - P.x, uy = y + .5 - P.y, d = ux * ux + uy * uy, R2 = PORTEE_P[ta] ** 2; if (d > R2) return;
@@ -4513,6 +4524,7 @@ const pctC = v => Math.round(v * 100) + ' %';
 // mûr, la récolte ordinaire pour la flore.
 function champAction() {
   const q = placeProche(); if (!q) return null;
+  if (q.c.loin) return actionChampLoin(q);              // (§125) le carré d'un autre joueur
   const s = q.s, G = s.e ? graineInfo(s.e) : null;
   if (!G) {
     const g = graineChoisie(q.ta);
@@ -4528,6 +4540,84 @@ function champAction() {
   const o = G.n + ' · ' + pctC(s.m) + (s.eau <= 0 ? ' · à sec' : ' · eau ' + pctC(s.eau));
   return { v: 'POUSSE', o, f: () => say(o + (s.eau <= 0 ? (P.objets.seau ? ' · le seau est vide : au bord de l\'eau' : ' · un seau (établi), ou la pluie') : ''), 2.4), vide: true };
 }
+// ---------- les carrés à plusieurs (§125) ----------
+// Le propriétaire dit ses carrés à l'île (« champs ») : à l'arrivée d'un joueur, puis dès qu'ils changent (au plus
+// une fois par seconde, et toutes les 30 secondes de toute façon). Un visiteur les voit, les terrasse et les dessine
+// comme les siens ; ACTION y désherbe, arrose (avec son seau) ou récolte — pour le propriétaire : le geste part chez
+// lui (« champ »), qui l'applique, verse la récolte à son coffre, et redit l'état. On n'y sème pas.
+const champPhoto = c => [c.x, c.y, Math.round(c.z), c.n, c.s.map(s => [s.e || '', Math.round(s.m * 100) / 100, Math.round(s.eau * 10) / 10, s.h ? 1 : 0])];
+let champSig = '', champEnvoiT = 0;
+function envoyerChamps(pour) {
+  if (!(RS.ouvert && Compte.uid)) return false;
+  const f = champsIci().map(champPhoto), sig = JSON.stringify(f);
+  if (!pour && (!f.length && !champSig || sig === champSig && Date.now() - champEnvoiT < 30000)) return false;
+  champSig = sig; champEnvoiT = Date.now();
+  return diffuser(canalIle(), 'champs', { u: Compte.uid, f });
+}
+function champLoinLu(a, u, nom) {
+  if (!Array.isArray(a) || a.length < 5) return null;
+  const [x, y, z, n, S] = a;
+  if (!Number.isInteger(x) || !Number.isInteger(y) || !Number.isFinite(z) || !CHAMP_PLACES[n] || !Array.isArray(S)) return null;
+  const D = CHAMP_DEMI[n]; if (x < D + 2 || y < D + 2 || x > WS - D - 3 || y > WS - D - 3) return null;
+  return { g: SEED, x, y, z: Math.max(-8, Math.min(64, z)), n, loin: u, nom, s: CHAMP_PLACES[n].map(([, , ta], k) => {
+    const q = Array.isArray(S[k]) ? S[k] : [], G = typeof q[0] === 'string' && q[0] ? graineInfo(q[0]) : null, e = G && G.ta === ta ? q[0] : null;
+    return { e, m: e ? Math.max(0, Math.min(1, +q[1] || 0)) : 0, eau: Math.max(0, Math.min(1, +q[2] || 0)), t: Date.now(), h: e && q[3] ? 1 : 0, eng: 0 }; }) };
+}
+function recevoirChamps(d) {
+  const j = Autres.get(d.u); if (!j) return;
+  const F = (Array.isArray(d.f) ? d.f : []).slice(0, 3).map(a => champLoinLu(a, d.u, j.nom)).filter(Boolean);
+  const avant = CHAMPS_LOIN.get(d.u), geo = L => L.map(c => c.x + ',' + c.y + ',' + c.z + ',' + c.n).join(';');
+  if (avant && geo(avant) === geo(F)) {                 // la même terre : on met les plantes à jour, sans refaire le terrain
+    avant.forEach((c, i) => c.s.forEach((s, k) => { Object.assign(s, F[i].s[k]); majPlace(c, k); }));
+    return;
+  }
+  if (F.length) CHAMPS_LOIN.set(d.u, F); else CHAMPS_LOIN.delete(d.u);
+  terrSig = null;                                        // le terrain change : le terrassement se refait
+}
+function oublierChampsLoin(u) { if (CHAMPS_LOIN.delete(u)) terrSig = null; }
+// Au carré d'un autre : désherber, arroser, récolter pour lui. On montre tout de suite ce qu'on a fait ; il confirme.
+function actionChampLoin(q) {
+  const s = q.s, G = s.e ? graineInfo(s.e) : null, qui = q.c.nom || 'son propriétaire';
+  const geste = (quoi, mot) => () => {
+    if (!(RS.ouvert && Compte.uid)) { say('hors ligne : rien ne part chez ' + qui, 2); return; }
+    diffuser(canalIle(), 'champ', { u: Compte.uid, a: q.c.loin, x: q.c.x, y: q.c.y, k: q.k, q: quoi });
+    if (quoi === 'herbe') s.h = 0; else if (quoi === 'arroser') { P.seau--; s.eau = 1; Sauve.sale = true; }
+    else { s.m = G.pl ? (G.pl.port === 'simple' ? 0 : .4) : G.sp.res === 'bois' ? .3 : 0; majPlace(q.c, q.k); }
+    burst(q.x + .5, q.y + .5, q.c.z + .4, 10, quoi === 'arroser' ? '#8fc8ff' : '#9fd08a'); SON.jouer(quoi === 'arroser' ? 'plouf' : 'ramasse', {}, q.x + .5, q.y + .5, q.c.z);
+    say(mot + ' pour ' + qui + (quoi === 'recolter' ? ' · la récolte va à son coffre' : ''), 2.2);
+  };
+  if (!G) return { v: 'CARRÉ', o: 'de ' + qui, f: () => say('le carré de ' + qui + ' · lui seul y sème', 2), vide: true };
+  if (s.h) return { v: 'DÉSHERBER', o: G.n + ' · pour ' + qui, f: geste('herbe', 'désherbé') };
+  if (s.m < 1 && s.eau < .5 && P.objets.seau && P.seau > 0) return { v: 'ARROSER', o: G.n + ' · pour ' + qui, f: geste('arroser', 'arrosé') };
+  if (G.pl ? s.m >= 1 : s.m >= .35) return { v: 'RÉCOLTER', o: G.n + ' · pour ' + qui, f: geste('recolter', 'récolté'), r: G.r };
+  const o = G.n + ' · ' + pctC(s.m) + (s.eau <= 0 ? ' · à sec' : ' · eau ' + pctC(s.eau)) + ' · carré de ' + qui;
+  return { v: 'POUSSE', o, f: () => say(o, 2.2), vide: true };
+}
+// Chez le propriétaire : le geste d'un visiteur sur l'un de ses carrés.
+function champRecu(d) {
+  if (d.a !== Compte.uid || !campIci()) return;
+  const c = champsIci().find(c => c.x === (d.x | 0) && c.y === (d.y | 0)); if (!c) return;
+  const k = d.k | 0, s = c.s[k]; if (!s || !s.e) return;
+  const [x, y, ta] = placesDe(c)[k], i = y * WS + x, G = graineInfo(s.e), j = Autres.get(d.u), qui = j ? j.nom : 'quelqu\'un';
+  if (!G) return;
+  pousserPlace(s, i, Date.now(), ta);
+  const coffre = aModule('coffre'), verser = (r, n) => { if (coffre) { const R = reserveDe(r); R[r] = (R[r] || 0) + n; } else metSac(r, auSac(r) + n); };
+  if (d.q === 'herbe') { if (!s.h) return; s.h = 0; say(qui + ' désherbe votre ' + G.n.toLowerCase(), 2); }
+  else if (d.q === 'arroser') { s.eau = 1; say(qui + ' arrose votre ' + G.n.toLowerCase(), 2); }
+  else if (d.q === 'recolter') {
+    if (G.sp && s.m >= .35) {
+      const n = Math.max(1, Math.round(G.sp.rend * s.m * RECOLTE_K[ta])); verser(G.sp.res, n); couperPied(i);
+      say(qui + ' récolte votre ' + G.n.toLowerCase() + ' · +' + n + ' ' + (RES[G.sp.res] || G.sp.res) + (coffre ? ' au coffre' : ' au sac'), 3);
+    } else if (G.pl && s.m >= 1) {
+      const n = G.pl.port === 'vive' ? 3 : 2;
+      if (coffre) P.cellier[G.pl.ingr] = (P.cellier[G.pl.ingr] || 0) + n; else metSacIngr(G.pl.ingr, sacIngr(G.pl.ingr) + n);
+      s.m = G.pl.port === 'simple' ? 0 : .4; s.t = Date.now();
+      say(qui + ' cueille votre ' + G.n.toLowerCase() + ' · +' + n + (coffre ? ' au garde-manger du campement' : ' au sac'), 3);
+    } else return;
+    majSac();
+  } else return;
+  majPlace(c, k); Sauve.sale = true; champSig = ''; envoyerChamps();
+}
 // Chaque seconde : le seau se remplit au bord de l'eau ; la pluie arrose ; les plantes poussent ; sans clôture,
 // un herbivore sauvage entré dans le carré broute ce qui est mûr.
 let champT = 0;
@@ -4538,6 +4628,7 @@ function majChamps(dt) {
     const x = P.x | 0, y = P.y | 0;
     if ([[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => habitatEau(x + dx, y + dy))) { P.seau = SEAU_MAX; Sauve.sale = true; say('le seau est plein · ' + SEAU_MAX + ' arrosages', 1.8); }
   }
+  if (Autres.size) envoyerChamps();                      // (§125) les autres joueurs de l'île voient nos carrés
   const L = champsIci(); if (!L.length) return;
   const now = Date.now(), pl = met('pluie');
   for (const c of L) {
@@ -5412,6 +5503,9 @@ function recevoir(m) {
     else if (i >= 0 && i < WS * WS && !coupes.has(i)) { coupes.set(i, t); signalDecor('flore', i); }
   }
   else if (evt === 'baie') { const br = berries[d.i | 0]; if (br && br.pris <= t) br.pris = t + 120; }
+  else if (evt === 'champs') recevoirChamps(d);          // (§125) les carrés d'un autre joueur
+  else if (evt === 'champ') champRecu(d);                // (§125) un geste sur l'un des nôtres
+  else if (evt === 'achro' && typeof achromieRecu === 'function') achromieRecu(d);   // (§129) l'Achromie à plusieurs
   else if (evt === 'fleche') {                         // une flèche d'en face, en vol : on la voit, elle ne blesse rien ici
     const j = Autres.get(d.u), v = [d.x, d.y, d.z, d.vx, d.vy, d.vz];
     if (j && v.every(Number.isFinite) && FLECHES.length < 80) { const n = Math.hypot(d.vx, d.vy, d.vz) || 1;
@@ -5443,6 +5537,8 @@ function majDistant(d) {
     Autres.set(d.u, j);
     say(String(d.n || 'quelqu\'un').slice(0, 18) + ' est sur cette île', 3);
     envoyerEtatIle(d.u);                               // ce qui a déjà été coupé et cueilli ici
+    if (typeof envoyerChamps === 'function') envoyerChamps(d.u);   // (§125) et nos carrés de culture
+    if (typeof achromieEnvoyer === 'function') achromieEnvoyer(d.u);   // (§129) et où en est l'Achromie de l'île
     envoyerSortsPoses(d.u);                            // et nos pièges, notre mur, notre égide
     RS.forcer = true;                                  // et où l'on est, sans attendre la balise
   }
@@ -5533,6 +5629,7 @@ function effacerDistant(u) {
   for (const b of j.gardes || []) if (b) retirerLoin(b);
   if (j.monte) retirerLoin(j.monte);
   Autres.delete(u);
+  oublierChampsLoin(u);                                // (§125) ses carrés s'en vont avec lui
   for (let i = SORTS_POSES.length - 1; i >= 0; i--) if (SORTS_POSES[i].u === u) SORTS_POSES.splice(i, 1);   // ses pièges, son mur
   if (typeof fauneDepart === 'function') fauneDepart(u);   // le gardien parti : un autre reprend la faune
 }
@@ -5797,6 +5894,7 @@ function apportsCamp(niv) {
 let propoCache = null;
 const voeuxPossibles = niv => VISEES.filter(v => v.k === 'meca' ? niv >= NIV_MECA : v.k === 'korlaz' ? niv >= 6 && typeof etatGraine === 'function'
   : v.k === 'brume' ? niv >= 8 && typeof etatGraine === 'function' && typeof brumeIle === 'function'
+  : v.k === 'achromie' ? niv >= 4 && typeof etatGraine === 'function' && typeof achromieIle === 'function'
   : (R => R.niv <= niv && !(R.max < niv))(RARES.find(r => 'b' + r.b === v.k) || { niv: 1e9 }));
 function voeuPortail() {
   if (voeuxPortail(nivCamp()) < 1 || !P.portailVoeu) return null;
@@ -5822,7 +5920,11 @@ function propositions() {
 const ESP_EFFROI = ['silencieux', 'millegueule'];
 const dangerEspece = sp => sp.tir ? 'tir' : ESP_EFFROI.includes(sp.id) ? 'effroi' : predateur(sp) ? 'pred' : '';
 const RISQUES = ['paisible', 'calme', 'risquée', 'dangereuse', 'mortelle'];
-const ETATS_NOMS = { korlaz: 'Korlaz · roche rongée, spores neurotoxiques', brume: 'Brume sanglante · un cercle de mages, tout ce qui vit s\'y entretue' };   // les états d'île (etats.js)
+const ETATS_NOMS = { korlaz: 'Korlaz · roche rongée, spores neurotoxiques', brume: 'Brume sanglante · un cercle de mages, tout ce qui vit s\'y entretue',
+  achromie: 'Achromie · la couleur a quitté l\'île, son arche est éteinte, des veilleurs y rôdent' };
+// (§127) L'Achromie (achromie.js) : ce que la carte graphique reçoit à chaque image (GRIS_GLSL). a : la force du
+// gris, puis le rouge, le jaune, le vert rendus ; b : le bleu, le violet, le contraste ; l : la lanterne (xyz, rayon).
+const GRIS_GL = { a: new Float32Array(4), b: new Float32Array(4), l: new Float32Array(4), arc: new Float32Array(4) };   // (§129) arc : l'arc-en-ciel (son centre, sa force)   // les états d'île (etats.js)
 function apercuIle(g, niv, det) {
   if (det < 1) return { texte: '', risque: '' };
   const meca = ileMecaGraine(g) && niv >= NIV_MECA, L = [], pl = (n, m) => n + ' ' + m + (n > 1 ? 's' : '');
@@ -7106,7 +7208,7 @@ function pageJournal() {
     return `<div class="sac-corps lignes"><div class="vide-texte">`
       + `<p style="margin:10px 0 0">Le journal est celui du campement : posez-en un pour l'ouvrir.</p>`
       + `<p style="margin:0">Il garde les graines des îles visitées, ce qu'on y trouve, et permet d'y retourner.</p>`
-      + `<button class="btn principal" data-voletcamp="camp">Voir le campement</button></div>${blocAtlas()}${blocRumeurs()}${blocCarnet()}${blocPeche()}</div>`;
+      + `<button class="btn principal" data-voletcamp="camp">Voir le campement</button></div>${blocAtlas()}${blocRumeurs()}${blocCarnet()}${blocPeche()}${typeof blocPigments === 'function' ? blocPigments() : ''}</div>`;
   const j = P.journal, m = memoireJournal(), n = (j.gardees || []).length;
   const ici = j.visites.find(v => v.g === SEED) || ficheIle(SEED, composerIle());
   const passees = (j.visites || []).filter(v => v.g !== SEED).slice(0, 8);
@@ -7122,6 +7224,7 @@ function pageJournal() {
     + blocRumeurs()
     + blocCarnet()
     + blocPeche()
+    + (typeof blocPigments === 'function' ? blocPigments() : '')   // (§127) les pigments de l'Achromie
     + `</div>`;
 }
 // ---------- onglet Campement ----------
@@ -7596,13 +7699,14 @@ const VISEES = [
   { k: 'meca', n: 'Terre des automates', t: 'l\'île des automates · dès l\'exploration ' + NIV_MECA, ok: g => ileMecaGraine(g), niv: () => NIV_MECA },
   { k: 'korlaz', n: 'Korlaz', t: 'la roche rongée et ses spores · dès l\'exploration 6', ok: (g, n) => typeof etatGraine === 'function' && etatGraine(g, n) === 'korlaz', niv: () => 6 },
   { k: 'brume', n: 'Brume sanglante', t: 'le cercle des mages, la fureur, le démon · dès l\'exploration 8', ok: (g, n) => typeof etatGraine === 'function' && etatGraine(g, n) === 'brume', niv: () => 8 },
+  { k: 'achromie', n: 'Achromie', t: 'l\'île sans couleur, ses veilleurs, son sanctuaire · dès l\'exploration 4', ok: (g, n) => typeof etatGraine === 'function' && etatGraine(g, n) === 'achromie', niv: () => 4 },
 ];
 function viserBiome(k) {
   const v = VISEES.find(o => o.k === k); if (!v) return;
   const n0 = Number(tpNiv ?? profondeur()) || 0;
   for (let i = 0; i < 400000; i++) {
     const g = (Math.random() * 1e9) | 0; if (g === SEED) continue;
-    const n = Math.max(n0, k === 'korlaz' ? 6 : k === 'brume' ? 8 : 0, v.niv(g));
+    const n = Math.max(n0, k === 'korlaz' ? 6 : k === 'brume' ? 8 : k === 'achromie' ? 4 : 0, v.niv(g));
     if (!v.ok(g, n)) continue;
     tpGraine = g; tpNiv = Math.min(NIV_PLAFOND, n);
     say(v.n + ' · graine ' + g + ' · exploration ' + tpNiv + ' · « Y aller »', 3, 'info');
@@ -7702,6 +7806,8 @@ function pageReglages() {
     + `<button data-retour="1">Écrire</button></div>`
     + `<div class="obj"><div><div class="n">Guide de départ</div><div class="d">${P.guide.e >= GUIDE.length ? 'terminé' : 'étape ' + (P.guide.e + 1) + ' sur ' + GUIDE.length}</div></div>`
     + `<button data-guide="1" aria-pressed="${!P.guide.masque}">${P.guide.masque ? 'Masqué' : 'Affiché'}</button></div>`
+    + `<div class="obj"><div><div class="n">Statistiques de jeu</div><div class="d">Ce qui se passe en partie (récoltes, combats, fabrications, voyages, fluidité) part vers l'équipe pour équilibrer le jeu. Rien des autres joueurs, aucun texte.</div></div>`
+    + `<button data-stats="1" aria-pressed="${jnlActif()}">${jnlActif() ? 'Envoyées' : 'Coupées'}</button></div>`
     + `<h3>Son</h3>` + [['g', 'Volume général', 'Tout le son du jeu. À zéro, silence.'], ['e', 'Effets', 'Coups, récolte, pas, créatures, automates.'],
       ['a', 'Ambiance', 'Vent, pluie, eau, grillons, feu, machines.'], ['m', 'Musique', 'Douce, par phrases ; elle change la nuit et dans le danger.']]
       .map(([k, n, d]) => `<div class="obj"><div><div class="n">${n}</div><div class="d">${d}</div></div>`
@@ -7915,6 +8021,7 @@ function clicSac(b) {
   else if (d.epingle) epingler(d.epingle);
   else if (d.refaire) refaire(d.refaire);
   else if (d.guide) { P.guide.masque = !P.guide.masque; hudT = -9; majSac(); }
+  else if (d.stats) { const on = jnlActif(); try { localStorage.setItem('stone_valley:stats', on ? '0' : '1'); localStorage.removeItem(JNL_CLE); } catch (e) { /* rien */ } if (on) JNL.file.length = 0; majSac(); }
   else if (d.dens) { DENS_GLOB = DENS_GLOB < .6 ? .7 : DENS_GLOB > 1 ? .45 : 1.15; terrasseDefaire(); calcFlore(); majSac(); }
   else if (d.fin) ouvrirSac(false);
   else if (d.sv) actionSauvegarde(d.sv);
@@ -8119,7 +8226,7 @@ const HORREURS = [
   { id:'millegueule', n:'Mille-gueules', corps:'millegueule', horreur:1, terre:20, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
     shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
 ];
-SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof BRUME_SPEC !== 'undefined' ? BRUME_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
+SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof BRUME_SPEC !== 'undefined' ? BRUME_SPEC : []), ...(typeof GR_SPEC !== 'undefined' ? GR_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
 // La cerisaie en fleur (§112) : trois bêtes qui n'y vivent que là. En QUEUE de SPEC : rien ne bouge des autres.
 // Le cerf des cerisiers (un Tellurien, ses bois fleurissent), le renard des pétales (trois queues ; leur bout blanc
 // luit la nuit) et le lentigrade-cerisier (un Doux, qui porte un cerisier en fleur sur le dos).
@@ -9137,6 +9244,7 @@ const TOUCHES = {
   KeyJ:   () => ouvrirJournal(),                     // le journal : ce qui s'est passé, ce qu'on a récolté
   KeyK:   () => ouvrirCompagnes(),                   // le volet des compagnes : leur vie, leurs ordres
   KeyT:   () => barreSuivante(),                     // la ceinture : passer à la barre de cases suivante
+  KeyO:   () => { if (typeof basculerLanterne === 'function') basculerLanterne(); },   // (§127) la lanterne prismatique
 };
 // 1 à 5 : les onglets, dans l'ordre du rail
 // sac fermé, 1 à 5 : les cinq cases de la barre affichée
@@ -13499,6 +13607,7 @@ function majBete(b, dt) {
   const sp = b.sp;
   if (sp.boss) return majTisseuse(b, dt);
   if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi
+  if (sp.achromie) return majAchromieBete(b, dt);    // (§127) les veilleurs et les mécanismes de l'Achromie (achromie.js)
   if (sp.illusion) return majIllusion(b, dt);          // une vision du Korlaz (etats.js)
   if (sp.brume) return majBrumeBete(b, dt);            // le cercle de la brume sanglante : mages, rôdeurs, démon (brume.js)
   if (sp.plante) return majPlante(b, dt);              // la flore rare (flore.js)
@@ -14968,6 +15077,7 @@ function osDeBase(f) {
   if (sp && sp.pnj) return nmOs(f);                   // les Nomades du Seuil (nomades.js)                 // les machines du Centre des automates
   if (sp && sp.boss) return osTisseuse(f);
   if (sp && sp.horreur) return sp.corps === 'silencieux' ? osSilencieux(f) : osMille(f);
+  if (sp && sp.achromie) return osAchromie(f);       // (§127) l'Achromie (achromie.js)
   if (sp && sp.illusion) return osIllusion(f);
   if (sp && sp.brume) return osBrume(f);                // la brume sanglante (brume.js)
   if (sp && sp.plante) return osPlante(f);
@@ -18394,18 +18504,20 @@ const C_PIERRE = [138, 144, 156], C_PIERREF = [96, 104, 120], C_OR = [226, 176, 
 // L'arche d'un portail : deux piliers, un linteau, une clef, et le voile qui bat. Le campement en
 // porte une ; chaque île en porte une autre, à sa place, la même pour tous ceux qui tirent la graine.
 function portailOs(niv) {
+  const ile = niv === undefined, eteint = ile && typeof achromieArche === 'function' && achromieArche();   // (§127) l'arche de l'Achromie
   niv = niv || 1;                                      // celui du campement s'éclaire avec lui ; ceux des îles ne changent pas
   const B = [], bat = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit: luit ? 1 : 0 });
   bat([-.72, 0, .06], [-.72, 0, 1.52], .28, .28, C_PIERRE);
   bat([.72, 0, .06], [.72, 0, 1.52], .28, .28, C_PIERRE);
   bat([-.86, 0, 1.62], [.86, 0, 1.62], .24, .22, C_PIERREF);
   bat([0, 0, 1.7], [0, 0, 1.82], .18, .18, [174, 242, 245], niv >= 2);
-  for (let k = 0; k < 4; k++) {
+  for (let k = 0; k < 4 && !eteint; k++) {             // éteinte : plus de voile
     const x = -.52 + k * .348, o = Math.sin(t * 2.2 + k * .9) * .5 + .5, h = 1.36 + o * .1;
     // d'éclat, le voile se referme en une nappe vive, dans le plan de l'arche
     if (niv >= 3) bat([x - .2, 0, (.12 + h) / 2], [x + .2, 0, (.12 + h) / 2], .06, h - .12, [96 + o * 60, 196 + o * 50, 228 + o * 27], 1);
     else bat([x, 0, .12], [x, 0, h], .06, .34, [60 + o * 55, 150 + o * 65, 190 + o * 50]);   // une boîte debout : la première largeur va selon y, la seconde selon x — celle de l'arche
   }
+  if (ile && typeof achromiePrismeOs === 'function') B.push(...achromiePrismeOs());   // le prisme : brisé, puis rallumé
   return B;
 }
 // Le camp de base se dessine d'un tenant : le rond de terre battue et sa bordure de pierres, le feu
@@ -18913,7 +19025,7 @@ function emitPortailIle(view, out) {
   }
 }
 function emitCamp(view, out) {
-  for (const c of champsIci()) { const ox = c.x + .5, oy = c.y + .5; for (const o of champOs(c)) {   // (§119) les carrés de culture
+  for (const c of champsVus()) { const ox = c.x + .5, oy = c.y + .5; for (const o of champOs(c)) {   // (§119) les carrés de culture (§125 : et ceux des autres)
     const A = [ox + o.a[0], oy + o.a[1], c.z + o.a[2]], Bb = [ox + o.b[0], oy + o.b[1], c.z + o.b[2]];
     const cle = view.kEnt && (o.sol ? kSol(A[0], Bb[0], A[1] - .5, A[1] + .5) : view.kEnt((A[0] + Bb[0]) / 2, (A[1] + Bb[1]) / 2));
     emitLimb(A, Bb, o.w, o.h, o.c, view, out, cle, rangSol(c.z, false) + (o.sol ? .5 : 0));
@@ -20319,7 +20431,7 @@ function drawHud() {
     : `<span class="puce heure"><b>${hh}:${mm}</b>&nbsp;${METEO[Meteo.vers].n}</span>`);
   // 2. ce qui se passe : escouade, chaleur du rayon, arc bandé, essai, autres joueurs (les effets des plats,
   //    le poison, le Korlaz : en vignettes sous le souffle, voir majStatuts)
-  const etats = [sans(escHud()), sans(djHud()),
+  const etats = [sans(escHud()), sans(djHud()), typeof achromieHud === 'function' ? achromieHud() : '',
     P.arc !== null ? `<b>${'█'.repeat(Math.round(Math.min(1, P.arc / ARC_TEMPS) * 6)).padEnd(6, '·')}</b>` : '',
     essai || (djIci() && DJ.etat.test) ? '<span class="etiq">ESSAI</span>' : '',
     Autres.size ? `<span class="etiq bleu">${Autres.size} joueur${Autres.size > 1 ? 's' : ''}</span>` : ''].filter(Boolean);
@@ -20485,13 +20597,14 @@ function actionContexte() {
     return pc > 0 ? { v: 'EMPORTER', o: pc + ' % · coffre de ' + Raid.pseudo, f: () => emporter('action') }
       : { v: 'PILLER', o: 'restez au coffre · 1 % par seconde', f: () => say('restez près du coffre : un centième par seconde', 2), vide: true };
   }
+  { const gra = typeof achromieAction === 'function' ? achromieAction() : null; if (gra) return gra; }   // (§127) l'arche éteinte, les mécanismes du sanctuaire
   if (auPortailIle()) return { v: 'FRANCHIR', o: 'arche · exploration ' + (profondeur() + 1), f: franchirPortail };
   const lta = lutrinAction(); if (lta) return lta;     // un lutrin de pierre : le Tome I d'une matière
   const cpa = campAction(); if (cpa) return cpa;       // au campement : la tente, un module, un emplacement libre
   const cha = champAction(); if (cha) return cha;      // (§119) à un carré de culture : semer, arroser, la pousse
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && (!b.sp.batiment || b.sp.plante) && !b.cache && Math.abs(b.z - P.z) < 2) {
+  for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && !b.sp.achromie && (!b.sp.batiment || b.sp.plante) && !b.cache && Math.abs(b.z - P.z) < 2) {
     const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
     if (d < dp) { dp = d; pr = b; }
   }
@@ -20889,12 +21002,14 @@ const ligneGuide = () => P.guide.masque || P.guide.e >= GUIDE.length ? ''
 const TEXTE_DONNEES = '<p><b>Ce que le jeu garde</b> : votre adresse e-mail et votre mot de passe (chiffré), pour le compte ; '
   + 'votre personnage (sac, objets, compagnes, île) ; les messages que vous envoyez et les incidents techniques du jeu, '
   + 'avec l\'appareil, le navigateur et l\'état de la partie.</p>'
+  + '<p><b>Les statistiques de jeu</b> : ce qui se passe en partie (récoltes, combats, fabrications, voyages, fluidité de l\'appareil), '
+  + 'relié à votre compte, pour équilibrer le jeu. Aucun texte, rien des autres joueurs. Se coupe dans les Réglages (Aide).</p>'
   + '<p><b>Ce que voient les autres joueurs</b> : votre pseudo, votre position et vos compagnes, seulement quand vous êtes '
   + 'sur la même île. Rien de cela n\'est conservé.</p>'
   + '<p><b>Pourquoi</b> : faire marcher le jeu et le corriger. Pas de publicité ; rien n\'est vendu ni partagé.</p>'
   + '<p><b>Où</b> : chez Supabase, sur des serveurs à Paris (Union européenne).</p>'
-  + '<p><b>Tout effacer</b> : Sac › Sauvegarde › <b>Supprimer mon compte</b> efface le compte, l\'adresse, le personnage '
-  + 'et les messages, tout de suite. Une question : « Un problème, une idée ? », dans les Réglages.</p>';
+  + '<p><b>Tout effacer</b> : Sac › Sauvegarde › <b>Supprimer mon compte</b> efface le compte, l\'adresse, le personnage, '
+  + 'les messages et les statistiques, tout de suite. Une question : « Un problème, une idée ? », dans les Réglages.</p>';
 { const el = document.getElementById('pdonnees'); if (el) el.innerHTML = TEXTE_DONNEES; }
 
 // ---------- le mot des testeurs, et les incidents ----------
@@ -21325,6 +21440,26 @@ vec3 nocturne(vec3 c, vec3 w) {
   c *= mix(vec3(1.0), vec3(1.14, 1.0, 0.8), e * uNuit.a);
   return mix(c, uNuit.rgb, uNuit.a * (1.0 - e));
 }`;
+  // (§127) L'Achromie : chaque couleur rendue garde sa bande de teinte ; la lanterne garde tout dans son halo ;
+  // le reste passe au gris de même clarté (un peu plus contrasté). uGris.x = 0 : rien ne change.
+  const GRIS_GLSL = `
+uniform vec4 uGris, uGris2, uLant;
+float bandeT(float h, float a, float b) {
+  float m = 0.0;
+  for (int k = -1; k <= 1; k++) { float x = h + float(k) * 360.0; m = max(m, smoothstep(a - 9.0, a + 3.0, x) * (1.0 - smoothstep(b - 3.0, b + 9.0, x))); }
+  return m;
+}
+vec3 achromie(vec3 c, vec3 w) {
+  if (uGris.x <= 0.0) return c;
+  float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), d = mx - mn, h = 0.0;
+  if (d > 1e-4) h = mx == c.r ? mod((c.g - c.b) / d, 6.0) * 60.0 : mx == c.g ? ((c.b - c.r) / d + 2.0) * 60.0 : ((c.r - c.g) / d + 4.0) * 60.0;
+  float garde = max(max(uGris.y * bandeT(h, -32.0, 36.0), uGris.z * bandeT(h, 36.0, 72.0)),
+                    max(uGris.w * bandeT(h, 72.0, 168.0), max(uGris2.x * bandeT(h, 168.0, 262.0), uGris2.y * bandeT(h, 262.0, 328.0))));
+  if (uLant.w > 0.0) { vec3 q = w - uLant.xyz; q.z *= 0.8; garde = max(garde, 1.0 - smoothstep(uLant.w * 0.55, uLant.w, length(q))); }
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  vec3 g = vec3(clamp((l - 0.5) * max(uGris2.z, 1.0) + 0.5, 0.0, 1.0));
+  return mix(c, mix(g, c, garde), uGris.x);
+}`;
   const DECOR_VS = `#version 300 es
 layout(location=0) in vec3 aP;
 layout(location=1) in vec3 aC;
@@ -21362,6 +21497,7 @@ uniform vec4 uCoupe;    // sous terre : le joueur (xyz) et le rayon de la coupe 
 uniform vec4 uVers;     // la direction de l'œil, et jusqu'où couper
 out vec4 o;
 ${NUIT_GLSL}
+${GRIS_GLSL}
 // le grain se répète par cube ; les calques d'arête couvrent la face une seule fois
 vec4 grain(int k, vec2 t) {
   ivec2 p = clamp(ivec2(floor(fract(t) * 16.0)), ivec2(0), ivec2(15));
@@ -21408,7 +21544,7 @@ void main() {
   }
   float fb = vL == 3 ? f * 0.35 + f * f * f * f * 0.65 : f;
   c = mix(c, uBrume, fb);
-  o = vec4(nocturne(c, vW), 1.0);
+  o = vec4(achromie(nocturne(c, vW), vW), 1.0);
 }`;
   const CIEL_VS = `#version 300 es
 layout(location=0) in vec2 aP;
@@ -21422,18 +21558,28 @@ uniform vec2 uTan;
 uniform vec4 uVoile;
 uniform vec4 uNuit;
 uniform float uIso;
+uniform vec4 uArc;      // (§129) l'arc-en-ciel de l'Achromie : la direction de son centre, sa force
 out vec4 o;
+${GRIS_GLSL}
+vec3 arcCoul(float t) {   // t : 0 à l'intérieur (violet), 1 à l'extérieur (rouge)
+  vec3 k = clamp(abs(mod((1.0 - t) * 4.6 + vec3(0.0, 4.0, 2.0), 6.0) - 3.0) - 1.0, 0.0, 1.0);
+  return mix(vec3(1.0), k, 0.8);
+}
 void main() {
   if (uIso > .5) {                                    // isométrie : le même dégradé qu'en canvas
     vec3 c = mix(uCiel, uCiel * vec3(0.50, 0.58, 0.86), clamp((vN.y + 1.0) * .5, 0.0, 1.0));
-    o = vec4(mix(mix(c, uVoile.rgb, uVoile.a), uNuit.rgb, uNuit.a * 0.85), 1.0);
+    o = vec4(achromie(mix(mix(c, uVoile.rgb, uVoile.a), uNuit.rgb, uNuit.a * 0.85), vec3(1e6)), 1.0);
     return;
   }
   vec3 r = normalize(uD + uR * vN.x * uTan.x + uU * vN.y * uTan.y);
   float e = asin(clamp(r.z, -1.0, 1.0));
   vec3 c = e > 0.0 ? mix(uCiel, uCiel * vec3(0.48, 0.56, 0.84), clamp(e / 0.68, 0.0, 1.0))
                    : mix(uCiel, uCiel * 0.88, clamp(-e / 0.45, 0.0, 1.0));
-  o = vec4(mix(mix(c, uVoile.rgb, uVoile.a), uNuit.rgb, uNuit.a * 0.8), 1.0);
+  if (uArc.w > 0.0 && r.z > -0.02) {
+    float t = (degrees(acos(clamp(dot(r, uArc.xyz), -1.0, 1.0))) - 40.0) / 3.2;
+    if (t > 0.0 && t < 1.0) c = mix(c, arcCoul(t), uArc.w * 0.55 * sin(t * 3.14159) * smoothstep(-0.02, 0.06, r.z));
+  }
+  o = vec4(achromie(mix(mix(c, uVoile.rgb, uVoile.a), uNuit.rgb, uNuit.a * 0.8), vec3(1e6)), 1.0);
 }`;
   // Tout ce qui se dessine en carré face à l'œil : astres, nuages, baies, éclats, grêle, neige.
   const PANO_VS = `#version 300 es
@@ -21468,6 +21614,7 @@ uniform vec4 uVoile;
 uniform float uIso;
 out vec4 o;
 ${NUIT_GLSL}
+${GRIS_GLSL}
 void main() {
   float a = vC.a;
   if (vG == 1) {
@@ -21509,7 +21656,8 @@ void main() {
     }
   }
   // les astres et le décor du ciel ne s'éteignent pas : ce sont eux qui restent, la nuit
-  o = vec4(vG == 2 || vG == 4 ? mix(c, uVoile.rgb, uVoile.a) : vG == 7 || vG == 8 ? c : nocturne(c, vW), a);
+  vec3 cf = vG == 2 || vG == 4 ? mix(c, uVoile.rgb, uVoile.a) : vG == 7 || vG == 8 ? c : nocturne(c, vW);
+  o = vec4(achromie(cf, vG == 2 || vG == 4 ? vec3(1e6) : vW), a);
 }`;
   // La pluie : des traits d'épaisseur fixe à l'écran, que le relief cache comme le reste.
   const TRAIT_VS = `#version 300 es
@@ -22032,6 +22180,8 @@ void main() { o = uC; }`;
     gl.uniform3f(P_CIEL.u.uR, Rx, Ry, Rz); gl.uniform3f(P_CIEL.u.uU, Ux, Uy, Uz); gl.uniform3f(P_CIEL.u.uD, Dx, Dy, Dz);
     gl.uniform2f(P_CIEL.u.uTan, Wd / 2 / FC.F, Hd / 2 / FC.F);
     gl.uniform3fv(P_CIEL.u.uCiel, ciel); gl.uniform4fv(P_CIEL.u.uVoile, voile); gl.uniform4fv(P_CIEL.u.uNuit, noir);
+    gl.uniform4fv(P_CIEL.u.uGris || null, GRIS_GL.a); gl.uniform4fv(P_CIEL.u.uGris2 || null, GRIS_GL.b); gl.uniform4fv(P_CIEL.u.uLant || null, GRIS_GL.l);   // (§127)
+    gl.uniform4fv(P_CIEL.u.uArc || null, GRIS_GL.arc);   // (§129) l'arc-en-ciel
     gl.uniform1f(P_CIEL.u.uIso, iso ? 1 : 0);
     gl.bindVertexArray(triCiel); gl.drawArrays(gl.TRIANGLES, 0, 3);
     // astres et nuages : des directions, posées loin devant l'œil
@@ -22097,6 +22247,7 @@ void main() { o = uC; }`;
     gl.uniform2f(u.uLum, .55 + .45 * l, .62 + .38 * l);
     gl.uniform4fv(u.uVoile, voile);
     gl.uniform4fv(u.uNuit, noir); gl.uniform4fv(u['uFeux[0]'], FEUX_GL);
+    gl.uniform4fv(u.uGris || null, GRIS_GL.a); gl.uniform4fv(u.uGris2 || null, GRIS_GL.b); gl.uniform4fv(u.uLant || null, GRIS_GL.l);   // (§127)
     gl.uniform2f(u.uIso, iso ? 1 : 0, coupe);
     // Sous terre, les murs de quatre cubes cacheraient le joueur : on les ouvre, dans un cylindre qui
     // va du joueur vers l'œil, au-dessus de ses genoux. Seuls la roche et la flore s'ouvrent.
@@ -22196,7 +22347,7 @@ void main() { o = uC; }`;
         boite(TD, [q.x + o.a[0], q.y + o.a[1], q.z + o.a[2]], [q.x + o.b[0], q.y + o.b[1], q.z + o.b[2]],
           o.w, o.h, o.c, 0, o.luit ? 0 : kCouleur(o.c, 'pierre'), hq, 0, 0, 0, undefined, 2);
     }
-    for (const c of champsIci()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {   // (§119) les carrés de culture
+    for (const c of champsVus()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {   // (§119) les carrés de culture (§125 : et ceux des autres)
       const ox = c.x + .5, oy = c.y + .5, hc = L_FIXE + 256 * horizAt(ox, oy);
       for (const o of champOs(c))
         boite(TD, [ox + o.a[0], oy + o.a[1], c.z + o.a[2]], [ox + o.b[0], oy + o.b[1], c.z + o.b[2]],
@@ -22354,6 +22505,7 @@ void main() { o = uC; }`;
     gl.uniform3fv(u.uBr, brume);
     gl.uniform4fv(u.uVoile, voile);
     gl.uniform4fv(u.uNuit, noir); gl.uniform4fv(u['uFeux[0]'], FEUX_GL);
+    gl.uniform4fv(u.uGris || null, GRIS_GL.a); gl.uniform4fv(u.uGris2 || null, GRIS_GL.b); gl.uniform4fv(u.uLant || null, GRIS_GL.l);   // (§127)
   }
   // En isométrie, on avance le chantier sans se presser : la bascule en 1re personne sera nette.
   function prechauffer() {
@@ -22483,7 +22635,7 @@ function photo() {
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
-    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), brumeTomes: (P.brumeTomes || []).slice(-600), rumeurs: (P.rumeurs || []).slice(0, 40), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
+    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), achromies: (P.achromies || []).slice(-300), grisProg: P.grisProg || null, pigments: Object.assign({}, P.pigments || {}), brumeTomes: (P.brumeTomes || []).slice(-600), rumeurs: (P.rumeurs || []).slice(0, 40), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite,
     fleches: P.fleches, baumes: P.baumes, soins: Object.assign({}, P.soins), defense: { mur: P.defense.mur | 0, tours: P.defense.tours | 0 }, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -22593,6 +22745,11 @@ function appliquer(d, vivantes) {
   P.korlaz = d.korlaz && typeof d.korlaz === 'object' ? { duree: nb(d.korlaz.duree, 0, 1e7, 0), prochain: 0 } : null; P.korlazExpo = 0;   // l'infection suit le personnage
   P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
   P.brumesLevees = Array.isArray(d.brumesLevees) ? d.brumesLevees.filter(Number.isInteger).slice(-300) : [];
+  // (§127) l'Achromie : les îles rendues à leurs couleurs, l'île en cours, les pigments
+  { const L = Array.isArray(d.achromies) ? d.achromies : Array.isArray(d.grisailles) ? d.grisailles : []; P.achromies = L.filter(Number.isInteger).slice(-300); }   // (§128) l'ancien nom : « grisailles »
+  P.grisProg = d.grisProg && Number.isInteger(d.grisProg.g) ? { g: d.grisProg.g, s: Array.isArray(d.grisProg.s) ? d.grisProg.s.filter(x => typeof x === 'string').slice(0, 8) : [],
+    e: Array.isArray(d.grisProg.e) ? d.grisProg.e.filter(x => typeof x === 'string').slice(0, 8) : [] } : null;
+  P.pigments = {}; if (d.pigments && typeof d.pigments === 'object') for (const [k, n] of Object.entries(d.pigments)) if (/^[a-z]+:[1-6]$/.test(k) && Number.isInteger(n) && n > 0) P.pigments[k] = Math.min(9999, n);
   P.rumeurs = Array.isArray(d.rumeurs) ? d.rumeurs.filter(r => r && typeof r.t === 'string' && r.t.length < 400).slice(0, 40).map(r => ({ t: r.t, g: r.g | 0 ? r.g : 0, x: +r.x || 0, y: +r.y || 0, n: r.n | 0 })) : [];   // le carnet des rumeurs (§111)
   P.brumeTomes = Array.isArray(d.brumeTomes) ? d.brumeTomes.filter(k => typeof k === 'string' && k.length < 40).slice(-600) : [];   // les lutrins de la brume déjà lus (graine.cercle / graine.ile)   // les îles dont vous avez levé la brume sanglante
   for (const id in INGR) if (ingrGarde(id)) { const n = nb(d.cellier && d.cellier[id], 0, 1e6, 0) | 0; if (n) P.cellier[id] = n; }
@@ -22875,12 +23032,14 @@ function demarrerSauvegarde() {
   ecrireLocal();
   try { sessionStorage.removeItem(STOCKAGE); } catch (e) { /* rien à ranger */ }   // la copie de voyage a servi
   synchroniser();                                        // a-t-on joué ailleurs depuis ?
+  jnlDemarrer();                                         // (§126) le journal de jeu
 }
 function majSauvegarde() {
   if (!Sauve.pret || essai) return;
   const s = maintenant();
   if (s - Sauve.tTick < 2) return;
   Sauve.tTick = s;
+  jnlTic();                                              // (§126) le journal de jeu
   const sig = signature();
   if (sig !== Sauve.signature) { Sauve.signature = sig; Sauve.sale = true; Sauve.tChange = s; }
   if (!Sauve.sale) Sauve.tPremier = null;
@@ -23169,6 +23328,134 @@ redistribuerEffets();                                // un effet varié pour cha
 if (typeof etatsInit === 'function') etatsInit();   // le remède du Korlaz dans les recettes (etats.js)
 loadWorld();
 arriveeLe = maintenant();                            // le répit des premières secondes
+// ---------- le journal de jeu (§126) ----------
+// Pour développer et équilibrer : ce qui se passe en partie part, par paquets, dans la table vp_journal (Supabase,
+// fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
+// Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
+// Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
+const JNL_VERSION = 'stone-valley-96', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
+  c: { r: {}, tues: {}, conso: {}, coups: 0 } };
+function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
+function jnl(g, d) {
+  if (essai || JNL.coupe || !jnlActif()) return;
+  try {
+    if (!d || typeof d !== 'object' || Array.isArray(d)) d = d === undefined || d === null ? null : { v: d };
+    const n = d ? JSON.stringify(d).length : 0;
+    if (n > 3000) d = { trop: n, cles: Object.keys(d).slice(0, 30) };
+    JNL.file.push({ g: String(g).slice(0, 32), d, t: Date.now() });
+    if (JNL.file.length > JNL_MAX) JNL.file.splice(0, JNL.file.length - JNL_MAX);
+  } catch (e) { /* le journal ne doit rien casser */ }
+}
+async function jnlEnvoyer() {
+  if (JNL.envoi || JNL.coupe || !JNL.file.length || !Compte.uid || !jnlActif()) return;
+  const L = JNL.file.splice(0, 60); JNL.envoi = true; JNL.envoiT = Date.now();
+  try {
+    const r = await rpc('vp_journaliser', { p_session: JNL.session, p_version: JNL_VERSION, p_lignes: L });
+    if (r && r.plein) JNL.envoiT = Date.now() + 15 * 60e3;   // le plafond de l'heure : on attend, sans insister
+    try { localStorage.removeItem(JNL_CLE); } catch (e) { /* rien */ }
+  } catch (e) {
+    const m = String((e && e.message) || e);
+    if (/vp_journaliser|schema cache|PGRST202|HTTP 404/i.test(m)) { JNL.coupe = true; JNL.file.length = 0; return; }   // la base n'a pas le journal
+    JNL.file.unshift(...L); if (JNL.file.length > JNL_MAX) JNL.file.length = JNL_MAX;   // hors ligne : on garde, on réessaiera
+  } finally { JNL.envoi = false; }
+}
+// La file attend dans le navigateur : au changement d'île (la page se recharge), à l'arrière-plan, au départ.
+function jnlGarder() {
+  try { if (JNL.file.length && Compte.uid) localStorage.setItem(JNL_CLE, JSON.stringify({ u: Compte.uid, f: JNL.file.slice(-200) })); } catch (e) { /* plein : tant pis */ }
+}
+addEventListener('pagehide', jnlGarder);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') jnlGarder(); });
+const jnlR = v => Math.round(v * 100) / 100;
+const jnlNz = o => { const r = {}; for (const k in o) if (typeof o[k] === 'number' && o[k] >= 1) r[k] = Math.round(o[k]); return r; };
+function jnlLieu() {
+  return { ile: SEED, expl: profondeur(), chez: campIci() ? 1 : 0, dj: djIci() ? DJ.e : -1, raid: raidIci() ? 1 : 0, h: Math.round(horloge * 24) };
+}
+function jnlEtat() { return { expl: profondeur(), camp: P.camp ? nivCamp() : 0, dj: djIci() ? DJ.e : -1, raid: raidIci() ? 1 : 0, liens: P.compagnes.length }; }
+function jnlInstantane() {
+  const ingr = {}; for (const id in INGR) { const n = sacIngr(id); if (n > 0) ingr[INGR[id].r || 1] = (ingr[INGR[id].r || 1] || 0) + n; }
+  const cel = {}; for (const id in P.cellier) if (P.cellier[id] > 0 && INGR[id]) cel[INGR[id].r || 1] = (cel[INGR[id].r || 1] || 0) + P.cellier[id];
+  const mem = performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null;
+  const d = Object.assign(jnlLieu(), {
+    min: Math.round((Date.now() - JNL.t0) / 60000), vies: lives, pv: jnlR(P.pv),
+    camp: P.camp ? { niv: nivCamp(), expl: nivCampement(), mur: P.defense.mur | 0, tours: P.defense.tours | 0 } : null,
+    modules: jnlNz(P.modules), sac: jnlNz(P.sac), baies: P.baies | 0, coffre: jnlNz(P.coffre), ingr, cellier: cel,
+    objets: Object.keys(P.objets).filter(k => P.objets[k]).length, sorts: P.sorts.length, tomes: Object.keys(P.tomes || {}).length,
+    compagnes: P.compagnes.slice(0, 16).map(c => c.esp + ':' + c.role[0] + ':' + (c.mode || 'joueur')[0] + (c.recolte ? ':' + c.recolte : '') + (c.ko ? ':ko' : '')),
+    champs: P.champs.map(c => c.n + ':' + c.s.filter(s => s.e).length + '/' + c.s.length), graines: Object.values(P.graines || {}).reduce((a, n) => a + n, 0),
+    coupes_camp: CAMP_COUPES.size, recolte: jnlNz(JNL.c.r), coups: JNL.c.coups, tues: JNL.c.tues, conso: JNL.c.conso,
+    perf: { img_s: Math.round(imgSec), ms: Math.round(msDessin * 10) / 10, gl: !!(G3.ok && !G3.perdu), iso: isoGL ? 1 : 0, mode, mem, betes: beasts.filter(b => !b.dead).length },
+    joueurs: Autres.size });
+  JNL.c = { r: {}, tues: {}, conso: {}, coups: 0 };     // les compteurs repartent : chaque instantané dit ses cinq minutes
+  return d;
+}
+// Toutes les deux secondes (avec la sauvegarde) : les passages, l'instantané des cinq minutes, l'envoi.
+function jnlTic() {
+  if (!JNL.pret) return;
+  const now = Date.now(), v = jnlEtat(), a = JNL.vu || v;
+  for (const k of ['expl', 'camp', 'dj', 'raid']) if (v[k] !== a[k]) jnl('passage', Object.assign({ k, de: a[k], a: v[k], min: Math.round((now - JNL.t0) / 60000) }, jnlLieu()));
+  JNL.vu = v;
+  if (now - JNL.instT >= 300e3) { JNL.instT = now; jnl('instantane', jnlInstantane()); }
+  if (JNL.file.length >= 40 || JNL.file.length && now - JNL.envoiT >= 60e3) jnlEnvoyer();
+}
+// Les gestes qui comptent, notés au passage : chaque fonction garde son nom et son effet, on regarde avant et après.
+function jnlBrancher() {
+  const sur = (nom, avant, apres) => {
+    const f = globalThis[nom]; if (typeof f !== 'function' || f.__jnl) return;
+    const g = function (...a) { let x; try { x = avant ? avant(...a) : null; } catch (e) { x = null; }
+      const r = f.apply(this, a); try { apres(r, x, ...a); } catch (e) { /* rien */ } return r; };
+    g.__jnl = 1; globalThis[nom] = g;
+  };
+  const sig = () => JSON.stringify(P.sac) + '|' + Object.keys(P.objets).filter(k => P.objets[k]).length + '|' + JSON.stringify(P.carresN);
+  sur('fabriquer', () => sig(), (r, x, id) => { if (x !== sig()) jnl('fabrique', Object.assign({ id, etabli: nivEtabli() }, jnlLieu())); });
+  sur('faireCamp', () => JSON.stringify(P.modules) + nivCamp() + (P.defense.mur | 0) + (P.defense.tours | 0),
+    (r, x, id) => { if (x !== JSON.stringify(P.modules) + nivCamp() + (P.defense.mur | 0) + (P.defense.tours | 0)) jnl('module', Object.assign({ id: String(id).slice(0, 24), camp: nivCamp(), modules: jnlNz(P.modules), coffre: jnlNz(P.coffre) }, jnlLieu())); });
+  sur('poserCampement', null, r => { if (r) jnl('campement', Object.assign({ q: 'pose', niv: nivCamp() }, jnlLieu())); });
+  sur('reprendreCampement', () => !!P.camp, (r, x) => { if (x && !P.camp) jnl('campement', Object.assign({ q: 'reprise', niv: nivCamp() }, jnlLieu())); });
+  sur('poserChamp', null, (r, x, n) => { if (r) jnl('culture', Object.assign({ q: 'pose', n: n || 1 }, jnlLieu())); });
+  sur('reprendreChamp', () => P.champs.length, (r, x) => { if (P.champs.length < x) jnl('culture', Object.assign({ q: 'reprise' }, jnlLieu())); });
+  sur('semer', q => q.s.e, (r, x, q, g) => { if (!x && q.s.e === g) jnl('culture', { q: 'seme', g, ta: q.ta, r: (graineInfo(g) || {}).r || 1 }); });
+  sur('cueillirChamp', q => q.s.m, (r, x, q) => { if (q.s.m < x) jnl('culture', { q: 'cueille', g: q.s.e }); });
+  sur('champRecu', () => JSON.stringify(champsIci().map(champPhoto)), (r, x, d) => { if (x !== JSON.stringify(champsIci().map(champPhoto))) jnl('culture', { q: 'coop_' + String(d.q).slice(0, 10) }); });
+  sur('lier', null, (r, x, b, voie) => { if (r) jnl('lien', Object.assign({ esp: r.esp, voie: String(voie || '').slice(0, 16), rare: rareEspece(specById[r.esp]), liens: P.compagnes.length }, jnlLieu())); });
+  sur('tenterAlch', () => { const k = statAlch(), q = potionDe(k); return q ? { k: String(k).replace(/^c\d+:/, 'comp:'), rang: q.rg + 1, dec: q.dec, chance: Math.round(chanceAlch(k)), ingr: ((P.chaudron && P.chaudron.e) || []).slice(0, 8) } : null; },
+    (r, x) => { if (x) jnl('potion', Object.assign(x, { ok: r ? 1 : 0, table: nivModule('alchimie') })); });
+  sur('cuire', () => [marmiteSel.slice(), marmiteSel.length ? qteIngr(marmiteSel[0]) : 0],
+    (r, x) => { if (x[0].length && qteIngr(x[0][0]) < x[1]) jnl('plat', { ingr: x[0].slice(0, 8), cuisine: nivCuisine(), chez: campIci() ? 1 : 0 }); });
+  sur('consommer', null, (r, x, p) => { const k = String((p && (p.c || p.nom)) || '?').slice(0, 30); JNL.c.conso[k] = (JNL.c.conso[k] || 0) + 1; });
+  sur('butin', b => b && b.sp && !b.tame ? b.sp.id : null, (r, x) => { if (x) JNL.c.tues[x] = (JNL.c.tues[x] || 0) + 1; });
+  sur('coupRecolte', nd => nd && nd.sp ? [nd.sp.res, auSac(nd.sp.res)] : null, (r, x) => { if (!x) return; JNL.c.coups++; const g = auSac(x[0]) - x[1]; if (g > 0) JNL.c.r[x[0]] = (JNL.c.r[x[0]] || 0) + g; });
+  sur('perdreCoeur', null, r => jnl('coeur', Object.assign({ vies: lives, tout: r ? 1 : 0, min: Math.round((Date.now() - JNL.t0) / 60000), liens: P.compagnes.length }, jnlLieu())));
+  sur('voyagerVers', (g, pos, mot, niv) => {
+    const der = JNL.file[JNL.file.length - 1];
+    if (!(der && der.g === 'portail' && der.d && der.d.vers === g && Date.now() - der.t < 10000))
+      jnl('portail', Object.assign({ vers: g, niv: niv ?? null, mot: String(mot || '').slice(0, 60), part: raidIci() ? Raid.part || 0 : null }, jnlLieu()));
+    jnlGarder();
+  }, () => {});
+  sur('travailAbsence', (liste, depuis) => [Date.now() - depuis, Object.assign({}, P.coffre), Object.assign({}, P.sac), (liste || []).filter(r => r.aucamp && !r.ko).length],
+    (r, x) => { const gain = {}; for (const o of [[P.coffre, x[1]], [P.sac, x[2]]]) for (const k in o[0]) { const d = (o[0][k] || 0) - (o[1][k] || 0); if (d > 0) gain[k] = (gain[k] || 0) + d; }
+      if (x[3]) jnl('absence', { min: Math.round(x[0] / 60000), compagnes: x[3], gain }); });
+  sur('rattraper', null, (r, x, e, ou) => { if (JNL.erreurs++ < 20) jnl('erreur', { ou: String(ou).slice(0, 20), m: String(Panne.dernier || '').slice(0, 400) }); });
+  sur('nmPrime', () => { const C = NM.car; return C ? C.gens.filter(b => b.quete && b.quete.etat === 'pret').length : 0; },
+    (r, x) => { const C = NM.car; if (!C) return; const L = C.gens.filter(b => b.quete && b.quete.type === 'prime' && b.quete.etat === 'pret'); if (L.length > x) jnl('prime', Object.assign({ esp: L[L.length - 1].quete.esp, n: L[L.length - 1].quete.n }, jnlLieu())); });
+}
+// Au début de la partie (après la lecture de la sauvegarde) : la session, la file restée d'avant, les branchements.
+function jnlDemarrer() {
+  if (JNL.pret || essai) return;
+  JNL.pret = true;
+  try {
+    let s = sessionStorage.getItem('stone_valley:jsession');   // une session tient d'une île à l'autre (la page se recharge)
+    const nouvelle = !s; if (nouvelle) { s = Math.random().toString(36).slice(2, 10) + '-' + Date.now().toString(36).slice(-5); sessionStorage.setItem('stone_valley:jsession', s); sessionStorage.setItem('stone_valley:jt0', String(Date.now())); }
+    JNL.session = s; JNL.t0 = +sessionStorage.getItem('stone_valley:jt0') || Date.now(); JNL.nouvelle = nouvelle;
+  } catch (e) { JNL.session = Math.random().toString(36).slice(2, 12); }
+  try { const q = JSON.parse(localStorage.getItem(JNL_CLE) || 'null'); localStorage.removeItem(JNL_CLE);
+    if (q && q.u === Compte.uid && Array.isArray(q.f)) JNL.file.unshift(...q.f.filter(l => l && typeof l.g === 'string').slice(-200)); } catch (e) { /* rien */ }
+  jnlBrancher();
+  const c = contexteJeu(); delete c.dernier; delete c.pos;
+  jnl(JNL.nouvelle ? 'session' : 'arrivee', Object.assign(c, jnlLieu(), { camp: P.camp ? nivCamp() : 0, camp_expl: nivCampement(), vies: lives, liens: P.compagnes.length,
+    sorts: P.sorts.length, tomes: Object.keys(P.tomes || {}).length, champs: P.champs.length, min: Math.round((Date.now() - JNL.t0) / 60000) }));
+  JNL.vu = jnlEtat(); JNL.instT = Date.now() - 240e3;  // le premier instantané au bout d'une minute
+}
 addEventListener('pagehide', () => debrancher('parti'));
 ouvrirPorte();
 let last = performance.now();

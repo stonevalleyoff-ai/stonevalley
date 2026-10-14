@@ -3035,3 +3035,335 @@ Ailleurs : `flore.js` (`plCueillie`, dans `cueillirPlante` et à la mort d'une v
 
 **À déposer** : `index.html`, `flore.js`, `village.js`, `sw.js` (qui passe en `stone-valley-92`), `LISEZ-MOI.md`.
 
+
+## 125. La culture, livraison 6 : les carrés à plusieurs
+
+Sur l'île de votre campement, les autres joueurs voient vos carrés de culture et peuvent s'en occuper pour vous.
+
+**Ce que voit le visiteur.** Vos carrés et ce qui y pousse : la terre aplanie, les sillons, les plantes à leur stade, les mauvaises herbes. Votre jeu les lui envoie à son arrivée, puis à chaque changement (au plus une fois par seconde), et toutes les 30 secondes de toute façon. Ils disparaissent quand vous quittez l'île.
+
+**Ce qu'il peut faire.** Le bouton ACTION, au bord de vos carrés :
+
+- **DÉSHERBER**.
+- **ARROSER** : il utilise son propre seau.
+- **RÉCOLTER** une plante mûre, pour vous : le bois, la fibre ou les baies vont à votre coffre (ou à votre sac si vous n'avez pas de coffre), les ingrédients des plantes rares à votre garde-manger. Un arbre est taillé, comme quand vous le récoltez vous-même.
+- **Il ne sème pas.** Un emplacement vide affiche « CARRÉ de Romain · lui seul y sème ».
+
+Il ne gagne rien : c'est un coup de main. Sa récolte ordinaire (le geste habituel sur la flore) ne prend pas dans vos carrés. Les cueilleuses des villages non plus.
+
+**Ce que vous voyez.** « Pascal récolte votre pin · +15 bois au coffre » ; « Pascal arrose votre coquelicot ».
+
+**Qui décide.** Votre jeu. Le geste du visiteur part chez vous ; votre jeu le vérifie (plante mûre, herbes présentes), l'applique et renvoie l'état. Un geste rejoué, ou qui ne vous est pas adressé, est ignoré. Hors ligne, rien ne part.
+
+**Pas prévu** : piller les cultures pendant un raid.
+
+**Dans le code** (`index.html`, bloc « les carrés à plusieurs », dans LA CULTURE) :
+
+- les fonctions `CHAMPS_LOIN`, `champsVus`, `champPhoto`, `envoyerChamps`, `champLoinLu`, `recevoirChamps`, `oublierChampsLoin`, `actionChampLoin` et `champRecu` ;
+- les messages `champs` (l'état des carrés) et `champ` (un geste) ;
+- le terrassement, le dessin, `placeProche`, `placeChamp` et `champsFloreMettre` passent à `champsVus` ;
+- `noeudProche` saute les cases des carrés des autres ;
+- `majDistant` envoie les carrés aux nouveaux venus, `effacerDistant` les oublie.
+
+Ailleurs : `village.js` (les cueilleuses ne prennent rien dans un carré).
+
+## 126. Le journal de jeu (statistiques pour l'équilibrage)
+
+Ce qui se passe en partie part, par paquets, dans une table Supabase, `vp_journal`. On y voit comment on joue vraiment : ce qu'on récolte, ce qu'on fabrique, où l'on meurt, combien de temps entre deux niveaux, la fluidité selon les appareils.
+
+**Ce qui est noté.** Chaque ligne porte un genre, des données, l'heure de jeu, la session et la version.
+
+| Genre | Quand | Données |
+|---|---|---|
+| `session` / `arrivee` | début de partie / chaque île (la page se recharge) | appareil, écran, WebGL, île, exploration, campement, vies, compagnes, sorts, tomes, minutes de session |
+| `instantane` | toutes les 5 minutes | sac, coffre, garde-manger, ingrédients par rareté, modules, compagnes (espèce, rôle, mode), carrés, graines, pieds abattus au campement ; sur ces 5 minutes : récoltes par matière, coups, bêtes tuées par espèce, plats et potions consommés ; perf (images/s, ms de dessin, mémoire, bêtes vivantes) |
+| `passage` | changement d'exploration, de niveau de campement, d'étage de donjon, entrée ou sortie de raid | avant, après, minutes de session |
+| `portail` | départ vers une île | île visée, niveau, part du butin de raid |
+| `coeur` | cœur perdu | vies restantes, tout perdu ou non, lieu (île, exploration, chez soi, donjon, raid, heure) |
+| `fabrique`, `module`, `campement` | objet fabriqué, module créé ou amélioré, campement posé ou repris | objet, niveaux, coffre |
+| `culture` | carré posé ou repris, semis, cueillette, geste d'un visiteur | graine, taille |
+| `lien` | bête liée | espèce, rareté, nombre de compagnes |
+| `potion`, `plat` | essai d'alchimie, plat cuisiné | potion, rang, chance, ingrédients, réussite ; niveau de la cuisine |
+| `nomade`, `prime` | affaire faite avec un voyageur, prime remplie | métier, affaire, amitié |
+| `absence` | retour au jeu | minutes, compagnes au camp, ce qu'elles ont rapporté |
+| `erreur` | incident technique | lieu, message (20 par session au plus) |
+
+**Comment ça part.** La file attend dans le navigateur. Elle part toutes les minutes, ou dès 40 lignes, 60 lignes par envoi au plus. Elle est gardée dans le navigateur au changement d'île, à l'arrière-plan et hors ligne, puis renvoyée ensuite. La base refuse au-delà de 1 500 lignes par heure et par joueur (une partie normale en écrit 20 à 40). Pas d'envoi en mode essai.
+
+**Pour le joueur.**
+
+- Réglages › Aide › **Statistiques de jeu** : « Envoyées » / « Coupées ».
+- La page « Données personnelles » le dit.
+- « Supprimer mon compte » efface aussi le journal.
+
+**Dans la base.** Il faut une migration, qui n'est pas encore appliquée (voir plus bas). Elle crée :
+
+- la table `vp_journal`, en RLS sans aucune règle : personne ne la lit ni ne l'écrit directement ;
+- la fonction `vp_journaliser(p_session, p_version, p_lignes)`, réservée aux joueurs connectés, qui vérifie chaque ligne (genre de 32 caractères au plus, données de 4 Ko au plus, heure plausible) ;
+- dans `vp_supprimer_compte`, une ligne de plus.
+
+Tant que la migration manque, le jeu s'en aperçoit au premier envoi et se tait jusqu'à la fin de la session.
+
+```sql
+create table if not exists public.vp_journal (
+  id bigint generated always as identity primary key,
+  utilisateur uuid not null references auth.users(id) on delete cascade,
+  session text not null default '' check (char_length(session) <= 24),
+  version text not null default '' check (char_length(version) <= 24),
+  genre text not null check (char_length(genre) between 1 and 32),
+  donnees jsonb check (donnees is null or pg_column_size(donnees) <= 4096),
+  joue_le timestamptz,
+  cree_le timestamptz not null default now());
+create index if not exists vp_journal_genre_idx on public.vp_journal (genre, cree_le desc);
+create index if not exists vp_journal_utilisateur_idx on public.vp_journal (utilisateur, cree_le desc);
+alter table public.vp_journal enable row level security;
+
+create or replace function public.vp_journaliser(p_session text, p_version text, p_lignes jsonb)
+returns jsonb language plpgsql security definer set search_path to '' as $$
+declare v_uid uuid := auth.uid(); v_deja int; v_n int := 0; l jsonb; v_t timestamptz;
+begin
+  if v_uid is null then raise exception 'compte requis'; end if;
+  if jsonb_typeof(p_lignes) is distinct from 'array' then raise exception 'lignes attendues'; end if;
+  select count(*) into v_deja from public.vp_journal where utilisateur = v_uid and cree_le > now() - interval '1 hour';
+  if v_deja >= 1500 then return jsonb_build_object('ok', false, 'plein', true); end if;
+  for l in select value from jsonb_array_elements(p_lignes) limit least(60, 1500 - v_deja) loop
+    continue when jsonb_typeof(l) <> 'object' or jsonb_typeof(l->'g') <> 'string' or char_length(l->>'g') not between 1 and 32;
+    continue when l ? 'd' and jsonb_typeof(l->'d') not in ('object', 'null');
+    continue when pg_column_size(l->'d') > 4096;
+    v_t := null;
+    if jsonb_typeof(l->'t') = 'number' then
+      v_t := to_timestamp((l->>'t')::double precision / 1000);
+      if v_t < now() - interval '7 days' or v_t > now() + interval '1 hour' then v_t := null; end if;
+    end if;
+    insert into public.vp_journal (utilisateur, session, version, genre, donnees, joue_le)
+      values (v_uid, left(coalesce(p_session, ''), 24), left(coalesce(p_version, ''), 24), l->>'g', nullif(l->'d', 'null'::jsonb), v_t);
+    v_n := v_n + 1;
+  end loop;
+  return jsonb_build_object('ok', true, 'n', v_n);
+end $$;
+revoke all on function public.vp_journaliser(text, text, jsonb) from public, anon;
+grant execute on function public.vp_journaliser(text, text, jsonb) to authenticated;
+-- et dans vp_supprimer_compte, avant « delete from auth.users » :
+--   delete from public.vp_journal where utilisateur = v_uid;
+```
+
+**Lire le journal** (éditeur SQL) :
+
+```sql
+-- les dernières lignes
+select cree_le, genre, donnees from vp_journal order by cree_le desc limit 100;
+-- où l'on meurt
+select donnees->>'expl' expl, (donnees->>'dj')::int >= 0 donjon, count(*) from vp_journal where genre = 'coeur' group by 1, 2 order by 1;
+-- ce qu'on récolte, par matière, sur les instantanés
+select k, sum(v::int) from vp_journal, jsonb_each_text(donnees->'recolte') e(k, v) where genre = 'instantane' group by k order by 2 desc;
+-- la fluidité selon l'appareil
+select round(avg((donnees->'perf'->>'img_s')::numeric)) img_s, donnees->'perf'->>'mode' mode, count(*) from vp_journal where genre = 'instantane' group by 2;
+```
+
+**Dans le code** : `index.html`, bloc « le journal de jeu », juste avant la boucle d'images :
+
+- les fonctions `jnl`, `jnlEnvoyer`, `jnlGarder`, `jnlInstantane`, `jnlTic`, `jnlBrancher` et `jnlDemarrer` ;
+- `jnlBrancher` enveloppe les fonctions de jeu (`fabriquer`, `faireCamp`, `semer`, `lier`, `tenterAlch`, `cuire`, `perdreCoeur`, `voyagerVers`, `travailAbsence`, `rattraper`…). Elle regarde avant et après, sans rien y changer ;
+- `jnlTic` tourne avec la sauvegarde (toutes les deux secondes) ;
+- `JNL_VERSION` suit le cache de `sw.js`.
+
+Ailleurs : `nomades.js` (l'affaire faite).
+
+**À déposer** (pour les sections 125 et 126) : `index.html`, `nomades.js`, `village.js`, `sw.js` (qui passe en `stone-valley-93`), `LISEZ-MOI.md`. Il faut aussi appliquer la migration ci-dessus dans Supabase.
+
+## 127. L'Achromie, livraison 1 : l'île sans couleur, les veilleurs, le sanctuaire rouge
+
+Un troisième état d'île, en escape game. Dès l'exploration 4, environ une île sur huit (13 %) : la couleur a quitté l'île et le prisme de son arche s'est brisé. Pas d'autre état d'île en même temps, et jamais sur une île de Tisseuse.
+
+**Ce qu'on voit.**
+
+- Tout est gris : le sol, le ciel, l'eau, les bêtes, vous et vos compagnes. Le menu et les jauges restent en couleur.
+- La musique se tait.
+- L'arche est éteinte : plus de voile, un chaton vide en haut, des débris au pied. ACTION y dit **PRISME · brisé** et donne la direction du sanctuaire.
+- Le HUD affiche « achromie · éclats 0/1 ».
+
+**La lanterne prismatique** (touche **O**, ou le bouton LANTERNE au-dessus d'ATTAQUER).
+
+- Dans son halo, environ 4 cases autour de vous, les vraies couleurs reviennent, vous compris.
+- Elle tient 70 secondes allumée et se recharge en 30 secondes éteinte.
+
+**Les veilleurs.** De grandes silhouettes noires, avec un masque blanc et une fente qui luit.
+
+- **Où** : un dans la cour du sanctuaire, deux autour de son enceinte, un autour de l'arche, deux au loin.
+- **Leurs rondes** suivent l'horloge réelle : deux joueurs de l'île les voient aux mêmes places sans rien échanger. Ils ne font pas partie de la faune partagée.
+- **Leur regard** : un cône de 70° qui balaie de part et d'autre de leur route. Une poussière pâle au sol montre jusqu'où il porte. Les murs l'arrêtent.
+- **Ils voient la couleur** : lanterne allumée, ils vous voient jusqu'à 9,5 cases ; éteinte, jusqu'à 3,4 cases. Chaque couleur rendue retire 12 % à leur portée.
+- **Vu**, un voile blanc monte, environ 0,8 seconde de près avec la lanterne. Il redescend si vous sortez du cône.
+- **Délavé** quand il est plein : vous revenez au dernier seuil (le point d'arrivée, ou l'entrée du sanctuaire dès qu'on est entré dans la cour). La lanterne est vide et les braseros se rééteignent. Pas de cœur perdu.
+- Ils sont invulnérables (« le coup traverse le gris »). Vos compagnes les ignorent.
+- Les 20 premières secondes sur l'île, ils ne voient rien.
+
+**Le sanctuaire rouge.**
+
+- **L'enceinte** : 17 × 17 cases, murs de 4 cubes, sur un replat tiré de la graine (le même pour tous). Son entrée regarde vers l'arrivée. Le sol est dallé et les petits gouffres sont comblés. Pas de campement ni de carré de culture dessus.
+- **Dans la cour** :
+  - quatre **braseros** sur leurs socles, chacun cerclé d'une bague en céramique rouge, verte, bleue ou jaune. Les quatre ont la même clarté : dans le gris, ils sont identiques ;
+  - une **fresque** sur le mur du cœur montre l'ordre des feux en couleurs ;
+  - un **lutrin** donne trois **indices**, un toutes les 40 secondes au plus. Le dernier donne l'ordre.
+- **Les gestes** (ACTION) :
+  - **LIRE** la fresque : sans lanterne, « toutes du même gris » ; avec, l'ordre en toutes lettres, pour les daltoniens ;
+  - **ALLUMER** un brasero : avec la lanterne, l'étiquette nomme la couleur de sa bague. Une erreur éteint tout : « un souffle gris… ».
+- **Les quatre feux dans l'ordre** : la porte du cœur s'ouvre.
+- **Sur l'autel** : **PRENDRE** l'éclat rouge. Le rouge revient sur toute l'île : rouges, orangés, bruns et le feu. Les veilleurs voient moins loin.
+- L'éclat est gardé par la logique du jeu : passer par-dessus un mur ne permet pas de le prendre.
+
+**À l'arche** : **PRISME · reposer l'éclat**.
+
+- Toute la couleur revient en deux ou trois secondes. Les veilleurs éclatent en couleurs, l'arche se rallume et FRANCHIR revient.
+- Vous recevez **un pigment**, un seul par île et par joueur. Sa rareté suit le niveau de l'île, avec le même calcul que les plantes rares (`poidsRarete`) : plutôt peu commun à l'exploration 4, rare à 6, exotique à 8, légendaire à 10. L'épique n'existe qu'au plus profond : la nacre prismatique.
+
+| | commun | peu commun | rare | exotique | légendaire |
+|---|---|---|---|---|---|
+| rouge | ocre rouge | garance | cinabre | carmin | pourpre |
+| jaune | ocre jaune | safran | orpiment | jaune indien | or |
+| vert | terre verte | vert-de-gris | malachite | vert émeraude | jade |
+| bleu | guède | azurite | indigo | lapis-lazuli | bleu céleste |
+
+Les pigments se voient dans le Journal (rubrique « Pigments »). Leur usage viendra plus tard.
+
+**Sauvegardé.**
+
+- `P.achromies` : les îles rendues à leurs couleurs. En y revenant, l'île est en couleur, sans veilleurs, et on ne gagne pas de second pigment.
+- `P.grisProg` : l'île en cours (sanctuaire résolu, éclats pris). Un rechargement de la page ne fait rien perdre.
+- `P.pigments`.
+
+**Le journal de jeu** (§126) note des lignes `achromie` : arrivée, fresque lue, indice, mauvais ordre, sanctuaire résolu, éclat, délavage, fin. Elles portent les minutes passées sur l'île, le nombre de délavages, d'indices et de fautes, et le pigment.
+
+**Le gris lui-même** est fait par la carte graphique.
+
+- Le code GLSL `GRIS_GLSL` est inclus dans les shaders du décor, des panneaux et du ciel. Chaque couleur rendue garde sa bande de teinte : rouge −32° à 36°, jaune 36° à 72°, vert 72° à 168°, bleu 168° à 262°, violet 262° à 328°. La lanterne garde tout dans son halo. Le reste passe au gris de même clarté, contraste ×1,18.
+- `GRIS_GL` porte ces valeurs à chaque image.
+- Sans carte graphique (mode de secours), c'est un filtre CSS global, moins fin.
+
+**Dans le code** :
+
+- `achromie.js` (nouveau) ;
+- `etats.js` : `etatGraine`, `etatsIle`, `etatsSolDOrigine`, `majEtats`, `dessinerFiltre`. Les visions du Korlaz ne comptent pas les veilleurs ;
+- `index.html` :
+  - les shaders ;
+  - `majBete` et le dessin des bêtes ;
+  - ACTION ;
+  - `auPortailIle` et `portailOs` (l'arche éteinte) ;
+  - `placeCamp` et `placeChamp` ;
+  - la touche O ;
+  - la musique ;
+  - le portail du campement (vœu « Achromie ») ;
+  - la sauvegarde ;
+  - le Journal ;
+  - le HUD.
+
+**Pas encore** (livraisons 2 et 3) :
+
+- les sanctuaires jaune, vert et bleu, avec leurs mécanismes (miroirs, blocs, plaques, vannes) ;
+- l'arc-en-ciel ;
+- la musique qui revient instrument par instrument ;
+- l'Achromie partagée en coop : pour l'instant, chacun résout la sienne et voit sa propre porte.
+
+**À déposer** : `achromie.js` (nouveau), `index.html`, `etats.js`, `sw.js` (qui passe en `stone-valley-94` et met `achromie.js` en cache), `LISEZ-MOI.md`.
+
+## 128. L'Achromie, livraison 2 : le nouveau nom, et les sanctuaires jaune, vert et bleu
+
+**Le nom.** La Grisaille s'appelle désormais l'**Achromie** (« sans couleur »). Changent avec lui : le fichier, qui devient `achromie.js` (`grisaille.js` disparaît), l'état d'île `achromie`, le HUD (« achromie · éclats 0/4 »), le vœu du portail, le journal de jeu (lignes `achromie`) et la sauvegarde (`P.achromies`). Une sauvegarde qui porterait encore `grisailles` est relue.
+
+**Jusqu'à quatre sanctuaires par île.**
+
+- Le rouge est toujours là. Les autres sont tirés de la graine.
+- Sur une petite île, faute de place, il en manque parfois un.
+- Ils sont éloignés d'au moins 26 à 30 cases les uns des autres.
+- L'arche demande tous les éclats de l'île : « PRISME · brisé · 1 sur 4 ». Elle indique le sanctuaire manquant le plus proche et sa direction.
+
+Chaque sanctuaire a :
+
+- son enceinte et sa porte du cœur ;
+- son autel et son éclat : prendre l'éclat rend sa couleur à l'île, et chaque couleur rendue retire 12 % à la portée des veilleurs ;
+- son lutrin, avec ses trois indices ;
+- trois veilleurs : un dans la cour, au ras des dalles, deux autour de l'enceinte.
+
+Il y a aussi un veilleur autour de l'arche et deux au loin, soit 15 en tout avec quatre sanctuaires.
+
+**JAUNE · les miroirs.**
+
+- Un soleil de pierre, sculpté dans le mur de gauche, lance un rayon.
+- Cinq miroirs sur pied se tournent d'un quart de tour (**TOURNER**) et renvoient le rayon. Trois servent, deux sont des leurres.
+- Quand le rayon touche le cristal devant la porte, celui-ci s'allume et la porte s'ouvre.
+- **Le rayon ne se voit qu'à la lanterne**, et seulement dans son halo. Le cristal allumé, lui, se voit de loin.
+
+**VERT · les blocs.**
+
+- Il y a trois dalles. Deux sont bordées de couleur ; la troisième porte une empreinte de pas.
+- Deux blocs de mousse portent chacun une couleur : **POUSSER** les déplace d'une case dans le sens de la poussée.
+- Les blocs sont de vrais cubes : on bute dessus et on peut monter dessus. Un mur, un autre bloc ou un objet les arrête.
+- La porte s'ouvre quand chaque bloc est sur la dalle de sa couleur et que la troisième dalle porte un poids vivant : vous, ou une compagne.
+- Dans le gris, les couleurs des blocs et des dalles se confondent ; à la lanterne, l'étiquette de POUSSER nomme la couleur du bloc.
+- Un **levier** près de l'entrée (**RAMENER**) remet les blocs en place, pour sortir d'un coin.
+
+**BLEU · les bassins.**
+
+- Il y a un grand bassin de cinq mesures et un petit de trois.
+- Six vannes remplissent, vident, ou versent un bassin dans l'autre (**REMPLIR**, **VIDER**, **VERSER**).
+- La porte s'ouvre quand le grand bassin contient la mesure marquée par une encoche peinte en bleu. Ce bleu a la même clarté que la pierre : il ne se voit qu'à la lanterne.
+- La mesure, tirée de la graine, est de 4 ou de 1 : six gestes dans les deux cas.
+- ACTION sur un bassin donne son niveau et, à la lanterne, nomme l'encoche.
+
+**Sauvegardé** : les sanctuaires résolus et les éclats pris (`P.grisProg`). Relus, les mécanismes sont remis dans leur état final : braseros allumés, rayon au cristal, blocs sur leurs dalles, bassin à la mesure. L'état d'un mécanisme en cours n'est pas gardé : un rechargement le remet à zéro.
+
+**Le journal de jeu** note, par sanctuaire : sa résolution, les indices pris, les erreurs et les délavages.
+
+**Dans le code** : `achromie.js`, réécrit pour plusieurs sanctuaires.
+
+- `grBatir` construit chaque sanctuaire ; `GRIS.SS` les liste ; `grDans` trouve celui où l'on se tient.
+- Le jaune : `grRayon`, `grMiroirDir`.
+- Le vert : `grPousser`, `grBlocA`, `grBlocsA`, `grDallesTenues`.
+- Le bleu : `grVanne`.
+- `grResoluNet` remet un sanctuaire dans son état final.
+
+**Pas encore** (livraison 3) : l'arc-en-ciel, la musique qui revient instrument par instrument, l'Achromie partagée en coop.
+
+**À déposer** : `achromie.js` (nouveau ; supprimer `grisaille.js` du dépôt s'il y a été mis), `index.html`, `etats.js`, `sw.js` (qui passe en `stone-valley-95`), `LISEZ-MOI.md`.
+
+## 129. L'Achromie, livraison 3 : l'arc-en-ciel, la musique qui revient, l'Achromie à plusieurs
+
+**L'arc-en-ciel.**
+
+- Sur une île frappée d'Achromie, un arc-en-ciel éteint se dresse dans le ciel, au-dessus de l'arche : son centre est toujours dans la direction de l'arche vue d'où l'on se trouve. Il se voit en 1re personne, et dans la vue de dessus en perspective.
+- Le gris le prend comme le reste. Chaque éclat rapporté lui rend sa bande : le rouge à l'extérieur, puis le jaune, le vert, le bleu. Le violet, à l'intérieur, revient avec le prisme.
+- C'est un compteur dans le ciel, et un repère pour retrouver l'arche.
+- Le prisme reposé, il brille en entier une minute et demie, puis s'efface.
+
+**La musique revient par couches.**
+
+| | |
+|---|---|
+| aucun éclat | le silence |
+| moins de la moitié des éclats | les accords seuls, en nappe |
+| la moitié ou plus | les accords et la mélodie |
+| le prisme reposé | toute la musique, y compris la pulsation des lointains |
+
+**L'Achromie à plusieurs.** Les joueurs d'une même île partagent la même Achromie.
+
+- **Les gestes** passent chez les autres et y sont rejoués : un brasero allumé (une erreur éteint aussi les braseros des autres), un miroir tourné, un bloc poussé, le levier, une vanne.
+- Un **sanctuaire ouvert** l'est pour tous. Sur la dalle du vivant, un autre joueur compte comme poids, au même titre que vous ou une compagne.
+- Un **éclat pris** par un joueur quitte l'autel pour tous, et la couleur revient pour tous.
+- **Le prisme** peut être reposé par n'importe lequel des joueurs. Chacun de ceux qui sont sur l'île à ce moment-là reçoit son pigment, toujours un seul par île.
+- **Un nouveau venu** reçoit l'état de l'île : sanctuaires ouverts, éclats pris, mécanismes en cours. Si l'île est déjà rendue à ses couleurs, il la trouve en couleur, sans pigment.
+- **Restent propres à chacun** : la lanterne, les regards des veilleurs, le délavage.
+- **Sauvegardé** : chacun garde dans sa propre sauvegarde ce que l'équipe a fait.
+
+**Dans le code** :
+
+- `achromie.js` :
+  - le message `achro` : l'état (`grEtat`, `achromieEnvoyer`, envoyé à chaque nouveau venu), les gestes, les éclats, l'ouverture d'un sanctuaire, la fin ;
+  - `achromieRecu` reçoit ces messages ; `grDire` les envoie ;
+  - `grFinir` prend un mode : `local`, `equipe` ou `relu` ;
+  - `achromieVoix` donne la couche de musique.
+- `index.html` :
+  - le ciel (`arcCoul`, `uArc`, `GRIS_GL.arc`) ;
+  - `MUS.phrases` ;
+  - `recevoir` et `majDistant`.
+
+**À déposer** : `achromie.js`, `index.html`, `sw.js` (qui passe en `stone-valley-96`), `LISEZ-MOI.md`.

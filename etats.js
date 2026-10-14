@@ -36,10 +36,14 @@ const ETAT = { id: null, cases: null, annonce: false, brume: 0, flash: 0, rouge:
 const KORLAZ_BIO = 21;
 const KORLAZ_SEUIL = 30;                                  // secondes de spores (pondérées) avant l'infection
 function etatGraine(g, niv) {                             // le Korlaz : une île sur six environ, dès l'exploration 6
-  if (!Number.isInteger(g) || niv < 6) return null;       // la brume sanglante (brume.js) : une sur dix, dès l'exploration 8
+  if (!Number.isInteger(g) || niv < 4) return null;       // la brume sanglante (brume.js) : une sur dix, dès l'exploration 8
   let n = (g ^ 0x6b0f1a) >>> 0; n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
   const v = ((n ^ (n >>> 16)) >>> 0) % 100;
-  return v < 17 ? 'korlaz' : niv >= 8 && v < 27 && typeof brumeIle === 'function' ? 'brume' : null;
+  if (v < 17) return niv >= 6 ? 'korlaz' : null;
+  if (v < 27) return niv >= 8 && typeof brumeIle === 'function' ? 'brume' : null;
+  // (§127) l'Achromie (achromie.js) : une sur huit environ, dès l'exploration 4 — pas sur l'île d'une Tisseuse
+  if (v < 40 && typeof achromieIle === 'function' && !(niv >= 10 && niv % 5 === 0)) return 'achromie';
+  return null;
 }
 function etatsInit() {
   if (typeof REMARQUABLES !== 'undefined' && !REMARQUABLES.some(r => r.id === 'serum'))
@@ -56,11 +60,14 @@ function etatsInit() {
 function etatsSolDOrigine() {
   if (ETAT.bioAvant) for (const [i, b] of ETAT.bioAvant) Bio[i] = b;
   ETAT.bioAvant = null;
+  if (typeof achromieSolDOrigine === 'function') achromieSolDOrigine();   // (§127) le sol d'avant le sanctuaire
 }
 function etatsIle() {
   etatsSolDOrigine();
   ETAT.id = etatGraine(SEED, profondeur()); ETAT.cases = null; ETAT.annonce = false;
+  if (typeof GRIS !== 'undefined') GRIS.ici = false;
   if (ETAT.id === 'brume') { brumeIle(); return; }        // la brume sanglante (brume.js)
+  if (ETAT.id === 'achromie') { achromieIle(); return; }   // (§127) l'Achromie (achromie.js)
   if (ETAT.id !== 'korlaz') return;
   let s = (SEED ^ 0x9e3779b9) >>> 0 || 1; const r = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
   const C = ETAT.cases = new Uint8Array(WS * WS), roc = [], avant = ETAT.bioAvant = new Map();
@@ -110,7 +117,7 @@ function etatsRecolte(nd) {
 function guerirKorlaz() {
   if (!P.korlaz) { say('vous n\'êtes pas infecté · le sérum vous éclaircit la vue', 2); return; }
   P.korlaz = null; P.korlazExpo = 0; ETAT.brume = 0;
-  for (const b of beasts) if (b.sp.illusion) dissiper(b);
+  for (const b of beasts) if (b.sp.illusion && !b.sp.achromie) dissiper(b);
   say('Le sérum brûle dans vos veines… et la brume se lève · guéri du Korlaz', 4); SON.jouer('ramasse');
 }
 function etatsHud() {
@@ -138,7 +145,7 @@ function dissiper(b, chuchote) {
 }
 // Les visions, tirées au hasard selon leur poids ; plus fortes quand l'infection dure. `force` en impose une (essais).
 function vision(I, force) {
-  const f = P.faceS ?? P.face ?? 0, regards = beasts.filter(b => b.sp.illusion && !b.dead).length;
+  const f = P.faceS ?? P.face ?? 0, regards = beasts.filter(b => b.sp.illusion && !b.sp.achromie && !b.dead).length;
   const T = [['brume', .15], ['regards', regards < 6 ? .15 : 0], ['griffes', .13], ['visage', .08], ['silhouette', .13],
     ['rampant', regards < 7 ? .12 : 0], ['mains', regards < 6 ? .1 : 0], ['nb', ETAT.nb > 0 ? 0 : .08 + I * .06]];
   let k = force;
@@ -549,6 +556,7 @@ function myceliumHeros(B) {
 let filtreEl = null, filtreG = null, filtreCss = '';
 function majEtats(dt) {
   if (typeof majBrume === 'function') majBrume(dt);        // la brume sanglante (brume.js)
+  if (typeof majAchromie === 'function') majAchromie(dt);   // (§127) l'Achromie (achromie.js)
   const ici = ETAT.id === 'korlaz';
   if (ici && !ETAT.annonce) { ETAT.annonce = true; say('Korlaz · la roche de cette île est rongée · ne restez pas dans ses spores', 5); }
   if (ici) {
@@ -578,11 +586,12 @@ function majEtats(dt) {
 }
 function dessinerFiltre(ici, K) {
   const sang = typeof brumeSang === 'function' ? brumeSang() : 0;
-  const actif = ici || K || sang || ETAT.flash || ETAT.rouge || ETAT.visage || ETAT.sang.length || ETAT.griffes.length;
+  const gv = typeof achromieVoile === 'function' ? achromieVoile() : 0;   // (§127) le voile blanc du regard des veilleurs
+  const actif = ici || K || sang || gv || ETAT.flash || ETAT.rouge || ETAT.visage || ETAT.sang.length || ETAT.griffes.length;
   // le noir et blanc : il vient en 0,8 s, repart en 1,5 s
   const nb = ETAT.nb > 0 ? Math.max(0, Math.min(1, ETAT.nb / 1.5, (ETAT.nbT - ETAT.nb) / .8)) : 0;
   // le filtre sur l'image même : la couleur s'en va, le contraste monte ; une inversion d'un éclair quand elle frappe
-  const css = ETAT.inv > 0 ? 'invert(1) contrast(1.3)' : K ? `saturate(${(.72 - Math.min(1, ETAT.brume / 3) * .3).toFixed(2)}) contrast(1.12) brightness(.9)` + (nb ? ` grayscale(${nb.toFixed(2)}) contrast(${(1 + nb * .4).toFixed(2)})` : '') : ici ? 'saturate(.85) sepia(.12)' : '';
+  const css = ETAT.inv > 0 ? 'invert(1) contrast(1.3)' : K ? `saturate(${(.72 - Math.min(1, ETAT.brume / 3) * .3).toFixed(2)}) contrast(1.12) brightness(.9)` + (nb ? ` grayscale(${nb.toFixed(2)}) contrast(${(1 + nb * .4).toFixed(2)})` : '') : ici ? 'saturate(.85) sepia(.12)' : typeof achromieCss === 'function' ? achromieCss() : '';
   if (css !== filtreCss) { filtreCss = css; for (const id of ['c', 'c3']) { const e = document.getElementById(id); if (e) e.style.filter = css; } }
   if (!actif) { if (filtreEl && filtreEl.style.display !== 'none') filtreEl.style.display = 'none'; return; }
   if (!filtreEl) {
@@ -598,6 +607,7 @@ function dessinerFiltre(ici, K) {
   const vign = (a, c, r0 = .25) => { const gr = g.createRadialGradient(W / 2, H / 2, R * r0, W / 2, H / 2, R); gr.addColorStop(0, `rgba(${c},0)`); gr.addColorStop(1, `rgba(${c},${a})`); g.fillStyle = gr; g.fillRect(0, 0, W, H); };
   if (ici) vign(.3, '22,30,18');
   if (sang) dessinerBrume(g, W, H, R, vign);
+  if (gv) vign(gv, '238,238,242', .05);
   if (K) {
     const I = Math.min(1, K.duree / 900), br = Math.min(1, ETAT.brume / 3);
     vign(.38 + I * .2 + br * .42 + Math.sin(t * .4) * .06, '3,2,5', .2);                 // la brume noire qui respire

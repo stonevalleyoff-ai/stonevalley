@@ -1195,7 +1195,7 @@ function nmAller(id, replique) {
   if (!n) { nmFermer(); return; }
   if ((NM_AFFAIRES[b.nm.role] || []).includes(id)) {   // (§123) une affaire par halte : au-delà, les offres grisées
     const ok = nmPeutAffaire(b);
-    n = Object.assign({}, n, { choix: (n.choix || []).map(c => !c.fait ? c : ok ? Object.assign({}, c, { fait: () => { const r = c.fait(); nmAffaire(b); return r; } })
+    n = Object.assign({}, n, { choix: (n.choix || []).map(c => !c.fait ? c : ok ? Object.assign({}, c, { fait: () => { const r = c.fait(); nmAffaire(b); if (typeof jnl === 'function') jnl('nomade', { role: b.nm.role, affaire: id, ami: nmAmi(b), expl: profondeur() }); return r; } })
       : Object.assign({}, c, { grise: true, t: c.t.replace(/ — .*$/, '').replace(/ \((offert|[0-9][^)]*)\)$/, '') + ' — nous avons déjà fait affaire' })) });
   }
   NM.noeud = n;
