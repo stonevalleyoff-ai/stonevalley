@@ -96,6 +96,7 @@ Remplacer `index.html`, `donjon.js` et `sw.js` dans le dépôt : la page et le c
 - `vp_supprimer_compte` : le bouton « Supprimer mon compte » (Sac › Sauvegarde) efface le compte, l'adresse e-mail, le personnage et les messages.
 - le pillage (fait le 25 septembre 2026) : les tables `vp_campements` et `vp_pillages`, fermées en lecture sauf à son propre campement et à ses propres pillages, et quatre fonctions (`vp_camp_publier`, `vp_camp_cible`, `vp_piller`, `vp_mes_pillages`) qui ne répondent qu'aux joueurs connectés. Supprimer son compte efface aussi son campement publié et les pillages subis (voir section 18).
 - les défenses du campement (fait le 7 octobre 2026, migration `vp_campement_defenses`) : `vp_campements` reçoit `niv_mur` et `niv_tours` (0 à 3), que `vp_camp_publier` enregistre et que `vp_camp_cible` rend (voir section 79).
+- le journal de jeu (fait le 14 octobre 2026, migration `vp_journal`) : la table `vp_journal`, en RLS sans règle (personne ne la lit ni ne l'écrit directement), et la fonction `vp_journaliser`, réservée aux joueurs connectés (voir section 126). Supprimer son compte efface aussi ses lignes du journal (suppression en cascade).
 
 **Lire les retours** : Supabase → Table Editor → `vp_retours`, ou dans l'éditeur SQL :
 
@@ -1722,7 +1723,7 @@ Les plats de la cuisine restent temporaires et s'ajoutent par-dessus.
 - **Tenter** coûte des éclats (6, 12, 20, 30, 45) et, dès le rang 3, des spores de Korlaz (4, 8, 12) : elles trouvent là leur usage.
 - **Réussie**, la potion est bue sur place et le rang est acquis. **Ratée, tout est perdu** : ingrédients, éclats, spores.
 
-**La page Alchimie**, nouveau volet du Campement. À gauche la fiche : pour chaque caractéristique la base, les rangs de potion et le total ; puis les compagnes, avec leurs aptitudes d'espèce (leurs potions : section 82). À droite la potion choisie : son effet, sa chance et d'où elle vient, la recette étape par étape, puis le garde-manger réduit à ce qui peut encore entrer. La fiche se consulte partout ; verser et tenter demandent d'être à la table. Sur téléphone, la potion passe avant les compagnes.
+**La page Alchimie**, nouveau volet du Campement. À gauche la fiche : pour chaque caractéristique la base, les rangs de potion et le total ; puis les compagnes, avec leurs aptitudes d'espèce (leurs potions : section 82). À droite la potion choisie : son effet, sa chance et d'où elle vient, la recette étape par étape, puis le garde-manger réduit à ce qui peut encore entrer. La fiche se consulte partout ; verser et tenter demandent d'être à la table. Sur téléphone, la potion passe avant les compagnes. *(Depuis le §133, ce volet n'est plus que la fiche et le carnet : la préparation se fait dans la fenêtre de la table.)*
 
 **À savoir.** « Résistance », annoncée dans le plan, a laissé sa place à « Récupération » : la jauge de vie étant une fraction, une vie plus grande et une résistance aux coups revenaient au même levier. Le mana n'a pas de réserve propre (ce sont les éclats du sac) : sa potion baisse le prix des sorts.
 
@@ -3083,7 +3084,7 @@ Ce qui se passe en partie part, par paquets, dans une table Supabase, `vp_journa
 | `fabrique`, `module`, `campement` | objet fabriqué, module créé ou amélioré, campement posé ou repris | objet, niveaux, coffre |
 | `culture` | carré posé ou repris, semis, cueillette, geste d'un visiteur | graine, taille |
 | `lien` | bête liée | espèce, rareté, nombre de compagnes |
-| `potion`, `plat` | essai d'alchimie, plat cuisiné | potion, rang, chance, ingrédients, réussite ; niveau de la cuisine |
+| `potion`, `plat` | essai d'alchimie, plat cuisiné | potion, rang, chance, ingrédients, réussite, et depuis le §133 : points perdus aux gestes, fautes d'ordre, eau, cuisson (`tot`, `ok`, `tard`), potion parfaite ; niveau de la cuisine |
 | `nomade`, `prime` | affaire faite avec un voyageur, prime remplie | métier, affaire, amitié |
 | `absence` | retour au jeu | minutes, compagnes au camp, ce qu'elles ont rapporté |
 | `erreur` | incident technique | lieu, message (20 par session au plus) |
@@ -3096,13 +3097,13 @@ Ce qui se passe en partie part, par paquets, dans une table Supabase, `vp_journa
 - La page « Données personnelles » le dit.
 - « Supprimer mon compte » efface aussi le journal.
 
-**Dans la base.** Il faut une migration, qui n'est pas encore appliquée (voir plus bas). Elle crée :
+**Dans la base** (migration `vp_journal`, appliquée le 14 octobre 2026) :
 
 - la table `vp_journal`, en RLS sans aucune règle : personne ne la lit ni ne l'écrit directement ;
 - la fonction `vp_journaliser(p_session, p_version, p_lignes)`, réservée aux joueurs connectés, qui vérifie chaque ligne (genre de 32 caractères au plus, données de 4 Ko au plus, heure plausible) ;
-- dans `vp_supprimer_compte`, une ligne de plus.
+- `vp_supprimer_compte` n'a pas changé : les lignes du journal sont attachées au compte (`on delete cascade`) et partent avec lui.
 
-Tant que la migration manque, le jeu s'en aperçoit au premier envoi et se tait jusqu'à la fin de la session.
+Si la fonction venait à manquer, le jeu s'en apercevrait au premier envoi et se tairait jusqu'à la fin de la session. Essai fait à l'application de la migration : deux lignes valides gardées sur quatre envoyées (un genre vide et des données en tableau rejetés), une heure invalide mise à vide.
 
 ```sql
 create table if not exists public.vp_journal (
@@ -3143,8 +3144,6 @@ begin
 end $$;
 revoke all on function public.vp_journaliser(text, text, jsonb) from public, anon;
 grant execute on function public.vp_journaliser(text, text, jsonb) to authenticated;
--- et dans vp_supprimer_compte, avant « delete from auth.users » :
---   delete from public.vp_journal where utilisateur = v_uid;
 ```
 
 **Lire le journal** (éditeur SQL) :
@@ -3169,7 +3168,7 @@ select round(avg((donnees->'perf'->>'img_s')::numeric)) img_s, donnees->'perf'->
 
 Ailleurs : `nomades.js` (l'affaire faite).
 
-**À déposer** (pour les sections 125 et 126) : `index.html`, `nomades.js`, `village.js`, `sw.js` (qui passe en `stone-valley-93`), `LISEZ-MOI.md`. Il faut aussi appliquer la migration ci-dessus dans Supabase.
+**À déposer** (pour les sections 125 et 126) : `index.html`, `nomades.js`, `village.js`, `sw.js` (qui passe en `stone-valley-93`), `LISEZ-MOI.md`. La migration est appliquée (14 octobre 2026).
 
 ## 127. L'Achromie, livraison 1 : l'île sans couleur, les veilleurs, le sanctuaire rouge
 
@@ -3367,3 +3366,170 @@ Il y a aussi un veilleur autour de l'arche et deux au loin, soit 15 en tout avec
   - `recevoir` et `majDistant`.
 
 **À déposer** : `achromie.js`, `index.html`, `sw.js` (qui passe en `stone-valley-96`), `LISEZ-MOI.md`.
+
+## 130. Graines et plants : une seule réserve, au garde-manger
+
+Les graines à semer (§120) vivaient à part : on ne les voyait qu'en texte, dans la fiche d'un carré de culture. Elles rejoignent le garde-manger du sac.
+
+**Au sac**, sous le garde-manger, une rangée **Graines et plants**. Chaque graine a son icône, bordée de sa rareté :
+
+- un **sachet** de papier, marqué à la couleur de la plante, pour les herbes, les fleurs et les plantes basses ;
+- un sachet mauve étoilé pour les **plantes rares** ;
+- un **plant en motte** pour les arbres ;
+- une **bouture** pour les buissons à baies.
+
+Un appui choisit la graine à semer : ACTION devant un emplacement libre de sa taille. La fiche du carré de culture garde aussi sa liste.
+
+**Les graines qui se mangent.** Quatre plantes donnent des graines comestibles : les pignons de pin, les glands, les graines d'herbe haute et les cônes de cyprès.
+
+- Pour elles, la graine à semer et la denrée ne font plus qu'une : il faut choisir entre les manger et les semer.
+- Elles se rangent sous « Graines et plants », et non plus dans la rangée du garde-manger.
+- Un second appui sur une graine déjà choisie la mange crue.
+- Elles restent dans les pages Cuisine et Alchimie, sous « Graines ».
+- Les « plants de pin », de chêne, de cyprès et d'herbe haute d'une ancienne sauvegarde y sont versés.
+
+**Les autres graines** ne se mangent pas, comme avant.
+
+**Corrigé au passage** : depuis la §124, un commentaire avait avalé trois champs de la sauvegarde. Les graines, la graine choisie et l'eau du seau ne se gardaient plus d'une partie à l'autre. Elles se gardent de nouveau ; celles perdues entre-temps ne reviennent pas.
+
+L'herboriste du Seuil met ses sachets dans la même réserve. Quand c'est une des quatre graines comestibles, elle va directement au garde-manger.
+
+**Dans le code** (`index.html`, bloc LA CULTURE) :
+
+- les fonctions `graineIngr`, `stockGraine`, `oterGraine`, `grainesDispo`, `icGraine`, `blocGraines` et `dessinGraine` ;
+- `gagnerGraine` reçoit un nombre ;
+- `semer`, `graineChoisie`, la fiche du carré, le sac, la sauvegarde et le journal de jeu passent par elles.
+
+Ailleurs : `nomades.js` (l'herboriste).
+
+**À déposer** : `index.html`, `nomades.js`, `sw.js` (qui passe en `stone-valley-97`), `LISEZ-MOI.md`.
+
+## 131. La fenêtre du carré de culture
+
+Dans un carré, ACTION ne fait plus un seul geste à la fois : elle ouvre **la fenêtre du carré**, sur l'emplacement visé. Le bouton ACTION affiche alors « CARRÉ » avec un résumé, par exemple « Coquelicot · 41 % · herbes ».
+
+**L'en-tête** donne :
+
+- le carré (« Carré de culture », « Carré clos », « Grand carré ») ;
+- le nombre d'emplacements semés et à récolter ;
+- l'eau du seau et les os en réserve ;
+- la croix pour fermer.
+
+**À gauche, le plan du carré.**
+
+- Chaque emplacement est à sa place et à sa taille (petit, moyen, grand), avec :
+  - l'icône de sa plante ;
+  - une barre de pousse ;
+  - un astérisque vert s'il a des mauvaises herbes ;
+  - un point bleu s'il a soif ;
+  - un liseré doré s'il est mûr.
+- Le point blanc, c'est vous.
+- Un appui sur un emplacement le choisit. On soigne tout le carré sans bouger.
+
+**À droite, l'emplacement choisi.**
+
+- **Libre** : les graines de sa taille, en icônes, avec leur nombre. Un appui sème. S'il n'y en a pas, la fenêtre dit où en trouver.
+- **Planté** :
+  - la plante (icône, nom, rareté) ;
+  - la barre de pousse et la barre d'eau ;
+  - quand elle sera mûre, si l'eau tiendra jusque-là, les herbes, l'engrais ;
+  - les gestes, en gros boutons à icône, grisés quand ils ne s'appliquent pas, dorés quand ils s'imposent :
+    - **Récolter**, d'un seul geste : tous les coups de la récolte ordinaire d'affilée. Un arbre est taillé, une fleur repart de zéro. Pour une plante rare, c'est **Cueillir**.
+    - **Désherber**.
+    - **Arroser**, avec le seau.
+    - **Engraisser**, 2 os.
+    - **Arracher**, en deux appuis. La place se libère ; la graine revient si elle venait d'être semée.
+
+**Fermer** : ACTION de nouveau (le bouton dit « FERMER »), Échap, la croix, ou s'éloigner du carré. Ouvrir le sac la ferme aussi.
+
+**Au clavier** : les flèches passent d'un emplacement à l'autre, Entrée fait le premier geste.
+
+**Le geste part à l'appui**, pas au relâché : la fenêtre se met à jour en continu, et un appui ne doit jamais se perdre.
+
+**Ne changent pas** :
+
+- le carré d'un autre joueur (§125), qui garde ses gestes directs (désherber, arroser, récolter pour lui) ;
+- les jardinières (§121).
+
+**Dans le code** (`index.html`, bloc LA CULTURE, après `champAction`) : `CU`, `ouvrirCarre`, `fermerCarre`, `basculerCarre`, `rendreCarre`, `cuGeste`, `recolterPlace`, `arracherPlace` et `cuStyle` (le style, ajouté à la première ouverture). La récolte ordinaire de la flore n'a plus à trancher dans un carré : `champAction` ouvre toujours la fenêtre.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-98`), `LISEZ-MOI.md`.
+
+## 132. L'engrais se prépare au carré
+
+L'engrais n'est plus pris directement dans les os à chaque emplacement. Il se **prépare** et se **garde au carré**.
+
+**Préparer.**
+
+- Dans la fenêtre du carré (§131), sous le plan, on trouve la ligne **Engrais** : le sac de toile, les doses du carré en pastilles (pleines et vides) et le bouton **Préparer**.
+- Une dose coûte **2 os et 3 fibre**, pris au sac, puis au coffre si l'on est au campement.
+- Le bouton est grisé quand le carré est plein ou qu'il manque de quoi faire une dose.
+
+**Le stock de chaque carré**, selon sa taille :
+
+| Carré | Emplacements | Doses gardées |
+|---|---|---|
+| carré de culture | 4 | 2 |
+| carré clos | 8 | 4 |
+| grand carré | 12 | 6 |
+
+**Engraisser** un emplacement prend une dose du carré. La pousse va moitié plus vite jusqu'à maturité, comme avant. Le geste est grisé s'il n'y a plus de dose et en dit la raison.
+
+**Sauvegardé** : chaque carré garde ses doses. Reprendre un carré au sac les perd, comme ce qui y pousse.
+
+L'en-tête de la fenêtre montre aussi la fibre en réserve, à côté du seau et des os. La fiche du carré au sac l'explique en une ligne. L'engrais a sa propre icône : un sac de toile noué, avec des éclats d'os et des brins de fibre.
+
+**Dans le code** (`index.html`, bloc LA CULTURE) : `ENGRAIS_RECETTE`, `ENGRAIS_MAX`, `engraisDe`, `peutEngrais`, `preparerEngrais` ; `engraisser` prend une dose. Le stock est sauvegardé dans le champ `e` de chaque carré (relu par `champLu`). L'icône est `DESSINS.engrais`. `ENGRAIS_OS` disparaît.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-99`), `LISEZ-MOI.md`.
+
+## 133. La table d'alchimie en fenêtre, et les gestes du chaudron
+
+La préparation des potions quitte le sac. **ACTION devant la table** ouvre une fenêtre (ACTION, ✕, Échap ou s'éloigner la referment), et chaque recette demande maintenant des gestes : l'eau, le feu, le repos, la cuisson.
+
+**La fenêtre.**
+
+- **À gauche, les potions** : une vignette par caractéristique (une fiole à sa couleur, ses rangs en points), puis celles de chaque compagne (récolte, défense, compétence). Pendant un chaudron en cours, les autres sont grisées.
+- **Au milieu, le chaudron**, dessiné en pixels et animé : la hauteur de l'eau, sa couleur qui prend celle des ingrédients, les flammes (une langue par cran), les bulles, la vapeur. Dessous, cinq gestes : **Louche** (de l'eau), **Attiser**, **Étouffer**, **En fiole**, **Vider** (deux appuis s'il y a des ingrédients).
+- **À droite, la recette** : l'eau, chaque étape avec son repos et son feu, la cuisson. Une étape faite montre son ingrédient et ce qui n'allait pas (trop chaud, trop froid, trop tôt, trop tard). En dessous, **ce qu'on peut verser** : un appui verse. Un point rouge marque un ingrédient qui irait plus loin dans la recette (faute d'ordre). Enfin, la chance, et ce qu'elle doit à chaque chose.
+- **Fermée, le chaudron se couvre** : le feu ne bouge plus et le temps ne court plus, jusqu'à ce qu'on revienne. Le chaudron est sauvegardé tel quel.
+- **Au clavier** : ↑ attise, ↓ étouffe, Entrée met en fiole, Échap ferme. Le geste part à l'appui, comme au carré.
+- **Sur téléphone**, les potions passent en deux lignes de quatre, et ce qu'on peut verser remonte juste sous le chaudron.
+
+**Les gestes.** Chaque recette (une potion à un rang) a les siens, tirés d'une graine propre à la recette. Ils sont les mêmes pour tous et d'une partie à l'autre : on les découvre, puis on les connaît.
+
+| Geste | Ce que demande la recette | Manqué |
+|---|---|---|
+| l'eau | 2 à 5 louches, avant le premier ingrédient (le chaudron en tient 6) | −6 par louche d'écart |
+| le feu | un cran par étape, de 1 (braises) à 5 (feu ardent) ; il monte et descend d'un cran en 2,5 s | −8 par étape versée au mauvais cran |
+| le repos | 4 à 10 s entre deux ingrédients | trop tôt −6, trop tard −4 |
+| la cuisson | 10 à 20 s après le dernier ingrédient, puis En fiole | −10 |
+| l'ordre | inchangé | −15 par faute |
+
+On peut verser un peu avant le terme (1,5 s) ou un peu après (3 s). La cuisson a 2 s avant et 4 s après. **Quand la surface scintille**, c'est le moment juste.
+
+**La potion parfaite** : rien de manqué, ni geste ni ordre. Elle gagne **+15 points** de chance et sort **d'or** (éclat doré, message « potion parfaite, d'or »). Le carnet la marque d'une étoile.
+
+**Ce que la table en dit, selon son niveau.**
+
+- **Niveau 1, à l'œil** : la recette reste vague (« un peu d'eau », « feu bas », « repos court », « cuire longtemps »). On lit le chaudron : la hauteur de l'eau, le nombre de flammes, les bulles, le scintillement.
+- **Niveau 2, le thermomètre et la louche graduée** : la recette en clair (« 4 louches », « feu vif », « repos 7 s », « 13 s »). Le thermomètre montre le feu tel qu'il est et le réglage, la paroi est graduée.
+- **Niveau 3, le sablier** : le repos et la cuisson se voient sur un cadran, avec leur fenêtre juste en vert, et les marges s'élargissent (2,5 s avant, 5 s après ; la cuisson 3,5 s et 7 s). La fenêtre dit aussi si la potion est à point. Avant ce niveau, la chance affichée suppose une cuisson juste.
+
+**Le carnet de l'alchimiste.** Chaque geste fait juste se note pour sa recette, et s'affiche ensuite en clair même à la table 1 (marqué ✎). Le carnet garde aussi, par recette, les essais, les réussites, la meilleure chance et la potion parfaite. Il se lit au sac.
+
+**Le sac.** Le volet Alchimie du Campement ne prépare plus rien. Il garde la fiche en lecture seule (vos caractéristiques, vos compagnes) et ajoute le carnet. Il signale un chaudron qui attend.
+
+**Le journal de jeu** (§126) note aussi, pour chaque essai : les points perdus aux gestes, les fautes d'ordre, l'eau, la cuisson et la potion parfaite. La chance y était mal notée (un nombre illisible) : c'est corrigé.
+
+**Une partie d'avant** : un chaudron commencé garde ses ingrédients, et ses gestes lui sont comptés justes.
+
+**Dans le code** (`index.html`, bloc de l'alchimie) :
+
+- les gestes : `FEU_NOM`, `ALCH_PEN`, `ALCH_PARFAITE`, `cleRecette`, `gestesAlch`, `margeRepos`, `margeCuisson`, `bilanGestes` ; `chanceAlch(k, juste)` rend aussi `gestes`, `parfaite` et `b` ;
+- le chaudron : `chaudronNeuf`, `chaudronPret`, `avancerAlch`, `loucheAlch`, `feuAlch`, `verserAlch`, `tenterAlch`, `viderAlch`. `P.chaudron` vaut maintenant `{ c, e, s, f, eau, fa, fc, t }` ;
+- le carnet : `P.carnetAlch`, `carnetDe`, `noterCarnet`, `carnetLu`, `ditGeste`, `INSTR_ALCH` ;
+- la fenêtre : `AL`, `ouvrirAlchimie`, `fermerAlchimie`, `basculerAlchimie`, `rendreAlchimie`, `alGeste`, `alBoucle`, `dessinerChaudron`, `alFx`, `alGlint`, `alStyle` ; les icônes `fiole_*` ;
+- `pageAlchimie` n'est plus que la fiche et le carnet.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-100`), `LISEZ-MOI.md`.

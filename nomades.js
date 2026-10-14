@@ -946,8 +946,8 @@ function nmGraines(b) {
     const G = graineInfo(o.k), p = nmPrix(b, o.prix), manque = nmManque(p);
     return { t: nomGraine(o.k) + (o.n > 1 ? ' ×' + o.n : '') + ' · ' + TAILLE_N[G.ta] + (G.pl ? ' · ' + G.pl.rang : '') + ' — ' + nmListe(p) + (manque ? ' — il vous manque ' + manque : ''),
       grise: !!manque, va: 'graines',
-      fait: () => { nmPayer(p); P.graines[o.k] = (P.graines[o.k] | 0) + o.n; o.vendu = 1; nmGagne(b, 1); if (typeof Sauve !== 'undefined') Sauve.sale = true; SON.jouer('ramasse');
-        say(nomGraine(o.k) + (o.n > 1 ? ' ×' + o.n : '') + ' · dans le sac (fiche du carré de culture)', 3);
+      fait: () => { nmPayer(p); gagnerGraine(o.k, o.n); o.vendu = 1; nmGagne(b, 1); if (typeof Sauve !== 'undefined') Sauve.sale = true; SON.jouer('ramasse');
+        say(nomGraine(o.k) + (o.n > 1 ? ' ×' + o.n : '') + ' · au garde-manger du sac (Graines et plants)', 3);
         return ['Plante-la dans un emplacement ' + TAILLE_N[G.ta] + '. Et arrose-la, surtout.', 'Elle te le rendra, si tu t\'en occupes.', 'Bon choix. Elle aime l\'eau.'][Math.random() * 3 | 0]; } };
   }).concat([{ t: 'Parlons d\'autre chose.', va: 'accueil' }]) };
 }

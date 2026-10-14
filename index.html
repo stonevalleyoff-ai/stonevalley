@@ -510,17 +510,13 @@
   .ingredients li.manque .qte{color:var(--braise);}
   .sac-corps.lignes{max-width:780px;}
   .caracs{margin:0 0 4px;font-size:12.5px;}
-  .caracs .tete,#sac .caracs button{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.8fr) 4.6em minmax(0,.8fr);gap:6px;align-items:center;
+  .caracs .tete,#sac .caracs .lig{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,.8fr) 4.6em minmax(0,.8fr);gap:6px;align-items:center;
     width:100%;padding:8px 4px;text-align:left;border-bottom:1px solid var(--trait);}
   .caracs .tete{color:var(--texte2);font-size:10.5px;letter-spacing:.03em;padding-top:2px;}
-  #sac .caracs button{background:none;border-width:0 0 1px;border-radius:0;color:var(--texte);}
-  #sac .caracs button b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-  #sac .caracs button .pts{color:var(--texte2);letter-spacing:1px;font-size:11px;}
-  #sac .caracs button.plus .pts,#sac .caracs button.plus .tot{color:var(--or);}
-  #sac .caracs button.on{background:linear-gradient(90deg,rgba(255,210,125,.10),transparent 70%);box-shadow:inset 3px 0 0 var(--or);}
-  #sac .caracs button:disabled{opacity:.45;cursor:default;}
-  #sac .caracs button:focus-visible{outline:2px solid var(--or);outline-offset:-2px;}
-  #sac .obj.etape{padding:7px 2px;} #sac .obj.etape.porte{padding-left:12px;}
+  #sac .caracs .lig{color:var(--texte);}
+  #sac .caracs .lig b{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  #sac .caracs .lig .pts{color:var(--texte2);letter-spacing:1px;font-size:11px;}
+  #sac .caracs .lig.plus .pts,#sac .caracs .lig.plus .tot{color:var(--or);}
   #sac .obj .fait{color:var(--pousse);font-weight:600;font-size:12px;white-space:nowrap;} #sac .obj .attend{color:var(--or);font-size:12px;white-space:nowrap;}
   #sac .pastille{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px;vertical-align:baseline;box-shadow:0 0 0 1px rgba(0,0,0,.35);}
   #sac .biblio .obj .pts{color:var(--texte2);letter-spacing:1px;font-size:11px;white-space:nowrap;} #sac .biblio .obj .pts.su{color:var(--or);}
@@ -2617,7 +2613,7 @@ P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ
 // Le coffre du campement : ce qui y est déposé ne risque plus rien. Le sac, lui, voyage.
 P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, baies: 0, spore: 0 };
 P.modules = {};                                       // les modules créés au campement : { id: niveau }
-P.alchimie = {}; P.chaudron = null;                   // les rangs acquis par potion { caractéristique: rang } ; la potion en cours { c, e, f }
+P.alchimie = {}; P.chaudron = null; P.carnetAlch = {};   // les rangs acquis par potion { caractéristique: rang } ; le chaudron en cours ; le carnet (§133)
 P.codex = []; P.nomsSorts = {};                       // les accords déjà écrits (clés « matière+matière ») ; les noms donnés aux sorts
 P.tomesPortes = []; P.tomeHalte = 0;                  // les tomes trouvés, pas encore déchiffrés ; la halte où le conteur en a cédé un
 P.tomes = {}; P.sorts = []; P.sortMain = null; P.egide = null;   // la magie : les tomes lus { matière: 1..3 }, les phrases inscrites, celle que lance X, l'égide en cours
@@ -4336,7 +4332,10 @@ const TAILLE_N = { p: 'petit', m: 'moyen', g: 'grand' };
 const POUSSE_K = { p: 12, m: 24, g: 60 }, EAU_K = { p: 1, m: 2, g: 4 }, RECOLTE_K = { p: 1.5, m: 2, g: 3 };
 const BUTTE = { p: .64, m: 1.5, g: 2.4 }, PORTEE_P = { p: 1.6, m: 2.1, g: 2.7 };
 const POUSSE_RARE = { simple: 2400, geante: 7200, vive: 14400 };
-const CHAMP_EAU = 1800, SEAU_MAX = 4, HERBE_T = 5400, ENGRAIS_OS = 2;   // les mauvaises herbes : une en moyenne par heure et demie de pousse
+const CHAMP_EAU = 1800, SEAU_MAX = 4, HERBE_T = 5400;
+// (§132) L'engrais se prépare au carré, avec des os et de la fibre ; chaque carré garde ses doses, plus ou moins selon sa taille.
+const ENGRAIS_RECETTE = { os: 2, fibre: 3 }, ENGRAIS_MAX = { 1: 2, 2: 4, 3: 6 };
+const engraisDe = c => Math.max(0, Math.min(ENGRAIS_MAX[c.n] || 2, c.engrais | 0));   // les mauvaises herbes : une en moyenne par heure et demie de pousse
 const NIV_CARRE = { carre: 1, carre2: 2, carre3: 3 };
 const CULTIVABLE_FORMES = new Set(['fleur', 'touffe', 'buisson', 'champi', 'boule', 'roseau']);
 const ARBRES = new Set(['feuillu', 'conifere', 'palme', 'geant', 'josue', 'sakura', 'verre']);
@@ -4370,14 +4369,27 @@ const placesDe = c => CHAMP_PLACES[c.n].map(([dx, dy, ta]) => [c.x + dx, c.y + d
 const dansChamp = (c, x, y, m = 0) => Math.abs(x - c.x - .5) <= CHAMP_DEMI[c.n] + .5 + m && Math.abs(y - c.y - .5) <= CHAMP_DEMI[c.n] + .5 + m;
 const slotNeuf = () => ({ e: null, m: 0, eau: 1, t: Date.now(), h: 0, eng: 0 });
 const deDe = n => (/^[aeiouyéèêàâîôûœh]/.test(n) ? 'd\'' : 'de ') + n;
-const nomGraine = k => { const G = graineInfo(k); if (!G) return 'graine'; const n = G.n.toLowerCase();
+// (§130) Graines et plants : une seule réserve, au garde-manger. Quatre plantes donnent des graines qui se mangent
+// aussi (pignons de pin, glands, graines d'herbe haute, cônes de cyprès) : pour elles, la graine EST la denrée
+// (P.denrees) — on choisit de la manger ou de la semer. Les autres graines (P.graines) ne se mangent pas.
+const graineIngr = k => { const q = typeof INGR !== 'undefined' && INGR['p_' + k]; return q && q.fam === 'graine' && FLORE[k] ? 'p_' + k : null; };
+const stockGraine = k => { const ing = graineIngr(k); return ing ? sacIngr(ing) : (P.graines[k] | 0); };
+function oterGraine(k) { const ing = graineIngr(k); if (ing) metSacIngr(ing, sacIngr(ing) - 1); else { P.graines[k]--; if (!P.graines[k]) delete P.graines[k]; } }
+function grainesDispo() {                                  // ce qui se sème, du plus rare au plus commun, puis par nom
+  const L = Object.keys(P.graines).filter(k => P.graines[k] > 0 && graineInfo(k));
+  for (const k in FLORE) if (graineIngr(k) && stockGraine(k) > 0 && graineInfo(k)) L.push(k);
+  return L.sort((a, b) => graineInfo(b).r - graineInfo(a).r || nomGraine(a).localeCompare(nomGraine(b)));
+}
+const icGraine = k => graineIngr(k) ? icIngr(graineIngr(k)) : 'graine_' + k;
+const nomGraine = k => { const G = graineInfo(k); if (!G) return 'graine'; const ing = graineIngr(k); if (ing) return INGR[ing].n.toLowerCase();
+  const n = G.n.toLowerCase();
   return (G.sp && G.sp.res === 'baies' ? 'bouture ' : G.sp && G.sp.res === 'bois' ? 'plant ' : 'graine ') + deDe(n); };
-function gagnerGraine(id) { P.graines[id] = (P.graines[id] | 0) + 1; Sauve.sale = true; }
+function gagnerGraine(id, n = 1) { const ing = graineIngr(id); if (ing) gagnerDenree(ing, n); else P.graines[id] = (P.graines[id] | 0) + n; Sauve.sale = true; }
 // La graine à semer dans un emplacement de cette taille : celle qu'on a choisie si elle y va, sinon la plus nombreuse.
 function graineChoisie(ta) {
-  const va = k => P.graines[k] > 0 && graineInfo(k) && (!ta || graineInfo(k).ta === ta);
+  const va = k => k && stockGraine(k) > 0 && graineInfo(k) && (!ta || graineInfo(k).ta === ta);
   if (va(P.graineSel)) return P.graineSel;
-  return Object.keys(P.graines).filter(va).sort((a, b) => P.graines[b] - P.graines[a])[0] || null;
+  return grainesDispo().filter(va).sort((a, b) => stockGraine(b) - stockGraine(a))[0] || null;
 }
 // La durée d'une pousse complète, en secondes : douze à soixante fois la repousse sauvage selon la taille ;
 // une plante rare, de quarante minutes (simple) à quatre heures (vive). Hors de son biome, moitié plus.
@@ -4442,7 +4454,7 @@ function placeChamp(x, y, n) {
   }
   for (const k in compte) if (compte[k] > (compte[h] || 0)) h = +k;
   for (const k in compte) if (Math.abs(k - h) > CHAMP_DENIV) return null;
-  return { g: SEED, x: cx, y: cy, z: h, n, s: CHAMP_PLACES[n].map(slotNeuf) };
+  return { g: SEED, x: cx, y: cy, z: h, n, s: CHAMP_PLACES[n].map(slotNeuf), engrais: 0 };
 }
 const COTE = { 1: 'cinq', 2: 'sept', 3: 'neuf' };
 function poserChamp(n = 1) {
@@ -4478,9 +4490,9 @@ function placeProche() {
 }
 function semer(q, g) {
   const G = g && graineInfo(g);
-  if (!G || !(P.graines[g] > 0) || q.s.e || G.ta !== q.ta) return;
+  if (!G || !(stockGraine(g) > 0) || q.s.e || G.ta !== q.ta) return;
   pousserPlace(q.s, q.i, Date.now(), q.ta);
-  P.graines[g]--; if (!P.graines[g]) delete P.graines[g];
+  oterGraine(g);
   Object.assign(q.s, { e: g, m: 0, t: Date.now(), h: 0, eng: 0 });
   majPlace(q.c, q.k); Sauve.sale = true; SON.jouer('ramasse');
   burst(q.x + .5, q.y + .5, q.c.z + .2, 8, '#9fd08a');
@@ -4503,11 +4515,21 @@ function desherber(q) {
   say('désherbé · la pousse reprend son allure', 1.8);
 }
 function engraisser(q) {
-  if (dispo('os') < ENGRAIS_OS) return;
+  if (!(engraisDe(q.c) > 0)) { say('plus d\'engrais dans ce carré · préparez-en : ' + ENGRAIS_RECETTE.os + ' os et ' + ENGRAIS_RECETTE.fibre + ' fibre la dose', 2.6); return; }
   pousserPlace(q.s, q.i, Date.now(), q.ta);
-  payer({ os: ENGRAIS_OS }); q.s.eng = 1; Sauve.sale = true; SON.jouer('ramasse');
-  burst(q.x + .5, q.y + .5, q.c.z + .2, 10, '#e8e2d0');
-  say('engrais d\'os · −' + ENGRAIS_OS + ' os · la pousse va moitié plus vite jusqu\'à maturité', 2.4); majSac();
+  q.c.engrais = engraisDe(q.c) - 1; q.s.eng = 1; Sauve.sale = true; SON.jouer('ramasse');
+  burst(q.x + .5, q.y + .5, q.c.z + .2, 10, '#c9b48a');
+  say('engraissé · la pousse va moitié plus vite jusqu\'à maturité · ' + q.c.engrais + ' dose' + (q.c.engrais > 1 ? 's' : '') + ' au carré', 2.4);
+}
+// (§132) Préparer une dose d'engrais pour ce carré : des os broyés, de la fibre qui pourrit. Le carré en garde peu.
+const peutEngrais = () => Object.entries(ENGRAIS_RECETTE).every(([r, n]) => dispo(r) >= n);
+function preparerEngrais(c) {
+  const max = ENGRAIS_MAX[c.n] || 2;
+  if (engraisDe(c) >= max) { say('ce carré a déjà toutes ses doses d\'engrais · ' + max + ' au plus', 2); return; }
+  if (!peutEngrais()) { say('il faut ' + ENGRAIS_RECETTE.os + ' os et ' + ENGRAIS_RECETTE.fibre + ' fibre pour une dose', 2.2); return; }
+  payer(ENGRAIS_RECETTE); c.engrais = engraisDe(c) + 1; Sauve.sale = true;
+  SON.jouer('pilon'); burst(c.x + .5, c.y + .5, c.z + .4, 10, '#c9b48a');
+  say('une dose d\'engrais · ' + c.engrais + ' sur ' + max + ' au carré', 1.8); majSac();
 }
 // Cueillir une plante rare au carré : un peu plus qu'au sauvage ; une graine, parfois ; elle repousse sur place.
 function cueillirChamp(q) {
@@ -4525,20 +4547,177 @@ const pctC = v => Math.round(v * 100) + ' %';
 function champAction() {
   const q = placeProche(); if (!q) return null;
   if (q.c.loin) return actionChampLoin(q);              // (§125) le carré d'un autre joueur
+  // (§131) chez soi : ACTION ouvre la fenêtre du carré, sur l'emplacement visé
   const s = q.s, G = s.e ? graineInfo(s.e) : null;
-  if (!G) {
-    const g = graineChoisie(q.ta);
-    return g ? { v: 'SEMER', o: nomGraine(g) + ' · ' + P.graines[g], f: () => semer(q, g), r: graineInfo(g).r }
-      : { v: 'SEMER', o: 'aucune graine · emplacement ' + TAILLE_N[q.ta], f: () => say('aucune graine pour un emplacement ' + TAILLE_N[q.ta] + ' · on en trouve en cueillant et en abattant au sauvage', 3.2), vide: true };
+  pousserPlace(s, q.i, Date.now(), q.ta);
+  const o = G ? G.n + ' · ' + (s.m >= 1 ? 'mûr' : pctC(s.m)) + (s.h ? ' · herbes' : s.m < 1 && s.eau <= .25 ? ' · soif' : '') : 'libre · ' + TAILLE_N[q.ta];
+  return { v: CU.c === q.c ? 'FERMER' : 'CARRÉ', o, f: () => basculerCarre(q.c, q.k), r: G ? G.r : 1 };
+}
+// ---------- la fenêtre du carré (§131) ----------
+// ACTION dans un carré ouvre une petite fenêtre : à gauche, le plan du carré (chaque emplacement, sa plante, sa
+// pousse, ses herbes, sa soif ; vous, en point blanc) ; à droite, l'emplacement choisi — sa plante, sa pousse, son
+// eau, quand il sera mûr — et tous ses gestes : semer (les graines de sa taille, en icônes), arroser, désherber,
+// engraisser, récolter ou cueillir, arracher. On soigne tout le carré sans bouger. Elle se ferme d'ACTION, d'Échap,
+// de la croix, ou si l'on s'éloigne. Flèches : l'emplacement d'à côté ; Entrée : le premier geste.
+const CU = { el: null, c: null, k: 0, arr: -1, tic: 0 };
+const qDe = (c, k) => { const [x, y, ta] = placesDe(c)[k]; return { c, s: c.s[k], k, x, y, i: y * WS + x, ta }; };
+const fmtDuree = sec => sec < 120 ? 'moins de 2 min' : sec < 5400 ? Math.round(sec / 60) + ' min' : (Math.round(sec / 360) / 10 + ' h').replace('.', ',');
+function cuStyle() {
+  if (document.getElementById('cu-style')) return;
+  const st = document.createElement('style'); st.id = 'cu-style';
+  st.textContent = '#carre-ui{position:fixed;left:50%;top:50%;transform:translate(-50%,-54%);z-index:30;width:min(640px,94vw);max-height:80vh;overflow:auto;'
+    + 'background:rgba(20,24,34,.95);border:1px solid rgba(190,205,230,.28);border-radius:14px;color:#d6dceb;font-size:13px;box-shadow:0 12px 40px rgba(0,0,0,.55);pointer-events:auto;}'
+    + '#carre-ui[hidden]{display:none;}#carre-ui .ic{display:inline-block;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;flex:none;}'
+    + '.cu-tete{display:flex;align-items:center;gap:10px;padding:9px 12px;border-bottom:1px solid rgba(190,205,230,.14);}'
+    + '.cu-tete .ic{width:22px;height:22px;}.cu-tete b{font-size:14px;color:#ffd27d;letter-spacing:.3px;}.cu-tete .cu-res{margin-left:auto;display:flex;gap:10px;font-size:12px;color:#aab6cc;align-items:center;}'
+    + '.cu-tete .cu-res .ic{width:16px;height:16px;vertical-align:-3px;margin-right:3px;}'
+    + '.cu-x{background:none;border:1px solid rgba(190,205,230,.25);color:#cfd6e4;border-radius:8px;width:30px;height:30px;cursor:pointer;font:inherit;font-size:15px;}'
+    + '.cu-corps{display:flex;gap:14px;padding:12px;flex-wrap:wrap;align-items:flex-start;}'
+    + '.cu-plan{position:relative;flex:none;background:#3b2c1f;border:4px solid #6e5236;border-radius:6px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.4);}'
+    + '.cu-pl{position:absolute;transform:translate(-50%,-50%);border:2px solid rgba(0,0,0,.4);border-radius:5px;background:#5b4330;cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;overflow:hidden;}'
+    + '.cu-pl .ic{width:72%;height:72%;}.cu-pl.mur{border-color:#ffd27d;box-shadow:0 0 9px rgba(255,210,125,.75);}.cu-pl.sel{outline:2px solid #fff;outline-offset:2px;z-index:2;}'
+    + '.cu-pl .cu-b{position:absolute;left:0;bottom:0;height:3px;background:#7fd06a;}.cu-pl .cu-soif{position:absolute;right:2px;top:2px;width:7px;height:7px;border-radius:50%;background:#5aa0ff;box-shadow:0 0 0 1px rgba(0,0,0,.5);}'
+    + '.cu-pl .cu-herbe{position:absolute;left:2px;top:0;font-size:10px;font-weight:800;color:#a6e07a;line-height:1.1;text-shadow:0 0 2px #000;}'
+    + '.cu-moi{position:absolute;width:9px;height:9px;border-radius:50%;background:#fff;box-shadow:0 0 0 2px rgba(0,0,0,.45);transform:translate(-50%,-50%);pointer-events:none;z-index:3;}'
+    + '.cu-fiche{flex:1;min-width:230px;display:flex;flex-direction:column;gap:8px;}.cu-nom{display:flex;align-items:center;gap:10px;}.cu-nom .ic{width:42px;height:42px;}'
+    + '.cu-nom b{font-size:15px;display:block;}.cu-nom small{color:#8d9ab4;font-size:11px;}'
+    + '.cu-lig{display:flex;justify-content:space-between;font-size:11px;color:#9aa6bf;margin:2px 0;}.cu-barre{height:8px;border-radius:4px;background:rgba(255,255,255,.08);overflow:hidden;}.cu-barre i{display:block;height:100%;border-radius:4px;}'
+    + '.cu-etat{font-size:12px;color:#c9d2e3;}.cu-etat .mal{color:#ffb08a;}.cu-etat .bon{color:#b6e39a;}'
+    + '.cu-gestes{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:7px;}'
+    + '.cu-g{display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:10px;border:1px solid rgba(190,205,230,.25);background:rgba(255,255,255,.04);color:#e2e8f4;cursor:pointer;font:inherit;font-size:12px;text-align:left;}'
+    + '.cu-g .ic{width:28px;height:28px;}.cu-g small{display:block;color:#8d9ab4;font-size:10px;}.cu-g:disabled{opacity:.35;cursor:default;}'
+    + '.cu-g.prim{border-color:rgba(255,210,125,.65);background:rgba(255,210,125,.12);}.cu-g.danger{border-color:rgba(255,130,110,.5);}'
+    + '.cu-graines{display:flex;flex-wrap:wrap;gap:6px;}.cu-gr{position:relative;width:46px;height:46px;border-radius:9px;border:1px solid rgba(190,205,230,.25);background:rgba(255,255,255,.05);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;}'
+    + '.cu-gr .ic{width:34px;height:34px;}.cu-gr b{position:absolute;right:3px;bottom:1px;font-size:10px;color:#fff;text-shadow:0 0 2px #000;}.cu-gr.choisie{border-color:#ffd27d;box-shadow:0 0 0 1px #ffd27d;}'
+    + '.cu-gr.r2{border-color:#7fc77a;}.cu-gr.r3{border-color:#6aa6ff;}.cu-gr.r4{border-color:#c48cff;}.cu-gr.r5{border-color:#ffb347;}'
+    + '.cu-note{font-size:11px;color:#8d9ab4;line-height:1.35;}'
+    + '.cu-gauche{display:flex;flex-direction:column;gap:8px;flex:none;}.cu-eng{display:flex;align-items:center;gap:8px;font-size:12px;}.cu-eng .ic{width:28px;height:28px;}'
+    + '.cu-eng small{display:block;color:#8d9ab4;font-size:10px;}.cu-eng .cu-g{margin-left:auto;padding:6px 10px;}.cu-pips{color:#d9b46a;letter-spacing:1px;}.cu-pips i{color:rgba(255,255,255,.18);font-style:normal;}';
+  document.head.appendChild(st);
+}
+function basculerCarre(c, k) { if (CU.c === c && CU.el && !CU.el.hidden) fermerCarre(); else ouvrirCarre(c, k); }
+function ouvrirCarre(c, k) {
+  cuStyle(); if (typeof feuilleIcones === 'function') feuilleIcones();
+  if (sacOuvert) ouvrirSac(false);
+  if (alOuverte()) fermerAlchimie();
+  if (!CU.el) {
+    CU.el = document.createElement('div'); CU.el.id = 'carre-ui'; CU.el.className = 'ui'; CU.el.setAttribute('role', 'dialog'); CU.el.setAttribute('aria-label', 'Carré de culture');
+    // le geste part à l'appui (et non au relâché) : la fenêtre se redessine en continu, un appui ne doit jamais se perdre
+    CU.el.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.button > 0) return; const b = e.target.closest('[data-cu]'); if (!b || b.disabled) return; e.preventDefault(); cuGeste(b.dataset.cu); });
+    document.body.appendChild(CU.el);
   }
-  if (s.h) return { v: 'DÉSHERBER', o: G.n + ' · mauvaises herbes', f: () => desherber(q) };
-  const soif = s.m < 1 && s.eau < (s.m >= .35 ? .25 : .5);
-  if (soif && P.objets.seau && P.seau > 0) return { v: 'ARROSER', o: G.n + ' · eau ' + pctC(s.eau), f: () => arroser(q) };
-  if (G.pl && s.m >= 1) return { v: 'CUEILLIR', o: G.n, f: () => cueillirChamp(q), r: G.r };
-  if (!G.pl && s.m >= .35) return null;                 // mûr (ou presque) : la récolte ordinaire s'en charge
-  if (s.m < 1 && !s.eng && dispo('os') >= ENGRAIS_OS) return { v: 'ENGRAISSER', o: G.n + ' · ' + pctC(s.m) + ' · ' + ENGRAIS_OS + ' os', f: () => engraisser(q) };
-  const o = G.n + ' · ' + pctC(s.m) + (s.eau <= 0 ? ' · à sec' : ' · eau ' + pctC(s.eau));
-  return { v: 'POUSSE', o, f: () => say(o + (s.eau <= 0 ? (P.objets.seau ? ' · le seau est vide : au bord de l\'eau' : ' · un seau (établi), ou la pluie') : ''), 2.4), vide: true };
+  CU.c = c; CU.k = k | 0; CU.arr = -1; CU.el.hidden = false; CU.html = '';
+  for (const kk in K) K[kk] = false;                     // on lâche les touches : on ne marche plus en choisissant
+  rendreCarre();
+  clearInterval(CU.tic); CU.tic = setInterval(majCarreUI, 400);
+}
+function fermerCarre() { if (CU.el) CU.el.hidden = true; CU.c = null; clearInterval(CU.tic); actionSig = ''; }
+function majCarreUI() {
+  if (!CU.c || !CU.el || CU.el.hidden) return fermerCarre();
+  if (!P.champs.includes(CU.c) || !dansChamp(CU.c, P.x, P.y, 2.5) || sacOuvert) return fermerCarre();   // on s'est éloigné
+  rendreCarre();
+}
+addEventListener('keydown', e => {                       // la fenêtre ouverte : Échap, les flèches, Entrée
+  if (!CU.c || !CU.el || CU.el.hidden) return;
+  if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fermerCarre(); }
+  else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); e.stopPropagation(); const n = CU.c.s.length; CU.k = (CU.k + (e.key === 'ArrowLeft' ? n - 1 : 1)) % n; CU.arr = -1; rendreCarre(); }
+  else if (e.key === 'Enter') { const b = CU.el.querySelector('.cu-fiche [data-cu]:not(:disabled)'); if (b) { e.preventDefault(); e.stopPropagation(); cuGeste(b.dataset.cu); } }
+}, true);
+function cuGeste(g) {
+  const c = CU.c; if (!c) return;
+  if (g.startsWith('pl:')) { CU.k = +g.slice(3) | 0; CU.arr = -1; return rendreCarre(); }
+  if (g === 'x') return fermerCarre();
+  const q = qDe(c, CU.k);
+  if (g.startsWith('semer:')) { const k = g.slice(6); P.graineSel = k; semer(q, k); }
+  else if (g === 'arroser') arroser(q);
+  else if (g === 'herbe') desherber(q);
+  else if (g === 'engrais') engraisser(q);
+  else if (g === 'preparer') preparerEngrais(c);
+  else if (g === 'cueillir') cueillirChamp(q);
+  else if (g === 'recolter') recolterPlace(q);
+  else if (g === 'arracher') { if (CU.arr !== CU.k) { CU.arr = CU.k; return rendreCarre(); } arracherPlace(q); CU.arr = -1; }
+  rendreCarre();
+}
+// Récolter d'un geste : les coups de la récolte ordinaire, d'affilée.
+function recolterPlace(q) {
+  const i = q.i, sp = Flo[i] ? ESP[Flo[i] - 1] : null; if (!sp) return;
+  const nd = { x: q.x, y: q.y, i, ty: Flo[i], sp, z: q.c.z };
+  for (let n = 0; n < 8 && Flo[i] && maturite(i, sp) >= .35; n++) { coupRecolte(nd); if (!ENTAME.has(i)) break; }
+}
+// Arracher : l'emplacement se libère ; la graine revient si elle venait d'être semée.
+function arracherPlace(q) {
+  const G = q.s.e && graineInfo(q.s.e); if (!G) return;
+  const rend = q.s.m < .05;
+  if (rend) gagnerGraine(q.s.e);
+  const eau = q.s.eau; Object.assign(q.s, slotNeuf(), { eau }); majPlace(q.c, q.k); Sauve.sale = true;
+  SON.jouer('coupe', { res: 'fibre', dernier: true }, q.x + .5, q.y + .5, q.c.z); burst(q.x + .5, q.y + .5, q.c.z + .2, 10, '#8a6a48');
+  say(G.n + ' arraché' + (rend ? ' · la graine revient au sac' : ''), 2);
+}
+function rendreCarre() {
+  const c = CU.c, el = CU.el; if (!c || !el) return;
+  const PL = CHAMP_PLACES[c.n], now = Date.now();
+  PL.forEach((_, k) => { const [x, y, ta] = placesDe(c)[k]; pousserPlace(c.s[k], y * WS + x, now, ta); });
+  const D = Math.max(...PL.map(([dx, dy]) => Math.max(Math.abs(dx), Math.abs(dy)))), CEL = c.n === 1 ? 38 : c.n === 2 ? 30 : 27, W = (2 * D + 1) * CEL;
+  const TA = { p: .82, m: 1.3, g: 1.9 };
+  // le plan
+  let plan = `<div class="cu-plan" style="width:${W}px;height:${W}px">`;
+  PL.forEach(([dx, dy, ta], k) => {
+    const s = c.s[k], G = s.e ? graineInfo(s.e) : null, t2 = Math.round(CEL * TA[ta]), mur = G && s.m >= (G.pl ? 1 : .35);
+    plan += `<button class="cu-pl${k === CU.k ? ' sel' : ''}${mur ? ' mur' : ''}" data-cu="pl:${k}" style="left:${(dx + D + .5) * CEL}px;top:${(dy + D + .5) * CEL}px;width:${t2}px;height:${t2}px"`
+      + ` title="${ESC(G ? G.n + ' · ' + pctC(s.m) : 'libre · ' + TAILLE_N[ta])}" aria-label="${ESC(G ? G.n + ' ' + pctC(s.m) : 'emplacement ' + TAILLE_N[ta] + ' libre')}">`
+      + (G ? img(icGraine(s.e)) + `<span class="cu-b" style="width:${Math.round(s.m * 100)}%"></span>` + (s.h ? '<span class="cu-herbe">✱</span>' : '') + (s.m < 1 && s.eau <= .25 ? '<span class="cu-soif"></span>' : '') : '')
+      + `</button>`;
+  });
+  const mx = (P.x - c.x - .5 + D + .5) * CEL, my = (P.y - c.y - .5 + D + .5) * CEL;
+  if (mx > -4 && my > -4 && mx < W + 4 && my < W + 4) plan += `<span class="cu-moi" style="left:${Math.max(0, Math.min(W, mx))}px;top:${Math.max(0, Math.min(W, my))}px"></span>`;
+  plan += `</div>`;
+  // (§132) l'engrais du carré : ses doses, et de quoi en préparer
+  { const max = ENGRAIS_MAX[c.n] || 2, n = engraisDe(c), ok = n < max && peutEngrais();
+    plan = `<div class="cu-gauche">${plan}<div class="cu-eng">${img('engrais')}<span><b>Engrais</b> <span class="cu-pips">${'●'.repeat(n)}<i>${'●'.repeat(max - n)}</i></span>`
+      + `<small>${n}/${max} doses · la dose : ${ENGRAIS_RECETTE.os} os, ${ENGRAIS_RECETTE.fibre} fibre</small></span>`
+      + `<button class="cu-g${ok ? ' prim' : ''}" data-cu="preparer"${ok ? '' : ' disabled'} title="${n >= max ? 'le carré est plein' : 'préparer une dose'}">${n >= max ? 'Plein' : 'Préparer'}</button></div></div>`; }
+  // l'emplacement choisi
+  const q = qDe(c, CU.k), s = q.s, G = s.e ? graineInfo(s.e) : null, ta = q.ta;
+  const geste = (id, ic, t, sous, ok, cl = '') => `<button class="cu-g ${cl}" data-cu="${id}"${ok ? '' : ' disabled'}>${img(ic)}<span>${t}<small>${sous}</small></span></button>`;
+  let f = '';
+  if (!G) {
+    const L = grainesDispo().filter(k => graineInfo(k).ta === ta);
+    f += `<div class="cu-nom">${img('carre')}<div><b>Emplacement ${TAILLE_N[ta]}</b><small>libre · eau ${pctC(s.eau)}</small></div></div>`;
+    f += L.length ? `<div class="cu-lig"><span>Semer</span><span>${L.length} graine${L.length > 1 ? 's' : ''} de cette taille</span></div><div class="cu-graines">`
+        + L.map(k => { const g = graineInfo(k); return `<button class="cu-gr${k === P.graineSel ? ' choisie' : ''}${g.r > 1 ? ' r' + Math.min(5, g.r) : ''}" data-cu="semer:${k}" title="${ESC(nomGraine(k))} · ${stockGraine(k)}" aria-label="semer ${ESC(nomGraine(k))}">${img(icGraine(k))}<b>${stockGraine(k)}</b></button>`; }).join('')
+        + `</div><p class="cu-note">Touchez une graine pour la semer ici.</p>`
+      : `<p class="cu-note">Aucune graine pour un emplacement ${TAILLE_N[ta]}. On en trouve en cueillant et en abattant au sauvage : ${ta === 'g' ? 'les arbres donnent des plants' : ta === 'm' ? 'arbustes, buissons, plantes géantes' : 'herbes, fleurs, petites plantes'}.</p>`;
+  } else {
+    const k = (s.h ? .5 : 1) * (s.eng ? 1.5 : 1), dur = dureeChamp(G, q.i) / k, reste = (1 - s.m) * dur, eauT = CHAMP_EAU * EAU_K[ta] * s.eau;
+    const mur = s.m >= (G.pl ? 1 : .35), plein = s.m >= 1;
+    f += `<div class="cu-nom">${img(icGraine(s.e))}<div><b class="${clRar(G.r)}">${ESC(G.n)}</b><small>emplacement ${TAILLE_N[ta]}${G.pl ? ' · ' + G.pl.rang : ''}</small></div></div>`;
+    f += `<div><div class="cu-lig"><span>Pousse</span><span>${pctC(s.m)}</span></div><div class="cu-barre"><i style="width:${Math.round(s.m * 100)}%;background:${plein ? '#ffd27d' : '#7fd06a'}"></i></div></div>`;
+    f += `<div><div class="cu-lig"><span>Eau</span><span>${pctC(s.eau)}</span></div><div class="cu-barre"><i style="width:${Math.round(s.eau * 100)}%;background:#5aa0ff"></i></div></div>`;
+    const et = [];
+    if (plein) et.push('<span class="bon">mûr' + (G.pl ? ' : à cueillir' : ' : à récolter') + '</span>');
+    else if (s.eau <= 0) et.push('<span class="mal">à sec : la pousse s\'arrête</span>');
+    else { et.push((mur && !G.pl ? '<span class="bon">déjà récoltable</span> · ' : '') + 'mûr dans ' + fmtDuree(reste)); if (eauT < reste) et.push('<span class="mal">l\'eau tiendra ' + fmtDuree(eauT) + '</span>'); }
+    if (s.h) et.push('<span class="mal">mauvaises herbes : pousse ralentie de moitié</span>');
+    if (s.eng) et.push('<span class="bon">engraissé : pousse ×1,5</span>');
+    f += `<div class="cu-etat">${et.join(' · ')}</div>`;
+    const seau = P.objets.seau ? P.seau + '/' + SEAU_MAX + ' au seau' : 'pas de seau';
+    const res = G.pl ? null : G.sp.res;
+    f += `<div class="cu-gestes">`
+      + (G.pl ? geste('cueillir', 'ingr_' + G.pl.ingr, 'Cueillir', plein ? 'mûre' : 'pas encore mûre', plein, plein ? 'prim' : '')
+        : geste('recolter', res, 'Récolter', mur ? (res === 'bois' ? 'l\'arbre est taillé' : 'il repart de zéro') : 'pas encore', mur, mur ? 'prim' : ''))
+      + geste('herbe', 'fibre', 'Désherber', s.h ? 'des herbes ont poussé' : 'rien à désherber', !!s.h, s.h ? 'prim' : '')
+      + geste('arroser', 'seau', 'Arroser', seau, !plein && s.eau < 1 && P.objets.seau && P.seau > 0, !plein && s.eau <= .25 && P.seau > 0 ? 'prim' : '')
+      + geste('engrais', 'engrais', 'Engraisser', s.eng ? 'déjà fait' : plein ? 'il est mûr' : engraisDe(c) ? '1 dose · ' + engraisDe(c) + ' au carré' : 'plus de dose au carré', !plein && !s.eng && engraisDe(c) > 0)
+      + geste('arracher', 'serpe', CU.arr === CU.k ? 'Confirmer' : 'Arracher', CU.arr === CU.k ? 'la plante est perdue' : s.m < .05 ? 'la graine revient' : 'libère la place', true, 'danger')
+      + `</div>`;
+  }
+  const nb = c.s.filter(o => o.e).length, murs = c.s.filter(o => { const g = o.e && graineInfo(o.e); return g && o.m >= (g.pl ? 1 : .35); }).length;
+  const html = `<div class="cu-tete">${img(c.n === 1 ? 'carre' : c.n === 2 ? 'carre2' : 'carre3')}<b>${c.n === 1 ? 'Carré de culture' : c.n === 2 ? 'Carré clos' : 'Grand carré'}</b>`
+    + `<span class="cu-res"><span>${nb}/${c.s.length} semés${murs ? ' · ' + murs + ' à récolter' : ''}</span><span>${img('seau')}${P.objets.seau ? P.seau + '/' + SEAU_MAX : '—'}</span><span>${img('os')}${dispo('os')}</span><span>${img('fibre')}${dispo('fibre')}</span></span>`
+    + `<button class="cu-x" data-cu="x" aria-label="Fermer">✕</button></div>`
+    + `<div class="cu-corps">${plan}<div class="cu-fiche">${f}</div></div>`
+    + `<p class="cu-note" style="padding:0 12px 10px;margin:0">Touchez un emplacement du plan pour le soigner, sans bouger. Le point blanc, c'est vous. Clavier : flèches, Entrée, Échap.</p>`;
+  if (html !== CU.html) { CU.html = html; el.innerHTML = html; }   // seulement si quelque chose a changé : un appui n'est jamais coupé en deux
 }
 // ---------- les carrés à plusieurs (§125) ----------
 // Le propriétaire dit ses carrés à l'île (« champs ») : à l'arrivée d'un joueur, puis dès qu'ils changent (au plus
@@ -4686,7 +4865,7 @@ function champOs(c) {
 function ficheCarre(o) {
   const n = NIV_CARRE[o.id], libres = carresSac(n), q = libres > 0 && campIci() ? placeChamp(P.x, P.y, n) : null;
   const ici = champsIci().find(c => dansChamp(c, P.x, P.y, 1.5)), conf = confirmeAct.id === 'champrep' && maintenantSac() < confirmeAct.jusqua;
-  const gr = Object.keys(P.graines).filter(k => P.graines[k] > 0 && graineInfo(k));
+  const gr = grainesDispo();
   let h = `<div class="fiche" id="sac-fiche">${caseObjet(o.id, { taille: 'grande', inerte: true })}<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}.</p>`
     + `<p>De cette taille : ${P.carresN[n] | 0} fabriqué${(P.carresN[n] | 0) > 1 ? 's' : ''}, ${libres} au sac. En tout : ${carresTot()} carré${carresTot() > 1 ? 's' : ''} sur ${champsMax()} au plus (un de plus au palier 3 du campement, un autre au palier 8).</p><div class="gestes">`;
   if (libres > 0) h += !campIci() ? `<span class="note">il se pose sur l'île du campement</span>`
@@ -4696,10 +4875,10 @@ function ficheCarre(o) {
   if (ici) h += `<p class="note">Ce carré : ` + ici.s.map((s, k) => { const ta = CHAMP_PLACES[ici.n][k][2], G = s.e && graineInfo(s.e);
     return (ta === 'p' ? '' : TAILLE_N[ta] + ' : ') + (G ? ESC(G.n) + ' ' + pctC(s.m) + (s.m < 1 && s.eau <= 0 ? ' (à sec)' : '') + (s.h ? ' (herbes)' : '') : 'libre'); }).join(' · ') + `</p>`;
   h += `<h4 style="margin-top:8px">Graines et plants</h4>` + (gr.length
-    ? `<div class="gestes">` + gr.map(k => { const G = graineInfo(k); return `<button class="btn${k === P.graineSel ? ' principal' : ''}" data-graine="${k}"><span class="${clRar(G.r)}">${ESC(nomGraine(k))}</span> ×${P.graines[k]} · ${TAILLE_N[G.ta]}</button>`; }).join('')
+    ? `<div class="gestes">` + gr.map(k => { const G = graineInfo(k); return `<button class="btn${k === P.graineSel ? ' principal' : ''}" data-graine="${k}"><span class="${clRar(G.r)}">${ESC(nomGraine(k))}</span> ×${stockGraine(k)} · ${TAILLE_N[G.ta]}</button>`; }).join('')
       + `</div><p class="note">ACTION devant un emplacement libre plante la graine choisie, si elle est à sa taille ; sinon, la plus nombreuse de cette taille.</p>`
     : `<p class="note">Aucune graine. On en trouve parfois en cueillant ou en abattant au sauvage : herbes, fleurs, buissons, arbustes, arbres, plantes rares.</p>`);
-  h += `<p class="note">${P.objets.seau ? 'Seau : ' + P.seau + ' arrosage' + (P.seau > 1 ? 's' : '') + ' sur ' + SEAU_MAX + ' · il se remplit au bord de l\'eau.' : 'Un seau (établi) permet d\'arroser ; la pluie arrose aussi.'} Sans eau, une plante ne pousse plus. Engrais : ${ENGRAIS_OS} os, ACTION devant une pousse.</p>`;
+  h += `<p class="note">${P.objets.seau ? 'Seau : ' + P.seau + ' arrosage' + (P.seau > 1 ? 's' : '') + ' sur ' + SEAU_MAX + ' · il se remplit au bord de l\'eau.' : 'Un seau (établi) permet d\'arroser ; la pluie arrose aussi.'} Sans eau, une plante ne pousse plus. Engrais : il se prépare dans la fenêtre du carré (ACTION dans le carré), ${ENGRAIS_RECETTE.os} os et ${ENGRAIS_RECETTE.fibre} fibre la dose ; un carré en garde ${ENGRAIS_MAX[1]}, un clos ${ENGRAIS_MAX[2]}, un grand ${ENGRAIS_MAX[3]}.</p>`;
   return h + `</div></div>`;
 }
 function ficheSeau(o) {
@@ -4712,7 +4891,7 @@ function champLu(c) {
   if (!c || !Number.isInteger(c.g) || !Number.isInteger(c.x) || !Number.isInteger(c.y) || !Number.isFinite(c.z)) return null;
   const n = CHAMP_PLACES[c.n | 0] ? c.n | 0 : 1, D = CHAMP_DEMI[n], S = Array.isArray(c.s) ? c.s : [];
   if (c.x < D + 2 || c.y < D + 2 || c.x > WS - D - 3 || c.y > WS - D - 3) return null;
-  return { g: c.g, x: c.x, y: c.y, z: bn(c.z, -8, 64, 0), n, s: CHAMP_PLACES[n].map(([, , ta], k) => {
+  return { g: c.g, x: c.x, y: c.y, z: bn(c.z, -8, 64, 0), n, engrais: Math.max(0, Math.min(ENGRAIS_MAX[n] || 2, c.e | 0)), s: CHAMP_PLACES[n].map(([, , ta], k) => {
     const s = S[k] && typeof S[k] === 'object' ? S[k] : {}, G = typeof s.e === 'string' ? graineInfo(s.e) : null, e = G && G.ta === ta ? s.e : null;
     return { e, m: e ? bn(s.m, 0, 1, 0) : 0, eau: bn(s.eau, 0, 1, 1), t: bn(s.t, 0, 1e15, Date.now()), h: e && s.h ? 1 : 0, eng: e && s.eng ? 1 : 0 }; }) };
 }
@@ -6977,13 +7156,25 @@ function pageSac() {
     + `<div class="col"><h3>Porté</h3><div class="equip">${equip}</div>`
     + `<h3>Cases du bord droit</h3>${cases}`
     + `<h3>Réserves</h3><div class="rangee">${reserves}</div>`
-    + (() => { const L = INGR_GARDE().filter(id => sacIngr(id) > 0);
+    + (() => { const L = INGR_GARDE().filter(id => sacIngr(id) > 0 && !(INGR[id].fam === 'graine' && graineIngr(id.slice(2))));
         return L.length ? `<h3>Garde-manger</h3><div class="rangee">` + L.map(id =>
           `<div class="emplacement">${caseObjet(icIngr(id), { nb: sacIngr(id), attr: ` data-cru="${id}"`, label: INGR[id].n + (id === 'nectar' ? ' : boire' : INGR[id].fam === 'viande' ? ' : à cuire' : ' : manger cru') })}<span class="${clRar(INGR[id].r)}">${ESC(INGR[id].court)}</span></div>`).join('')
           + `</div>${legendeRare()}<p class="note" style="margin:4px 2px 0">Un appui : on mange cru (la viande, jamais) ; le nectar se boit (ou N) : +35 % de vie. Pour cuisiner : onglet Campement, volet Cuisine, près d'un feu.</p>` : ''; })()
+    + blocGraines()                                    // (§130) graines et plants
     + `</div>`
     + `<div class="col"><h3>Matières</h3>${noteReserve()}<div class="rangee">${matieres}</div>`
     + `<h3>Objets</h3>${grille}${grilleSoins()}${grillePlats()}${ficheSac()}</div></div>`;
+}
+// (§130) Graines et plants, au garde-manger du sac : chacune son icône (le sachet, le plant en motte, la bouture),
+// bordée de sa rareté. Un appui la choisit pour semer ; un second appui mange celles qui se mangent.
+function blocGraines() {
+  const L = grainesDispo(); if (!L.length) return '';
+  return `<h3>Graines et plants</h3><div class="rangee">` + L.map(k => { const G = graineInfo(k), ing = graineIngr(k), ch = k === P.graineSel;
+    return `<div class="emplacement">${caseObjet(icGraine(k), { nb: stockGraine(k), choisie: ch, rar: ing ? INGR[ing].r : G.r, attr: ` data-graine="${k}"`,
+      label: nomGraine(k) + ' · emplacement ' + TAILLE_N[G.ta] + (ch ? ' · choisie pour semer' + (ing ? ' · un appui de plus : manger cru' : '') : ' · la choisir pour semer') })}`
+      + `<span class="${clRar(G.r)}">${ESC(ing ? INGR[ing].court : (G.pl ? G.n : G.n.toLowerCase()))}</span></div>`; }).join('')
+    + `</div><p class="note" style="margin:4px 2px 0">Un appui choisit la graine à semer : ACTION devant un emplacement libre de sa taille, dans un carré de culture. `
+    + `Pignons, glands, graines d'herbe haute et cônes de cyprès se mangent aussi : un second appui sur la graine choisie la mange crue.</p>`;
 }
 function ficheSac() {
   if (!choixSac) return possedeRien() ? '' : `<div class="fiche calme">Toucher un objet pour le voir ici.</div>`;
@@ -7367,11 +7558,11 @@ function voletCases(volet) {
       creer: ['des soins à préparer d\'avance, comptés au sac : ' + soinNiv(1), 'ceux des gens servent à soi, ou à l\'équipier à portée ; ils se rangent dans les cases', 'ceux des compagnes se donnent depuis leur onglet', 'elle s\'améliore deux fois : des soins plus forts'],
       sait: n => [1, 2, 3].filter(k => k <= n).map(k => 'niveau ' + k + ' : ' + soinNiv(k)),
       niv: n => [soinNiv(n)] }),
-    (o => { if (aModule('alchimie')) o.corps += `<div class="obj"><div><div class="n">Vos caractéristiques, les recettes</div><div class="d">la fiche du personnage et le chaudron sont dans le volet Alchimie</div></div><button data-voletcamp="alchimie">Ouvrir</button></div>`; return o; })(
+    (o => { if (aModule('alchimie')) o.corps += `<div class="obj"><div><div class="n">Vos caractéristiques, le carnet</div><div class="d">la fiche du personnage et le carnet sont dans le volet Alchimie ; le chaudron, à la table</div></div><button data-voletcamp="alchimie">Ouvrir</button></div>`; return o; })(
     caseMod('alchimie', 'modalchimie', 'alambic', { court: 'les potions du personnage', le: 'la table d\'alchimie', il: 'elle',
-      creer: ['des potions qui améliorent le personnage pour de bon : ' + ALCH.map(a => a.n.toLowerCase()).join(', '), 'cinq rangs par caractéristique ; au niveau 1, la table prépare les rangs 1 et 2', 'chaque potion a sa recette, à verser dans l\'ordre, et sa chance de réussite ; si elle tourne, tout est perdu', 'elle s\'améliore deux fois : le rang 3, puis les rangs 4 et 5, et de meilleures chances'],
-      sait: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : ' + (n > 1 ? '+' + ALCH_TABLE * (n - 1) + ' points' : 'celle de la recette')],
-      niv: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : +' + ALCH_TABLE + ' points de plus'] })),
+      creer: ['des potions qui améliorent le personnage pour de bon : ' + ALCH.map(a => a.n.toLowerCase()).join(', '), 'cinq rangs par caractéristique ; au niveau 1, la table prépare les rangs 1 et 2', 'chaque potion a sa recette : l\'eau, le feu, les ingrédients dans l\'ordre, le repos entre eux, la cuisson ; et sa chance de réussite — si elle tourne, tout est perdu', 'elle s\'améliore deux fois : le rang 3, puis les rangs 4 et 5, et de meilleures chances'],
+      sait: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : ' + (n > 1 ? '+' + ALCH_TABLE * (n - 1) + ' points' : 'celle de la recette'), INSTR_ALCH[n]],
+      niv: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : +' + ALCH_TABLE + ' points de plus', INSTR_ALCH[n]] })),
     (o => { if (aModule('biblio')) o.corps += `<div class="obj"><div><div class="n">Vos tomes, le pupitre, le grimoire</div><div class="d">tout se lit et s'écrit dans le volet Magie</div></div><button data-voletcamp="biblio">Ouvrir</button></div>`; return o; })(
     caseMod('biblio', 'modbiblio', 'livre', { court: 'écrire ses sorts', le: 'la bibliothèque', il: 'elle',
       creer: ['un pupitre où écrire ses sorts : une forme (' + FORMES.map(f => f.n.toLowerCase()).join(', ') + ') et une matière (' + MATIERES.map(m => m.n.toLowerCase()).join(', ') + ')', 'les tomes trouvés en exploration s\'y lisent : le Tome I d\'une matière l\'apprend', 'un grimoire de trois sorts inscrits, à ranger dans les cases du bord droit ou à tenir en main (X)', 'elle s\'améliore deux fois : cinq sorts puis sept, les mélanges, puis les accents'],
@@ -7921,14 +8112,6 @@ function clicSac(b) {
     else { confirmeAct = { id: 'sorteff:' + d.sorteff, jusqua: maintenantSac() + 5 }; setTimeout(() => { if (sacOuvert && ongletSac === 'camp') majSac(); }, 5100); }
     majSac();
   }
-  else if (d.alch) { if (!P.chaudron) alchChoix = d.alch; confirmeAct.id = ''; majSac(); }
-  else if (d.verser) { confirmeAct.id = ''; verserAlch(d.verser); majSac(); }
-  else if (d.alchtenter) { confirmeAct.id = ''; tenterAlch(); majSac(); }
-  else if (d.alchvider) {
-    if (confirmeAct.id === 'alchvider' && maintenantSac() < confirmeAct.jusqua) { confirmeAct.id = ''; viderAlch(); }
-    else { confirmeAct = { id: 'alchvider', jusqua: maintenantSac() + 5 }; setTimeout(() => { if (sacOuvert && ongletSac === 'camp') majSac(); }, 5100); }
-    majSac();
-  }
   else if (d.voir) { filtreEtabli = d.voir; choixEtabli = null; choisirOnglet('etabli'); }
   else if (d.voirsac) { choixSac = d.voirsac; choisirOnglet('sac'); }
   else if (d.voirrecette) { filtreEtabli = 'tout'; choixEtabli = d.voirrecette; choisirOnglet('etabli'); }
@@ -7952,7 +8135,7 @@ function clicSac(b) {
     }
     majSac();
   }
-  else if (d.graine) { P.graineSel = d.graine; majSac(); }
+  else if (d.graine) { if (P.graineSel === d.graine && graineIngr(d.graine)) mangerCru(graineIngr(d.graine)); else P.graineSel = d.graine; majSac(); }   // (§130) choisie, encore : mangée
   else if (d.camp) {
     if (d.camp === 'poser') poserCampement();
     else if (d.camp === 'portail') ouvrirPortail();
@@ -17062,6 +17245,27 @@ function dessinIngr(d, i) {
   }
 }
 for (const id in INGR) if (INGR[id].src === 'denree') DESSINS['ingr_' + id] = d => dessinIngr(d, INGR[id]);
+// (§130) Les graines à semer : un sachet de papier (herbes, fleurs, plantes rares), un plant en motte (arbres), une
+// bouture (buissons à baies) — à la couleur de la plante. Celles qui se mangent gardent l'icône de leur denrée.
+function dessinGraine(d, kind, c, rare) {
+  const f = c.map(v => v * .65 | 0), cl = c.map(v => Math.min(255, v + 50));
+  if (kind === 'plant') {
+    d.disque(8, 12.6, 3.4, [116, 84, 56]); d.net(6, 12, [140, 104, 72]); d.ligne(8, 11, 8, 6, [104, 76, 48], 2);
+    d.disque(8, 5, 3.2, c); d.disque(5.5, 7, 2, c); d.disque(10.5, 7, 2, f); d.net(7, 4, cl); return;
+  }
+  if (kind === 'bouture') {
+    d.ligne(4, 13, 12, 4, [110, 82, 54], 2); d.ligne(4, 13, 3, 14, [80, 60, 40]);
+    for (const [x, y] of [[6, 9], [9, 6], [11, 8]]) d.disque(x, y, 1.6, [96, 150, 76]);
+    d.disque(8, 11, 1.4, c); d.disque(10, 10.5, 1.3, c); d.net(8, 10, cl); return;
+  }
+  const papier = rare ? [196, 176, 214] : [224, 208, 172], pf = papier.map(v => v * .78 | 0);
+  d.rect(4, 3, 11, 13, papier); d.rect(4, 3, 11, 4, pf); d.ligne(4, 3, 4, 13, pf); d.ligne(11, 3, 11, 13, pf); d.ligne(4, 13, 11, 13, pf);
+  d.disque(7.5, 8.6, 2.6, c); d.net(6.5, 7.6, cl); d.ligne(7.5, 11, 7.5, 12, [90, 140, 70]);
+  if (rare) { d.net(10, 5, [255, 250, 220]); d.net(9, 6, [255, 250, 220]); d.net(11, 6, [255, 250, 220]); d.net(10, 7, [255, 250, 220]); }
+}
+for (const k in FLORE) { const sp = FLORE[k]; if (tailleFlore(sp) && !(INGR['p_' + k] && INGR['p_' + k].fam === 'graine'))
+  DESSINS['graine_' + k] = d => dessinGraine(d, sp.res === 'bois' ? 'plant' : sp.res === 'baies' ? 'bouture' : 'sachet', sp.haut || [140, 170, 110], false); }
+if (typeof FLORE_RARES !== 'undefined') for (const pl of FLORE_RARES) DESSINS['graine_' + pl.id] = d => dessinGraine(d, 'sachet', (pl.pal && pl.pal[3]) || [200, 120, 200], true);
 DESSINS.plat = d => { d.rect(2, 9, 13, 10, [150, 120, 90]); d.rect(3, 11, 12, 12, [120, 92, 66]); d.rect(5, 13, 10, 13, [96, 72, 52]); d.disque(8, 8, 4, [196, 130, 80]); d.net(6, 7, [230, 180, 120]); d.net(9, 6, [120, 170, 90]); d.ligne(6, 4, 7, 1, [236, 236, 236]); d.ligne(10, 4, 9, 1, [236, 236, 236]); };
 DESSINS.carre = d => {                              // (§119) un carré de terre, bordé de planches, deux pousses
   d.rect(2, 4, 13, 13, [108, 80, 56]); d.ligne(3, 7, 12, 7, [80, 58, 40]); d.ligne(3, 10, 12, 10, [80, 58, 40]);
@@ -17070,6 +17274,12 @@ DESSINS.carre = d => {                              // (§119) un carré de terr
 };
 DESSINS.carre2 = d => { DESSINS.carre(d); for (const x of [1, 5, 10, 14]) { d.ligne(x, 2, x, 5, PIX.boisF); } d.ligne(1, 3, 14, 3, PIX.bois); };   // (§120) clos
 DESSINS.carre3 = d => { DESSINS.carre2(d); d.ligne(11, 12, 11, 6, PIX.boisF); d.disque(11, 6, 2.4, PIX.vert); d.net(10, 5, PIX.vertC); };   // (§120) avec son arbre
+DESSINS.engrais = d => {                            // (§132) un sac de toile noué : des éclats d'os, des brins de fibre
+  d.rect(4, 6, 12, 14, [150, 118, 78]); d.ligne(4, 6, 4, 14, [118, 90, 58]); d.ligne(12, 6, 12, 14, [118, 90, 58]); d.ligne(4, 14, 12, 14, [110, 84, 54]);
+  d.rect(6, 4, 10, 5, [126, 98, 64]); d.ligne(5, 6, 11, 6, [96, 72, 46]);
+  d.ligne(7, 3, 6, 1, PIX.fibreF); d.ligne(9, 3, 10, 1, PIX.fibre); d.net(8, 2, PIX.fibreC);
+  d.rect(6, 9, 7, 10, PIX.osC); d.rect(9, 11, 10, 11, PIX.os); d.net(10, 8, PIX.osC); d.net(7, 12, PIX.os);
+};
 DESSINS.seau = d => {                               // (§119) un seau de bois cerclé, l'eau à ras
   d.rect(4, 6, 11, 13, PIX.bois); d.ligne(4, 6, 4, 13, PIX.boisF); d.ligne(11, 6, 11, 13, PIX.boisF);
   d.ligne(4, 8, 11, 8, PIX.pierre); d.ligne(4, 12, 11, 12, PIX.pierre); d.rect(5, 6, 10, 6, PIX.bleuC);
@@ -17101,7 +17311,7 @@ const rareVariante = s => { const v = s && lireVariante(s); return v ? (v.taille
 const rareBete = b => !b || !b.sp ? 1 : b.sp.plante ? (b.pl ? rareIngr(b.pl.ingr) : 1) : Math.max(rareEspece(b.sp), rareVariante(b.variante));
 function rareIcone(ic) {                                 // ce que porte une vignette, d'après son nom
   ic = String(ic || '');
-  return ic.startsWith('cu_') ? (CURIO[ic] ? CURIO[ic].r : 1) : ic.startsWith('ingr_') ? rareIngr(ic.slice(5)) : ic.startsWith('poisson_') ? rareIngr(ic.slice(8)) : ic.startsWith('bete_') ? rareEspece(specById[ic.slice(5)]) : ic === 'nectar' ? rareIngr('nectar') : 1;
+  return ic.startsWith('cu_') ? (CURIO[ic] ? CURIO[ic].r : 1) : ic.startsWith('ingr_') ? rareIngr(ic.slice(5)) : ic.startsWith('poisson_') ? rareIngr(ic.slice(8)) : ic.startsWith('bete_') ? rareEspece(specById[ic.slice(5)]) : ic.startsWith('graine_') ? ((graineInfo(ic.slice(7)) || { r: 1 }).r) : ic === 'nectar' ? rareIngr('nectar') : 1;
 }
 const qPlat = id => { const k = prochainPlat(id), r = P.recettes[lirePlat(id).cle]; return k >= 0 ? P.plats[k].q : r ? r.q : 1; };
 const legendeRare = () => `<p class="legende-rare">Rareté : ` + [1, 2, 3, 4, 5].map(r => nomRare(NOM_RARE[r], r)).join(' · ') + `</p>`;
@@ -17147,6 +17357,7 @@ function arrondiAlch(v) {                                   // la récolte : la 
 // --- les recettes ---
 // Une potion vise une caractéristique du joueur ('vie') ou d'une compagne : 'c12:recolte',
 // 'c12:defense', 'c12:comp' (la compétence de son type). Les automates n'ont pas de compétence.
+const INSTR_ALCH = ['', 'la recette se lit à l\'œil : la hauteur de l\'eau, les flammes, les bulles', 'le thermomètre et la louche graduée : la recette en clair', 'le sablier : le repos et la cuisson se voient, avec plus de marge'];
 const NOM_ETAPE = { viande: 'Viande', poisson: 'Poisson', fruit: 'Fruit', racine: 'Racine', graine: 'Graine', fleur: 'Fleur', feuille: 'Feuille', champignon: 'Champignon', douceur: 'Douceur', '*': 'Ingrédient au choix' };
 const COMP_MAX = 3;
 const GLU = [null, { dur: 2.5, del: 10 }, { dur: 3.5, del: 8 }, { dur: 4.5, del: 6 }];                       // la boule visqueuse : ce qu'elle cloue, son délai
@@ -17215,15 +17426,50 @@ function statAlch() {
   if (P.chaudron && !potionDe(P.chaudron.c)) P.chaudron = null;   // la compagne visée n'est plus là : ce qui était versé est perdu
   return P.chaudron ? P.chaudron.c : potionDe(alchChoix) ? alchChoix : 'vie';
 }
-// La chance, en points : la base du rang, la table, les ingrédients plus rares que demandé, les fautes d'ordre.
-function chanceAlch(k) {
+// --- les gestes : l'eau, le feu, le repos, la cuisson (§133) ---
+// Chaque recette (une potion à un rang) a les siens, tirés d'une graine qui ne dépend que d'elle : les mêmes pour
+// tous, d'une partie à l'autre, à découvrir. La table les dit à l'œil au niveau 1, en clair à partir du 2 ; le
+// carnet retient ceux qu'on a su faire justes. Le feu a cinq crans et de l'inertie : il suit le réglage à FEU_VITE.
+const FEU_NOM = ['feu éteint', 'braises', 'feu doux', 'feu moyen', 'feu vif', 'feu ardent'];
+const ALCH_PEN = { eau: 6, feu: 8, tot: 6, tard: 4, cuisson: 10 }, ALCH_PARFAITE = 15, ALCH_EAU_MAX = 6, FEU_VITE = .4;
+const cleRecette = q => (q.c ? 'c.' : '') + (q.g === 'comp' ? compDe(q.c) : q.g) + '.' + (q.rg + 1);
+const GESTES_ALCH = {};
+function gestesAlch(q) {
+  const k = cleRecette(q); if (GESTES_ALCH[k]) return GESTES_ALCH[k];
+  let h = 2166136261; for (let i = 0; i < k.length; i++) h = Math.imul(h ^ k.charCodeAt(i), 16777619);
+  const al = m => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); h ^= h >>> 16; return ((h >>> 0) / 4294967296 * m) | 0; };
+  const G = { cle: k, eau: 2 + al(4), feu: [], rep: [], cuisson: 10 + al(11) };
+  let f = 1 + al(5);
+  recetteAlch(q).forEach((e, i) => { if (i) f = Math.max(1, Math.min(5, f + [-2, -1, -1, 0, 1, 1, 2][al(7)])); G.feu.push(f); G.rep.push(i ? 4 + al(7) : 0); });
+  return (GESTES_ALCH[k] = G);
+}
+// Les marges : on peut verser un peu avant le terme (m) ou un peu après (2 m) ; la table 3 (le sablier) les élargit.
+const margeRepos = () => nivModule('alchimie') >= 3 ? 2.5 : 1.5, margeCuisson = () => nivModule('alchimie') >= 3 ? 3.5 : 2;
+const recetteFaite = ch => !!ch && ch.e.length > 0 && ch.e.every(Boolean);
+// Ce que les gestes ont coûté jusqu'ici. La cuisson se juge sur l'instant (trop tôt, à point, trop tard) — ou se
+// suppose juste (juste) : la fenêtre ne la dit pas avant la table 3.
+function bilanGestes(q, ch, juste) {
+  const G = gestesAlch(q), m = margeRepos(), b = { eau: 0, feu: 0, tot: 0, tard: 0, cuisson: 0, cuit: '', pts: 0 };
+  if (!ch) return b;
+  if (ch.e.some(Boolean)) b.eau = ALCH_PEN.eau * Math.abs(ch.eau - G.eau);
+  ch.s.forEach((s, i) => { if (!s) return; if (s[0] !== G.feu[i]) b.feu += ALCH_PEN.feu;
+    if (i && s[1] >= 0) { if (s[1] < G.rep[i] - m) b.tot += ALCH_PEN.tot; else if (s[1] > G.rep[i] + 2 * m) b.tard += ALCH_PEN.tard; } });
+  if (recetteFaite(ch)) { const mc = margeCuisson(); b.cuit = juste ? 'ok' : ch.t < G.cuisson - mc ? 'tot' : ch.t > G.cuisson + 2 * mc ? 'tard' : 'ok'; if (b.cuit !== 'ok') b.cuisson = ALCH_PEN.cuisson; }
+  b.pts = b.eau + b.feu + b.tot + b.tard + b.cuisson;
+  return b;
+}
+// La chance, en points : la base du rang, la table, les ingrédients plus rares que demandé ; moins les fautes
+// d'ordre et les gestes manqués ; plus la potion parfaite, quand tout a été juste.
+function chanceAlch(k, juste) {
   const q = potionDe(k), ch = P.chaudron && P.chaudron.c === k ? P.chaudron : null;
-  if (!q || q.rg >= q.max) return { base: 0, table: 0, rare: 0, fautes: 0, total: 0 };
+  if (!q || q.rg >= q.max) return { base: 0, table: 0, rare: 0, fautes: 0, gestes: 0, parfaite: 0, b: null, total: 0 };
   const base = ALCH_CHANCE[q.rg + q.dec], table = ALCH_TABLE * (Math.max(1, nivModule('alchimie')) - 1);
-  let rare = 0, fautes = 0;
+  let rare = 0, fautes = 0, b = null, parfaite = 0;
   if (ch) { const R = recetteAlch(q); ch.e.forEach((id, i) => { if (id && INGR[id]) rare += Math.max(0, INGR[id].r - R[i].r) * ALCH_RARE; });
-    rare = Math.min(ALCH_RARE_MAX, rare); fautes = ALCH_FAUTE * ch.f; }
-  return { base, table, rare, fautes, total: Math.max(5, Math.min(95, base + table + rare - fautes)) };
+    rare = Math.min(ALCH_RARE_MAX, rare); fautes = ALCH_FAUTE * ch.f; b = bilanGestes(q, ch, juste);
+    if (recetteFaite(ch) && !ch.f && !b.pts) parfaite = ALCH_PARFAITE; }
+  const gestes = b ? b.pts : 0;
+  return { base, table, rare, fautes, gestes, parfaite, b, total: Math.max(5, Math.min(95, base + table + rare - fautes - gestes + parfaite)) };
 }
 // Ce qui empêche de préparer la potion q, en clair — ou rien.
 function freinAlch(q) {
@@ -17235,58 +17481,127 @@ function freinAlch(q) {
   if (q.c && q.c.ko) return q.c.nom + ' est à terre : relevez-la d\'abord';
   return '';
 }
-// Verser un ingrédient : il prend l'étape attendue s'il lui convient ; sinon la première étape plus
-// loin qui l'accepte, et c'est une faute. Versé, il est consommé.
+// Le chaudron : la potion visée (c), l'ingrédient de chaque étape (e) et ce qu'il a trouvé en tombant (s : le cran
+// du feu, le repos depuis le précédent — −1 pour le premier), les fautes d'ordre (f), l'eau en louches, le feu
+// (fa, qui suit fc, le réglage), le temps depuis le dernier versé (t) : le repos, puis la cuisson.
+function chaudronNeuf(k) { const R = recetteAlch(potionDe(k)); return { c: k, e: R.map(() => null), s: R.map(() => null), f: 0, eau: 0, fa: 0, fc: 0, t: 0 }; }
+const dire = (m, d) => { say(m, d); AL.msg = m; };
+function chaudronPret() {                    // le chaudron de la potion choisie, mis en place s'il le faut — ou rien, et pourquoi
+  const k = statAlch(), q = potionDe(k), frein = q ? freinAlch(q) : 'rien à préparer';
+  if (frein) { dire(frein, 2.6); return null; }
+  return P.chaudron || (P.chaudron = chaudronNeuf(k));
+}
+// Le temps du chaudron : il ne court que la fenêtre ouverte (fermée, le chaudron est couvert).
+function avancerAlch(dt) {
+  const ch = P.chaudron; if (!ch || !(dt > 0)) return;
+  dt = Math.min(.25, dt); const v = FEU_VITE * dt, d = ch.fc - ch.fa;
+  ch.fa = Math.abs(d) <= v ? ch.fc : ch.fa + Math.sign(d) * v;
+  if (ch.e.some(Boolean)) ch.t += dt;
+}
+function loucheAlch() {
+  const ch = chaudronPret(); if (!ch) return false;
+  if (ch.e.some(Boolean)) { dire('l\'eau se verse avant les ingrédients', 2); return false; }
+  if (ch.eau >= ALCH_EAU_MAX) { dire('le chaudron est plein', 1.6); return false; }
+  ch.eau++; Sauve.sale = true; SON.jouer('plouf'); alFx('eau'); return true;
+}
+function feuAlch(s) {
+  const ch = chaudronPret(); if (!ch) return false;
+  const n = Math.max(0, Math.min(5, ch.fc + s));
+  if (n === ch.fc) { dire(s > 0 ? 'le feu est au plus fort' : 'le feu est éteint', 1.4); return false; }
+  ch.fc = n; Sauve.sale = true; SON.jouer(s > 0 ? 'bouffee' : 'vapeur'); return true;
+}
+// Verser un ingrédient : il prend l'étape attendue s'il lui convient ; sinon la première étape plus loin qui
+// l'accepte, et c'est une faute. Le chaudron dit aussitôt ce qui n'allait pas : l'eau (au premier), le feu, le repos.
 function verserAlch(id) {
   const k = statAlch(), q = potionDe(k), frein = freinAlch(q);
-  if (frein) { say(frein, 2.6); return false; }
-  if (!INGR[id] || qteIngr(id) <= 0) { say('il n\'en reste plus', 1.2); return false; }
-  const R = recetteAlch(q), ch = P.chaudron || { c: k, e: R.map(() => null), f: 0 };
+  if (frein) { dire(frein, 2.6); return false; }
+  if (!INGR[id] || qteIngr(id) <= 0) { dire('il n\'en reste plus', 1.2); return false; }
+  const ch = P.chaudron;
+  if (!ch || !ch.eau) { dire('de l\'eau d\'abord : une louche, ou plusieurs', 2.2); return false; }
+  const R = recetteAlch(q), G = gestesAlch(q);
   const libre = R.map((e, i) => i).filter(i => !ch.e[i]), va = libre.filter(i => etapeVa(R[i], id));
-  if (!libre.length) { say('tout est versé · tentez la potion', 2); return false; }
-  if (!va.length) { say(INGR[id].n + ' n\'entre pas dans ce qui reste à verser', 2); return false; }
-  const i = va[0], faute = i !== libre[0];
-  ch.e[i] = id; if (faute) ch.f++;
-  P.chaudron = ch; oterIngr(id); Sauve.sale = true; SON.jouer('equipe');
-  { const p = lieuModule(P.camp, 'alchimie'); burst(p[0], p[1], P.camp.z + 1, 6, faute ? '#c08a8a' : '#c8a8e8'); }
-  say(faute ? INGR[id].n + ' · versé hors de son tour · −' + ALCH_FAUTE + ' points de chance'
-    : libre.length === 1 ? 'tout est versé · ' + chanceAlch(k).total + ' % de chance' : INGR[id].n + ' · étape ' + (i + 1) + ' sur ' + R.length, 2.2);
+  if (!libre.length) { dire('tout est versé · laissez cuire, puis mettez en fiole', 2); return false; }
+  if (!va.length) { dire(INGR[id].n + ' n\'entre pas dans ce qui reste à verser', 2); return false; }
+  const i = va[0], faute = i !== libre[0], premier = !ch.e.some(Boolean), feu = Math.round(ch.fa), rep = premier ? -1 : Math.round(ch.t * 10) / 10;
+  ch.e[i] = id; ch.s[i] = [feu, rep]; if (faute) ch.f++;
+  ch.t = 0; oterIngr(id); Sauve.sale = true; SON.jouer('plouf'); alFx('verse', INGR[id].fam);
+  const m = margeRepos(), dit = [];
+  if (faute) dit.push('hors de son tour −' + ALCH_FAUTE);
+  if (premier) { if (ch.eau === G.eau) noterCarnet(q, 'eau', 0, G.eau); else dit.push((ch.eau > G.eau ? 'trop d\'eau' : 'pas assez d\'eau') + ' −' + ALCH_PEN.eau * Math.abs(ch.eau - G.eau)); }
+  if (feu === G.feu[i]) noterCarnet(q, 'feu', i, feu); else dit.push((feu > G.feu[i] ? 'trop chaud' : 'pas assez chaud') + ' −' + ALCH_PEN.feu);
+  if (i && rep >= 0) { if (rep < G.rep[i] - m) dit.push('trop tôt −' + ALCH_PEN.tot); else if (rep > G.rep[i] + 2 * m) dit.push('trop tard −' + ALCH_PEN.tard); else noterCarnet(q, 'rep', i, G.rep[i]); }
+  { const p = lieuModule(P.camp, 'alchimie'); burst(p[0], p[1], P.camp.z + 1, 6, dit.length ? '#c08a8a' : '#c8a8e8'); }
+  dire(INGR[id].n + ' · ' + (dit.length ? dit.join(' · ') : libre.length === 1 ? 'tout est versé · laissez cuire' : 'juste'), 2.6);
   return true;
 }
+// Mettre en fiole : la cuisson se juge à cet instant. Réussie, la potion est bue (ou donnée) ; parfaite, elle est d'or.
 function tenterAlch() {
-  const ch = P.chaudron; if (!ch) { say('le chaudron est vide', 1.4); return false; }
-  const k = statAlch(), q = potionDe(k); if (!q) { say('le chaudron est vide', 1.4); return false; }
-  const frein = freinAlch(q); if (frein) { say(frein, 2.6); return false; }
-  if (ch.e.some(x => !x)) { say('il reste des ingrédients à verser', 1.8); return false; }
+  const ch = P.chaudron; if (!ch || !ch.e.some(Boolean)) { dire('le chaudron est vide', 1.4); return false; }
+  const k = statAlch(), q = potionDe(k); if (!q) { dire('le chaudron est vide', 1.4); return false; }
+  const frein = freinAlch(q); if (frein) { dire(frein, 2.6); return false; }
+  if (ch.e.some(x => !x)) { dire('il reste des ingrédients à verser', 1.8); return false; }
   const cout = ALCH_COUT[q.rg + q.dec], rang = q.rg + 1;
   if (!essai) {
-    for (const [r, n] of Object.entries(cout)) if (dispo(r) < n) { say('il manque de quoi lier la potion · ' + Object.entries(cout).map(([m, v]) => v + ' ' + (v > 1 ? PLURIEL[m] || RES[m] : RES[m])).join(' · '), 2.8); return false; }
+    for (const [r, n] of Object.entries(cout)) if (dispo(r) < n) { dire('il manque de quoi lier la potion · ' + Object.entries(cout).map(([m, v]) => v + ' ' + (v > 1 ? PLURIEL[m] || RES[m] : RES[m])).join(' · '), 2.8); return false; }
     payer(cout);
   }
-  const chance = chanceAlch(k).total, de = typeof globalThis.__ALCH_DE === 'number' ? globalThis.__ALCH_DE : Math.random() * 100;
+  const C = chanceAlch(k), chance = C.total, parf = C.parfaite > 0, de = typeof globalThis.__ALCH_DE === 'number' ? globalThis.__ALCH_DE : Math.random() * 100;
   const p = lieuModule(P.camp, 'alchimie'), ok = de < chance;
+  { const n = carnetDe(q); n.n++; if (ok) n.ok++; n.m = Math.max(n.m, chance); if (C.b && C.b.cuit === 'ok') n.cu = gestesAlch(q).cuisson; if (ok && parf) n.p = 1; }
+  AL.der = { ok, parf, chance, gestes: C.gestes, cuit: C.b ? C.b.cuit : '' };
   P.chaudron = null; Sauve.sale = true;
+  alFx(ok ? (parf ? 'or' : 'ok') : 'rate', q);
+  const cuit = C.b && C.b.cuit === 'tot' ? ' · pas assez cuite' : C.b && C.b.cuit === 'tard' ? ' · trop cuite' : '';
   if (ok) {
-    burst(p[0], p[1], P.camp.z + 1, 46, '#c8a8e8'); SON.jouer('niveau');
+    burst(p[0], p[1], P.camp.z + 1, parf ? 70 : 46, parf ? '#ffd27d' : '#c8a8e8'); SON.jouer('niveau');
+    const pf = parf ? 'potion parfaite, d\'or · ' : '';
     if (q.c) {
       q.c.pot = Object.assign({}, q.c.pot, { [q.g]: rang });
       if (q.c.b && q.c.dehors) burst(q.c.b.x, q.c.b.y, q.c.b.z + .8, 24, '#ffd27d');
-      say(q.g === 'comp' && rang === 1 ? 'potion réussie · ' + q.c.nom + ' apprend : ' + q.n.toLowerCase() + ' · ' + q.v(1)
-        : nomPotion(q) + ' réussie · donnée à ' + q.c.nom + ' · rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang), 5);
+      dire(pf + (q.g === 'comp' && rang === 1 ? 'potion réussie · ' + q.c.nom + ' apprend : ' + q.n.toLowerCase() + ' · ' + q.v(1)
+        : nomPotion(q) + ' réussie · donnée à ' + q.c.nom + ' · rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang)), 5);
     } else {
       P.alchimie[k] = rang; burst(P.x, P.y, P.z + 1, 24, '#ffd27d');
-      say(nomPotion(q) + ' réussie · bue · ' + q.n.toLowerCase() + ' rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang - 1) + ' → ' + q.v(rang), 5);
+      dire(pf + nomPotion(q) + ' réussie · bue · ' + q.n.toLowerCase() + ' rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang - 1) + ' → ' + q.v(rang), 5);
     }
   } else {
     burst(p[0], p[1], P.camp.z + 1, 30, '#6a5a7a'); SON.jouer('pilon', {}, p[0], p[1], P.camp.z + .6);
-    say('la potion tourne · tout est perdu · elle avait ' + chance + ' % de chance', 4.5);
+    dire('la potion tourne' + cuit + ' · tout est perdu · elle avait ' + chance + ' % de chance', 4.5);
   }
   majSac();
   return ok;
 }
 function viderAlch() {
   if (!P.chaudron) return;
-  P.chaudron = null; Sauve.sale = true; say('chaudron vidé · ce qui était versé est perdu', 2.6);
+  const perdu = P.chaudron.e.some(Boolean); P.chaudron = null; Sauve.sale = true; alFx('vide');
+  dire(perdu ? 'chaudron vidé · ce qui était versé est perdu' : 'chaudron vidé', 2.6);
+}
+// Le carnet de l'alchimiste, par recette : les essais, les réussites, la meilleure chance, la potion parfaite, et
+// chaque geste qu'on a su faire juste — noté, il se lit ensuite en clair, quel que soit le niveau de la table.
+const carnetDe = q => { const k = cleRecette(q); return P.carnetAlch[k] || (P.carnetAlch[k] = { n: 0, ok: 0, m: 0, p: 0 }); };
+function noterCarnet(q, quoi, i, v) { const c = carnetDe(q); if (quoi === 'feu' || quoi === 'rep') (c[quoi] = c[quoi] || [])[i] = v; else c[quoi] = v; }
+function carnetLu(d) {
+  P.carnetAlch = {}; if (!d || typeof d !== 'object') return;
+  const nb = (v, a, b) => Number.isFinite(+v) ? Math.max(a, Math.min(b, Math.round(+v))) : a;
+  for (const [k, o] of Object.entries(d).slice(0, 300)) {
+    if (!/^(c\.)?[a-z]{2,16}\.[1-5]$/.test(k) || !o || typeof o !== 'object') continue;
+    const c = { n: nb(o.n, 0, 99999), ok: nb(o.ok, 0, 99999), m: nb(o.m, 0, 100), p: o.p ? 1 : 0 };
+    if (o.eau) c.eau = nb(o.eau, 2, 5);
+    if (o.cu) c.cu = nb(o.cu, 10, 20);
+    for (const f of ['feu', 'rep']) if (Array.isArray(o[f])) c[f] = o[f].slice(0, 6).map(v => v == null ? null : f === 'feu' ? nb(v, 1, 5) : nb(v, 4, 10));
+    P.carnetAlch[k] = c;
+  }
+}
+// Ce que la table dit d'un geste : en clair à partir du niveau 2 (le thermomètre, la louche graduée) ou s'il est
+// noté au carnet ; à l'œil, au niveau 1.
+function ditGeste(q, quoi, i) {
+  const G = gestesAlch(q), c = P.carnetAlch[cleRecette(q)], v = quoi === 'eau' ? G.eau : quoi === 'cu' ? G.cuisson : G[quoi][i];
+  const note = !!c && (quoi === 'eau' || quoi === 'cu' ? c[quoi] : c[quoi] && c[quoi][i]) === v, clair = note || nivModule('alchimie') >= 2;
+  const t = quoi === 'eau' ? (clair ? v + ' louches' : v <= 3 ? 'un peu d\'eau' : 'beaucoup d\'eau')
+    : quoi === 'feu' ? (clair ? FEU_NOM[v] : v <= 2 ? 'feu bas' : v === 3 ? 'feu moyen' : 'feu haut')
+    : quoi === 'rep' ? (clair ? 'repos ' + v + ' s' : v <= 6 ? 'repos court' : 'repos long')
+    : (clair ? v + ' s' : v <= 14 ? 'un moment' : 'longtemps');
+  return { t, note };
 }
 // Ce que la sauvegarde en dit : des rangs bornés ; puis, les compagnes installées, un chaudron dont
 // chaque ingrédient tient son étape.
@@ -17300,8 +17615,12 @@ function chaudronLu(ch) {
   if (!ch || typeof ch.c !== 'string' || !Array.isArray(ch.e)) return;
   const q = potionDe(ch.c); if (!q || q.rg >= q.max) return;
   const R = recetteAlch(q); if (ch.e.length !== R.length) return;
-  const e = ch.e.map((id, i) => typeof id === 'string' && etapeVa(R[i], id) ? id : null);
-  if (e.some(Boolean)) P.chaudron = { c: ch.c, e, f: Math.max(0, Math.min(R.length, Number(ch.f) | 0)) };
+  const nb = (v, a, b, d) => Number.isFinite(+v) && v !== null ? Math.max(a, Math.min(b, +v)) : d;
+  const G = gestesAlch(q), e = ch.e.map((id, i) => typeof id === 'string' && etapeVa(R[i], id) ? id : null), ancien = !Array.isArray(ch.s);   // un chaudron d'avant les gestes : ils lui sont comptés justes
+  const s = e.map((id, i) => !id ? null : ancien || !Array.isArray(ch.s[i]) ? [G.feu[i], -1] : [nb(ch.s[i][0], 0, 5, 0) | 0, ch.s[i][1] < 0 ? -1 : Math.round(nb(ch.s[i][1], 0, 999, 0) * 10) / 10]);
+  const o = { c: ch.c, e, s, f: Math.max(0, Math.min(R.length, Number(ch.f) | 0)), eau: ancien ? (e.some(Boolean) ? G.eau : 0) : nb(ch.eau, 0, ALCH_EAU_MAX, 0) | 0,
+    fa: nb(ch.fa, 0, 5, 0), fc: nb(ch.fc, 0, 5, 0) | 0, t: nb(ch.t, 0, 9999, 0) };
+  if (e.some(Boolean) || o.eau || o.fc) P.chaudron = o;
 }
 // --- les compétences des compagnes : elles s'en servent seules, quand la situation s'y prête ---
 const prenable = o => vivante(o) && !o.sp.plante && !o.sp.batiment && !o.sp.pnj && !o.sp.villageois && !o.sp.illusion && !o.cache;
@@ -17454,50 +17773,334 @@ function majCompetences(dt) {
   }
 }
 // --- la page : à gauche la fiche (soi, puis les compagnes), à droite la potion et le garde-manger ---
+// Le volet Alchimie du sac : la fiche et le carnet, en lecture seule. Les potions se préparent à la table,
+// dans sa fenêtre (§133) : ACTION devant elle, au campement.
 function pageAlchimie() {
-  const k = statAlch(), q = potionDe(k), rg = q.rg, rang = rg + 1, niv = nivModule('alchimie'), ch = P.chaudron, maj = x => ESC(x[0].toUpperCase() + x.slice(1));
-  const pts = (n, max) => '●'.repeat(n) + '○'.repeat(max - n);
-  const ligne = (id, nom, base, r, max, tot) => `<button class="${[id === k ? 'on' : '', r ? 'plus' : ''].join(' ').trim()}" data-alch="${id}"${ch && ch.c !== id ? ' disabled' : ''} aria-pressed="${id === k}"`
-    + ` aria-label="${ESC(nom + ' : base ' + base + ', ' + r + ' rang' + (r > 1 ? 's' : '') + ' de potion, total ' + tot)}">`
-    + `<b>${ESC(nom)}</b><span>${base}</span><span class="pts">${pts(r, max)}</span><span class="tot">${tot}</span></button>`;
+  const ch = P.chaudron, maj = x => ESC(x[0].toUpperCase() + x.slice(1)), pts = (n, max) => '●'.repeat(n) + '○'.repeat(max - n);
+  const ligne = (nom, base, r, max, tot) => `<div class="lig${r ? ' plus' : ''}"><b>${ESC(nom)}</b><span>${base}</span><span class="pts">${pts(r, max)}</span><span class="tot">${tot}</span></div>`;
   const tete = `<div class="tete"><span>Caractéristique</span><span>Base</span><span>Potions</span><span>Total</span></div>`;
-  const fiche = `<div class="caracs">${tete}` + ALCH.map(o => ligne(o.id, o.n, o.v(0), rangAlch(o.id), ALCH_MAX, o.v(rangAlch(o.id)))).join('') + `</div>`
-    + `<p class="note" style="margin:6px 2px 0">La base est celle de tout personnage ; les potions s'y ajoutent pour de bon. Les plats de la cuisine, eux, passent.`
-    + (ch ? ' Le chaudron est en cours : tentez la potion ou videz-le pour en changer.' : '') + `</p>`;
-  const comps = P.compagnes.length ? P.compagnes.map(c => { const sp = specById[c.esp], f = compDe(c), ty = NOM_TYPE[typeComp(c)], id = 'c' + c.id + ':', rc = potComp(c, 'comp');
+  const qc = ch && potionDe(ch.c);
+  const fiche = `<div class="caracs">${tete}` + ALCH.map(o => ligne(o.n, o.v(0), rangAlch(o.id), ALCH_MAX, o.v(rangAlch(o.id)))).join('') + `</div>`
+    + `<p class="note" style="margin:6px 2px 0">La base est celle de tout personnage ; les potions s'y ajoutent pour de bon. Les plats de la cuisine, eux, passent.</p>`
+    + `<p class="note" style="margin:6px 2px 0">Les potions se préparent à la table d'alchimie : ACTION devant elle, au campement.`
+    + (qc ? ' Un chaudron y attend, couvert : ' + ESC(nomPotion(qc)) + (qc.c ? ' pour ' + ESC(qc.c.nom) : '') + ' · ' + ch.e.filter(Boolean).length + ' étape' + (ch.e.filter(Boolean).length > 1 ? 's' : '') + ' sur ' + ch.e.length + '.' : '')
+    + `</p>` + (!aModule('alchimie') && P.camp ? `<button class="btn" data-voletcamp="camp" data-casecamp="modalchimie" style="margin-top:8px">Créer la table d'alchimie</button>` : '');
+  const comps = P.compagnes.length ? P.compagnes.map(c => { const sp = specById[c.esp], f = compDe(c), ty = NOM_TYPE[typeComp(c)], rc = potComp(c, 'comp');
       const L = APT_RES.map(r => [NOM_APT[r], noteApt(c.esp, r)]).concat([['Défense', noteDef(c.esp)]]).filter(x => x[1] > 0);
       return `<h4>${ESC(c.nom)} · ${ESC(sp ? sp.n.toLowerCase() : c.esp)}${ty ? ' · ' + ty : ''}${c.ko ? ' · à terre' : ''}</h4><div class="caracs">`
-        + ligne(id + 'recolte', 'Récolte', '100 %', potComp(c, 'recolte'), ALCH_MAX, ALCH_COMP.recolte.v(potComp(c, 'recolte')))
-        + ligne(id + 'defense', 'Défense', '100 %', potComp(c, 'defense'), ALCH_MAX, ALCH_COMP.defense.v(potComp(c, 'defense')))
-        + (f ? ligne(id + 'comp', COMPETENCES[f].n, '—', rc, COMP_MAX, rc ? 'rang ' + rc : '—') : '') + `</div>`
+        + ligne('Récolte', '100 %', potComp(c, 'recolte'), ALCH_MAX, ALCH_COMP.recolte.v(potComp(c, 'recolte')))
+        + ligne('Défense', '100 %', potComp(c, 'defense'), ALCH_MAX, ALCH_COMP.defense.v(potComp(c, 'defense')))
+        + (f ? ligne(COMPETENCES[f].n, '—', rc, COMP_MAX, rc ? 'rang ' + rc : '—') : '') + `</div>`
         + `<p class="note" style="margin:5px 2px 2px">Aptitudes de l'espèce : ${L.map(([n, v]) => n + ' ' + points(v)).join(' · ')}.${f ? '' : ' Pas de compétence : un automate n\'apprend pas par potion.'}</p>`; }).join('')
     : `<div class="vide-texte">Aucune compagne liée.</div>`;
-  let droite;
-  const pour = q.c ? ' pour ' + ESC(q.c.nom) : '';
-  if (rg >= q.max) droite = `<h3>${ESC(q.n)}${pour} · au plus haut</h3><div class="obj"><div><div class="n">${maj(q.d)}</div><div class="d">${q.v(rg)} · ${q.max} rangs sur ${q.max}</div></div></div>`;
-  else {
-    const R = recetteAlch(q), e = ch ? ch.e : R.map(() => null), suiv = e.findIndex(x => !x), cout = ALCH_COUT[rg + q.dec], C = chanceAlch(k);
-    const payable_ = essai || Object.entries(cout).every(([r, n]) => dispo(r) >= n), frein = freinAlch(q);
-    const etapes = R.map((s, i) => `<div class="obj etape${i === suiv ? ' porte' : ''}"><div class="n">${i + 1} · ${ditEtape(s)}</div>`
-      + `<span class="${e[i] ? 'fait' : 'attend'}">${e[i] ? '✓ ' + ESC(INGR[e[i]].court) : i === suiv ? 'à verser' : ''}</span></div>`).join('');
-    const reste = R.filter((s, i) => !e[i]), tous = Object.keys(INGR).filter(id => qteIngr(id) > 0), bons = tous.filter(id => reste.some(s => etapeVa(s, id)));
-    const garde = Object.keys(NOM_FAM).map(fam => { const L = bons.filter(id => INGR[id].fam === fam); if (!L.length) return '';
-      return `<h4>${NOM_FAM[fam]}</h4><div class="rangee">` + L.map(id => `<div class="emplacement">${caseObjet(icIngr(id), { nb: qteIngr(id), attr: ` data-verser="${id}"`, label: INGR[id].n + ' · ' + RARETES[INGR[id].r - 1] + ' : verser' })}<span class="${clRar(INGR[id].r)}">${ESC(INGR[id].court)}</span></div>`).join('') + `</div>`; }).join('');
-    const sur = confirmeAct.id === 'alchvider' && maintenantSac() < confirmeAct.jusqua;
-    droite = `<h3>${maj(nomPotion(q))}${pour} · rang ${rang} sur ${q.max}</h3>`
-      + `<div class="obj"><div><div class="n">${maj(q.d)}</div><div class="d">${q.v(rg)} → ${q.v(rang)}<br>à payer en tentant : ${ditCout(cout)}${payable_ ? '' : ' · il en manque'}</div></div></div>`
-      + `<div class="obj"><div><div class="n">Chance de réussite · ${C.total} %</div><div class="d">base ${C.base}${C.table ? ' · table +' + C.table : ''}${C.rare ? ' · ingrédients rares +' + C.rare : ''}${C.fautes ? ' · fautes d\'ordre −' + C.fautes : ''}`
-      + `<br>un ingrédient plus rare que demandé ajoute ${ALCH_RARE} points par cran (${ALCH_RARE_MAX} au plus)</div></div></div>`
-      + `<h3>La recette, dans l'ordre</h3>${etapes}`
-      + `<p class="note" style="margin:8px 2px">Versé, c'est versé : l'ingrédient est consommé. Hors de son tour, il coûte ${ALCH_FAUTE} points de chance. Si la potion tourne, tout est perdu.${frein ? '<br><b>' + maj(frein) + '.</b>' : ''}</p>`
-      + (!niv && P.camp ? `<button class="btn" data-voletcamp="camp" data-casecamp="modalchimie">Créer la table d'alchimie</button> ` : '')
-      + `<button class="btn principal" data-alchtenter="1"${suiv < 0 && !frein && payable_ ? '' : ' disabled'}>Tenter la potion</button>`
-      + (ch ? ` <button class="btn" data-alchvider="1">${sur ? 'Confirmer : tout perdre' : 'Vider le chaudron'}</button>` : '')
-      + `<h3>Garde-manger</h3>`
-      + (suiv < 0 ? `<div class="vide-texte">Tout est versé.</div>`
-        : garde || `<div class="vide-texte">Rien, au garde-manger, n'entre dans ce qui reste à verser${tous.length ? ' (' + tous.length + ' ingrédient' + (tous.length > 1 ? 's' : '') + ' d\'une autre famille ou trop commun' + (tous.length > 1 ? 's' : '') + ')' : ''}.</div>`);
+  // le carnet : une ligne par recette essayée
+  const nomCle = k => { const m = /^(c\.)?([a-z]+)\.(\d)$/.exec(k); if (!m) return k; const x = m[2];
+    return (m[1] ? ALCH_COMP[x] ? ALCH_COMP[x].n + ' d\'une compagne' : COMPETENCES[x] ? COMPETENCES[x].n : x : ALCH_PAR_ID[x] ? ALCH_PAR_ID[x].n : x) + ' · rang ' + m[3]; };
+  const notes = c => { const L = []; if (c.eau) L.push('l\'eau'); const nf = (c.feu || []).filter(v => v).length, nr = (c.rep || []).filter(v => v).length;
+    if (nf) L.push(nf + ' feu' + (nf > 1 ? 'x' : '')); if (nr) L.push(nr + ' repos'); if (c.cu) L.push('la cuisson'); return L.length ? 'notés : ' + L.join(', ') : 'rien de noté encore'; };
+  const K = Object.keys(P.carnetAlch).sort();
+  const carnet = K.length ? K.map(k => { const c = P.carnetAlch[k];
+      return `<div class="obj"><div><div class="n">${ESC(nomCle(k))}${c.p ? ' · <span style="color:var(--or)">★ parfaite</span>' : ''}</div><div class="d">${c.n} essai${c.n > 1 ? 's' : ''} · ${c.ok} réussi${c.ok > 1 ? 's' : ''} · meilleure chance ${c.m} % · ${notes(c)}</div></div></div>`; }).join('')
+    : `<div class="vide-texte">Rien encore : chaque recette essayée s'y note, avec les gestes qu'on a su faire justes.</div>`;
+  return `<div class="sac-corps deux alch"><div class="col"><div><h3>Vos caractéristiques</h3>${fiche}</div><div class="fin"><h3>Vos compagnes</h3>${comps}</div></div>`
+    + `<div class="col"><h3>Carnet de l'alchimiste</h3>${carnet}</div></div>`;
+}
+// ---------- la table d'alchimie, en fenêtre (§133) ----------
+// ACTION devant la table l'ouvre : les potions à gauche, le chaudron au milieu (on y verse l'eau, on règle le feu,
+// on le voit chauffer, bouillir, scintiller au bon moment), la recette à droite avec ce qu'on peut y verser.
+// Fermée, le chaudron se couvre : rien n'y avance, ni le feu ni le temps. Comme la fenêtre du carré, le geste part
+// à l'appui, et le contenu ne se réécrit que s'il a changé.
+const AL = { el: null, tic: 0, raf: 0, t0: 0, h: {}, cv: null, cx: null, img: null, msg: '', vid: 0, anim: 0, fx: [], bul: [], fum: [], flash: null, der: null };
+const AL_W = 112, AL_H = 96;
+const AL_TEINTE = { viande: [178, 58, 58], poisson: [80, 150, 196], fruit: [226, 92, 128], racine: [150, 108, 58], graine: [206, 182, 98], fleur: [214, 128, 226], feuille: [86, 184, 90], champignon: [156, 120, 166], douceur: [238, 192, 86] };
+const AL_FIOLE = { vie: [222, 70, 80], souffle: [130, 206, 236], mana: [110, 122, 242], force: [236, 136, 56], recup: [108, 206, 116], vitesse: [242, 216, 80], saut: [80, 206, 186], recolte: [202, 160, 80], defense: [166, 176, 196], comp: [232, 120, 202] };
+const icFiole = q => 'fiole_' + (AL_FIOLE[q.g] ? q.g : 'comp');
+const alOuverte = () => !!(AL.el && !AL.el.hidden);
+function alStyle() {
+  if (document.getElementById('al-style')) return;
+  const st = document.createElement('style'); st.id = 'al-style';
+  st.textContent = '#alch-ui{position:fixed;left:50%;top:50%;transform:translate(-50%,-52%);z-index:30;width:min(900px,96vw);max-height:88vh;overflow:auto;'
+    + 'background:rgb(20,24,34);border:1px solid rgba(190,205,230,.28);border-radius:14px;color:#d6dceb;font-size:13px;box-shadow:0 12px 40px rgba(0,0,0,.55);pointer-events:auto;}'
+    + '#alch-ui[hidden]{display:none;}#alch-ui .ic{display:inline-block;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;flex:none;}'
+    + '#alch-ui .al-niv{font-size:11px;color:#8d9ab4;}'
+    + '.al-corps{display:flex;gap:12px;padding:10px 12px;flex-wrap:wrap;align-items:flex-start;}'
+    + '.al-g{flex:0 1 196px;min-width:170px;display:flex;flex-direction:column;gap:3px;}'
+    + '.al-h{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:#8d9ab4;margin:5px 2px 2px;}'
+    + '.al-tuiles{display:grid;grid-template-columns:1fr 1fr;gap:5px;}'
+    + '.al-t{display:flex;align-items:center;gap:5px;padding:5px 6px;border-radius:9px;border:1px solid rgba(190,205,230,.2);background:rgba(255,255,255,.04);color:#e2e8f4;cursor:pointer;font:inherit;font-size:11.5px;text-align:left;min-width:0;}'
+    + '.al-t .ic{width:24px;height:24px;}.al-t span{min-width:0;}.al-t b{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}'
+    + '.al-t i{font-style:normal;font-size:8px;letter-spacing:1px;color:#ffd27d;}.al-t i u{text-decoration:none;color:rgba(255,255,255,.2);}'
+    + '.al-t.on{border-color:#ffd27d;background:rgba(255,210,125,.13);box-shadow:inset 0 0 0 1px #ffd27d;}.al-t.max b{color:#ffd27d;}.al-t:disabled{opacity:.35;cursor:default;}'
+    + '.al-m{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px;margin:0 auto;}'
+    + '.al-m canvas{position:static;inset:auto;width:336px;height:288px;image-rendering:pixelated;border-radius:10px;background:#141822;box-shadow:inset 0 0 0 1px rgba(190,205,230,.15);}'
+    + '.al-etat{font-size:11.5px;color:#aab6cc;min-height:1.3em;text-align:center;}'
+    + '.al-gestes{width:336px;grid-template-columns:1fr 1fr 1fr;}.al-gestes .cu-g{padding:6px 7px;gap:6px;}'
+    + '.al-gl{display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;font-style:normal;font-size:15px;color:#ffb070;flex:none;}'
+    + '.al-d{flex:1 1 250px;min-width:230px;display:flex;flex-direction:column;gap:7px;}'
+    + '.al-rec{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;}'
+    + '.al-rec li{display:flex;align-items:center;gap:7px;padding:4px 6px;border-radius:8px;background:rgba(255,255,255,.03);font-size:12px;}'
+    + '.al-rec li.cour{background:rgba(255,210,125,.1);box-shadow:inset 3px 0 0 #ffd27d;}.al-rec li.fait{opacity:.82;}'
+    + '.al-n{flex:none;width:18px;text-align:center;color:#ffd27d;font-weight:700;}.al-t1{flex:1;min-width:0;}.al-t1 small{display:block;color:#8d9ab4;font-size:10.5px;}'
+    + '.al-rec em{font-style:normal;}.al-rec em .ic{width:18px;height:18px;vertical-align:middle;}'
+    + '.al-rec i{font-style:normal;font-size:10.5px;padding:1px 5px;border-radius:6px;white-space:nowrap;}.al-rec i.bon{color:#b6e39a;}.al-rec i.mal{color:#ffb08a;background:rgba(255,120,90,.12);}'
+    + '.al-ingr{display:flex;flex-wrap:wrap;gap:5px;}'
+    + '.al-in{position:relative;width:42px;height:42px;border-radius:9px;border:1px solid rgba(190,205,230,.25);background:rgba(255,255,255,.05);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;}'
+    + '.al-in .ic{width:30px;height:30px;}.al-in b{position:absolute;right:3px;bottom:1px;font-size:10px;color:#fff;text-shadow:0 0 2px #000;}'
+    + '.al-in.r2{border-color:#7fc77a;}.al-in.r3{border-color:#6aa6ff;}.al-in.r4{border-color:#c48cff;}.al-in.r5{border-color:#ffb347;}.al-in:disabled{opacity:.35;cursor:default;}'
+    + '.al-in.hors{opacity:.6;}.al-in.hors::after{content:"";position:absolute;left:3px;top:3px;width:6px;height:6px;border-radius:50%;background:#ff8a6a;}'
+    + '.al-chance small{display:block;color:#8d9ab4;font-size:10.5px;margin-top:3px;}.al-chance .cu-lig b{color:#ffd27d;font-size:12px;}'
+    + '.al-pied{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:0 12px 10px;font-size:12px;color:#e2e8f4;}.al-pied small{color:#6f7c96;white-space:nowrap;}'
+    + '@media (max-width:620px){.al-corps{gap:8px;}.al-g{flex:1 1 100%;}.al-tuiles{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;}'
+    + '.al-t{flex-direction:column;gap:1px;padding:4px 2px;text-align:center;}.al-t b{font-size:10.5px;}.al-m{width:100%;}.al-m canvas{width:224px;height:192px;}'
+    + '.al-gestes{width:100%;}.al-gestes .cu-g small{font-size:9.5px;}.al-av{order:-1;}.al-pied small{display:none;}}';
+  document.head.appendChild(st);
+}
+function basculerAlchimie() { if (alOuverte()) fermerAlchimie(); else ouvrirAlchimie(); }
+function ouvrirAlchimie() {
+  if (!alchimieIci()) return;
+  cuStyle(); alStyle(); if (typeof feuilleIcones === 'function') feuilleIcones();
+  if (sacOuvert) ouvrirSac(false);
+  if (CU.c) fermerCarre();
+  if (!AL.el) {
+    const el = AL.el = document.createElement('div'); el.id = 'alch-ui'; el.className = 'ui'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'Table d\'alchimie');
+    el.innerHTML = `<div class="cu-tete">${img('alambic')}<b>Table d'alchimie</b><span class="al-niv"></span><span class="cu-res al-res"></span><button class="cu-x" data-al="x" aria-label="Fermer">✕</button></div>`
+      + `<div class="al-corps"><div class="al-g"></div><div class="al-m"><canvas width="${AL_W}" height="${AL_H}" aria-hidden="true"></canvas><div class="al-mb"></div></div><div class="al-d"></div></div><div class="al-pied"></div>`;
+    // le geste part à l'appui : la fenêtre se redessine en continu, un appui ne doit jamais se perdre
+    el.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.button > 0) return; const b = e.target.closest('[data-al]'); if (!b || b.disabled) return; e.preventDefault(); alGeste(b.dataset.al); });
+    document.body.appendChild(el);
+    AL.cv = el.querySelector('canvas'); AL.cx = AL.cv.getContext('2d'); AL.img = AL.cx.createImageData(AL_W, AL_H);
   }
-  return `<div class="sac-corps deux alch"><div class="col"><div><h3>Vos caractéristiques</h3>${fiche}</div><div class="fin"><h3>Vos compagnes</h3>${comps}</div></div><div class="col">${droite}</div></div>`;
+  AL.el.hidden = false; AL.h = {}; AL.msg = ''; AL.vid = 0; AL.t0 = 0; AL.fx = []; AL.bul = []; AL.fum = []; AL.flash = null;
+  for (const kk in K) K[kk] = false;                     // on lâche les touches : on ne marche plus en préparant
+  rendreAlchimie();
+  clearInterval(AL.tic); AL.tic = setInterval(majAlchUI, 250);
+  cancelAnimationFrame(AL.raf); AL.raf = requestAnimationFrame(alBoucle);
+}
+function fermerAlchimie() { if (AL.el) AL.el.hidden = true; clearInterval(AL.tic); cancelAnimationFrame(AL.raf); AL.t0 = 0; if (P.chaudron) Sauve.sale = true; actionSig = ''; }
+function majAlchUI() {
+  if (!alOuverte()) return fermerAlchimie();
+  const p = alchimieIci() && lieuModule(P.camp, 'alchimie');
+  if (!p || (P.x - p[0]) ** 2 + (P.y - p[1]) ** 2 > 2.6 * 2.6 || sacOuvert) return fermerAlchimie();   // on s'est éloigné
+  rendreAlchimie();
+}
+addEventListener('keydown', e => {                       // la fenêtre ouverte : Échap, ↑ ↓ pour le feu, Entrée pour la fiole
+  if (!alOuverte()) return;
+  const g = e.key === 'Escape' ? 'x' : e.key === 'ArrowUp' ? 'feu+' : e.key === 'ArrowDown' ? 'feu-' : e.key === 'Enter' ? 'fiole' : '';
+  if (!g) return; e.preventDefault(); e.stopPropagation(); alGeste(g);
+}, true);
+function alGeste(g) {
+  if (g === 'x') return fermerAlchimie();
+  if (g.startsWith('p:')) {
+    const id = g.slice(2), ch = P.chaudron, q = potionDe(id);
+    if (ch && ch.c !== id) {
+      if (ch.e.some(Boolean)) { dire('le chaudron est en cours : mettez en fiole, ou videz-le', 2.4); return rendreAlchimie(); }
+      if (!q || q.rg >= q.max) { dire(q ? q.n.toLowerCase() + ' · au plus haut' : 'rien à préparer', 2); return rendreAlchimie(); }
+      const n = chaudronNeuf(id); ch.c = id; ch.e = n.e; ch.s = n.s;   // de l'eau seule, sur le feu : elle sert à la suivante
+    }
+    alchChoix = id; AL.vid = 0; AL.der = null; return rendreAlchimie();
+  }
+  if (g === 'eau') loucheAlch();
+  else if (g === 'feu+') feuAlch(1);
+  else if (g === 'feu-') feuAlch(-1);
+  else if (g.startsWith('v:')) verserAlch(g.slice(2));
+  else if (g === 'fiole') tenterAlch();
+  else if (g === 'vider') {
+    const ch = P.chaudron;
+    if (ch && ch.e.some(Boolean) && !(AL.vid && Date.now() < AL.vid)) { AL.vid = Date.now() + 4000; return rendreAlchimie(); }
+    AL.vid = 0; viderAlch();
+  }
+  if (g !== 'fiole') AL.der = null;
+  rendreAlchimie();
+}
+function rendreAlchimie() {
+  const el = AL.el; if (!el) return;
+  const pose = (sel, html) => { if (AL.h[sel] !== html) { AL.h[sel] = html; el.querySelector(sel).innerHTML = html; } };
+  const niv = nivModule('alchimie'), k = statAlch(), q = potionDe(k), ch = P.chaudron && P.chaudron.c === k ? P.chaudron : null, verse = !!ch && ch.e.some(Boolean);
+  const maj = x => ESC(x[0].toUpperCase() + x.slice(1));
+  pose('.al-niv', 'niveau ' + niv);
+  pose('.al-res', `<span>${img('eclat')}${dispo('eclat')}</span><span>${img('spore')}${dispo('spore')}</span>`);
+  // à gauche : les potions, les vôtres puis celles des compagnes
+  const tuile = (id, nom, r, max, ic) => { const on = id === k;
+    return `<button class="al-t${on ? ' on' : ''}${r >= max ? ' max' : ''}" data-al="p:${id}"${verse && !on ? ' disabled' : ''} aria-pressed="${on}" title="${ESC(nom + ' · rang ' + r + ' sur ' + max)}">${img(ic)}<span><b>${ESC(nom)}</b><i>${'●'.repeat(r)}<u>${'●'.repeat(max - r)}</u></i></span></button>`; };
+  let g = `<div class="al-h">Vous</div><div class="al-tuiles">` + ALCH.map(a => tuile(a.id, a.n, rangAlch(a.id), ALCH_MAX, 'fiole_' + a.id)).join('') + `</div>`;
+  for (const c of P.compagnes) { const f = compDe(c), id = 'c' + c.id + ':';
+    g += `<div class="al-h">${ESC(c.nom)}${c.ko ? ' · à terre' : ''}</div><div class="al-tuiles">`
+      + tuile(id + 'recolte', 'Récolte', potComp(c, 'recolte'), ALCH_MAX, 'fiole_recolte') + tuile(id + 'defense', 'Défense', potComp(c, 'defense'), ALCH_MAX, 'fiole_defense')
+      + (f ? tuile(id + 'comp', COMPETENCES[f].n, potComp(c, 'comp'), COMP_MAX, 'fiole_comp') : '') + `</div>`; }
+  pose('.al-g', g);
+  // au milieu, sous le chaudron : ce qu'on en voit, et les gestes
+  const actif = !!q && q.rg < q.max, frein = q ? freinAlch(q) : 'rien à préparer', fini = recetteFaite(ch);
+  const cout = actif ? ALCH_COUT[q.rg + q.dec] : null, payable_ = !cout || essai || Object.entries(cout).every(([r, n]) => dispo(r) >= n);
+  const geste = (id, ic, t, sous, ok, cl = '') => `<button class="cu-g ${cl}" data-al="${id}"${ok ? '' : ' disabled'}>${ic[0] === '<' ? ic : img(ic)}<span>${t}<small>${sous}</small></span></button>`;
+  const fa = ch ? ch.fa : 0, fc = ch ? ch.fc : 0, G = actif ? gestesAlch(q) : null, suiv = ch ? ch.e.findIndex(x => !x) : 0;
+  const etat = [!ch || !ch.eau ? 'à sec' : niv >= 2 ? ch.eau + ' louche' + (ch.eau > 1 ? 's' : '') + ' d\'eau' : 'de l\'eau',
+    niv >= 2 ? FEU_NOM[Math.round(fa)] : fa < .05 ? 'feu éteint' : '', fc > fa + .05 ? 'le feu monte' : fc < fa - .05 ? 'le feu baisse' : ''];
+  if (niv >= 3 && verse && G && (suiv > 0 || suiv < 0)) etat.push((suiv < 0 ? 'cuisson ' : 'repos ') + Math.floor(ch.t) + ' s');
+  const sur = AL.vid && Date.now() < AL.vid;
+  const cuitDit = !fini ? 'tout verser d\'abord' : niv >= 3 ? ({ tot: 'pas encore cuite', tard: 'trop cuite', ok: 'à point' })[bilanGestes(q, ch).cuit] : 'quand elle est cuite';
+  pose('.al-mb', `<div class="al-etat">${etat.filter(Boolean).join(' · ')}</div><div class="cu-gestes al-gestes">`
+    + geste('eau', 'seau', 'Louche', verse ? 'l\'eau est mise' : ch && ch.eau >= ALCH_EAU_MAX ? 'plein' : 'd\'eau, avant tout', actif && !frein && !verse && !(ch && ch.eau >= ALCH_EAU_MAX))
+    + geste('feu+', '<i class="al-gl">▲</i>', 'Attiser', niv >= 2 ? 'réglé : ' + FEU_NOM[fc] : 'plus de feu', actif && !frein && fc < 5)
+    + geste('feu-', '<i class="al-gl">▼</i>', 'Étouffer', niv >= 2 ? 'réglé : ' + FEU_NOM[fc] : 'moins de feu', actif && !frein && fc > 0)
+    + geste('fiole', actif ? icFiole(q) : 'alambic', 'En fiole', fini && !payable_ ? 'il manque de quoi lier' : cuitDit, fini && !frein && payable_, fini ? 'prim' : '')
+    + geste('vider', '<i class="al-gl">✕</i>', sur ? 'Confirmer' : 'Vider', sur ? 'tout est perdu' : verse ? 'perd ce qui est versé' : 'jeter l\'eau', !!P.chaudron, 'danger')
+    + `</div>`);
+  // à droite : la recette, ce qu'on peut verser, la chance
+  let d;
+  const pour = q && q.c ? ' pour ' + ESC(q.c.nom) : '';
+  if (!q) d = '';
+  else if (!actif) d = `<div class="cu-nom">${img(icFiole(q))}<div><b>${maj(nomPotion(q))}${pour}</b><small>au plus haut · ${q.v(q.rg)}</small></div></div><div class="cu-note">${maj(q.d)}.</div>`;
+  else {
+    const R = recetteAlch(q), e = ch ? ch.e : R.map(() => null), C = chanceAlch(k, niv < 3), car = P.carnetAlch[cleRecette(q)], m = margeRepos();
+    const gh = (quoi, i) => { const x = ditGeste(q, quoi, i); return ESC(x.t) + (x.note && niv < 2 ? ' ✎' : ''); };   // ✎ : noté au carnet
+    const lig = (cl, n, t, h, fin) => `<li class="${cl}"><span class="al-n">${n}</span><span class="al-t1">${t}<small>${h}</small></span>${fin || ''}</li>`;
+    const marque = (ok, t) => `<i class="${ok ? 'bon' : 'mal'}">${ok ? '✓' : t}</i>`;
+    let L = lig(verse ? 'fait' : 'cour', '≈', 'L\'eau', gh('eau'), verse ? marque(ch.eau === G.eau, ch.eau > G.eau ? 'trop' : 'trop peu') : '');
+    R.forEach((s, i) => { const x = ch && ch.s[i];
+      const fin = e[i] && x ? `<em>${img(icIngr(e[i]))}</em>` + marque(x[0] === G.feu[i], x[0] > G.feu[i] ? 'trop chaud' : 'trop froid')
+        + (i && x[1] >= 0 ? marque(x[1] >= G.rep[i] - m && x[1] <= G.rep[i] + 2 * m, x[1] < G.rep[i] - m ? 'trop tôt' : 'trop tard') : '') : '';
+      L += lig(e[i] ? 'fait' : verse && i === suiv ? 'cour' : '', i + 1, ESC(ditEtape(s)), (i ? gh('rep', i) + ' · ' : '') + gh('feu', i), fin); });
+    L += lig(fini ? 'cour' : '', '✦', 'La cuisson', 'cuire ' + gh('cu'), '');
+    const reste = R.filter((s, i) => !e[i]), auTour = suiv >= 0 ? R[suiv] : null;
+    const bons = Object.keys(INGR).filter(id => qteIngr(id) > 0 && reste.some(s => etapeVa(s, id)))
+      .sort((a, b) => (auTour ? etapeVa(auTour, b) - etapeVa(auTour, a) : 0) || INGR[a].r - INGR[b].r);
+    const ingr = suiv < 0 ? `<div class="cu-note">Tout est versé : laissez cuire, puis mettez en fiole.</div>`
+      : bons.length ? `<div class="al-ingr">` + bons.map(id => { const tour = etapeVa(auTour, id);
+          return `<button class="al-in${INGR[id].r > 1 ? ' r' + Math.min(5, INGR[id].r) : ''}${tour ? '' : ' hors'}" data-al="v:${id}" title="${ESC(INGR[id].n + ' · ' + RARETES[INGR[id].r - 1] + (tour ? '' : ' · hors de son tour'))}"${frein ? ' disabled' : ''}>${img(icIngr(id))}<b>${qteIngr(id)}</b></button>`; }).join('') + `</div>`
+        + (!ch || !ch.eau ? `<div class="cu-note">De l'eau d'abord : la louche.</div>` : '')
+      : `<div class="cu-note">Rien, au garde-manger, n'entre dans ce qui reste à verser.</div>`;
+    const coul = C.total >= 70 ? '#7fd06a' : C.total >= 45 ? '#d9b46a' : '#e07a6a';
+    const det = ['base ' + C.base, C.table && 'table +' + C.table, C.rare && 'rareté +' + C.rare, C.fautes && 'ordre −' + C.fautes, C.gestes && 'gestes −' + C.gestes, C.parfaite && 'parfaite +' + C.parfaite].filter(Boolean).join(' · ');
+    const der = AL.der ? `<div class="cu-etat">${AL.der.ok ? '<span class="bon">' + (AL.der.parf ? '★ potion parfaite' : 'réussie') + '</span>' : '<span class="mal">tournée</span>'} · elle avait ${AL.der.chance} %</div>` : '';
+    d = `<div class="cu-nom">${img(icFiole(q))}<div><b>${maj(nomPotion(q))}${pour}</b><small>rang ${q.rg + 1} sur ${q.max} · ${q.v(q.rg)} → ${q.v(q.rg + 1)}</small></div></div>${der}`
+      + (frein ? `<div class="cu-etat"><span class="mal">${maj(frein)}.</span></div>` : '')
+      + `<ol class="al-rec">${L}</ol><div class="al-av"><div class="al-h">À verser${suiv >= 0 ? ' · étape ' + (suiv + 1) : ''}</div>${ingr}</div>`
+      + `<div class="al-chance"><div class="cu-lig"><span>Chance de réussite${niv < 3 && fini ? ', si elle est à point' : ''}</span><b>${C.total} %</b></div><div class="cu-barre"><i style="width:${C.total}%;background:${coul}"></i></div><small>${det}</small></div>`
+      + `<div class="cu-note">En fiole : ${ditCout(cout)}.${car && car.n ? ' Carnet : ' + car.n + ' essai' + (car.n > 1 ? 's' : '') + ', au mieux ' + car.m + ' %' + (car.p ? ', ★ parfaite' : '') + '.' : ''}</div>`;
+  }
+  pose('.al-d', d);
+  pose('.al-pied', `<span>${ESC(AL.msg || (niv < 2 ? 'À l\'œil : la hauteur de l\'eau, les flammes, les bulles. Quand la surface scintille, c\'est le moment.' : 'Quand la surface scintille, c\'est le moment de verser.'))}</span><small>↑ ↓ le feu · Entrée : en fiole · Échap</small>`);
+}
+// --- le chaudron, dessiné : 112 × 96 points, agrandis sans lissage ---
+function alBoucle(ts) {
+  if (!alOuverte()) return;
+  const dt = AL.t0 ? Math.min(.25, (ts - AL.t0) / 1000) : 0; AL.t0 = ts;
+  avancerAlch(dt); AL.anim += dt;
+  try { dessinerChaudron(dt); } catch (err) { console.error(err); }
+  AL.raf = requestAnimationFrame(alBoucle);
+}
+function teinteChaudron(ch) {                            // l'eau prend la couleur de ce qu'on y verse
+  let c = [64, 112, 160];
+  if (ch) for (const id of ch.e) if (id && INGR[id]) { const t = AL_TEINTE[INGR[id].fam] || c; c = c.map((v, j) => v + (t[j] - v) * .45); }
+  return c;
+}
+function alGlint() {                                     // la surface scintille : le moment juste de verser, ou de mettre en fiole
+  const ch = P.chaudron; if (!ch || !ch.e.some(Boolean)) return false;
+  const q = potionDe(ch.c); if (!q || q.rg >= q.max) return false;
+  const G = gestesAlch(q), suiv = ch.e.findIndex(x => !x), cible = suiv < 0 ? G.cuisson : suiv > 0 ? G.rep[suiv] : -1;
+  return cible > 0 && Math.abs(ch.t - cible) < .7;
+}
+const LIQ_X = 56, LIQ_Y = 30;                            // le centre de la gueule du chaudron
+const niveauLiq = eau => LIQ_Y + (1 - eau / ALCH_EAU_MAX) * 12;
+function alFx(quoi, x) {
+  const R = Math.random, ch = P.chaudron, ly = niveauLiq(ch ? ch.eau : 3) - 3, F = AL.fx;
+  if (quoi === 'eau') for (let i = 0; i < 14; i++) F.push({ x: LIQ_X - 4 + R() * 8, y: 4 + R() * 6, vx: (R() - .5) * 10, vy: 30 + R() * 25, c: [120, 172, 222], v: .5 + R() * .3 });
+  else if (quoi === 'verse') { const c = AL_TEINTE[x] || [200, 200, 200];
+    for (let i = 0; i < 18; i++) F.push({ x: LIQ_X - 6 + R() * 12, y: ly, vx: (R() - .5) * 50, vy: -25 - R() * 35, c, v: .7 + R() * .4 }); }
+  else if (quoi === 'or' || quoi === 'ok') { const c = quoi === 'or' ? [255, 214, 110] : AL_FIOLE[x && AL_FIOLE[x.g] ? x.g : 'comp'];
+    for (let i = 0; i < (quoi === 'or' ? 60 : 34); i++) { const a = R() * Math.PI * 2, s = 15 + R() * 45; F.push({ x: LIQ_X, y: ly, vx: Math.cos(a) * s, vy: Math.sin(a) * s - 30, c, v: 1 + R() * .6 }); }
+    AL.flash = { c, t: 1 }; }
+  else if (quoi === 'rate') { for (let i = 0; i < 26; i++) F.push({ x: LIQ_X - 12 + R() * 24, y: ly, vx: (R() - .5) * 16, vy: -12 - R() * 16, c: [72, 62, 82], v: 1.4 + R() * .8, g: -2, gros: 1 }); AL.flash = { c: [40, 30, 50], t: .8 }; }
+  else if (quoi === 'vide') for (let i = 0; i < 22; i++) F.push({ x: LIQ_X - 16 + R() * 32, y: ly, vx: (R() < .5 ? -1 : 1) * (20 + R() * 30), vy: -15 - R() * 20, c: [90, 130, 170], v: .6 + R() * .3 });
+}
+function dessinerChaudron(dt) {
+  const W = AL_W, H = AL_H, D = AL.img.data, ch = P.chaudron, niv = nivModule('alchimie'), T = AL.anim, R = Math.random;
+  const fa = ch ? ch.fa : 0, eau = ch ? ch.eau : 0, liq = teinteChaudron(ch), agit = fa / 5;
+  const put = (x, y, c, a = 1) => { x = x | 0; y = y | 0; if (x < 0 || y < 0 || x >= W || y >= H) return; const i = (y * W + x) * 4;
+    D[i] += (c[0] - D[i]) * a; D[i + 1] += (c[1] - D[i + 1]) * a; D[i + 2] += (c[2] - D[i + 2]) * a; };
+  // le fond : la pénombre de la table, plus chaude près du feu
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const i = (y * W + x) * 4, g = Math.max(0, 1 - Math.hypot(x - 56, y - 80) / 50) * agit;
+    D[i] = 20 + 70 * g; D[i + 1] = 23 + 30 * g; D[i + 2] = 32 + 4 * g; D[i + 3] = 255; }
+  // l'âtre : des pierres, deux bûches, la braise
+  for (let s = 0; s < 9; s++) { const sx = 16 + s * 10 + (s % 2) * 2, sy = 91 + (s % 3 === 0 ? 1 : 0);
+    for (let y = -4; y <= 4; y++) for (let x = -6; x <= 6; x++) if ((x / 6) ** 2 + (y / 4) ** 2 <= 1) put(sx + x, sy + y, y < -1 ? [116, 114, 124] : [84, 82, 92]); }
+  for (let x = 38; x <= 74; x++) { const u = (x - 38) / 36; put(x, 85 - u * 4, [96, 62, 36]); put(x, 86 - u * 4, [70, 44, 26]); put(x, 81 + u * 4, [112, 74, 42]); put(x, 82 + u * 4, [80, 50, 30]); }
+  if (fa > .02) for (let j = 0; j < 8; j++) put(40 + R() * 32, 81 + R() * 5, [255, 110 + R() * 90, 40], .35 + agit * .5);
+  // les flammes : une langue par cran, plus hautes à mesure
+  for (let j = 0; j < 5; j++) {
+    const sj = Math.max(0, Math.min(1, fa - j)); if (sj <= 0) continue;
+    const xj = 56 + [0, -6, 6, -12, 12][j], h = sj * (5 + fa * 2.4) * (.8 + .22 * Math.sin(T * 9 + j * 1.7) + .1 * Math.sin(T * 23 + j)), wb = 2 + fa * .35;
+    for (let yy = 0; yy < h; yy++) { const u = yy / h, w = wb * (1 - u) ** .8 + .3, sw = Math.sin(T * 6 + j + yy * .3) * u * 1.5;
+      const c = u < .3 ? [214, 72, 30] : u < .65 ? [246, 146, 46] : [255, 226, 122];
+      for (let x = -Math.ceil(w); x <= Math.ceil(w); x++) if (Math.abs(x) <= w) put(xj + x + sw, 83 - yy, c, .92); }
+  }
+  // le chaudron : les pieds, la panse de fonte (chauffée par en dessous), la lèvre
+  for (const lx of [41, 70]) for (let y = 66; y <= 76; y++) for (let x = 0; x < 3; x++) put(lx + x, y, x ? [44, 46, 54] : [70, 72, 82]);
+  for (let y = LIQ_Y; y <= 70; y++) for (let x = 20; x <= 92; x++) {
+    const dx = (x + .5 - 56) / 33, dy = (y + .5 - 48) / 22; if (Math.abs(dx) ** 2.6 + Math.abs(dy) ** 2.6 > 1) continue;
+    const lum = Math.max(0, Math.min(1, .62 - dx * .55 - Math.max(0, dy) * .3)), n = Math.round(lum * 7) / 7;   // la fonte, éclairée de la gauche
+    let c = dx > -.74 && dx < -.6 && dy > -.55 && dy < .15 ? [150, 154, 168] : [34 + 62 * n, 36 + 64 * n, 44 + 68 * n];
+    if (Math.abs(y - 42) < 1) c = c.map(v => v + 16);   // le cerclage
+    const ch2 = Math.max(0, (y - 52) / 18) * agit; if (ch2 > 0) c = [c[0] + 120 * ch2, c[1] + 40 * ch2, c[2]];
+    put(x, y, c);
+  }
+  // la gueule : la lèvre, la paroi du fond, le liquide
+  const ly = niveauLiq(eau), glint = alGlint();
+  for (let y = LIQ_Y - 10; y <= LIQ_Y + 10; y++) for (let x = 26; x <= 86; x++) {
+    const dx = x + .5 - LIQ_X, dy = y + .5 - LIQ_Y;
+    if ((dx / 27) ** 2 + (dy / 9) ** 2 > 1) continue;
+    if ((dx / 24) ** 2 + (dy / 7.4) ** 2 > 1) { put(x, y, dy < 0 ? (dx < -14 ? [146, 148, 158] : [112, 114, 126]) : [76, 78, 90]); continue; }
+    const l = y + .5 - ly, dl = (dx / 23.5) ** 2 + (l / 7.4) ** 2;
+    if (!eau || dl > 1) {                                // la paroi : graduée à partir de la table 2
+      let c = [44 - dy, 44 - dy, 54 - dy];
+      if (niv >= 2 && Math.abs(dx) < 4) for (let n = 1; n <= ALCH_EAU_MAX; n++) if (Math.round(niveauLiq(n) - 7.4) === y) c = [128, 130, 140];
+      put(x, y, c); continue;
+    }
+    const w = Math.sin(dx * .55 + T * (2 + agit * 5)) * Math.cos(l * .9 - T * 1.7) * (.05 + .12 * agit), bord = dl > .72 ? .8 : 1;
+    put(x, y, liq.map(v => Math.min(255, v * (bord + w))));
+  }
+  if (eau) {
+    const surLiq = () => { for (let n = 0; n < 30; n++) { const x = LIQ_X - 22 + R() * 44, y = ly - 7 + R() * 14;
+      if (((x - LIQ_X) / 23) ** 2 + ((y - ly) / 7) ** 2 <= 1 && ((x - LIQ_X) / 23.5) ** 2 + ((y - LIQ_Y) / 7.2) ** 2 <= 1) return [x, y]; } return null; };
+    // les bulles : quelques-unes sur braises, un bouillon à feu ardent
+    if (fa >= 1 && R() < dt * 2.6 * (fa - .5) ** 1.6) { const p = surLiq(); if (p) AL.bul.push({ x: p[0], y: p[1], a: 0, v: .3 + R() * .4 }); }
+    AL.bul = AL.bul.filter(b => (b.a += dt) < b.v);
+    for (const b of AL.bul) { const r = b.a / b.v, c = liq.map(v => Math.min(255, v * 1.45 + 30));
+      if (r < .5) put(b.x, b.y, c); else { put(b.x - 1, b.y, c); put(b.x + 1, b.y, c); put(b.x, b.y - 1, c, .7); if (r > .9) put(b.x, b.y - 2, c, .6); } }
+    if (glint) for (let n = 0; n < 14; n++) { const p = surLiq(); if (!p) continue; put(p[0], p[1], [255, 240, 170]);
+      if (n < 5) { put(p[0] - 1, p[1], [255, 214, 110], .7); put(p[0] + 1, p[1], [255, 214, 110], .7); put(p[0], p[1] - 1, [255, 214, 110], .7); } }
+    // la vapeur
+    if (R() < dt * (fa >= 2 ? (fa - 1) * 3.2 : fa * .9 + .15)) AL.fum.push({ x: LIQ_X - 14 + R() * 28, y: LIQ_Y - 4, a: 0, v: 2 + R(), s: R() * 6 });
+  }
+  AL.fum = AL.fum.filter(f => (f.a += dt) < f.v);
+  for (const f of AL.fum) { const y = f.y - f.a * (5 + fa * 2.2), x = f.x + Math.sin(f.a * 2 + f.s) * 2.5, al = .42 * (1 - f.a / f.v);
+    put(x, y, [214, 220, 232], al); put(x + 1, y, [214, 220, 232], al); put(x, y - 1, [214, 220, 232], al * .8); put(x + 1, y - 1, [214, 220, 232], al * .8); }
+  // les éclaboussures, les étincelles
+  AL.fx = AL.fx.filter(p => (p.v -= dt) > 0);
+  for (const p of AL.fx) { p.vy += (p.g == null ? 70 : p.g) * dt; p.x += p.vx * dt; p.y += p.vy * dt; put(p.x, p.y, p.c, Math.min(1, p.v * 2)); if (p.gros) { put(p.x + 1, p.y, p.c, .6); put(p.x, p.y + 1, p.c, .6); } }
+  // le thermomètre (table 2) : le feu tel qu'il est, et la flèche du réglage
+  if (niv >= 2) {
+    const yF = n => Math.round(76 - n / 5 * 58);
+    for (let y = 16; y <= 77; y++) { put(101, y, [150, 160, 176]); put(105, y, [150, 160, 176]); for (let x = 102; x <= 104; x++) put(x, y, [34, 36, 46]); }
+    for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (x * x + y * y <= 10) put(103 + x, 80 + y, [220, 60, 50]);
+    for (let y = Math.ceil(76 - fa / 5 * 58); y <= 77; y++) for (let x = 102; x <= 104; x++) put(x, y, [220, 60, 50]);
+    for (let n = 1; n <= 5; n++) { put(106, yF(n), [200, 206, 216]); put(107, yF(n), [200, 206, 216]); }
+    const yc = yF(ch ? ch.fc : 0); put(99, yc, [255, 255, 255]); put(98, yc, [255, 255, 255]); put(97, yc - 1, [255, 255, 255]); put(97, yc + 1, [255, 255, 255]);
+  }
+  // l'éclair d'une fiole réussie (d'or si parfaite), l'ombre d'une potion tournée
+  if (AL.flash) { const f = AL.flash; f.t -= dt; if (f.t <= 0) AL.flash = null; else for (let i = 0; i < W * H * 4; i += 4) { D[i] += (f.c[0] - D[i]) * f.t * .3; D[i + 1] += (f.c[1] - D[i + 1]) * f.t * .3; D[i + 2] += (f.c[2] - D[i + 2]) * f.t * .3; } }
+  const cx = AL.cx; cx.putImageData(AL.img, 0, 0);
+  // le sablier (table 3) : le repos, ou la cuisson, et sa fenêtre juste
+  if (niv >= 3 && ch && ch.e.some(Boolean)) {
+    const q = potionDe(ch.c), suiv = ch.e.findIndex(x => !x);
+    if (q && q.rg < q.max && suiv !== 0) {
+      const G = gestesAlch(q), cible = suiv < 0 ? G.cuisson : G.rep[suiv], m = suiv < 0 ? margeCuisson() : margeRepos(), tot = cible + 3 * m;
+      const a = v => -Math.PI / 2 + Math.max(0, Math.min(1, v / tot)) * Math.PI * 2;
+      cx.lineWidth = 3; cx.strokeStyle = 'rgba(190,205,230,.22)'; cx.beginPath(); cx.arc(13, 13, 8, 0, Math.PI * 2); cx.stroke();
+      cx.strokeStyle = '#7fd06a'; cx.beginPath(); cx.arc(13, 13, 8, a(cible - m), a(cible + 2 * m)); cx.stroke();
+      cx.lineWidth = 1.5; cx.strokeStyle = '#ffd27d'; cx.beginPath(); cx.moveTo(13, 13); cx.lineTo(13 + Math.cos(a(ch.t)) * 9, 13 + Math.sin(a(ch.t)) * 9); cx.stroke();
+    }
+  }
 }
 // La table d'alchimie : un plateau de pierre, le chaudron sur sa braise ; une étagère de fioles au
 // niveau 2, l'alambic de cuivre et sa fiole d'éclat au niveau 3.
@@ -17524,6 +18127,13 @@ function alchimieOs(niv) {
   }
   return B;
 }
+// Les fioles de la fenêtre d'alchimie (§133) : une panse ronde, à la couleur de ce qu'elle améliore.
+for (const [k, c] of Object.entries(AL_FIOLE)) DESSINS['fiole_' + k] = d => {
+  const verre = [196, 226, 232], bord = [118, 150, 160], f = c.map(v => v * .62 | 0), cl = c.map(v => Math.min(255, v * 1.2 + 40 | 0));
+  d.rect(6, 1, 9, 2, PIX.bois); d.rect(7, 3, 8, 5, verre); d.net(6, 5, bord); d.net(9, 5, bord);
+  for (let y = 5; y <= 15; y++) for (let x = 2; x <= 13; x++) { const r = Math.hypot(x + .5 - 8, y + .5 - 10.5); if (r <= 5.3) d.net(x, y, r > 4.3 ? bord : y >= 9 ? (y >= 14 || x >= 11 ? f : c) : verre); }
+  d.net(5, 10, cl); d.net(5, 11, cl); d.net(6, 7, [255, 255, 255]);
+};
 DESSINS.alambic = d => { d.rect(6, 1, 9, 2, PIX.pierreC); d.rect(7, 3, 8, 6, [150, 214, 204]); d.rect(5, 7, 10, 8, [150, 214, 204]); d.rect(3, 9, 12, 13, [150, 96, 190]); d.rect(4, 14, 11, 14, [110, 66, 150]); d.net(5, 10, [214, 170, 240]); d.net(9, 12, [214, 170, 240]); d.net(7, 5, [214, 170, 240]); };
 // ============================================================
 //  LA MAGIE : L'ÉCRITURE D'ÉCLAT
@@ -20572,7 +21182,7 @@ function campAction() {
   if (m === 'cuisine') return { v: 'CUISINER', o: 'la marmite · ' + placesMarmite() + ' ingrédients', f: () => ouvrirSac(true, 'cuisine') };
   if (m === 'soin') return { v: 'SOINS', o: 'la table de soin · niveau ' + nivModule('soin'), f: fab('soin') };
   if (m === 'biblio') return { v: 'MAGIE', o: 'la bibliothèque · niveau ' + nivBiblio(), f: () => ouvrirSac(true, 'biblio') };
-  if (m === 'alchimie') return { v: 'ALCHIMIE', o: 'la table · niveau ' + nivModule('alchimie'), f: () => ouvrirSac(true, 'alchimie') };
+  if (m === 'alchimie') return { v: alOuverte() ? 'FERMER' : 'ALCHIMIE', o: 'la table · niveau ' + nivModule('alchimie'), f: basculerAlchimie };
   if (m === 'defense') return { v: 'DÉFENSE', o: 'rempart ' + nivMur() + ' · tours ' + nivTours(), f: vers('moddefense') };
   return { v: 'CAMPEMENT', o: 'vue d\'ensemble', f: vers(choixVolet.camp) };
 }
@@ -22643,10 +23253,11 @@ function photo() {
     camp: P.camp ? { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100,
                      y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: nivCamp(),
                      expl: P.camp.expl || 0 } : null,
-    champs: P.champs.map(c => ({ g: c.g, x: c.x, y: c.y, z: c.z, n: c.n, s: c.s.map(s => ({ e: s.e, m: Math.round(s.m * 1000) / 1000, eau: Math.round(s.eau * 1000) / 1000, t: s.t, h: s.h | 0, eng: s.eng | 0 })) })),
+    champs: P.champs.map(c => ({ g: c.g, x: c.x, y: c.y, z: c.z, n: c.n, e: engraisDe(c), s: c.s.map(s => ({ e: s.e, m: Math.round(s.m * 1000) / 1000, eau: Math.round(s.eau * 1000) / 1000, t: s.t, h: s.h | 0, eng: s.eng | 0 })) })),
     carres: Object.assign({}, P.carresN),
-    coupesCamp: P.camp && coupesG === P.camp.graine && (CAMP_COUPES.size || PL_CUEILLIES.size) ? { g: coupesG, c: coupesEcrire(), pl: [...PL_CUEILLIES] } : null, aviseRepousse: P.aviseRepousse ? 1 : 0,   // (§124) graines: Object.assign({}, P.graines), graineSel: P.graineSel || null, seau: P.seau,
-    campNiv: nivCamp(), modules: Object.assign({}, P.modules), tomes: Object.assign({}, P.tomes), tomesPortes: P.tomesPortes.slice(), tomeHalte: P.tomeHalte | 0, sorts: P.sorts.slice(), sortMain: P.sortMain || null, codex: P.codex.slice(), nomsSorts: Object.assign({}, P.nomsSorts), alchimie: Object.assign({}, P.alchimie), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), f: P.chaudron.f } : null, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
+    coupesCamp: P.camp && coupesG === P.camp.graine && (CAMP_COUPES.size || PL_CUEILLIES.size) ? { g: coupesG, c: coupesEcrire(), pl: [...PL_CUEILLIES] } : null, aviseRepousse: P.aviseRepousse ? 1 : 0,   // (§124)
+    graines: Object.assign({}, P.graines), graineSel: P.graineSel || null, seau: P.seau,   // (§130) ces champs étaient pris dans le commentaire du §124 : graines, graine choisie et seau ne se gardaient plus
+    campNiv: nivCamp(), modules: Object.assign({}, P.modules), tomes: Object.assign({}, P.tomes), tomesPortes: P.tomesPortes.slice(), tomeHalte: P.tomeHalte | 0, sorts: P.sorts.slice(), sortMain: P.sortMain || null, codex: P.codex.slice(), nomsSorts: Object.assign({}, P.nomsSorts), alchimie: Object.assign({}, P.alchimie), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), s: P.chaudron.s.map(x => x && x.slice()), f: P.chaudron.f, eau: P.chaudron.eau, fa: Math.round(P.chaudron.fa * 100) / 100, fc: P.chaudron.fc, t: Math.round(P.chaudron.t * 100) / 100 } : null, carnetAlch: P.carnetAlch, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     coffre: Object.assign({}, P.coffre),
     pillages: P.pillages.slice(0, 5),
@@ -22799,7 +23410,8 @@ function appliquer(d, vivantes) {
     delete P.objets.carre; delete P.objets.carre2; delete P.objets.carre3;
     if (P.carresN[1]) P.objets.carre = 1; if (P.carresN[2]) P.objets.carre2 = 1; if (P.carresN[3]) P.objets.carre3 = 1; }
   P.graines = {}; if (d.graines && typeof d.graines === 'object') for (const [k, n] of Object.entries(d.graines)) if (graineInfo(k)) { const v = nb(n, 0, 999, 0) | 0; if (v) P.graines[k] = v; }
-  P.graineSel = typeof d.graineSel === 'string' && P.graines[d.graineSel] ? d.graineSel : null;
+  for (const k of Object.keys(P.graines)) { const ing = graineIngr(k); if (ing) { P.denrees[ing] = (P.denrees[ing] || 0) + P.graines[k]; delete P.graines[k]; } }   // (§130) une seule réserve
+  P.graineSel = typeof d.graineSel === 'string' && stockGraine(d.graineSel) > 0 ? d.graineSel : null;
   P.seau = nb(d.seau, 0, SEAU_MAX, 0) | 0;
   coupesLire(d.coupesCamp); if (P.camp && coupesG && coupesG !== P.camp.graine) { CAMP_COUPES.clear(); PL_CUEILLIES.clear(); coupesG = 0; }   // (§124)
   P.aviseRepousse = d.aviseRepousse ? 1 : 0; terrSig = null;
@@ -22859,7 +23471,7 @@ function appliquer(d, vivantes) {
     P.solde = P.parti; P.parti = null; Sauve.sale = true;
   }
   installerCompagnes(liste, !!vivantes);
-  chaudronLu(d.chaudron);
+  chaudronLu(d.chaudron); carnetLu(d.carnetAlch);
   return true;
 }
 // Remet les compagnes d'une sauvegarde dans le jeu. Une bête déjà dehors sous le même numéro
@@ -23333,7 +23945,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-96', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-100', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
@@ -23382,7 +23994,7 @@ function jnlInstantane() {
     modules: jnlNz(P.modules), sac: jnlNz(P.sac), baies: P.baies | 0, coffre: jnlNz(P.coffre), ingr, cellier: cel,
     objets: Object.keys(P.objets).filter(k => P.objets[k]).length, sorts: P.sorts.length, tomes: Object.keys(P.tomes || {}).length,
     compagnes: P.compagnes.slice(0, 16).map(c => c.esp + ':' + c.role[0] + ':' + (c.mode || 'joueur')[0] + (c.recolte ? ':' + c.recolte : '') + (c.ko ? ':ko' : '')),
-    champs: P.champs.map(c => c.n + ':' + c.s.filter(s => s.e).length + '/' + c.s.length), graines: Object.values(P.graines || {}).reduce((a, n) => a + n, 0),
+    champs: P.champs.map(c => c.n + ':' + c.s.filter(s => s.e).length + '/' + c.s.length), graines: grainesDispo().reduce((a, k) => a + stockGraine(k), 0),
     coupes_camp: CAMP_COUPES.size, recolte: jnlNz(JNL.c.r), coups: JNL.c.coups, tues: JNL.c.tues, conso: JNL.c.conso,
     perf: { img_s: Math.round(imgSec), ms: Math.round(msDessin * 10) / 10, gl: !!(G3.ok && !G3.perdu), iso: isoGL ? 1 : 0, mode, mem, betes: beasts.filter(b => !b.dead).length },
     joueurs: Autres.size });
@@ -23418,7 +24030,7 @@ function jnlBrancher() {
   sur('cueillirChamp', q => q.s.m, (r, x, q) => { if (q.s.m < x) jnl('culture', { q: 'cueille', g: q.s.e }); });
   sur('champRecu', () => JSON.stringify(champsIci().map(champPhoto)), (r, x, d) => { if (x !== JSON.stringify(champsIci().map(champPhoto))) jnl('culture', { q: 'coop_' + String(d.q).slice(0, 10) }); });
   sur('lier', null, (r, x, b, voie) => { if (r) jnl('lien', Object.assign({ esp: r.esp, voie: String(voie || '').slice(0, 16), rare: rareEspece(specById[r.esp]), liens: P.compagnes.length }, jnlLieu())); });
-  sur('tenterAlch', () => { const k = statAlch(), q = potionDe(k); return q ? { k: String(k).replace(/^c\d+:/, 'comp:'), rang: q.rg + 1, dec: q.dec, chance: Math.round(chanceAlch(k)), ingr: ((P.chaudron && P.chaudron.e) || []).slice(0, 8) } : null; },
+  sur('tenterAlch', () => { const k = statAlch(), q = potionDe(k); if (!q) return null; const C = chanceAlch(k), ch = P.chaudron; return { k: String(k).replace(/^c\d+:/, 'comp:'), rang: q.rg + 1, dec: q.dec, chance: C.total, gestes: C.gestes, fautes: ch ? ch.f : 0, parfaite: C.parfaite ? 1 : 0, cuit: C.b ? C.b.cuit : '', eau: ch ? ch.eau : 0, ingr: ((ch && ch.e) || []).slice(0, 8) }; },
     (r, x) => { if (x) jnl('potion', Object.assign(x, { ok: r ? 1 : 0, table: nivModule('alchimie') })); });
   sur('cuire', () => [marmiteSel.slice(), marmiteSel.length ? qteIngr(marmiteSel[0]) : 0],
     (r, x) => { if (x[0].length && qteIngr(x[0][0]) < x[1]) jnl('plat', { ingr: x[0].slice(0, 8), cuisine: nivCuisine(), chez: campIci() ? 1 : 0 }); });
