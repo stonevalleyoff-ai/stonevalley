@@ -743,7 +743,7 @@ Aux explorations **10, 15, 20, 25…**, une araignée automate géante dort prè
 
 **Son éveil** : à moins de 24 cases (ou au premier coup), un grincement de servos, les huit yeux qui s'allument un à un, les pattes qui se déplient, et elle se dresse (2,4 s). Sa barre de vie s'affiche en haut (fiche de la cible), avec sa phase et ce qu'elle prépare.
 
-**Son corps sur plusieurs niveaux** : chaque patte se pose sur le sol qu'elle touche, à portée de jambe (3 cubes sous le corps, 2 au-dessus ; sinon tout près, ou elle reste où elle est). Le corps est **suspendu** entre ses pattes, à 2,75 au-dessus de ses pieds (`TISSEUSE.haut`), le ventre bien au-dessus du sol. Les jambes sont longues (cuisse 2,3, jambe 2,4) : le genou, résolu à chaque image (deux os, un pôle vers le haut et le dehors), s'arque haut au-dessus du corps. Le corps **épouse le relief qu'il couvre** (dix points : tête, thorax, abdomen, flancs ; `CORPS_TISS`) autant que ses pieds : il **tangue et roule** entre deux niveaux, et **aucun de ces points ne passe sous le sol**, même pendant qu'il s'incline (testé : 0 image sur 600 en 30 s sur des gradins de 4 cubes, tangage jusqu'à 0,45, roulis 0,37). Elle marche en deux quatuors alternés ; le pied décrit un arc plus haut quand il monte et retombe lourdement (poussière, éclaboussure dans l'eau, bruit sourd, secousse selon la distance ; dessous, on se fait écraser). Elle patauge, contourne les falaises plus hautes que sa jambe, ne passe pas sous les îles de nuage. Testé sur un relief de 4 cubes : pieds sur 4 niveaux à la fois, le corps incliné.
+**Son corps sur plusieurs niveaux** : chaque patte se pose sur le sol qu'elle touche, à portée de jambe (3 cubes sous le corps, 2 au-dessus ; sinon tout près, ou elle reste où elle est). Le corps est **suspendu** entre ses pattes, à 1,6 au-dessus de ses pieds (`TISSEUSE.haut`, 2,75 avant le §135), le ventre bien au-dessus du sol. Les jambes sont longues (cuisse 2,3, jambe 2,4) : le genou, résolu à chaque image (deux os, un pôle vers le haut et le dehors), s'arque haut au-dessus du corps. Le corps **épouse le relief qu'il couvre** (dix points : tête, thorax, abdomen, flancs ; `CORPS_TISS`) autant que ses pieds : il **tangue et roule** entre deux niveaux, et **aucun de ces points ne passe sous le sol**, même pendant qu'il s'incline (testé : 0 image sur 600 en 30 s sur des gradins de 4 cubes, tangage jusqu'à 0,45, roulis 0,37). Elle marche en deux quatuors alternés ; le pied décrit un arc plus haut quand il monte et retombe lourdement (poussière, éclaboussure dans l'eau, bruit sourd, secousse selon la distance ; dessous, on se fait écraser). Elle patauge, contourne les falaises plus hautes que sa jambe, ne passe pas sous les îles de nuage. Testé sur un relief de 4 cubes : pieds sur 4 niveaux à la fois, le corps incliné.
 
 **Son combat** : elle tient 9 à 18 cases, de flanc, face à vous, et change de sens de temps en temps. Une arme à la fois, toutes annoncées :
 
@@ -753,6 +753,7 @@ Aux explorations **10, 15, 20, 25…**, une araignée automate géante dort prè
 | Fusil (sous la tête) | un laser rouge qui vous suit en retard, la lentille qui grossit puis clignote ; le coup part à 42 cases/s | un pas de côté au dernier moment |
 | Toile (dès la moitié de sa vie) | la filière se lève, un paquet de soie électrique ; il s'ouvre au sol en toile bleue | dedans : vitesse au tiers, des piqûres ; en sortir |
 | Cabrer (à moins de 5,5 cases) | elle lève les pattes avant… et frappe le sol : une onde | **sauter** au bon moment |
+| Couvée (§136, à moins de 24 cases) | elle s'accroupit, une trappe s'ouvre sous l'abdomen et lâche 2 araignons (3 en rage) qui courent sur vous ou vos compagnes, bipent et explosent | les briser d'un coup, ou s'écarter quand ils bipent |
 
 Au **dernier tiers**, elle enrage : jointures rougeoyantes, plus rapide, visée en 1 s au lieu de 1,6, salves plus nourries, recharges plus courtes.
 
@@ -3533,3 +3534,125 @@ On peut verser un peu avant le terme (1,5 s) ou un peu après (3 s). La cuisson 
 - `pageAlchimie` n'est plus que la fiche et le carnet.
 
 **À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-100`), `LISEZ-MOI.md`.
+
+## 134. La Tisseuse de fer ne s'écrase plus au sol
+
+Son corps était bien calculé à 2,75 au-dessus de ses pieds (§ de la Tisseuse), mais **dessiné au ras du sol** : en le faisant tourner pour le tangage et le roulis, le dessin retranchait sa hauteur au lieu de la garder. Éveillée, elle se dresse maintenant pour de bon sur ses huit pattes, le ventre haut ; endormie, elle reste couchée, pattes repliées ; terrassée, elle s'affaisse sur le sol.
+
+Deux défauts voisins, corrigés en même temps :
+
+- **son sol** était la case sous son centre. Posée au-dessus d'un trou, elle le prenait pour le sol : son ombre tombait au fond, et en première personne elle pouvait disparaître de la vue. Son sol est maintenant celui de ses pieds (la hauteur médiane des huit), et c'est là qu'elle s'affaisse à sa mort ;
+- **son orientation de départ** (dos à l'arche qu'elle garde) était restée par erreur dans un commentaire. Elle est rétablie.
+
+**Dans le code** : `osTisseuse` (la fonction `tb`), `marcheTiss` (`b.z`), `mortTisseuse` (`sol0`), `poserTisseuse` (`b.dir`).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-101`), `LISEZ-MOI.md`.
+
+## 135. La Tisseuse un peu plus basse
+
+Dressée à 2,75 au-dessus de ses pieds (§134), elle était trop haute : ses pattes descendaient presque droit du corps au sol. Son corps est maintenant à **1,6** au-dessus de ses pieds (`TISSEUSE.haut`). Les genoux montent au-dessus du corps, puis les pattes redescendent jusqu'au sol, comme une araignée. Le ventre reste à hauteur d'homme : on l'atteint toujours en passant sous elle.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-102`), `LISEZ-MOI.md`.
+
+## 136. La couvée de la Tisseuse : les araignons
+
+La Tisseuse a une cinquième arme. **Elle s'arrête et s'accroupit**, une trappe s'ouvre sous son abdomen (deux volets, une lueur orange dedans) et elle **lâche des araignons** un à un : deux (trois en rage). La barre de vie en haut dit « elle lâche ses araignons ».
+
+**L'araignon** est un petit robot araignée : un dôme de fonte cerclé de cuivre, deux yeux rouges, un voyant qui clignote sur le dos, huit pattes qui montent au genou puis redescendent.
+
+- **Il tombe de la trappe**, se pose, et court sur **le plus proche** : vous, un autre joueur de l'île, ou une de vos compagnes. Il ne voit pas qui est à l'abri ni qui est invisible.
+- **Il court à 5 cases/s**, en zigzag : plus vite que la marche (4,2), moins vite que la course (5,8). Il grimpe deux cubes d'un bond, contourne l'eau profonde et ne descend pas dans un trou de plus de trois cubes.
+- **Arrivé à 1,5 case**, il s'arrête et **bipe** : il rougit, son voyant s'affole. **0,65 s plus tard, il explose** (2,1 cases autour) : un coup modéré et un recul pour les joueurs, un coup plus fort pour les compagnes et les bêtes prises dans le souffle. La Tisseuse et les autres araignons n'en souffrent pas.
+- **Un seul coup le brise**, avec n'importe quelle arme (le gourdin suffit), à n'importe quel niveau d'île. Brisé, il s'éteint dans quelques étincelles **sans exploser**, et rend parfois une ferraille.
+- **Au bout de 14 s** sans avoir rejoint personne, il s'arme où il est.
+- **La Tisseuse tombée**, ses araignons s'éteignent.
+- **Un araignon ne se lie pas.**
+
+**Le rythme** : la première couvée vient 7 s après le réveil, puis toutes les 15 s (11 en rage), et jamais plus de 4 araignons à la fois (6 en rage). Sous la trappe, s'il y a un trou, l'araignon tombe à côté, sur le sol de ses pieds.
+
+**À plusieurs** : les araignons sont des bêtes de l'île. Chez le gardien de la faune (§58), ils naissent, courent et frappent pour tous. Les autres les voient trotter, biper et exploser, et chacun peut les briser. Limite : ils ne visent que les compagnes du gardien, pas celles des joueurs qui le suivent (ces compagnes vivent chez leur maître).
+
+**Dans le code** (`index.html`, section LA TISSEUSE DE FER) : `ARAIGNON` (les réglages), `lacherAraignon`, `cibleAraignon`, `pasAraignon`, `majAraignon`, `armerAraignon`, `boumAraignon`, `fxBoumAraignon`, `eteindreAraignon`, `osAraignon` ; l'espèce `araignon` (jamais posée sur l'île : `cap` 0) ; l'action `couvee` de `majTisseuse` et la trappe dans `osTisseuse`. Dans `faune.js` : la sorte `arai` et sa marionnette, la Tisseuse accroupie chez les suiveurs.
+
+**À déposer** : `index.html`, `faune.js`, `sw.js` (qui passe en `stone-valley-103`), `LISEZ-MOI.md`.
+
+## 137. Les Trottins : une famille de bipèdes, joueurs, cueilleurs et soigneurs
+
+Une cinquième famille de créatures, à côté des Rampants, des Coursiers, des Telluriens et des Doux. Les Trottins sont de petits bipèdes curieux, sans sol à eux : on les trouve sur toutes les îles, quel que soit le biome (sauf l'eau et les terres de l'effroi), en petites bandes.
+
+**Les cinq lignées**, une même race, des physiques très différents (noms et allure revus au §138) :
+
+| Lignée | Physique | Allure | Saut | Point fort | Friandise |
+|---|---|---|---|---|---|
+| **Trottin furet** | petit, vif, voûté, longs bras, oreilles immenses | trotte vite | 2 cubes | cueille vite | les baies et les fruits communs |
+| **Trottin haute-tige** | grande, élancée, longues jambes, bois hauts et fins | grandes enjambées | 3 cubes | les fruits les plus hauts (Fruits et douceurs 5) | les fruits rares |
+| **Trottin racine** | trapue, large d'épaules, l'écorce aux épaules, gros bois | lente | 2 cubes | robuste (défense 4), le plus de bois | les douceurs |
+| **Trottin bondelaine** | pattes de bouc (poil, sabots, genou en arrière), cornes recourbées, courte queue | la plus rapide | 3 cubes | tout terrain | les fruits |
+| **Trottin augure** (la rare, dès l'exploration 8) | coiffe et cape de plumes, bâton à pierre qui luit | sautille | 2 cubes, **plane** en tombant | les produits rares (Fruits et douceurs 5) | les douceurs rares |
+
+**Où.** Ils sont tirés à part, comme le félin : deux îles sur trois dès la première exploration, une ou deux sortes par île. Une bande garde la même taille à tout niveau. Ils ont leurs robes rares, comme les autres bêtes.
+
+**Le corps.**
+- **La marche** : jambes alternées, genou résolu (devant ; derrière pour le bondeur et le huppé), bras qui balancent, tête qui dodeline, clignements.
+- **La course** : penché en avant, grande foulée, un rebond à chaque pas, les oreilles et la crinière qui partent en arrière.
+- **Le saut** : ils franchissent deux ou trois cubes d'un bond, jambes repliées et bras levés en l'air.
+- **Cueillir** : penché, les bras tendus vers la plante.
+- **Dormir** : assis, tête basse, yeux fermés.
+- **Mort** : il roule sur le flanc.
+
+**Le jeu.** Deux Trottins libres, tout près l'un de l'autre, se mettent à jouer de temps en temps :
+- **la poursuite** : le « chat » court après l'autre, qui file en rond et bondit de côté quand il le serre. Touché, petit saut, et c'est à l'autre de courir (il compte jusqu'à trois) ;
+- **la chamaille** : ils se tournent autour, se bousculent, sautillent ;
+- entre deux, de petits sauts de joie. Ils babillent (un « pi-pou », plus grave chez la racine, plus aigu chez le furet et l'augure).
+
+Sauvages, ils jouent entre eux. Liés, ils jouent ensemble autour de vous quand vous ne bougez pas.
+
+**Ils se battent.** Frappé, un Trottin **rend les coups**, et **toute la bande** à moins de douze cases s'en mêle. Acculé par une bête, il se défend. Lié, il se bat pour vous comme toute compagne en défense.
+
+**Les apprivoiser.** **G** leur tend **un fruit ou une douceur** du garde-manger (les baies comptent comme un fruit) ; ils ne prennent rien d'autre. Leur friandise préférée passe d'abord, et elle **compte double**. Le message dit si c'est sa friandise, sinon ce qu'il préfère. Environ six offrandes (trois avec la friandise), neuf pour le huppé ; il faut un lien libre. L'Appel les lie aussi.
+
+**En compagne.**
+- Elle vous suit **partout** : elle saute les marches de deux ou trois cubes au lieu de rester au pied.
+- **Nouvelle spécialité de récolte, « Fruits et douceurs »** (le métier par défaut des Trottins) : elle ne vise que les plantes dont le produit est un fruit ou une douceur. Elle rapporte la ressource de la plante et, **presque à chaque fois**, son produit (95 % pour un produit commun, 35 % pour un légendaire, multipliés par sa note), quand une autre compagne ne le rapporte que rarement.
+- **La compétence de la famille : Soins.** Quand votre vie passe sous un seuil, elle **accourt** (jusqu'à 22 cases), s'agenouille à vos côtés et vous **pose un bandage de votre réserve** (+35 % de vie). Une seule à la fois. Sans bandage, elle le dit (une fois par minute). Elle s'améliore par la potion d'éveil, à la table d'alchimie (fruit, douceur, fleur) :
+
+| Rang | Seuil de vie | Délai | En plus |
+|---|---|---|---|
+| sans potion | 30 % | 40 s | — |
+| 1 | 40 % | 30 s | — |
+| 2 | 50 % | 22 s | +10 % ; un cataplasme s'il n'y a plus de bandage |
+| 3 | 55 % | 15 s | +20 % |
+
+**À plusieurs** : les Trottins sont des bêtes de l'île, partagées comme les autres (§58) ; leurs jeux se voient chez tous. Les îles changent pour tout le monde (deux sur trois ont maintenant des Trottins) : il faut que chacun ait la même version.
+
+**Dans le code** (`index.html`) :
+- l'espèce : `TROTTINS` (cinq entrées de `SPEC`), `trottin(sp)`, la famille dans `familleBete`, `NOM_TYPE`, `ORNEMENTS_DE`, `MAT_FAM` ;
+- la section LES TROTTINS (avant `majBete`) : `TROTTIN_FAVORI`, `TROTTIN_SOIN`, `trottinsGraine`, `nourrirTrottin`, `soinTrottin`, `instinctTrottin`, `jeuTrottin`, `libreJeu`, `finJeu`, `pasTrottin`, `TROTTIN_FORME`, `osTrottin`, `dessinTrottin`, `friandisePlante` ;
+- les branchements : `majBete` (l'instinct), `updateFoeLegs` (le pas), `osDeBase` (le corps), `bonBiome`, `capEsp`, `bestiaireGraine`, G (`nourrirTrottin`), `blesseParJoueur` (la bande) ;
+- la récolte : `APT_RES` gagne `friandises` (`FRIANDISE_APT`, `noteApt`), `chercherTacheTr` et `majRecolte` ;
+- la compétence `COMPETENCES.trottin`, le combat `COMBAT.trottin`, le son `babil` ;
+- `faune.js` : la bande s'en mêle aussi quand un joueur d'en face frappe (`colereDistante`).
+
+**À déposer** : `index.html`, `faune.js`, `sw.js` (qui passe en `stone-valley-104`), `LISEZ-MOI.md`.
+
+## 138. Les Trottins : un petit peuple sylvestre
+
+L'allure du §137 faisait trop dessin animé. Les Trottins sont maintenant **une même race fantasy, aux physiques différents**, et leurs lignées ont des noms à elles.
+
+**Ce qu'ils ont tous** : la peau grise et verte **comme l'écorce** (la matière de leur corps est l'écorce), de **longues oreilles pointues** couchées vers l'arrière, des **yeux d'ambre qui luisent** sous une arcade lourde, un nez en arête, une **crinière tressée** qui finit par une perle d'os, un **pagne de cuir** à ceinture, un **collier** de trois perles d'os et une plume, de **petits bois de cerf**. La tête est petite, le dos plus ou moins voûté, les bras ont un coude et des mains sombres.
+
+**Les cinq lignées** :
+
+| Lignée | Avant (§137) | Ce qui la distingue |
+|---|---|---|
+| **Furet** | menu | petit, vif, très voûté, de longs bras, des oreilles immenses, deux pointes de bois |
+| **Haute-Tige** | échasse | grande, élancée, longues jambes, cou long, bois hauts et fins, crinière pâle |
+| **Racine** | pataud | trapue, épaules larges couvertes d'écorce, membres épais, gros bois, peau plus sombre |
+| **Bondelaine** | bondeur | pattes de bouc (poil sombre, sabots, genou en arrière), cornes recourbées au lieu des bois, courte queue |
+| **Augure** (la rare) | huppé | coiffe de plumes rouges et dorées, cape de plumes dans le dos (elle l'ouvre en planant), un bâton dont la pierre luit |
+
+Rien ne change au jeu (mouvements, jeux, combat, apprivoisement, récolte, soins), ni aux icônes de compagnes qui suivent la nouvelle silhouette. Les identifiants restent ceux du §137 (`trottin_menu`…, corps `menu`…), pour que les compagnes déjà liées se retrouvent.
+
+**Dans le code** (`index.html`, section LES TROTTINS) : `TROTTINS` (noms, couleurs : `crin`, `plume`, `plume2`, `pierre`, yeux d'ambre), `TROTTIN_FORME` (refait), `osTrottin` et `dessinTrottin` (refaits), `TROTTIN_CUIR`, `TROTTIN_OS`, `TROTTIN_BOIS`, `TROTTIN_CORNE`, `TROTTIN_SABOT` ; `MAT_FAM.trottin` passe à `ecorce`.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-105`), `LISEZ-MOI.md`.

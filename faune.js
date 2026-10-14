@@ -388,7 +388,7 @@ function glisserFaune(b, dt) {
 // Leur sorte décide de leur sac, de leur identité et de leur marionnette.
 function sorteFaune(b) {
   const sp = b.sp;
-  return sp.boss ? 'tiss' : sp.horreur ? (sp.corps === 'silencieux' ? 'sil' : 'mille') : sp.dragon ? 'dragon' : sp.plante ? 'plante'
+  return sp.corps === 'araignon' ? 'arai' : sp.boss ? 'tiss' : sp.horreur ? (sp.corps === 'silencieux' ? 'sil' : 'mille') : sp.dragon ? 'dragon' : sp.plante ? 'plante'
     : sp.villageois ? 'vill' : sp.pnj ? (sp.arche ? 'arche' : 'nomade') : b.pnjSuit ? 'nmbete' : b.escouade ? 'esc' : sp.donjon ? 'dj'
     : sp.corps === 'myconide' ? 'myco' : sp.brume ? 'brume' : '';
 }
@@ -567,6 +567,15 @@ function gesteDistantFaune(d) {
 // ---------- les marionnettes des bêtes à part ----------
 const vitesseLisse = (b, d, dt) => (b.vit = (b.vit || 0) + (d / Math.max(dt, 1e-3) - (b.vit || 0)) * Math.min(1, dt * 8));
 const VISUEL_FAUNE = {
+  // (§136) les araignons de la Tisseuse : ils glissent et trottent ; armés, ils bipent ; leur explosion se voit ici
+  // aussi (les dégâts, eux, partent de chez le gardien)
+  arai(b, dt) {
+    b.t += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
+    if (b.etat === 'boum' && !b._boum) { b._boum = 1; fxBoumAraignon(b); }
+    if (b.dead) { b.dead += dt; return; }
+    vitesseLisse(b, glisserFaune(b, dt), dt); b.gph = (b.gph || 0) + dt * (b.vit || 0) * 3.2;
+    if (b.etat === 'arme' && t >= (b.bipT || 0)) { b.bipT = t + .16; SON.jouer('tic', {}, b.x, b.y, b.z); }
+  },
   // les êtres de la brume sanglante (brume.js) : leur pas se règle sur ce qu'ils parcourent
   brume(b, dt) {
     b.t += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
@@ -635,7 +644,7 @@ const VISUEL_FAUNE = {
     const ke = b.etat === 'éveil' ? Math.min(1, (b.t - (b.eveilT ?? b.t)) / 2.4) : 1;
     const haut = b.etat === 'sommeil' ? 0 : ke * ke * (3 - 2 * ke);
     const lev = A && A.k === 'cabrer' && A.T > .18 ? Math.min(1, (.95 - A.T) / .4) : 0;
-    marcheTiss(b, vx, vy, dt, haut, lev, true);
+    marcheTiss(b, vx, vy, dt, haut * (A && A.k === 'couvee' ? .78 : 1), lev, true);   // (§136) accroupie pour la couvée
     if (b.etatNeuf && b.etat === 'éveil') { SON.jouer('eveilTisseuse', {}, b.x, b.y, b.zc); say('La Tisseuse de fer s\'éveille', 3); P.secousse = t; P.secousseK = 1; }
     const k1 = A ? A.k : null;
     if (k1 !== k0) {
@@ -782,6 +791,7 @@ function colereDistante(b) {
   b.colere = 20; b.aise = 0; b.joue = 0;
   if (b.sp.pnj || b.pnjSuit) b.colereD = true;          // un nomade : c'est l'autre qu'il gardera en mémoire
   if (b.sp.roche) for (const o of beasts) if (o !== b && o.sp === b.sp && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 196) o.colere = Math.max(o.colere || 0, 12);
+  if (trottin(b.sp)) for (const o of beasts) if (o !== b && trottin(o.sp) && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) o.colere = Math.max(o.colere || 0, 12);   // (§137) les Trottins : toute la bande
   if (b.sp.chasse && b.sp.herd) for (const o of beasts) if (o !== b && o.sp === b.sp && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) o.colere = Math.max(o.colere || 0, 15);
 }
 function fauneEvenement(evt, d) {

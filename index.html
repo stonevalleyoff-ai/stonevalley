@@ -1034,6 +1034,12 @@ const SON = (() => {
       for (let i = 0; i < 8; i++) osc(o, t + .2 + i * .09 + Math.random() * .05, 'square', 500 + Math.random() * 900, 300, .05, .002, .03);
       return 1.8;
     },
+    babil(o, t, p) {                                     // (§137) un Trottin : des syllabes qui montent et retombent, « pi-pou »
+      const f0 = p.f || 900, n = p.n || 2;
+      for (let i = 0; i < n; i++) { const t0 = t + i * (.1 + Math.random() * .03), mo = i % 2 === 0, f = f0 * (1 + (Math.random() - .5) * .1);
+        osc(o, t0, 'sine', mo ? f * .82 : f * 1.22, mo ? f * 1.25 : f * .8, .085, .006, .085); }
+      return n * .13 + .1;
+    },
     rire(o, t, p) {                                      // « hihihi » : des petits « hi » qui retombent, le dernier étiré
       const f0 = p.f || 900, n = p.n || 5;
       for (let i = 0; i < n; i++) {
@@ -3918,6 +3924,7 @@ function butin(b) {
   if (typeof nmPrime === 'function' && !b.tame) nmPrime(b);   // (§122) la prime du chasseur
   if (b.sp.brume) { if (typeof butinBrume === 'function') butinBrume(b); return; }   // un mage, un rôdeur, le démon (brume.js)
   if (b.sp.pnj || b.pnjSuit) { nmButin(b); return; }   // un nomade (nomades.js)
+  if (b.sp.corps === 'araignon') { if (Math.random() < .5) { P.sac.ferraille += 1; say('+1 ferraille', 1.2); majSac(); } return; }   // (§136) un araignon : guère plus qu'un rouage
   if (automate(b.sp)) {                              // son cœur d'éclat, et ce qui reste de sa carcasse
     const pi = 2 + (Math.random() * 2 | 0), ec = b.sp.coeur || 1;   // l'élite porte un plus gros cœur
     const fe = 1 + (Math.random() * 3 | 0) + (b.sp.coeur ? 2 : 0);   // et sa carcasse : de la ferraille
@@ -5353,6 +5360,7 @@ const degJoueur = (deg, b) => deg / danger() / robuste(b) * forceK();   // coups
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
 function capEsp(sp) {
   if (sp.biome) return especesIle.has(sp.id) ? sp.cap : 0;   // un Tellurien : autant que son sol en nourrit
+  if (trottin(sp)) return especesIle.has(sp.id) ? sp.cap : 0;   // (§137) une bande de Trottins : la même à tout niveau
   if (especesIle.size && !especesIle.has(sp.id)) return 0;   // la graine ne l'a pas mise sur cette île
   const p = Math.min(profondeur(), NIV_MAX);
   if (automate(sp)) return Math.round(sp.cap * (1 + p * .12 + Math.max(0, Math.min(profondeur(), NIV_LOIN) - NIV_MAX) * .05) * (ileMeca ? 1.5 : 1));
@@ -8402,6 +8410,10 @@ const BOSSES = [
   { id:'tisseuse', n:'Tisseuse de fer', fam:'automate', boss:1, corps:'tisseuse', diet:'s', sz:1, spd:2.1, vue:30, peur:0, herd:0, cap:0, mat:9999,
     shell:[96,88,78], dark:[64,66,74], leg:[64,66,74], oeil:[255,90,60], bio:[], dur:10, coeur:4, chasse:[], lien:0, travail:{},
     metier:'garde l\'arche des îles lointaines', grimpe:0, tir:null },
+  // (§136) ses araignons : jamais sur l'île d'eux-mêmes (cap 0), seulement lâchés par elle
+  { id:'araignon', n:'Araignon', fam:'automate', corps:'araignon', diet:'s', sz:1, spd:5, vue:26, peur:0, herd:0, cap:0, mat:9999,
+    shell:[96,88,78], dark:[64,66,74], leg:[64,66,74], oeil:[255,90,60], bio:[], dur:1, coeur:0, chasse:[], lien:0, travail:{},
+    metier:'tombe du ventre de la Tisseuse, court sur vous et explose', grimpe:0, tir:null },
 ];
 const HORREURS = [
   { id:'silencieux', n:'Silencieux', corps:'silencieux', horreur:1, terre:19, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
@@ -8425,6 +8437,29 @@ const CERISAIE_SPEC = [
     bio:[23], dur:3, lien:.7, travail:{ fibre:1.4 }, metier:'porte un cerisier sur le dos, et vous en rapporte des brassées de fleurs', grimpe:0 },
 ];
 SPEC.push(...CERISAIE_SPEC);
+// --- la famille des Trottins (§137) : de petits bipèdes joueurs, sans sol à eux ---
+// Ils vivent partout, en petites bandes ; ils marchent, courent, sautent (deux ou trois cubes), jouent
+// entre eux (se courent après, se chamaillent), rendent les coups avec les leurs. On les lie avec des
+// fruits et des douceurs, chacun a sa friandise ; liés, ils cueillent les fruits et les douceurs, et
+// vous pansent quand votre vie baisse. Hors du tirage du bestiaire : ils se tirent à part (trottinsGraine).
+const TROTTINS = [   // (§138) un petit peuple sylvestre : cinq lignées (le corps garde ses noms d'origine : menu, echasse, pataud, bondeur, huppe)
+  { id:'trottin_menu', n:'Trottin furet', fam:'trottin', corps:'menu', diet:'h', sz:.8, masse:.45, curiosite:.75, spd:3.2, vue:16, peur:.55, riposte:.35, herd:1, cap:7, mat:90, bond:2,
+    shell:[118,128,100], dark:[70,78,58], leg:[104,112,88], oeil:[255,184,72], crin:[58,52,40], plume:[176,74,52], bio:[],
+    lien:.55, travail:{}, metier:'petit, vif et voûté : il cueille vite et se faufile partout', grimpe:0 },
+  { id:'trottin_echasse', n:'Trottin haute-tige', fam:'trottin', corps:'echasse', diet:'h', sz:1.2, masse:.7, curiosite:.6, spd:3.5, vue:20, peur:.6, riposte:.3, herd:1, cap:5, mat:110, bond:3,
+    shell:[146,150,132], dark:[88,92,80], leg:[128,132,116], oeil:[255,196,96], crin:[214,206,182], plume:[96,128,170], bio:[],
+    lien:.45, travail:{}, metier:'grande et élancée : elle enjambe tout, et atteint les fruits les plus hauts', grimpe:0 },
+  { id:'trottin_pataud', n:'Trottin racine', fam:'trottin', corps:'pataud', diet:'h', sz:1.2, masse:1.1, curiosite:.7, spd:2.3, vue:14, peur:.35, riposte:.5, herd:1, cap:5, mat:120, bond:2,
+    shell:[106,100,82], dark:[62,56,44], leg:[92,86,70], oeil:[255,170,60], crin:[40,36,30], plume:[150,110,60], bio:[],
+    lien:.5, travail:{}, metier:'trapue, l\'écorce aux épaules : elle rapporte gros, et défend les siens', grimpe:0 },
+  { id:'trottin_bondeur', n:'Trottin bondelaine', fam:'trottin', corps:'bondeur', diet:'h', sz:1, masse:.75, curiosite:.65, spd:3.7, vue:18, peur:.5, riposte:.4, herd:1, cap:6, mat:100, bond:3,
+    shell:[126,128,104], dark:[76,76,60], leg:[92,76,60], oeil:[255,184,72], crin:[70,58,44], plume:[200,160,70], bio:[],
+    lien:.5, travail:{}, metier:'sur ses pattes de bouc, elle avance par bonds et ne craint aucun relief', grimpe:0 },
+  { id:'trottin_huppe', n:'Trottin augure', fam:'trottin', corps:'huppe', diet:'h', sz:.9, masse:.55, curiosite:.7, spd:3.1, vue:20, peur:.6, riposte:.3, herd:1, cap:4, mat:110, bond:2,
+    shell:[120,130,124], dark:[66,74,70], leg:[104,112,106], oeil:[255,206,110], crin:[30,30,34], plume:[176,58,50], plume2:[232,196,112], pierre:[140,230,210], bio:[],
+    lien:.35, travail:{}, metier:'la rare de la race, une coiffe et une cape de plumes : elle plane, et déniche les produits rares', grimpe:0 },
+];
+SPEC.push(...TROTTINS);
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -8436,9 +8471,9 @@ const proiesDe = sp => automate(sp) ? null : sp.chasse || [];
 // On choisit ce que récolte chaque compagne, quelle que soit son espèce ; l'espèce dit combien elle en
 // rapporte. Une note de 1 à 5 par récolte, et une en défense ; 0 : la chasse, pour qui ne chasse pas.
 // Une récolte rend le pied × COEF_APT[note] : 4 fait autant que vous, 5 moitié plus.
-const APT_RES = ['bois', 'pierre', 'fibre', 'baies', 'eclat', 'ferraille', 'os', 'peche', 'jardin'];
-const NOM_APT = { bois: 'Bois', pierre: 'Pierre', fibre: 'Fibre', baies: 'Baies', eclat: 'Éclats', ferraille: 'Ferraille', os: 'Chasse', peche: 'Pêche', jardin: 'Jardin' };
-const LE_APT = { bois: 'le bois', pierre: 'la pierre', fibre: 'la fibre', baies: 'les baies', eclat: 'les éclats', ferraille: 'la ferraille', os: 'le gibier', peche: 'le poisson', jardin: 'le jardin' };
+const APT_RES = ['bois', 'pierre', 'fibre', 'baies', 'eclat', 'ferraille', 'os', 'peche', 'jardin', 'friandises'];
+const NOM_APT = { bois: 'Bois', pierre: 'Pierre', fibre: 'Fibre', baies: 'Baies', eclat: 'Éclats', ferraille: 'Ferraille', os: 'Chasse', peche: 'Pêche', jardin: 'Jardin', friandises: 'Fruits et douceurs' };
+const LE_APT = { bois: 'le bois', pierre: 'la pierre', fibre: 'la fibre', baies: 'les baies', eclat: 'les éclats', ferraille: 'la ferraille', os: 'le gibier', peche: 'le poisson', jardin: 'le jardin', friandises: 'les fruits et les douceurs' };
 const COEF_APT = [0, .2, .35, .55, 1, 1.5];
 const CHANCE_APT = [0, .3, .45, .65, 1, 1.25];   // la chance d'un ingrédient (produit d'une plante, viande d'une prise) : 4 comme vous
 const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
@@ -8455,10 +8490,13 @@ const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
   sika: [1, 1, 4, 4, 2, 1, 0, 2],        renard: [1, 1, 2, 5, 2, 1, 0, 3],       lentisakura: [3, 2, 5, 3, 2, 1, 0, 5],   // la cerisaie (§112)
 };
 const aptDe = esp => APT[esp] || [1, 1, 1, 1, 1, 1, 0, 2];
+Object.assign(APT, { trottin_menu: [1, 1, 3, 4, 1, 1, 0, 2], trottin_echasse: [2, 1, 2, 3, 2, 1, 0, 2], trottin_pataud: [3, 2, 2, 2, 1, 1, 0, 4],   // (§137)
+  trottin_bondeur: [1, 2, 2, 3, 2, 1, 0, 3], trottin_huppe: [1, 1, 2, 3, 3, 1, 0, 2] });
+const FRIANDISE_APT = { trottin_menu: 4, trottin_echasse: 5, trottin_pataud: 4, trottin_bondeur: 4, trottin_huppe: 5 };   // (§137) les fruits et les douceurs : les Trottins
 const PECHE_APT = { sterne: 5 };                     // la pêche : qui sait pêcher (hors du tableau, dont la 8e case est la défense)
 // (§121) Le jardin : la moyenne de la fibre et des baies, un point de plus pour les Douces ; jamais moins d'un.
 const noteJardin = esp => { const a = aptDe(esp), sp = specById[esp]; return Math.max(1, Math.min(5, Math.round((a[2] + a[3]) / 2) + (sp && doux(sp) ? 1 : 0))); };
-const noteApt = (esp, res) => res === 'peche' ? PECHE_APT[esp] || 0 : res === 'jardin' ? noteJardin(esp) : aptDe(esp)[APT_RES.indexOf(res)] || 0;
+const noteApt = (esp, res) => res === 'peche' ? PECHE_APT[esp] || 0 : res === 'friandises' ? FRIANDISE_APT[esp] || 0 : res === 'jardin' ? noteJardin(esp) : aptDe(esp)[APT_RES.indexOf(res)] || 0;
 const coefApt = (esp, res) => COEF_APT[noteApt(esp, res)];
 const noteDef = esp => aptDe(esp)[7];
 const points = n => '●'.repeat(n) + '○'.repeat(5 - n);
@@ -8469,9 +8507,10 @@ const automate = sp => !!sp && sp.fam === 'automate';
 const coursier = sp => !!sp && sp.fam === 'coursier';
 const tellurien = sp => !!sp && sp.fam === 'tellurien';
 const doux = sp => !!sp && sp.fam === 'doux';
+const trottin = sp => !!sp && sp.fam === 'trottin';   // (§137)
 // la pierre natale prend la teinte de son biome
 for (const sp of SPEC) if (sp.biome) { const h = RARES.find(r => r.b === sp.biome).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); }
-for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.plante ? (typeof dessinPlante === 'function' ? dessinPlante(d, sp) : null) : sp.corps === 'silencieux' ? dessinSilencieux(d, sp) : sp.corps === 'millegueule' ? dessinMille(d, sp) : sp.boss ? dessinTisseuse(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
+for (const sp of SPEC) DESSINS['bete_' + sp.id] = d => sp.plante ? (typeof dessinPlante === 'function' ? dessinPlante(d, sp) : null) : sp.corps === 'silencieux' ? dessinSilencieux(d, sp) : sp.corps === 'millegueule' ? dessinMille(d, sp) : sp.boss || sp.corps === 'araignon' ? dessinTisseuse(d, sp) : trottin(sp) ? dessinTrottin(d, sp) : automate(sp) ? dessinAutomate(d, sp) : coursier(sp) ? dessinCoursier(d, sp)
   : tellurien(sp) ? dessinTellurien(d, sp) : doux(sp) ? dessinDoux(d, sp) : sp.pnj ? nmDessin(d, sp) : sp.corps === 'dragon' ? dessinDragon(d, sp) : sp.corps === 'sterne' ? dessinSterne(d, sp) : sp.corps === 'felin' ? dessinFelin(d, sp) : sp.corps === 'bramard' ? dessinBramard(d, sp) : dessinBete(d, sp);
 let beasts = [], berries = [], horloge = .3;   // berries : l'index des buissons à baies (des pieds de la flore)
 const BUISSON_BIO = { 2: ESP.findIndex(e => e.id === 'groseillier'), 3: ESP.findIndex(e => e.id === 'ronce'),
@@ -8833,7 +8872,8 @@ function voileNuit(g, fps) {
 }
 
 function sol(x, y) { return hAt(x | 0, y | 0); }
-function bonBiome(sp, x, y) { if (sp.corps === 'bramard') return plaineHaute(x, y, true);   // le bramard : les plaines d'altitude, sur le plat
+function bonBiome(sp, x, y) { if (sp.corps === 'bramard') return plaineHaute(x, y, true);
+  if (trottin(sp)) { const i = (y | 0) * WS + (x | 0), bi = bAt(x | 0, y | 0); return Hgt[i] > SEA && !Eau[i] && !PlT[i] && bi !== 19 && bi !== 20; }   // (§137) un Trottin : partout, sauf l'eau et l'effroi   // le bramard : les plaines d'altitude, sur le plat
   const h = hAt(x | 0, y | 0); return h > SEA && sp.bio.includes(bAt(x | 0, y | 0)); }
 function naitre(sp, x, y, age) {
   const b = { sp, x, y, z: sol(x, y), vx: 0, vy: 0, vz: 0, dir: Math.random() * 6.28, dirT: 0,
@@ -9836,6 +9876,7 @@ function update(dt) {
     else if (c.sp.dragon) nourrirDragon(c);
     else if (c.sp.horreur) offrandeHorreur(c);
     else if (automate(c.sp)) rallumer(c);
+    else if (trottin(c.sp) && !c.tame) nourrirTrottin(c);   // (§137) des fruits et des douceurs
     else if (coursier(c.sp) && !c.tame) say('un coursier ne se lie pas aux baies : sautez sur son dos', 2);
     else if (c.sp.volant && !poissonADonner() && !(c.tame && P.plats.length)) say(c.sp.n + ' · elle ne prend que du poisson', 2);
     else if (c.tame && P.plats.length) {                  // un plat à une compagne : soignée, rassasiée pour longtemps
@@ -11413,6 +11454,8 @@ function dessinDragon(d, sp) {                            // le pictogramme : ai
 //   - la TOILE (dès la moitié de sa vie) : la filière lance un paquet de soie électrique qui
 //     s'ouvre au sol en toile : dedans, vous n'avancez plus qu'au tiers, et ça pique ;
 //   - de trop près, elle se CABRE, pattes avant levées, et frappe le sol : une onde. Sautez.
+//   - la COUVÉE (§136) : accroupie, elle lâche de sous son ventre des araignons qui courent sur vous
+//     ou vos compagnes, bipent, et explosent ; un coup les brise.
 //  Au dernier tiers, elle enrage : ses jointures rougeoient, elle va plus vite, vise plus vite,
 //  et ses salves doublent presque. Sous elle, on atteint son ventre ; ses pattes se frappent aussi.
 //  Terrassée, elle s'effondre (les pattes cèdent, des étincelles, l'explosion), laisse sa
@@ -11427,7 +11470,8 @@ function pattesTiss(b) {
   const c = Math.cos(b.dir), s = Math.sin(b.dir), zc = b.zc || b.z;
   return b.pieds.map(p => { const H = [b.x + p.L.hx * c - p.L.s * .42 * s, b.y + p.L.hx * s + p.L.s * .42 * c, zc + .02]; const A = [p.x, p.y, p.z], K = [(A[0] + H[0]) / 2 + (A[0] - H[0]) * .15, (A[1] + H[1]) / 2 + (A[1] - H[1]) * .15, Math.max(A[2], H[2]) + 1.3]; return [A, K, H]; });
 }
-const TISSEUSE = { haut: 2.75, bas: .5, reach: 5, pas: 1.15, vit: 2.1, vitRage: 2.9 };
+const TISSEUSE = { haut: 1.6, bas: .5,   // (§135) haut : le corps au-dessus des pieds, assez bas pour que les genoux montent puis redescendent
+  reach: 5, pas: 1.15, vit: 2.1, vitRage: 2.9 };
 const TOILES = [];
 let PortailCache = null;
 const ileBoss = () => profondeur() >= 10 && profondeur() % 5 === 0 && !djIci() && !(P.bossVaincus || []).includes(SEED);
@@ -11449,7 +11493,8 @@ function poserTisseuse() {
   if (!best) best = [A.x + 8, A.y];
   const b = naitre(specById.tisseuse, best[0], best[1]);
   b.pv = 1; b.etat = 'sommeil'; b.antre = best; b.age = 1e6; b.ech = 1;
-  b.blinde = 1 + Math.max(0, profondeur() - 10) * .06;   // plus loin, plus coriace b.dir = b.dirT = Math.atan2(A.y - best[1], A.x - best[0]) + Math.PI;
+  b.blinde = 1 + Math.max(0, profondeur() - 10) * .06;   // plus loin, plus coriace
+  b.dir = b.dirT = Math.atan2(A.y - best[1], A.x - best[0]) + Math.PI;   // dos à l'arche qu'elle garde
   beasts.push(b);
   // Déjà vaincue : elle n'est là que pour garder les numéros des bêtes de l'île (les mêmes chez tous) ;
   // on la retire dès qu'ils sont donnés. Un autre joueur qui ne l'a pas vaincue la fera revivre ici.
@@ -11458,7 +11503,7 @@ function poserTisseuse() {
   return b;
 }
 function initTisseuse(b) {
-  b.zc = hAt(b.x | 0, b.y | 0) + TISSEUSE.bas; b.cd = { mortier: 2.5, sniper: 5, toile: 8, cabrer: 3 }; b.sens = 1; b.sensT = 0;
+  b.zc = hAt(b.x | 0, b.y | 0) + TISSEUSE.bas; b.cd = { mortier: 2.5, sniper: 5, toile: 8, cabrer: 3, couvee: 7 }; b.sens = 1; b.sensT = 0;
   b.pieds = PATTES_TISS.map(L => { const w = mondeTiss(b, L.rx * .55, L.s * L.ry * .55); return { L, x: w[0], y: w[1], z: hAt(w[0] | 0, w[1] | 0), sw: 0, from: null }; });
 }
 function mondeTiss(b, lx, ly) { const c = Math.cos(b.dir), s = Math.sin(b.dir); return [b.x + lx * c - ly * s, b.y + lx * s + ly * c]; }
@@ -11539,7 +11584,8 @@ function marcheTiss(b, vx, vy, dt, haut, lev = 0, place = false) {
   const plancher = (g, r) => Math.max(...S.map(([lx, ly, dessous, h]) => h + .18 + dessous - lx * Math.sin(g) - ly * Math.sin(r)));
   const zc = Math.max(moy + TISSEUSE.bas + (TISSEUSE.haut - TISSEUSE.bas) * haut, plancher(tg, rl) + (haut - 1) * .5) - (enVol ? .05 : 0) + Math.sin(b.t * 2.2) * .03 * haut;
   b.zc = Math.max((b.zc ?? zc) + (zc - (b.zc ?? zc)) * Math.min(1, dt * 4), plancher(b.tg, b.rl) - (1 - haut) * .3);   // jamais sous le sol
-  b.z = hAt(b.x | 0, b.y | 0); b.tang = 0;
+  { const zs = P8.map(p => p.z).sort((a, c) => a - c); b.z = (zs[3] + zs[4]) / 2; }   // (§134) son sol : celui de ses pieds, au milieu (le centre peut tomber sur un trou)
+  b.tang = 0;
 }
 function atterrirPied(b, p) {
   const d = Math.hypot(P.x - p.x, P.y - p.y);
@@ -11650,6 +11696,9 @@ function majTisseuse(b, dt) {
     } else if (A.k === 'mortier') {
       vMul = .45;
       if (A.T <= 0) { mortierTiss(b, J); A.n--; A.T = .34; if (A.n <= 0) { b.act = null; cd.mortier = rage ? 4.5 : 6.5; } }
+    } else if (A.k === 'couvee') {                     // (§136) accroupie, la trappe ouverte : les araignons tombent un à un
+      vMul = .15;
+      if (A.T <= 0) { lacherAraignon(b); A.n--; A.T = .4; if (A.n <= 0) { b.act = null; cd.couvee = rage ? 11 : 15; } }
     } else if (A.k === 'toile') {
       vMul = .35;
       if (A.T <= 0) { toileTiss(b, J); b.act = null; cd.toile = rage ? 7 : 9; }
@@ -11671,6 +11720,7 @@ function majTisseuse(b, dt) {
     // ---- choisir : de trop près, se cabrer ; sinon le fusil, le mortier, la toile ----
     if (dJ < 5.5 && cd.cabrer <= 0) { b.act = { k: 'cabrer', T: .95 }; SON.jouer('eveilTisseuse', { court: 1 }, b.x, b.y, b.zc); }
     else if (cd.sniper <= 0 && dJ > 6) { b.act = { k: 'viser', T: rage ? 1.05 : 1.6 }; b.vise = null; SON.jouer('vise', { dur: rage ? 1.05 : 1.6 }, b.x, b.y, b.zc); }
+    else if (cd.couvee <= 0 && dJ < 24 && araignonsDe(b).length < (rage ? ARAIGNON.maxRage : ARAIGNON.max)) { b.act = { k: 'couvee', T: .8, n: rage ? 3 : 2 }; SON.jouer('clank', {}, b.x, b.y, b.zc); }
     else if (cd.mortier <= 0 && dJ > 6) b.act = { k: 'mortier', T: .25, n: rage ? 5 : 3 };
     else if (b.phase >= 2 && cd.toile <= 0 && dJ < 17) { b.act = { k: 'toile', T: .55 }; b.toileT = t; }
   }
@@ -11681,7 +11731,7 @@ function majTisseuse(b, dt) {
   if (dJ < 9) { mx = mx * .4 - ux; my = my * .4 - uy; }  // trop près : elle recule
   else if (dJ > 18) { mx = mx * .3 + ux; my = my * .3 + uy; }   // trop loin : elle approche
   const m = Math.hypot(mx, my) || 1, V = (rage ? TISSEUSE.vitRage : TISSEUSE.vit) * vMul;
-  marcheTiss(b, mx / m * V, my / m * V, dt, 1, lev);
+  marcheTiss(b, mx / m * V, my / m * V, dt, b.act && b.act.k === 'couvee' ? .78 : 1, lev);   // pour la couvée, elle s'accroupit
 }
 function mortTisseuse(b, dt) {
   if (b.mortT == null) {
@@ -11690,7 +11740,7 @@ function mortTisseuse(b, dt) {
   }
   const k = b.t - b.mortT;
   for (const p of b.pieds) { const w = mondeTiss(b, p.L.rx * (1 + Math.min(1, k) * .25), p.L.s * p.L.ry * (1 + Math.min(1, k) * .25)); p.x += (w[0] - p.x) * Math.min(1, dt * 2); p.y += (w[1] - p.y) * Math.min(1, dt * 2); p.z = hAt(p.x | 0, p.y | 0); p.sw = 0; }
-  const sol0 = hAt(b.x | 0, b.y | 0) + .35;
+  const sol0 = b.z + .35;                              // (§134) elle s'affaisse sur le sol de ses pieds
   b.zc = Math.max(sol0, b.zc - dt * (k < 1.2 ? .6 : 2.2));
   b.rl = (b.rl || 0) + (.22 - (b.rl || 0)) * Math.min(1, dt * 2); b.tg = (b.tg || 0) + (-.12 - (b.tg || 0)) * Math.min(1, dt * 2);
   if (k < 2.2 && Math.random() < dt * 14) { const p = b.pieds[Math.random() * 8 | 0]; burst((p.x + b.x) / 2, (p.y + b.y) / 2, b.zc + .3, 5, Math.random() < .5 ? '#ffd27d' : '#ff7a4a'); }
@@ -11723,11 +11773,146 @@ function mortTisseuse(b, dt) {
 // posés dans le monde : le genou, haut au-dessus du corps, se résout à chaque image (deux os, un
 // pôle vers le haut et le dehors). Le corps tangue et roule sur ses pieds. Les yeux luisent ; en
 // rage les jointures aussi. Le laser du fusil et les toiles au sol font partie de son dessin.
+// ---------- les araignons (§136) : la couvée de la Tisseuse ----------
+// Elle s'arrête, s'accroupit, la trappe sous son abdomen s'ouvre et lâche deux araignons (trois en rage),
+// de petits robots araignées. Chacun court sur le plus proche : vous, un autre joueur, ou une compagne.
+// Arrivé tout près, il s'arrête et bipe (le voyant rouge s'affole) : une fraction de seconde pour
+// s'écarter ou le briser. Puis il explose. Un seul coup le brise ; brisé, il s'éteint sans exploser.
+// Au bout de 14 s sans avoir rejoint personne, il explose où il est. La Tisseuse tombée, ils s'éteignent.
+// Ce sont des bêtes de l'île : chez le gardien de la faune, ils naissent, courent et frappent pour tous.
+const ARAIGNON = { vit: 5, vue: 26, portee: 1.5, meche: .65, rayon: 2.1, deg: .07, degBete: .3, vie: 14, max: 4, maxRage: 6 };
+const araignon = b => !!b && !!b.sp && b.sp.corps === 'araignon';
+const araignonsDe = T => beasts.filter(o => araignon(o) && o.tisseuse === T && !o.dead);
+function lacherAraignon(T) {
+  const o = pointTiss(T, -1.2, 0, -.6);
+  if (Math.abs(sol(o[0], o[1]) - T.z) > 1.5)             // sous la trappe, un trou : il tombe à côté, sur le sol de ses pieds
+    cherche: for (let r = .5; r <= 3; r += .5) for (let j = 0; j < 8; j++) { const x = o[0] + Math.cos(j * .785) * r, y = o[1] + Math.sin(j * .785) * r; if (Math.abs(sol(x, y) - T.z) <= 1.5) { o[0] = x; o[1] = y; break cherche; } }
+  const a = naitre(specById.araignon, o[0], o[1], 1e4);
+  a.z = o[2]; a.vz = -1; a.etat = 'chute'; a.tisseuse = T; a.vie = 0; a.ech = 1; a.gph = Math.random() * 6;
+  a.blinde = .25 / danger();                             // un seul coup le brise, quelle que soit l'île
+  a.dir = a.dirT = T.dir + Math.PI + (Math.random() - .5) * 2;
+  beasts.push(a);
+  burst(o[0], o[1], o[2], 8, '#ff7a4a'); SON.jouer('clank', {}, o[0], o[1], o[2]);
+  return a;
+}
+// Le plus proche : un joueur (qu'il voit : ni à l'abri, ni invisible) ou une compagne.
+function cibleAraignon(b) {
+  let best = null, bd = ARAIGNON.vue * ARAIGNON.vue;
+  for (const Q of joueursFaune()) {
+    if (abriDe(Q) || effetDe(Q, 'invisible') || Math.abs(Q.z - b.z) > 6) continue;
+    const d = (Q.x - b.x) ** 2 + (Q.y - b.y) ** 2; if (d < bd) { bd = d; best = Q; }
+  }
+  for (const o of beasts) {
+    if (!o.comp || o.dead || !(o.pv > 0) || Math.abs(o.z - b.z) > 6) continue;
+    const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd) { bd = d; best = o; }
+  }
+  return best;
+}
+// Un pas possible : pas d'eau profonde, pas plus de deux cubes à gravir (il grimpe d'un bond), pas de trou de plus de trois.
+function pasAraignon(b, x, y) {
+  if (x < 2 || y < 2 || x > WS - 3 || y > WS - 3) return false;
+  const s = sol(x, y), i = (y | 0) * WS + (x | 0);
+  return s - b.z < 2.1 && s - b.z > -3.1 && !(Eau[i] > Hgt[i] + .6);
+}
+function majAraignon(b, dt) {
+  b.t += dt; b.age += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
+  if (b.dead) { b.dead += dt; b.z = Math.max(sol(b.x, b.y), b.z - dt * 6); return; }
+  if (b.pv <= 0) return eteindreAraignon(b, 'brisé');
+  const T = b.tisseuse;
+  if (!T || T.dead || !beasts.includes(T)) return eteindreAraignon(b, 'éteint');
+  b.vie += dt;
+  if (b.etat === 'chute') {                              // il tombe de la trappe, pattes repliées
+    b.vz -= 22 * dt; b.z += b.vz * dt;
+    const s = sol(b.x, b.y);
+    if (b.z <= s) { b.z = s; b.vz = 0; b.etat = 'course'; b.pret = b.t + .25; burst(b.x, b.y, s + .05, 5, '#9a8f80'); SON.jouer('tic', {}, b.x, b.y, s); }
+    return;
+  }
+  if (b.etat === 'arme') {                               // il bipe, puis explose
+    b.vit = 0; b.z = sol(b.x, b.y);
+    if (b.t >= b.bipT) { b.bipT = b.t + .16; SON.jouer('tic', {}, b.x, b.y, b.z); }
+    if (b.t >= b.boumT) boumAraignon(b);
+    return;
+  }
+  if (b.vie > ARAIGNON.vie) return armerAraignon(b);
+  if (!b.proie || b.t > b.proieT || b.proie.dead || !(b.proie.pv > 0)) { b.proie = cibleAraignon(b); b.proieT = b.t + .5; }
+  const C = b.proie;
+  if (!C || b.t < b.pret) { b.vit = 0; return; }
+  const dx = C.x - b.x, dy = C.y - b.y, d = Math.hypot(dx, dy);
+  if (d < ARAIGNON.portee && Math.abs(C.z - b.z) < 1.6) return armerAraignon(b);
+  // il court, en zigzag ; un obstacle : il cherche à côté
+  const a0 = Math.atan2(dy, dx) + Math.sin(b.t * 6 + b.gph) * .35 * Math.min(1, d / 4), V = ARAIGNON.vit;
+  let ok = false, nx = b.x, ny = b.y;
+  for (const da of [0, .7, -.7, 1.4, -1.4, 2.1, -2.1]) {
+    const a = a0 + da * (b.sens || 1); nx = b.x + Math.cos(a) * V * dt; ny = b.y + Math.sin(a) * V * dt;
+    if (pasAraignon(b, nx, ny)) { ok = true; b.dirT = a; break; }
+  }
+  if (!ok) { b.sens = -(b.sens || 1); b.vit = 0; return; }
+  b.x = nx; b.y = ny; b.vit = V;
+  let dd = b.dirT - b.dir; while (dd > Math.PI) dd -= 6.2832; while (dd < -Math.PI) dd += 6.2832;
+  b.dir += Math.max(-12 * dt, Math.min(12 * dt, dd));
+  const s = sol(b.x, b.y); b.z = s > b.z ? Math.min(s, b.z + dt * 8) : s;   // il gravit la marche d'un bond
+  b.gph += dt * V * 3.2;
+}
+function armerAraignon(b) {
+  b.etat = 'arme'; b.boumT = b.t + ARAIGNON.meche; b.bipT = b.t; b.vit = 0;
+  burst(b.x, b.y, b.z + .45, 4, '#ff5a3c');
+}
+// L'éclair, la fumée, la secousse : chez soi et chez ceux qui suivent la faune (sans les dégâts).
+function fxBoumAraignon(b) {
+  const z = b.z + .3;
+  for (let k = 0; k < 26; k++) parts.push({ x: b.x, y: b.y, z, vx: (Math.random() - .5) * 8, vy: (Math.random() - .5) * 8, vz: Math.random() * 5, g: 9, life: .35 + Math.random() * .35, age: 0, col: k % 3 ? '#ffb070' : '#ff5a2c', luit: 1, tl: .07 });
+  for (let k = 0; k < 10; k++) parts.push({ x: b.x, y: b.y, z, vx: (Math.random() - .5) * 2, vy: (Math.random() - .5) * 2, vz: 1 + Math.random() * 1.5, g: -1, life: .9, age: 0, col: '#5a5450', tl: .14 });
+  SON.jouer('explosion', {}, b.x, b.y, z);
+  const dP = Math.hypot(P.x - b.x, P.y - b.y); if (dP < 12) { P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, .5 * (1 - dP / 12)); }
+}
+function boumAraignon(b) {
+  b.etat = 'boum'; fxBoumAraignon(b);
+  const R = ARAIGNON.rayon;
+  for (const Q of joueursFaune()) {                      // chacun de ceux qui sont tout près, d'ici ou d'en face
+    const d = Math.hypot(Q.x - b.x, Q.y - b.y);
+    if (d < R && Math.abs(Q.z - b.z) < 1.8) frapperJoueur(b, Q, ARAIGNON.deg * (1 - d / R * .5), { kb: [(Q.x - b.x) / (d || 1) * 6, (Q.y - b.y) / (d || 1) * 6, 3] });
+  }
+  for (const o of beasts) {                              // les compagnes, et les bêtes prises dans le souffle
+    if (o === b || o.dead || !(o.pv > 0) || o.sp.boss || araignon(o) || o.sp.batiment || o.cache) continue;
+    const d = Math.hypot(o.x - b.x, o.y - b.y);
+    if (d < R && Math.abs(o.z - b.z) < 1.8) porterCoup(b, o, ARAIGNON.degBete * (1 - d / R * .5));
+  }
+  b.pv = 0; mourirBete(b, 'explosé');
+}
+function eteindreAraignon(b, cause) {                    // brisé, ou sa Tisseuse tombée : quelques étincelles, et plus rien
+  for (let k = 0; k < 6; k++) parts.push({ x: b.x, y: b.y, z: b.z + .3, vx: (Math.random() - .5) * 3, vy: (Math.random() - .5) * 3, vz: Math.random() * 2, g: 9, life: .3, age: 0, col: '#ffd27d', luit: 1, tl: .05 });
+  b.pv = 0; if (!b.dead) mourirBete(b, cause);
+}
+// Le corps : un dôme de fonte cerclé de cuivre, deux yeux, un voyant sur le dos ; huit pattes qui montent
+// au genou puis redescendent, en deux quatuors. Armé, il rougit et son voyant s'affole.
+function osAraignon(f) {
+  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
+  const mort = f.dead > 0, arme = f.etat === 'arme' && !mort, chute = f.etat === 'chute';
+  const fer = [64, 66, 74], plaque = [96, 88, 78], cuivre = [178, 118, 70], sombre = [40, 42, 48];
+  const bat = arme ? (Math.sin(t * 40) > 0 ? 1 : 0) : (t * 2.5 + f.gph) % 1 < .5 ? 1 : 0;
+  const rouge = arme ? .5 + .5 * Math.sin(t * 30) : 0, coque = plaque.map((v, j) => Math.round(v + ([255, 70, 40][j] - v) * rouge * .6));
+  const zc = mort ? .12 : .3, bob = f.vit > 0 ? Math.abs(Math.sin(f.gph * 2)) * .03 : 0, z0 = zc + bob;
+  add([-.17, 0, z0], [.15, 0, z0 + .02], .42, .26, mort ? sombre : coque);                 // la coque
+  add([-.19, 0, z0 - .04], [.17, 0, z0 - .04], .47, .06, cuivre);                          // le cerclage
+  add([.14, 0, z0 - .02], [.25, 0, z0 - .03], .22, .14, sombre);                           // la tête
+  for (const s of [1, -1]) add([.25, s * .055, z0], [.27, s * .055, z0], .05, .05, mort ? [70, 40, 36] : [255, 90, 60], !mort);   // les yeux
+  add([-.02, 0, z0 + .15], [-.02, 0, z0 + .19], .07, .07, !mort && bat ? [255, 70, 50] : [90, 40, 36], !mort && !!bat);   // le voyant
+  for (let i = 0; i < 8; i++) {
+    const s = i < 4 ? 1 : -1, k = i % 4, hx = [.12, .04, -.04, -.12][k], ph = f.gph + (k + (s > 0 ? 0 : 1)) % 2 * Math.PI;
+    const lev = f.vit > 0 && !mort ? Math.max(0, Math.sin(ph)) * .1 : 0, av = f.vit > 0 && !mort ? Math.cos(ph) * .07 : 0;
+    const H = [hx, s * .17, z0 - .03], ext = chute ? .26 : mort ? .5 : .42;
+    const Fp = [hx * 1.9 + av, s * ext, chute ? z0 - .2 : lev];
+    const K = [(H[0] + Fp[0]) / 2, s * (ext * .62), Math.max(H[2], Fp[2]) + (chute ? .05 : .16)];
+    add(H, K, .05, .05, fer); add(K, Fp, .035, .035, sombre);
+  }
+  return B;
+}
 function osTisseuse(f) {
   const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
   if (!f.pieds) initTisseuse(f);
   const zl = f.zc - f.z, cg = Math.cos(f.tg || 0), sg = Math.sin(f.tg || 0), cr = Math.cos(f.rl || 0), sr = Math.sin(f.rl || 0);
-  const tb = p => { let x = p[0], z = p[2] - zl; const x1 = x * cg - z * sg, z1 = x * sg + z * cg; const y1 = p[1] * cr - z1 * sr, z2 = p[1] * sr + z1 * cr; return [x1, y1, zl + z2]; };
+  const tb = p => { let x = p[0], z = p[2];   // (§134) le corps tourne autour de son centre, puis monte à sa hauteur : il ne s'écrase plus au sol
+  const x1 = x * cg - z * sg, z1 = x * sg + z * cg; const y1 = p[1] * cr - z1 * sr, z2 = p[1] * sr + z1 * cr; return [x1, y1, zl + z2]; };
   const ca = Math.cos(f.dir), sa = Math.sin(f.dir);
   const loc = (x, y, z) => { const dx = x - f.x, dy = y - f.y; return [dx * ca + dy * sa, -dx * sa + dy * ca, z - f.z]; };
   const mort = f.dead > 0, rage = f.phase === 3 && !mort, eveil = f.etat === 'sommeil' ? 0 : f.etat === 'éveil' ? Math.min(1, (f.t - f.eveilT) / 2.4) : 1;
@@ -11780,6 +11965,10 @@ function osTisseuse(f) {
   const lt = f.toileT != null && t - f.toileT < .9 ? Math.sin(Math.min(1, (t - f.toileT) / .9) * Math.PI) : 0;
   add(tb([-1.7, 0, .3 + lt * .2]), tb([-1.95, 0, .28 + lt * .35]), .32, .28, plaque);
   add(tb([-1.95, 0, .28 + lt * .35]), tb([-2.05, 0, .27 + lt * .4]), .16, .16, [196, 232, 255], lt > .1);
+  // (§136) la trappe de la couvée, sous l'abdomen : deux volets qui s'ouvrent, une lueur dedans
+  const cv = !!(f.act && f.act.k === 'couvee') && !mort;
+  for (const sd of [1, -1]) if (cv) add(tb([-1.2, sd * .28, -.36]), tb([-1.2, sd * .34, -.7]), .46, .05, plaque); else add(tb([-.97, sd * .14, -.37]), tb([-1.43, sd * .14, -.37]), .27, .05, plaque);
+  if (cv) add(tb([-1.12, 0, -.33]), tb([-1.28, 0, -.33]), .3, .16, [255, 120, 60], true);
   // les pattes : hanche (sur le corps), genou résolu, cheville au-dessus du pied posé
   for (const p of f.pieds) {
     const L = p.L, H = tb([L.hx, L.s * .42, .02]);
@@ -12318,6 +12507,7 @@ function blesseParJoueur(b) {
   b.colere = 20; b.aise = 0; P.agiteT = t; b.colereD = false;
   if (b.sp.roche) for (const o of beasts) if (o !== b && o.sp === b.sp && !o.tame && !o.dead   // toute la colonie s'en mêle
       && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 196) o.colere = Math.max(o.colere || 0, 12);
+  if (trottin(b.sp)) for (const o of beasts) if (o !== b && trottin(o.sp) && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) o.colere = Math.max(o.colere || 0, 12);   // (§137) la bande s'en mêle
   b.joue = 0;                                      // touché en pleine mise en joue : le tireur d'élite reprend sa visée
   P.designe = { o: b, t };                         // vos compagnes en défense frapperont la même
   if (b.sp.chasse && b.sp.herd)
@@ -13154,6 +13344,7 @@ function bestiaireGraine(graine, niv) {
   if (niv >= NIV_FELIN && felinGraine(graine) && okR('felin')) e.add('felin');   // tiré à part : le reste du bestiaire ne bouge pas
   if (niv >= 1 && bramardGraine(graine) && okR('bramard')) e.add('bramard');
   if (sterneGraine(graine) && okR('sterne')) e.add('sterne');
+  for (const id of trottinsGraine(graine, niv)) e.add(id);   // (§137) les Trottins, tirés à part
   if (niv >= 3 && dragonGraine(graine) && okR('dragon')) e.add('dragon');
   { const rg = biomesGraine(graine); if (rg.includes(19)) e.add('silencieux'); if (rg.includes(20)) e.add('millegueule'); }   // l'effroi vit sur son sol          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
   return e;
@@ -13784,10 +13975,338 @@ function coursierAuContact() {
   return pr;
 }
 
+// ============================================================
+//  LES TROTTINS (§137) : une famille de bipèdes, joueurs, cueilleurs, soigneurs
+//  Cinq sortes au physique très différent : le menu (petit, rond, grandes oreilles), l'échasse
+//  (grand, maigre, long cou), le pataud (lourd, gros ventre), le bondeur (grosses cuisses, longue
+//  queue, il avance par bonds) et le huppé (plumes, crête, petites ailes, il plane en tombant).
+//  Ils marchent, courent, sautent ; ils jouent entre eux — l'un court après l'autre, le touche, et
+//  c'est à l'autre de courir ; ou ils se chamaillent, se tournent autour, se bousculent. Frappés,
+//  ils rendent les coups, et toute la bande s'en mêle. On les lie avec des fruits et des douceurs
+//  (G) ; liés, ils cueillent les fruits et les douceurs, et vous pansent quand votre vie baisse.
+// ============================================================
+Object.assign(DITS_ETAT, { jouer: 'joue', panser: 'vient vous panser', rixe: 'rend les coups' });
+COMBAT.trottin = { deg: .07, ramasse: .35, bond: .2, portee: 1.6, recul: .5, pause: 1.1 };
+// La friandise préférée : elle compte double pour le lien.
+const TROTTIN_FAVORI = { menu: { fam: 'fruit', rmax: 2, n: 'les baies et les fruits communs' }, echasse: { fam: 'fruit', rmin: 3, n: 'les fruits rares' },
+  pataud: { fam: 'douceur', n: 'les douceurs' }, bondeur: { fam: 'fruit', n: 'les fruits' }, huppe: { fam: 'douceur', rmin: 3, n: 'les douceurs rares' } };
+// Les soins, par rang de la compétence : le seuil de vie, le délai, ce qu'elle ajoute au bandage.
+const TROTTIN_SOIN = [{ s: .3, d: 40, b: 0 }, { s: .4, d: 30, b: 0 }, { s: .5, d: 22, b: .1 }, { s: .55, d: 15, b: .2 }];
+const VOIX_TROTTIN = { menu: 1150, echasse: 760, pataud: 520, bondeur: 900, huppe: 1350 };
+const voixTrottin = b => b.voix || (b.voix = (VOIX_TROTTIN[b.sp.corps] || 900) * (.9 + Math.random() * .2));
+// Les îles des Trottins : deux sur trois, dès la première exploration ; une ou deux sortes par île,
+// le huppé à partir de la huitième.
+const NIV_TROTTINS = 1, NIV_HUPPE = 8;
+function trottinsGraine(g, niv) {
+  if (!Number.isInteger(g) || niv < NIV_TROTTINS) return [];
+  let n = (g ^ 0x7207f1) >>> 0;
+  const tir = () => { n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = (n ^ (n >>> 16)) >>> 0; return n / 4294967296; };
+  if (tir() > .66) return [];
+  const L = ['trottin_menu', 'trottin_echasse', 'trottin_pataud', 'trottin_bondeur'].concat(niv >= NIV_HUPPE ? ['trottin_huppe'] : []);
+  const R = [L.splice(tir() * L.length | 0, 1)[0]];
+  if (tir() < .45) R.push(L[tir() * L.length | 0]);
+  return R;
+}
+// Les nourrir (G) : un fruit ou une douceur du garde-manger — la friandise préférée d'abord.
+function nourrirTrottin(c) {
+  const F = TROTTIN_FAVORI[c.sp.corps] || {};
+  const L = Object.keys(INGR).filter(id => (INGR[id].fam === 'fruit' || INGR[id].fam === 'douceur') && qteIngr(id) > 0);
+  if (!L.length) { say(c.sp.n + ' · il ne prend que des fruits et des douceurs · le garde-manger n\'en a pas', 2.4); return; }
+  const fav = id => INGR[id].fam === F.fam && INGR[id].r >= (F.rmin || 1) && INGR[id].r <= (F.rmax || 9), tri = (a, b) => INGR[a].r - INGR[b].r;
+  const id = L.filter(fav).sort(tri)[0] || L.sort(tri)[0], aime = fav(id);
+  oterIngr(id); c.faim = Math.max(0, c.faim - .5); c.alarm = 0; c.colere = 0;
+  burst(c.x, c.y, c.z + .5, aime ? 16 : 10, aime ? '#ffd27d' : '#ffd68a');
+  SON.jouer('babil', { f: voixTrottin(c), n: aime ? 4 : 2 }, c.x, c.y, c.z + .6);
+  if (c.num !== undefined && typeof fauneGeste === 'function') fauneGeste('mange', { n: c.num, f: .5, d: 0 });
+  c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (aime ? 2 : 1) * (1 + .5 * effet('apprivoiseur')));
+  const nom = INGR[id].n.toLowerCase();
+  if (c.conf >= 1) { if (!lier(c, 'friandise')) say('confiance totale · il faut un lien d\'éclat libre', 2.6); }
+  else say(nom + (aime ? ' · sa friandise !' : ' · il préfère ' + F.n) + ' · confiance ' + Math.round(c.conf * 100) + ' %', 2.2);
+  majSac();
+}
+// La compétence : elle accourt et vous pose un bandage de votre réserve (un cataplasme au rang 2, s'il n'y
+// a plus de bandage). Une seule à la fois ; chacune a son délai.
+function soinTrottin(b) {
+  const c = b.comp, r = potBete(b, 'comp'), S = TROTTIN_SOIN[Math.min(3, r)];
+  if (!c || !c.dehors || P.pv <= 0 || P.pv >= S.s || t < (P.panseT || 0) || t < (c.panseT || 0)) { b.panse = null; return null; }
+  const dP = Math.hypot(P.x - b.x, P.y - b.y);
+  if (dP > 22 || Math.abs(P.z - b.z) > 4) { b.panse = null; return null; }
+  const id = qteSoin('bandage') > 0 ? 'bandage' : r >= 2 && qteSoin('cataplasme') > 0 ? 'cataplasme' : null;
+  if (!id) {
+    if (!(c.sansBandT > t)) { c.sansBandT = t + 60; say(c.nom + ' voudrait vous panser · plus de bandage (table de soin)', 2.6); }
+    return null;
+  }
+  if (!b.panse) { b.panse = { w0: null }; SON.jouer('babil', { f: voixTrottin(b) * 1.15, n: 2 }, b.x, b.y, b.z + .6); }
+  if (dP > 1.3) { b.panse.w0 = null; return ['panser', P.x, P.y, b.sp.spd, 1.7]; }
+  b.dirT = Math.atan2(P.y - b.y, P.x - b.x);                          // à vos côtés : elle s'agenouille, déroule le bandage
+  if (b.panse.w0 == null) b.panse.w0 = b.t;
+  if (b.t - b.panse.w0 < .8) return ['panser', b.x, b.y, 0, 1];
+  const o = objet(id); prendreSoin(id);
+  const L = effetSoin(o); if (S.b) P.pv = Math.min(1, P.pv + S.b);
+  c.panseT = t + S.d; P.panseT = t + 4; b.panse = null;
+  burst(P.x, P.y, P.z + .8, 16, '#9fd08a'); SON.jouer('lien');
+  say(c.nom + ' vous pose ' + (id === 'bandage' ? 'un bandage' : 'un cataplasme') + (L.length ? ' · ' + L.join(' · ') : '') + (S.b ? ' · +' + Math.round(S.b * 100) + ' % de ses mains' : ''), 2.8);
+  casesSig = ''; if (sacOuvert) majSac();
+  return ['panser', b.x, b.y, 0, 1];
+}
+// L'instinct, après l'état du tronc commun : panser (liée), rendre les coups (sauvage), jouer.
+function instinctTrottin(b, etat, tx, ty, vit, sprint, dt) {
+  if (b.as) { finJeu(b); return [etat, tx, ty, vit, sprint]; }
+  if (b.tame) { const s = soinTrottin(b); if (s) { finJeu(b); return s; } }
+  if (!b.tame && b.colere > 0) {                         // frappé : il rend les coups, la bande avec lui
+    const J = JC, d = Math.hypot(J.x - b.x, J.y - b.y);
+    if (J.pv > 0 && d < b.sp.vue && Math.abs(J.z - b.z) < 2.5 && !(abriDe(J) || effetDe(J, 'invisible'))) {
+      finJeu(b);
+      if (d < COMBAT.trottin.portee + .4 && b.t >= (b.pret || 0) && (J.hurt || 0) <= .25) lancerAssaut(b, J, COMBAT.trottin);
+      return ['rixe', J.x, J.y, b.sp.spd, d > 3 ? 1.45 : 1.05];
+    }
+  }
+  if ((etat === 'fuir' && !b.tame) || etat === 'acculé' || etat === 'dormir') { finJeu(b); return [etat, tx, ty, vit, sprint]; }
+  if (!b.tame && Math.random() < dt * .04 && (P.x - b.x) ** 2 + (P.y - b.y) ** 2 < 400) SON.jouer('babil', { f: voixTrottin(b), n: 1 + (Math.random() * 3 | 0) }, b.x, b.y, b.z + .6);   // il babille
+  return jeuTrottin(b, etat, tx, ty, vit, sprint, dt);
+}
+// Une plante dont le produit est un fruit ou une douceur : l'ouvrage de la spécialité « Fruits et douceurs ».
+const friandisePlante = e => { const q = produitDe(e.id); return !!q && (q.fam === 'fruit' || q.fam === 'douceur'); };
+// --- le jeu ---
+// Deux trottins libres, tout près (sauvages ensemble, ou liés ensemble près de vous quand vous ne bougez
+// pas) : une poursuite (le chat court après l'autre, le touche, et les rôles s'inversent) ou une chamaille.
+function libreJeu(o, etat) {
+  const e = etat || o.etat;
+  if (!o || o.dead || !(o.pv > 0) || o.as || o.faim > .7 || o.nrj < .3 || o.panse) return false;
+  if (o.tame) return e === 'jouer' || e === 'repos' || e === 'garder' || (e === 'suivre' && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < 64 && Math.hypot(P.vx || 0, P.vy || 0) < .6);
+  return e === 'errer' || e === 'troupeau' || e === 'curieux' || e === 'jouer';
+}
+function finJeu(b) {
+  const j = b.jeu; if (!j) return;
+  b.jeu = null; b.jeuPret = b.t + 8 + Math.random() * 14;
+  const o = j.o; if (o && o.jeu && o.jeu.o === b) { o.jeu = null; o.jeuPret = (o.t || 0) + 8 + Math.random() * 14; }
+}
+function jeuTrottin(b, etat, tx, ty, vit, sprint, dt) {
+  let j = b.jeu;
+  if (j && (b.t > j.fin || !libreJeu(b, etat) || !beasts.includes(j.o) || !j.o.jeu || j.o.jeu.o !== b || !libreJeu(j.o))) { finJeu(b); j = null; }
+  if (!j) {
+    if (!libreJeu(b, etat) || b.t < (b.jeuPret || 0) || Math.random() > dt * .12) return [etat, tx, ty, vit, sprint];
+    let o = null, bd = 81;
+    for (const q of beasts) if (q !== b && trottin(q.sp) && !q.jeu && q.tame === b.tame && (q.t || 0) >= (q.jeuPret || 0) && libreJeu(q)) {
+      const d = (q.x - b.x) ** 2 + (q.y - b.y) ** 2; if (d < bd) { bd = d; o = q; } }
+    if (!o) { b.jeuPret = b.t + 4; return [etat, tx, ty, vit, sprint]; }
+    const k = Math.random() < .6 ? 'poursuite' : 'chamaille', duree = k === 'poursuite' ? 7 + Math.random() * 6 : 3.5 + Math.random() * 3;
+    const c = b.tame ? [P.x, P.y] : [(b.x + o.x) / 2, (b.y + o.y) / 2], chat = Math.random() < .5, sens = Math.random() < .5 ? 1 : -1;
+    b.jeu = { k, o, chat, fin: b.t + duree, c, sens }; o.jeu = { k, o: b, chat: !chat, fin: (o.t || 0) + duree, c, sens: -sens };
+    b.vz = Math.max(b.vz || 0, 3.4); SON.jouer('babil', { f: voixTrottin(b), n: 3 }, b.x, b.y, b.z + .6);
+    j = b.jeu;
+  }
+  const o = j.o, dx = o.x - b.x, dy = o.y - b.y, d = Math.hypot(dx, dy) || .01, auSol = b.z <= sol(b.x, b.y) + .05;
+  if (b.tame) j.c = [P.x, P.y];                          // liés : le jeu reste autour de vous
+  let gx, gy, k2 = 1;
+  if (j.k === 'poursuite') {
+    if (j.chat) {
+      if (b.t < (j.pause || 0)) return ['jouer', b.x, b.y, 0, 1];   // il compte jusqu'à trois
+      gx = o.x + (o.vx || 0) * .3; gy = o.y + (o.vy || 0) * .3; k2 = 1.35;
+      if (d < .85 && Math.abs(o.z - b.z) < 1) {          // touché ! à l'autre de courir
+        j.chat = false; o.jeu.chat = true; o.jeu.pause = (o.t || 0) + .7;
+        b.vz = Math.max(b.vz || 0, 3.6); o.vz = Math.max(o.vz || 0, 4.2);
+        SON.jouer('babil', { f: voixTrottin(o), n: 2 }, o.x, o.y, o.z + .6);
+      }
+    } else {                                             // il file en rond, et bondit de côté quand l'autre le serre
+      const a = Math.atan2(b.y - o.y, b.x - o.x) + .9 * j.sens;
+      gx = b.x + Math.cos(a) * 4; gy = b.y + Math.sin(a) * 4;
+      const cx = j.c[0] - b.x, cy = j.c[1] - b.y, dc = Math.hypot(cx, cy);
+      if (dc > 6) { gx += cx / dc * (dc - 6) * 2; gy += cy / dc * (dc - 6) * 2; }
+      k2 = 1.25;
+      if (d < 2 && auSol && Math.random() < dt * 2.5) b.vz = 4.6;
+    }
+  } else {                                               // la chamaille : ils se tournent autour, se bousculent
+    const a = Math.atan2(-dy, -dx) + j.sens * .6;
+    gx = o.x + Math.cos(a) * .85; gy = o.y + Math.sin(a) * .85; k2 = .8;
+    b.dirT = Math.atan2(dy, dx);
+    if (d < 1.15 && b.t > (j.bour || 0)) {
+      j.bour = b.t + .45 + Math.random() * .5; b.bourrade = t;
+      o.vx = (o.vx || 0) + dx / d * 3.2; o.vy = (o.vy || 0) + dy / d * 3.2; o.vz = Math.max(o.vz || 0, 2.6);
+      if (Math.random() < .5) SON.jouer('babil', { f: voixTrottin(b) * 1.1, n: 1 }, b.x, b.y, b.z + .6);
+    }
+  }
+  if (auSol && Math.random() < dt * .7) b.vz = Math.max(b.vz || 0, 3);   // de petits sauts de joie
+  return ['jouer', gx, gy, b.sp.spd, k2];
+}
+// --- le pas : la phase des jambes suit le chemin parcouru ; le huppé plane quand il tombe ---
+function pasTrottin(f, dt) {
+  const x0 = f._px ?? f.x, y0 = f._py ?? f.y; f._px = f.x; f._py = f.y;
+  const d = Math.hypot(f.x - x0, f.y - y0); if (d > 2 || !(dt > 0)) return;
+  f.vit = (f.vit || 0) + (d / dt - (f.vit || 0)) * Math.min(1, dt * 10);
+  const F = TROTTIN_FORME[f.sp.corps] || TROTTIN_FORME.menu, cours = f.vit > f.sp.spd * 1.15;
+  f.ph = ((f.ph || 0) + d / Math.max(.12, 2 * (F.cu + F.ti) * (cours ? 1.15 : .8))) % 1;
+  if (f.sp.corps === 'huppe' && !f.dead && f.vz < -2.4 && f.z > sol(f.x, f.y) + .3) f.vz = -2.4;
+}
+// --- le corps (§138) : un petit peuple sylvestre ---
+// Une même race : la peau grise et verte comme l'écorce, de longues oreilles pointues couchées vers
+// l'arrière, des yeux d'ambre qui luisent sous l'arcade, une crinière tressée, un pagne de cuir, un
+// collier d'os et une plume, de petits bois de cerf. Cinq lignées au physique très différent :
+//  - le Furet (corps 'menu') : petit, vif, voûté, de longs bras, des oreilles immenses ;
+//  - la Haute-Tige ('echasse') : grande, élancée, de longues jambes, des bois hauts et fins ;
+//  - la Racine ('pataud') : trapue, large d'épaules, des membres épais, l'écorce aux épaules ;
+//  - la Bondelaine ('bondeur') : des pattes de bouc (poil, sabots, genou en arrière), des cornes recourbées ;
+//  - l'Augure ('huppe'), la rare : une coiffe et une cape de plumes (elle plane), un bâton à pierre qui luit.
+// H : la hanche ; cu, ti : cuisse, jambe ; dig : le genou en arrière ; tw, th, tl : le buste (large, haut,
+// épais) ; vout : le dos voûté ; tete ; oreille ; bois ; bras ; cw, aw : l'épaisseur de la cuisse, du bras ;
+// hw : l'écart des hanches. En unités du monde (divisées par la taille de l'espèce).
+const TROTTIN_FORME = {
+  menu:    { H: .3, cu: .16, ti: .16, pied: .08, dig: 0, tw: .19, th: .24, tl: .14, vout: .24, cou: .04, tete: .15, oreille: .21, bois: .05, crin: 2, bras: .27, cw: .055, aw: .042, hw: .065 },
+  echasse: { H: .76, cu: .39, ti: .39, pied: .11, dig: 0, tw: .22, th: .36, tl: .15, vout: .08, cou: .12, tete: .16, oreille: .2, bois: .22, crin: 4, bras: .5, cw: .06, aw: .045, hw: .07 },
+  pataud:  { H: .34, cu: .18, ti: .18, pied: .12, dig: 0, tw: .42, th: .4, tl: .26, vout: .18, cou: .03, tete: .18, oreille: .16, bois: .15, crin: 2, epaule: 1, bras: .36, cw: .12, aw: .1, hw: .12 },
+  bondeur: { H: .5, cu: .24, ti: .24, pied: .14, dig: 1, sabot: 1, tw: .25, th: .34, tl: .17, vout: .1, cou: .06, tete: .16, oreille: .18, cornes: 1, crin: 3, queue: 1, bras: .3, cw: .1, aw: .052, hw: .08 },
+  huppe:   { H: .42, cu: .22, ti: .22, pied: .1, dig: 0, tw: .22, th: .32, tl: .16, vout: .26, cou: .06, tete: .16, oreille: .19, bois: .08, coiffe: 1, cape: 1, baton: 1, crin: 3, bras: .3, cw: .06, aw: .045, hw: .07 },
+};
+const TROTTIN_CUIR = [104, 70, 44], TROTTIN_CUIR_F = [76, 50, 32], TROTTIN_OS = [222, 210, 180], TROTTIN_BOIS = [176, 158, 124], TROTTIN_CORNE = [146, 124, 96], TROTTIN_SABOT = [44, 38, 34];
+function osTrottin(f) {
+  const sp = f.sp, F = TROTTIN_FORME[sp.corps] || TROTTIN_FORME.menu, R = [];
+  const add = (a, b, w, h, c, luit) => R.push({ a, b, w, h, c, luit });
+  const mort = f.dead > 0, dk = Math.min(1, (f.dead || 0) * 2.6), v = mort ? 0 : f.vit || 0;
+  const marche = Math.min(1, v / (sp.spd * .45)), cours = Math.max(0, Math.min(1, (v / sp.spd - 1.05) * 2.5));
+  const air = mort ? 0 : Math.max(0, Math.min(1, (f.z - sol(f.x, f.y) - .05) / .22)), plane = air > .5 && (f.vz || 0) < -1;
+  const e = f.etat, dort = e === 'dormir' && !mort, joue = e === 'jouer', panse = e === 'panser' && v < .4;
+  const cueille = (e === 'brouter' || e === 'récolter') && v < .4, frappe = !!f.as, ram = f.ramasse || 0, bour = t - (f.bourrade || -9) < .25;
+  const ph = (f.ph || 0) * 6.2832, souffle = Math.sin(t * 2.1 + f.bob) * .5 + .5;
+  const cligne = dort || mort || (t + f.bob * 1.7) % 4.1 < .1;
+  const peau = sp.shell, sombre = sp.dark, jambe = sp.leg, crin = sp.crin || sombre, plume = sp.plume || [180, 70, 52];
+  // la hanche : assis pour dormir, agenouillé pour panser, penché pour cueillir ; le rebond du pas
+  const bas = dort ? .5 : panse ? .38 : cueille ? .14 : 0, bob = Math.abs(Math.sin(ph)) * (.012 + .05 * cours) * marche;
+  const H = F.H * (1 - bas - ram * .15 - air * .1) + bob + souffle * .005;
+  const pitch = F.vout * (1 - cours * .3) + cours * .38 + (cueille ? .55 : 0) + (panse ? .3 : 0) + (frappe ? .3 : 0) + (dort ? .35 : 0) + (bour ? .2 : 0) - air * .1;
+  const sP = Math.sin(pitch), cP = Math.cos(pitch);
+  const au = k => [sP * k, 0, H + cP * k];                 // le long du dos
+  // le buste : plus étroit à la taille qu'aux épaules ; le pagne et sa ceinture
+  for (let k = 0; k < 3; k++) {
+    const z = F.th * (k + .5) / 3, c = au(z), w = F.tw * (F.epaule ? [.82, 1, 1.12] : [.74, .88, 1])[k], l = F.tl * [.92, 1, .95][k];
+    add([c[0] - l / 2, 0, c[2]], [c[0] + l / 2, 0, c[2]], w, F.th / 3 + .012, peau);
+  }
+  add([-F.tl * .52, 0, H + .02], [F.tl * .52, 0, H + .02], F.tw * .8, .035, TROTTIN_CUIR_F);
+  add([F.tl * .46, 0, H], [F.tl * .5 + cours * .04, 0, H - F.H * .32], F.tw * .45, .02, TROTTIN_CUIR);
+  add([-F.tl * .46, 0, H], [-F.tl * .5 - cours * .05, 0, H - F.H * .3], F.tw * .5, .02, TROTTIN_CUIR);
+  // le collier : trois perles d'os et une plume
+  const T1 = au(F.th), C0 = au(F.th * .78);
+  for (let i = -1; i <= 1; i++) add([C0[0] + F.tl * .5, i * F.tw * .16, C0[2] + .01 - Math.abs(i) * .015], [C0[0] + F.tl * .53, i * F.tw * .16, C0[2] + .01 - Math.abs(i) * .015], .03, .03, TROTTIN_OS);
+  add([C0[0] + F.tl * .52, F.tw * .08, C0[2] - .02], [C0[0] + F.tl * .55, F.tw * .1, C0[2] - .11], .025, .012, plume);
+  // l'écorce aux épaules de la Racine
+  if (F.epaule) for (const s of [1, -1]) add([T1[0] - .06, s * F.tw * .5, T1[2] - .04], [T1[0] + .06, s * F.tw * .52, T1[2] - .03], .15, .07, sombre);
+  // la tête : petite, l'arcade lourde, les yeux d'ambre qui luisent, le nez en arête
+  const hp = pitch * -.15 + (dort ? .45 : 0), tz = F.tete;
+  const Hc = [T1[0] + Math.sin(pitch * .5 + hp) * F.cou + .015, 0, T1[2] + Math.cos(pitch * .5) * F.cou + tz * .5];
+  add([T1[0], 0, T1[2] - .02], [Hc[0] - .015, 0, Hc[2] - tz * .3], F.epaule ? .12 : .065, F.epaule ? .1 : .065, peau);
+  add([Hc[0] - tz * .45, 0, Hc[2] + tz * .02], [Hc[0] + tz * .38, 0, Hc[2]], tz * .78, tz * 1.02, peau);
+  add([Hc[0] + tz * .2, 0, Hc[2] - tz * .38], [Hc[0] + tz * .42, 0, Hc[2] - tz * .44], tz * .48, tz * .22, peau);   // la mâchoire
+  add([Hc[0] + tz * .36, 0, Hc[2] + tz * .2], [Hc[0] + tz * .44, 0, Hc[2] + tz * .17], tz * .74, .03, sombre);      // l'arcade
+  add([Hc[0] + tz * .42, 0, Hc[2] + tz * .02], [Hc[0] + tz * .52, 0, Hc[2] - tz * .16], .028, .04, sombre);         // le nez
+  for (const s of [1, -1]) add([Hc[0] + tz * .4, s * tz * .17, Hc[2] + tz * .07], [Hc[0] + tz * .43, s * tz * .17, Hc[2] + tz * .07], .036, cligne ? .008 : .022, cligne ? sombre : sp.oeil, !cligne);
+  // les oreilles : longues, pointues, couchées vers l'arrière ; elles battent à la course
+  const trail = cours * .06 + air * .05, flop = Math.sin(t * 2.7 + f.bob) * .012, O = F.oreille;
+  for (const s of [1, -1]) {
+    const b0 = [Hc[0] - .01, s * tz * .38, Hc[2] + tz * .08], m = [Hc[0] - O * .45 - trail * .6, s * (tz * .38 + O * .3), Hc[2] + tz * .1 + O * .18 + flop];
+    add(b0, m, .05, .018, peau); add(m, [Hc[0] - O * .95 - trail, s * (tz * .38 + O * .5), Hc[2] + tz * .1 + O * .38 + flop], .025, .014, peau);
+  }
+  // les bois (ou les cornes recourbées de la Bondelaine)
+  for (const s of [1, -1]) {
+    const r0 = [Hc[0] - .015, s * tz * .17, Hc[2] + tz * .48];
+    if (F.cornes) {
+      const c1 = [Hc[0] - .1, s * tz * .3, Hc[2] + tz * .62], c2 = [Hc[0] - .15, s * tz * .38, Hc[2] + tz * .38], c3 = [Hc[0] - .08, s * tz * .4, Hc[2] + tz * .2];
+      add(r0, c1, .045, .04, TROTTIN_CORNE); add(c1, c2, .038, .034, TROTTIN_CORNE); add(c2, c3, .03, .026, TROTTIN_CORNE);
+    } else if (F.bois) {
+      const B = F.bois, m = [Hc[0] - .03, s * (tz * .17 + B * .22), Hc[2] + tz * .48 + B * .55], h = [Hc[0] - .06, s * (tz * .17 + B * .42), Hc[2] + tz * .48 + B];
+      add(r0, m, .028, .028, TROTTIN_BOIS); add(m, h, .022, .022, TROTTIN_BOIS);
+      add(m, [m[0] + B * .32, m[1] + s * B * .08, m[2] + B * .3], .018, .018, TROTTIN_BOIS);
+      if (B > .12) add([h[0] + .01, h[1], h[2] - B * .2], [h[0] - B * .25, h[1] + s * B * .12, h[2] + B * .08], .016, .016, TROTTIN_BOIS);
+    }
+  }
+  // la coiffe de plumes de l'Augure
+  if (F.coiffe) for (let i = -2; i <= 2; i++) {
+    const a = Math.abs(i), b = [Hc[0] - .03, i * .03, Hc[2] + tz * .46], h = [Hc[0] - .08 - a * .025 - trail, i * .075, Hc[2] + tz * .46 + .22 - a * .045 + flop];
+    add(b, h, .036, .014, i % 2 ? sp.plume2 || TROTTIN_OS : plume); add(h, [h[0] - .01, h[1] * 1.08, h[2] + .03], .03, .012, sombre);
+  }
+  // la crinière tressée, dans le dos ; une perle d'os au bout
+  { let p = [Hc[0] - tz * .42, 0, Hc[2] + tz * .25]; const sw = Math.sin(t * 3 + f.bob) * .02 + cours * .03;
+    for (let i = 0; i < F.crin; i++) { const q = [p[0] - .03 - cours * .03, sw * (i + 1) * .5, p[2] - .07 + cours * .02]; add(p, q, .05, .045, crin); p = q; }
+    add(p, [p[0] - .01, p[1], p[2] - .03], .04, .04, TROTTIN_OS); }
+  // la cape de plumes de l'Augure : deux pans dans le dos, qu'elle ouvre en planant
+  if (F.cape) for (const s of [1, -1]) {
+    const o = plane ? 1 : joue ? .3 : 0, S0 = au(F.th * .9);
+    add([S0[0] - F.tl * .45, s * F.tw * .25, S0[2]], [S0[0] - F.tl * .5 - .05 - o * .05, s * (F.tw * .35 + o * .3), S0[2] - .3 + o * .2], .2 + o * .14, .025, plume);
+    add([S0[0] - F.tl * .5 - .05 - o * .05, s * (F.tw * .35 + o * .3), S0[2] - .3 + o * .2], [S0[0] - F.tl * .55 - .08, s * (F.tw * .38 + o * .4), S0[2] - .42 + o * .3], .16 + o * .1, .02, sp.plume2 || TROTTIN_OS);
+  }
+  // la petite queue de la Bondelaine
+  if (F.queue) { const sw = Math.sin(t * 5 + f.bob) * .04; add([-F.tl * .5, 0, H + .02], [-F.tl * .5 - .09, sw, H + .1], .05, .04, jambe); }
+  // les bras : l'épaule, le coude, la main ; ils balancent au pas, se lèvent pour jouer et pour sauter
+  const S0 = au(F.th * .86);
+  for (const s of [1, -1]) {
+    const S = [S0[0], s * (F.tw * (F.epaule ? .56 : .5) + .01), S0[2]], L = F.bras;
+    const sw = Math.sin(ph + (s > 0 ? Math.PI : 0)) * (.45 + .55 * cours) * marche;
+    let M;
+    if (F.baton && s < 0 && !frappe && !joue && !(air > .3)) M = [S[0] + L * .35, s * (F.tw * .5 + .05), S[2] - L * .7];   // la main qui tient le bâton
+    else if (panse || cueille) M = [S[0] + L * .85, s * (F.tw * .45 - .02), S[2] - L * .5];
+    else if (frappe) { const k = Math.sin(t * 14 + (s > 0 ? 0 : 1.6)) * .5 + .5; M = [S[0] + L * (.35 + .65 * k), s * F.tw * .42, S[2] + L * .05]; }
+    else if (joue || air > .3) { const w = Math.sin(t * 10 + (s > 0 ? 0 : 1.3)) * .04; M = [S[0] + .02, s * (F.tw * .5 + .1), S[2] + L * .75 + w]; }
+    else if (bour) M = [S[0] + L * .9, s * F.tw * .4, S[2] + L * .1];
+    else if (dort) M = [S[0] + L * .45, s * (F.tw * .42), S[2] - L * .8];
+    else M = [S[0] + Math.sin(sw) * L * .7, s * (F.tw * .5 + .04), S[2] - Math.cos(sw) * L * .92];
+    const E = [(S[0] + M[0]) / 2 - .04, (S[1] + M[1]) / 2 + s * .03, (S[2] + M[2]) / 2];
+    add(S, E, F.aw, F.aw, peau); add(E, M, F.aw * .82, F.aw * .82, peau);
+    add(M, [M[0] + .015, M[1], M[2] - .035], F.aw * 1.05, F.aw * .9, sombre);                  // la main, sombre comme l'écorce
+    if (F.baton && s < 0) {                                                                   // le bâton de l'Augure, et sa pierre qui luit
+      const top = [M[0] + .03, M[1], M[2] + .3], bas = [M[0] - .01, M[1], Math.max(.03, M[2] - .4)];
+      add(bas, top, .03, .03, TROTTIN_CUIR_F); add(top, [top[0], top[1], top[2] + .05], .06, .06, sp.pierre || [140, 230, 210], true);
+    }
+  }
+  // les jambes : la hanche, le genou résolu (devant ; en arrière pour les pattes de bouc), la cheville, le pied ou le sabot
+  for (const s of [1, -1]) {
+    const y = s * F.hw, phi = ph + (s > 0 ? 0 : Math.PI);
+    const pas = (F.cu + F.ti) * (.45 + .4 * cours) * marche;
+    let fx = -Math.cos(phi) * pas / 2 + .02, fz = Math.max(0, Math.sin(phi)) * (.035 + .13 * cours) * marche;
+    if (air > 0) { fx = fx * (1 - air) + (s > 0 ? .06 : -.02) * air; fz = fz * (1 - air) + H * .45 * air; }
+    if (dort) { fx = .14; fz = 0; }
+    const A = F.dig ? [fx - F.pied * .25, y, fz + F.pied * .7] : [fx - F.pied * .3, y, fz + .03];
+    const toe = F.sabot ? [fx + .02, y, fz] : [fx + F.pied * .7, y, fz];
+    const Hp = [0, y, H], a = F.cu, b = F.ti;
+    let ux = A[0] - Hp[0], uz = A[2] - Hp[2], d = Math.hypot(ux, uz) || 1e-3; ux /= d; uz /= d;
+    d = Math.max(Math.abs(a - b) + .01, Math.min(a + b - .004, d));
+    const ca = (a * a + d * d - b * b) / (2 * a * d), sa = Math.sqrt(Math.max(0, 1 - ca * ca));
+    const nx = F.dig ? uz : -uz, nz = F.dig ? -ux : ux;
+    const K = [Hp[0] + (ux * ca + nx * sa) * a, y, Hp[2] + (uz * ca + nz * sa) * a];
+    const Ak = [Hp[0] + ux * d, y, Hp[2] + uz * d];
+    add(Hp, K, F.cw, F.cw, F.sabot ? jambe : peau); add(K, Ak, F.cw * (F.sabot ? .55 : .72), F.cw * (F.sabot ? .55 : .72), jambe);
+    if (F.sabot) add(Ak, toe, .055, .05, TROTTIN_SABOT);
+    else add(Ak, toe, F.cw * .85, .032, sombre);
+  }
+  // mort : il roule sur le flanc
+  const ech = 1 / sp.sz, cr = Math.cos(dk * 1.45), sr = Math.sin(dk * 1.45), lev = dk * F.tw * .45;
+  const T = p => [p[0] * ech, (p[1] * cr - p[2] * sr) * ech, (p[1] * sr + p[2] * cr + lev) * ech];
+  return R.map(o => ({ a: T(o.a), b: T(o.b), w: o.w * ech, h: o.h * ech, c: o.c, luit: o.luit }));
+}
+// Le pictogramme : une silhouette de la race — les oreilles couchées, les bois, les yeux d'ambre — à la carrure de sa lignée.
+function dessinTrottin(d, sp) {
+  const k = sp.corps, pe = sp.shell, so = sp.dark, ja = sp.leg, oe = sp.oeil, bo = TROTTIN_BOIS;
+  if (k === 'echasse') {
+    d.ligne(6, 10, 6, 15, ja); d.ligne(9, 10, 9, 15, ja); d.rect(6, 5, 9, 10, pe); d.ligne(5, 6, 4, 11, pe); d.ligne(10, 6, 11, 11, pe);
+    d.rect(7, 2, 9, 4, pe); d.ligne(6, 3, 3, 2, pe); d.ligne(10, 3, 13, 2, pe); d.ligne(7, 1, 6, 0, bo); d.ligne(9, 1, 10, 0, bo); d.net(9, 3, oe);
+  } else if (k === 'pataud') {
+    d.rect(5, 12, 6, 15, ja); d.rect(9, 12, 10, 15, ja); d.rect(4, 6, 11, 12, pe); d.rect(3, 6, 4, 8, so); d.rect(11, 6, 12, 8, so); d.rect(2, 8, 3, 12, pe); d.rect(12, 8, 13, 12, pe);
+    d.rect(6, 3, 9, 5, pe); d.ligne(5, 4, 3, 3, pe); d.ligne(10, 4, 12, 3, pe); d.ligne(6, 2, 5, 0, bo); d.ligne(9, 2, 10, 0, bo); d.net(8, 4, oe); d.rect(5, 12, 10, 12, TROTTIN_CUIR);
+  } else if (k === 'bondeur') {
+    d.ligne(6, 11, 5, 13, ja); d.ligne(5, 13, 6, 15, ja); d.ligne(9, 11, 10, 13, ja); d.ligne(10, 13, 9, 15, ja); d.net(6, 15, TROTTIN_SABOT); d.net(9, 15, TROTTIN_SABOT);
+    d.rect(6, 6, 9, 11, pe); d.ligne(5, 7, 4, 10, pe); d.ligne(10, 7, 11, 10, pe); d.rect(7, 3, 9, 5, pe); d.ligne(6, 4, 4, 3, pe); d.ligne(10, 4, 12, 3, pe);
+    d.ligne(7, 2, 5, 1, TROTTIN_CORNE); d.net(5, 2, TROTTIN_CORNE); d.ligne(9, 2, 11, 1, TROTTIN_CORNE); d.net(11, 2, TROTTIN_CORNE); d.net(8, 4, oe);
+  } else if (k === 'huppe') {
+    d.ligne(6, 11, 6, 15, ja); d.ligne(9, 11, 9, 15, ja); d.rect(4, 6, 6, 12, sp.plume); d.rect(9, 6, 11, 12, sp.plume); d.rect(6, 6, 9, 11, pe);
+    d.rect(7, 4, 9, 5, pe); d.ligne(6, 4, 4, 3, pe); d.ligne(10, 4, 12, 3, pe); d.ligne(6, 3, 5, 0, sp.plume); d.ligne(8, 3, 8, 0, sp.plume2 || TROTTIN_OS); d.ligne(10, 3, 11, 0, sp.plume);
+    d.net(8, 4, oe); d.ligne(13, 4, 13, 15, TROTTIN_CUIR_F); d.net(13, 3, sp.pierre || [140, 230, 210]);
+  } else {
+    d.rect(6, 12, 6, 15, ja); d.rect(9, 12, 9, 15, ja); d.rect(6, 7, 9, 12, pe); d.ligne(5, 8, 4, 12, pe); d.ligne(10, 8, 11, 12, pe);
+    d.rect(7, 4, 9, 6, pe); d.ligne(6, 5, 2, 3, pe); d.ligne(10, 5, 14, 3, pe); d.net(7, 3, bo); d.net(9, 3, bo); d.net(8, 5, oe);
+  }
+}
 function majBete(b, dt) {
   if (b.gardeCamp) return majGardienne(b, dt);           // une gardienne de campement pillé
   if (b.sp.pnj || b.pnjSuit) return majNomade(b, dt);    // un nomade, ou la bête de son dresseur (nomades.js)
   const sp = b.sp;
+  if (sp.corps === 'araignon') return majAraignon(b, dt);   // (§136) la couvée de la Tisseuse
   if (sp.boss) return majTisseuse(b, dt);
   if (sp.horreur) return sp.corps === 'silencieux' ? majSilencieux(b, dt) : majMille(b, dt);   // les terres de l'effroi
   if (sp.achromie) return majAchromieBete(b, dt);    // (§127) les veilleurs et les mécanismes de l'Achromie (achromie.js)
@@ -14054,6 +14573,7 @@ function majBete(b, dt) {
 
   if (sp.biome) { const r = instinctTellurien(b, etat, tx, ty, vit, men, dM, dt); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
   if (doux(sp)) { const r = instinctDoux(b, etat, tx, ty, vit, men, dM, dt); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
+  if (trottin(sp)) { const r = instinctTrottin(b, etat, tx, ty, vit, sprint, dt); etat = b.etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; sprint = r[4]; }   // (§137) panser, rendre les coups, jouer
   if (sp.corps === 'bramard') { const r = instinctBramard(b, etat, tx, ty, vit, sprint, dt); etat = b.etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; sprint = r[4]; }
   if (sp.camo) { const r = instinctFelin(b, etat, tx, ty, vit, sprint, pr, dP, dt); etat = b.etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; sprint = r[4]; }
   const x0 = b.x, y0 = b.y;
@@ -14243,7 +14763,7 @@ function rallumer(b) {
   return !!c;
 }
 function lier(b, voie) {
-  if (liensLibres() <= 0 || b.tame || b.dead || b.pv <= 0 || b.gardeCamp) return null;   // la gardienne d'un autre ne se lie pas
+  if (liensLibres() <= 0 || b.tame || b.dead || b.pv <= 0 || b.gardeCamp || araignon(b)) return null;   // la gardienne d'un autre ne se lie pas
   if (typeof fauneLien === 'function') fauneLien(b);   // une bête du gardien : elle quitte sa faune pour la vôtre
   const c = { id: prochainId++, esp: b.sp.id, nom: tirerNom(), role: 'defense', mode: 'joueur', dehors: true, b,
     pv: b.pv, faim: b.faim, soif: b.soif, nrj: b.nrj, ko: 0 };
@@ -14662,13 +15182,13 @@ function chercherTacheTr(b, tr) {
     const x = px + dx, y = py + dy;
     if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) continue;
     const i = y * WS + x, k = Flo[i]; if (!k || hors(x + .5, y + .5) || CHAMP_CASE.has(i)) continue;   // (§121) les carrés : aux jardinières
-    const e = ESP[k - 1]; if ((e.dalle && !bondit) || !tr[e.res]) continue;
+    const e = ESP[k - 1], kr = tr.friandises ? (friandisePlante(e) ? 'friandises' : '') : e.res; if ((e.dalle && !bondit) || !tr[kr]) continue;   // (§137) les fruits et les douceurs : la plante, d'après son produit
     const dalle = PlT[i] && bondit ? PlT[i] : 0;   // le cerf de verre : ce qui pousse là-haut (druses, mousse céleste)
     if (!dalle && (Hgt[i] <= SEA || Eau[i] || PlT[i] || (!b.sp.volant && Math.abs(Hgt[i] - hb) > 8))) continue;   // elle grimpe
-    const d = ((x + .5 - b.x) ** 2 + (y + .5 - b.y) ** 2) / (tr[e.res] * tr[e.res]); if (d >= bd) continue;
+    const d = ((x + .5 - b.x) ** 2 + (y + .5 - b.y) ** 2) / (tr[kr] * tr[kr]); if (d >= bd) continue;
     const cle = 'p' + i; if (prises.has(cle) || (evite && evite.get(cle) > t)) continue;
     if (maturite(i, e) < .9) continue;
-    bd = d; best = { k: 'plante', i, e, x: x + .5, y: y + .5, cle, t0: b.t, w: 0, dalle };
+    bd = d; best = { k: 'plante', i, e, x: x + .5, y: y + .5, cle, t0: b.t, w: 0, dalle, fr: kr === 'friandises' };
   }
   return best;
 }
@@ -14861,10 +15381,10 @@ function majRecolte(b, dt) {
   if (tc.w < DUREE_RECOLTE * (b.nrj < .25 ? 1.6 : 1)) return [tc.x, tc.y, true];
   if (tc.k === 'plante') {
     const m = maturite(tc.i, tc.e);
-    const n = Math.max(1, Math.round(tc.e.rend * m * (coefApt(b.sp.id, tc.e.res) || .2)));
+    const kr = tc.fr ? 'friandises' : tc.e.res, n = Math.max(1, Math.round(tc.e.rend * m * (coefApt(b.sp.id, kr) || .2)));
     couperPied(tc.i);
     let ex = null;
-    { const q = produitDe(tc.e.id); if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1] * CHANCE_APT[noteApt(b.sp.id, tc.e.res)]) ex = q.id; }   // son produit, parfois
+    { const q = produitDe(tc.e.id); if (q && m >= 1 && Math.random() < (tc.fr ? [.95, .8, .65, .5, .35] : [.5, .35, .25, .15, .1])[q.r - 1] * CHANCE_APT[noteApt(b.sp.id, kr)]) ex = q.id; }   // son produit, parfois (presque toujours pour un Trottin)
     gerbe(tc.x, tc.y, solFlore(tc.i % WS, (tc.i / WS) | 0) + tc.e.h * .5, 8, tc.e, tc.e.teintes ? teinteDruse(tc.i % WS, (tc.i / WS) | 0) : null);
     rapporter(b.comp, tc.e.res, n, ex);                     // au sac, ou au coffre pour le campement
   } else {
@@ -15055,6 +15575,7 @@ function poserPied(T, U) {
 }
 function updateFoeLegs(f, dt) {
   if (f.sp && f.sp.pnj) return;
+  if (f.sp && trottin(f.sp)) return pasTrottin(f, dt);   // (§137) deux jambes
   if (f.sp && coursier(f.sp)) return pattesCoursier(f, dt);
   if (f.sp && (tellurien(f.sp) || doux(f.sp) || f.sp.corps === 'felin' || f.sp.corps === 'bramard')) { pasTellurien(f, dt); piedsPoses(f, dt); return; }
   const R = repere(f), F = R.F, L = R.L, U = R.U;
@@ -15112,8 +15633,8 @@ const ROBES = {
 const TAILLES = { geant: { k: 1.45, n: 'géant', f: 'géante' }, nain: { k: .62, n: 'nain', f: 'naine' } };
 const ORNEMENTS = { cornes: { n: 'cornu', f: 'cornue' }, epines: { n: 'épineux', f: 'épineuse' },
   crete: { n: 'huppé', f: 'huppée' }, antennes: { n: 'à antennes', f: 'à antennes' } };
-const familleBete = sp => automate(sp) ? 'automate' : coursier(sp) ? 'coursier' : tellurien(sp) ? 'tellurien' : doux(sp) ? 'doux' : 'rampant';
-const ORNEMENTS_DE = { rampant: ['cornes', 'epines'], tellurien: ['cornes', 'epines'], coursier: ['crete'], automate: ['antennes'], doux: ['cornes', 'epines'] };
+const familleBete = sp => automate(sp) ? 'automate' : coursier(sp) ? 'coursier' : tellurien(sp) ? 'tellurien' : doux(sp) ? 'doux' : trottin(sp) ? 'trottin' : 'rampant';
+const ORNEMENTS_DE = { rampant: ['cornes', 'epines'], tellurien: ['cornes', 'epines'], coursier: ['crete'], automate: ['antennes'], doux: ['cornes', 'epines'], trottin: ['crete', 'cornes'] };
 const FEMININ = new Set(['sentinelle', 'salamandre']);
 const P_ROBE = 1 / 1140, P_FORME = 1 / 18000;          // par bête, au départ
 const chanceVariante = () => 1 + 2 * Math.min(profondeur(), NIV_LOIN) / NIV_LOIN;
@@ -15258,6 +15779,7 @@ function osDeBase(f) {
   const sp = f.sp;
   if (sp && sp.donjon) return djOs(f);
   if (sp && sp.pnj) return nmOs(f);                   // les Nomades du Seuil (nomades.js)                 // les machines du Centre des automates
+  if (sp && sp.corps === 'araignon') return osAraignon(f);
   if (sp && sp.boss) return osTisseuse(f);
   if (sp && sp.horreur) return sp.corps === 'silencieux' ? osSilencieux(f) : osMille(f);
   if (sp && sp.achromie) return osAchromie(f);       // (§127) l'Achromie (achromie.js)
@@ -15266,6 +15788,7 @@ function osDeBase(f) {
   if (sp && sp.plante) return osPlante(f);
   if (sp && sp.villageois) return osVillageois(f);
   if (sp && sp.batiment) return osMaison(f);
+  if (trottin(sp)) return osTrottin(f);                 // (§137) les Trottins
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
   if (doux(sp)) return osDoux(f);
@@ -17378,6 +17901,8 @@ const COMPETENCES = {
     v: r => r ? decAlch(SECOUSSE[r].r) + ' cases · ' + decAlch(SECOUSSE[r].et) + ' s étourdies · toutes les ' + SECOUSSE[r].del + ' s' : 'pas encore apprise' },
   doux: { n: 'Trouvaille', fam: ['fleur', 'douceur', 'graine'], d: 'en récoltant, elle déniche parfois un produit rare de la flore, de ceux qui servent aux potions',
     v: r => r ? Math.round(TROUVE[r] * 100) + ' % par récolte rapportée' + (r >= 3 ? ' · parfois exotique' : '') : 'pas encore apprise' },
+  trottin: { n: 'Soins', fam: ['fruit', 'douceur', 'fleur'], d: 'quand votre vie baisse, elle accourt et vous pose un bandage de votre réserve (au rang 2, un cataplasme s\'il n\'y a plus de bandage)',   // (§137)
+    v: r => { const S = TROTTIN_SOIN[Math.min(3, r)]; return 'sous ' + Math.round(S.s * 100) + ' % de vie · toutes les ' + S.d + ' s' + (S.b ? ' · +' + Math.round(S.b * 100) + ' % en plus' : ''); } },
   // les créatures à part : une compétence par espèce
   felin: { n: 'Voile de brume', fam: ['fleur', 'champignon', 'viande'], d: 'quand une bête vous a pris pour proie, il vous enveloppe de brume : vous voilà invisible',
     v: r => r ? BRUME[r].dur + ' s invisible · toutes les ' + BRUME[r].del + ' s' : 'pas encore apprise' },
@@ -17392,7 +17917,7 @@ const COMPETENCES = {
   millegueule: { n: 'Embuscade', fam: ['racine', 'viande', 'champignon'], d: 'en jaillissant sous la menace, il retient les bêtes autour du trou : clouées sur place, pour le coup qui suit',
     v: r => r ? decAlch(EMBUSCADE[r].r) + ' cases · ' + EMBUSCADE[r].dur + ' s retenues' : 'pas encore apprise' },
 };
-const NOM_TYPE = { rampant: 'Rampant', coursier: 'Coursier', tellurien: 'Tellurien', doux: 'Doux', automate: 'Automate' };
+const NOM_TYPE = { rampant: 'Rampant', coursier: 'Coursier', tellurien: 'Tellurien', doux: 'Doux', automate: 'Automate', trottin: 'Trottin' };
 // Le type d'une compagne. familleBete range « rampant » tout ce qui n'est d'aucune famille : les vrais Rampants sont
 // ceux qui n'ont pas de corps à eux (brouteur, bossu, glaneur, traqueur, spectre). Le félin, le bramard, la sterne,
 // le dragon, le silencieux et le mille-gueules sont des créatures à part : pas de type : une compétence à chacun.
@@ -20881,7 +21406,7 @@ TEX.corde = motif(60, (x, y, h) => (x + y * 2) % 4 === 0 ? [-.24] : (x + y * 2) 
 // « * » : pas de matière d'ensemble, chaque pièce prend celle de sa couleur (les plantes rares, un seuil).
 const MAT_CORPS = { bramard: 'pelage', carillon: 'pelage', cerf: 'facette', cotonnier: 'pelage', crapaud: 'peau', dragon: 'ecaille', felin: 'pelage',
   lentigrade: 'pelage', mage: 'tissu', rodeur: 'lisse', demon: 'peau', millegueule: 'chitine', myconide: 'myce', oglodon: 'chitine', saurien: 'ecaille', silencieux: 'os', sterne: 'plume', tisseuse: 'metal' };
-const MAT_FAM = { automate: 'metal', coursier: 'plume', doux: 'pelage', tellurien: 'roche' };
+const MAT_FAM = { automate: 'metal', coursier: 'plume', doux: 'pelage', tellurien: 'roche', trottin: 'ecorce' };   // (§138) une peau d'écorce
 const matiereEspece = sp => !sp ? null : sp.illusion ? 'lisse' : sp.plante || sp.batiment ? '*' : sp.pnj || sp.villageois ? 'tissu' : MAT_CORPS[sp.corps] || MAT_FAM[sp.fam] || (sp.donjon ? 'metal' : 'chitine');
 // La matière d'une pièce d'après sa couleur, quand rien d'autre ne la dit : le gris est de la pierre
 // (le fer s'il est sombre), le brun du bois, le vert et le clair de la toile, le vif de l'étoffe.
@@ -21697,7 +22222,7 @@ function majCible() {
     else if (o.sp.villageois) { nom = o.nm ? o.nm.nom : o.sp.n; info = (VL_DIT_METIER[o.metier] || '') + ' du village' + (o.cache ? ' · chez lui' : o.etat === 'fuir' ? ' · en fuite' : o.etat === 'combat' ? ' · se bat' : o.etat === 'repas' ? ' · au repas' : ''); }
     else if (o.sp.horreur) { nom = o.sp.n; cl = 'meca'; info = (DITS_ETAT[o.etat] || o.etat) + (o.conf > 0 && !o.tame ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : '') + (o.sp.corps === 'silencieux' ? ' · il n\'entend que le bruit' : o.dehors ? ' · dehors : frappez !' : ' · sous la terre, hors d\'atteinte'); }
     else if (o.sp.boss) { nom = o.sp.n; cl = 'meca';
-      info = o.etat === 'sommeil' ? 'endormie près de l\'arche' : 'phase ' + o.phase + ' / 3' + (o.phase === 3 ? ' · en rage' : '') + (o.act ? ' · ' + ({ viser: 'elle vous vise', mortier: 'salve de mortier', toile: 'elle tisse', cabrer: 'elle se cabre' })[o.act.k] : ''); }
+      info = o.etat === 'sommeil' ? 'endormie près de l\'arche' : 'phase ' + o.phase + ' / 3' + (o.phase === 3 ? ' · en rage' : '') + (o.act ? ' · ' + ({ viser: 'elle vous vise', mortier: 'salve de mortier', toile: 'elle tisse', cabrer: 'elle se cabre', couvee: 'elle lâche ses araignons' })[o.act.k] || '' : ''); }
     else if (automate(o.sp)) { nom = nomEspeceDe(o); cl = 'meca';
       info = o.etat === 'veille' ? 'en veille · un éclat le rallume' : `${o.etat} · charge ${Math.round(o.nrj * 100)} %`; }
     else if (o.sp.dragon) { nom = nomEspeceDe(o); info = (DITS_ETAT[o.etat] || o.etat) + (o.colere > 0 ? ' · furieux' : o.conf > 0 ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : ' · de la viande, sans geste brusque'); }
@@ -23945,7 +24470,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-100', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-105', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
