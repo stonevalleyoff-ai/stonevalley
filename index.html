@@ -431,7 +431,7 @@
   .case{--t:52px;position:relative;flex:none;width:var(--t);height:var(--t);display:grid;place-items:center;
     padding:0;border:0;border-radius:5px;background:var(--grain,none) 0 0/32px 32px,var(--roche);
     box-shadow:inset 0 2px 0 var(--roche-b),inset 0 0 0 1px rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.05);}
-  /* la rareté : peu commun vert, rare bleu, très rare violet, légendaire or, épique rouge — le nom, et le tour de la vignette */
+  /* la rareté : peu commun vert, rare bleu, exotique violet, légendaire or, épique rouge — le nom, et le tour de la vignette */
   :root{--r2:#6fdc7c;--r3:#5fb0ff;--r4:#c08bff;--r5:#ffc94a;--r6:#ff7a6a;}
   .rar2{color:var(--r2) !important;} .rar3{color:var(--r3) !important;} .rar4{color:var(--r4) !important;} .rar5{color:var(--r5) !important;} .rar6{color:var(--r6) !important;}
   .case.r2{--rc:var(--r2);} .case.r3{--rc:var(--r3);} .case.r4{--rc:var(--r4);} .case.r5{--rc:var(--r5);} .case.r6{--rc:var(--r6);}
@@ -1746,7 +1746,7 @@ const RARES = [
   { b: 11, id: 'sylve', n: 'Sylve fongique', rang: 'rare', niv: 3, chance: .15, part: .16,
     sur: [2, 3, 4], alt: [.05, .72], eau: [1, 255], coul: '#c9a2ec',
     d: 'des spores flottent · la clavaire luit la nuit' },
-  { b: 12, id: 'cristal', n: 'Champs de cristal', rang: 'très rare', niv: 5, chance: .08, part: .15,
+  { b: 12, id: 'cristal', n: 'Champs de cristal', rang: 'exotique', niv: 5, chance: .08, part: .15,
     sur: [2, 4, 5, 6, 7], alt: [.28, 1], eau: [2, 255], coul: '#8ff0ea',
     d: 'les sorts y coûtent moitié moins de mana · tout y luit la nuit' },
   { b: 13, id: 'caldeira', n: 'Caldeira de cendre', rang: 'légendaire', niv: 7, chance: .04, part: .18,
@@ -2608,6 +2608,7 @@ P.camp = null;                  // le campement posé : { graine, x, y, z, niv }
 P.campNiv = 1;                  // le niveau du portail (jadis celui du campement) : il tient au personnage, posé comme au sac
 P.portailT = 0; P.portailR = 0; P.portailVoeu = '';   // le portail du campement : son tirage, ses relances faites, le biome cherché
 P.journal = { gardees: [], visites: [] };   // les graines tenues en mémoire, et les expéditions
+P.champs = []; P.carresN = {}; P.graines = {}; P.graineSel = null; P.seau = 0;   // (§119) la culture : carrés posés, fabriqués ; graines ; seau
 P.pseudo = null;                // le nom vu par les autres joueurs ; sans lui, l'adresse fait foi
 P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ déjà payé en travail
 // Le coffre du campement : ce qui y est déposé ne risque plus rien. Le sac, lui, voyage.
@@ -2731,11 +2732,20 @@ const OBJETS = [
     d:'à poser en terre ferme : une tente et un feu, qui lient cette île à votre personnage · il s\'agrandit de modules' },
   { id:'foyer',     n:'Pierre de foyer',    emp:'camp', fil:'camp', offert:1, cout:{},
     d:'ramène à votre campement, de n\'importe quelle île · coûte du mana : dix éclats par exploration d\'écart, de 20 à 100' },
+  // la culture (§119) : ce qui se pose sur l'île du campement
+  { id:'carre',     et:1, n:'Carré de culture', emp:'camp', fil:'camp', cout:{bois:40,fibre:30},
+    d:'un carré de terre de cinq cases, à poser sur l\'île du campement : quatre petits emplacements où semer herbes, fleurs, champignons et buissons à baies' },
+  { id:'seau',      et:1, n:'Seau',             emp:'camp', fil:'camp', cout:{bois:8,fibre:6},
+    d:'pour arroser les carrés de culture · il se remplit tout seul quand on passe au bord de l\'eau · quatre arrosages' },
+  { id:'carre2',    et:2, n:'Carré clos',       emp:'camp', fil:'camp', cout:{bois:120,pierre:60,os:10},
+    d:'un carré de sept cases, clos d\'une palissade (les bêtes n\'y broutent plus) : six petits emplacements et deux moyens, pour un arbuste, un cactus, un bambou ou une plante rare géante' },
+  { id:'carre3',    et:3, n:'Grand carré',      emp:'camp', fil:'camp', cout:{bois:300,pierre:150,eclat:30},
+    d:'un grand carré de neuf cases, clos : huit petits emplacements, trois moyens et un grand, pour un arbre ou une plante rare vive, docile au carré' },
 ];
 // Ce qui se refait autant qu'on veut, au lieu de se fabriquer une fois pour toutes.
 const enSerie = o => o.emp === 'munition' || o.emp === 'lien' || o.emp === 'baume' || o.emp === 'soin';
 // Fabriqué une fois pour toutes — la ceinture ne l'est qu'à son dernier niveau.
-const acheve = o => !enSerie(o) && !!P.objets[o.id] && !(o.emp === 'ceinture' && nivCeinture() < CEINTURE_MAX);
+const acheve = o => NIV_CARRE[o.id] ? carresTot() >= champsMax() && ![1, 2].some(k => k < NIV_CARRE[o.id] && carresSac(k) > 0) : !enSerie(o) && !!P.objets[o.id] && !(o.emp === 'ceinture' && nivCeinture() < CEINTURE_MAX);   // (§119) les carrés : jusqu'au plafond
 const campIci = () => !!P.camp && P.camp.graine === SEED;
 const sacPlein = o => false;                   // plus de plafond aux liens : leur prix suffit
 const objet = id => OBJETS.find(o => o.id === id);
@@ -2936,7 +2946,7 @@ function calcDistEau() {
   }
 }
 function calcFlore() {
-  calcDistEau(); Flo.fill(0); coupes.clear();
+  calcDistEau(); Flo.fill(0); coupes.clear(); CHAMP_CASE.clear();
   for (let y = 1; y < WS - 1; y++) for (let x = 1; x < WS - 1; x++) {
     const i = y * WS + x, surDalle = PlT[i] > 0;
     const h = Hgt[i], b = Bio[i];
@@ -2963,10 +2973,44 @@ function typeFlore(x, y) {
   return k ? ESP[k - 1].id : null;
 }
 const coupes = new Map();                              // case -> instant de la coupe
+const CHAMP_CASE = new Map();                          // (§119) case -> l'emplacement d'un carré de culture qui la porte
+// (§124) LA FIN DE LA REPOUSSE SUR L'ÎLE DU CAMPEMENT. Chez soi, ce qu'on abat ne repousse plus — sauf les
+// éclats (druses, obsidienne, lanternes…) : ce qui pousse, ce sont les carrés de culture. Le pied abattu
+// quitte la flore, et la case s'en souvient (CAMP_COUPES, sauvegardé avec le personnage, pour l'île du
+// campement seulement). Les autres îles, qu'on retrouve neuves à chaque passage, repoussent comme avant.
+const CAMP_COUPES = new Set();
+const PL_CUEILLIES = new Set();                        // les plantes rares de l'île du campement déjà cueillies (ou abattues) : « x,y »
+let coupesG = 0;                                       // l'île à laquelle elles se rapportent
+const coupeDefinitive = i => campIci() && !(typeof djIci === 'function' && djIci()) && !!Flo[i] && !CHAMP_CASE.has(i) && ESP[Flo[i] - 1].res !== 'eclat';
+function retirerPied(i) {
+  if (coupesG !== SEED) { CAMP_COUPES.clear(); PL_CUEILLIES.clear(); coupesG = SEED; }
+  Flo[i] = 0; coupes.delete(i); ENTAME.delete(i); signalDecor('flore', i); CAMP_COUPES.add(i); Sauve.sale = true;
+  if (!P.aviseRepousse) { P.aviseRepousse = 1; setTimeout(() => say('chez vous, rien ne repousse — sauf les éclats · ce qui pousse, ce sont les carrés de culture', 5, 'evt'), 1800); }   // après le « +1 bois »
+}
+// À chaque recalcul du terrassement : les pieds abattus de l'île du campement restent abattus, les plantes rares cueillies le restent.
+function coupesCampAppliquer() {
+  if (!campIci() || coupesG !== SEED) return;
+  for (const i of CAMP_COUPES) if (Flo[i] && !CHAMP_CASE.has(i)) { Flo[i] = 0; coupes.delete(i); signalDecor('flore', i); }
+  if (PL_CUEILLIES.size) for (const b of beasts.slice()) if (b.pl && !b.dead && PL_CUEILLIES.has((b.x | 0) + ',' + (b.y | 0))) {
+    if (b.pl.port === 'vive') { b.butin = true; retirerBete(b); } else { b.cueillie = true; b.repousseT = Infinity; }
+  }
+}
+// La sauvegarde : les cases en ordre croissant, chacune par son écart à la précédente, en base 36.
+const coupesEcrire = () => { const L = [...CAMP_COUPES].sort((a, b) => a - b); let p = 0; return L.map(i => { const d = (i - p).toString(36); p = i; return d; }).join(','); };
+function coupesLire(c) {
+  CAMP_COUPES.clear(); PL_CUEILLIES.clear(); coupesG = 0;
+  if (!c || typeof c !== 'object' || !Number.isInteger(c.g)) return;
+  coupesG = c.g; let p = 0;
+  if (typeof c.c === 'string' && c.c) for (const t2 of c.c.split(',').slice(0, WS * WS)) { const d = parseInt(t2, 36); if (!(d >= 0)) break; p += d; if (p < WS * WS) CAMP_COUPES.add(p); }
+  if (Array.isArray(c.pl)) for (const k of c.pl.slice(0, 400)) if (typeof k === 'string' && /^\d{1,3},\d{1,3}$/.test(k)) PL_CUEILLIES.add(k);
+}
 // Couper un pied, cueillir un buisson : deux gestes qui se disent aux autres joueurs de l'île.
 // La flore et les baies sont aux mêmes cases pour tout le monde — il suffit donc d'annoncer
 // l'indice de la case, et chacun fait repartir la même pousse de zéro.
 function couperPied(i) {
+  if (coupeDefinitive(i)) { retirerPied(i); partagerRecolte('coupe', i); return; }   // (§124) chez soi : abattu pour de bon
+  const cs = CHAMP_CASE.get(i);                        // (§119) au carré : la plante repart de zéro, sans arracher
+  if (cs) { pousserPlace(cs.s, i, Date.now(), cs.ta); const G = cs.s.e && graineInfo(cs.s.e); cs.s.m = G && G.sp && G.sp.res === 'bois' ? .3 : 0; Sauve.sale = true; }   // (§120) un arbre se taille : il repart du tiers (sous le seuil de récolte)
   coupes.set(i, t); signalDecor('flore', i);
   partagerRecolte('coupe', i);
 }
@@ -2977,6 +3021,7 @@ function cueillirBaie(br) {
 // La maturité se déduit de l'heure : aucun pied ne se met à jour image par image, et
 // la carte peut en porter des milliers sans rien coûter.
 function maturite(i, sp) {
+  const cs = CHAMP_CASE.get(i); if (cs) return cs.s.m;   // (§119) au carré : sa pousse à lui (voir LA CULTURE)
   const q = coupes.get(i);
   if (q === undefined) return 1;
   const m = (t - q) / sp.pousse;
@@ -3132,7 +3177,7 @@ function coupRecolte(nd) {
   if (!Flo[nd.i] || m < .35) return;                   // abattu entre-temps (en face, ou par une compagne)
   let e = ENTAME.get(nd.i);
   if (!e) {
-    const mult = nd.sp.res === 'eclat' ? rendement() * .6 : rendement();
+    const mult = (nd.sp.res === 'eclat' ? rendement() * .6 : rendement()) * (CHAMP_CASE.has(nd.i) ? RECOLTE_K[CHAMP_CASE.get(nd.i).ta] : 1);   // (§119, §120) cultivé : de moitié plus (petit) au triple (grand)
     const tn = teinteNoeud(nd);                        // une druse lavande ou dorée rend davantage
     const n = arrondiAlch((Math.max(1, Math.round(nd.sp.rend * m * mult)) + (tn && m >= 1 ? tn.bonus : 0)) * (1 + .5 * effet('cueilleur')));   // récolte abondante
     // un outil de haut rang abat plus vite : un coup de moins à partir de la serpe
@@ -3154,18 +3199,21 @@ function coupRecolte(nd) {
     parts.push({ x: cx, y: cy, z: cz, vx: dx / vol + (Math.random() - .5), vy: dy / vol + (Math.random() - .5),
       vz: (P.z + .8 - cz) / vol + 9 * vol * .5, life: vol, age: 0, col, tl: .09 });
   }
-  let pr = null;
+  let pr = null, gr = null, tl = false;
   if (!e.coups) {
     ENTAME.delete(nd.i);
     // mûre, la plante donne parfois son fruit, sa racine, sa graine, sa fleur ou sa feuille
     const q = produitDe(nd.sp.id);
     if (q && m >= 1 && Math.random() < [.5, .35, .25, .15, .1][q.r - 1]) { gagnerDenree(q.id, 1); pr = q; }
+    // (§119) une graine, parfois : une fois sur cinq au sauvage, une fois sur sept au carré
+    if (cultivable(nd.sp) && Math.random() < (CHAMP_CASE.has(nd.i) ? .15 : .2)) { gagnerGraine(nd.sp.id); gr = nd.sp.id; }
+    tl = CHAMP_CASE.has(nd.i) && nd.sp.res === 'bois';  // (§120) taillé : il repart du tiers
     couperPied(nd.i);                                  // abattu : il repartira de zéro, ici et en face
     burst(cx, cy, nd.z + .2, 10, '#b8a88a');
   }
   say('+' + part + ' ' + (RES[nd.sp.res] || nd.sp.res) + (e.tn && e.tn.bonus ? ' · ' + e.tn.n.toLowerCase() : '') + ' · ' + P.sac[nd.sp.res] + ' au sac'
     + (spores ? ' · +' + spores + ' ' + (spores > 1 ? PLURIEL.spore : RES.spore) : '')
-    + (e.coups ? ' · encore ' + e.coups + ' coup' + (e.coups > 1 ? 's' : '') : '') + (pr ? ' · +1 ' + pr.n.toLowerCase() : ''), pr || spores ? 2 : 1.4);
+    + (e.coups ? ' · encore ' + e.coups + ' coup' + (e.coups > 1 ? 's' : '') : '') + (pr ? ' · +1 ' + pr.n.toLowerCase() : '') + (gr ? ' · +1 ' + nomGraine(gr) : '') + (tl ? ' · taillé' : ''), pr || spores || gr ? 2.2 : 1.4);
   majSac();
 }
 // Chaque image : le geste avance ; au bon instant le coup porte ; au bout, ACTION tenue relance.
@@ -3867,6 +3915,7 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
 // n'aurait pas d'arme, et rien ne permettait d'en fabriquer une.
 function butin(b) {
   if (curioFx('eclat') && !b.tame) { P.sac.eclat = (P.sac.eclat || 0) + curioFx('eclat'); }   // la bourse du Seuil, la couronne (§109)
+  if (typeof nmPrime === 'function' && !b.tame) nmPrime(b);   // (§122) la prime du chasseur
   if (b.sp.brume) { if (typeof butinBrume === 'function') butinBrume(b); return; }   // un mage, un rôdeur, le démon (brume.js)
   if (b.sp.pnj || b.pnjSuit) { nmButin(b); return; }   // un nomade (nomades.js)
   if (automate(b.sp)) {                              // son cœur d'éclat, et ce qui reste de sa carcasse
@@ -4168,6 +4217,7 @@ function placeCamp(x, y) {
 const TerrSol = new Map(), TerrFlo = new Map();      // case -> hauteur d'origine, pied d'origine
 let terrSig = null;
 function terrasseDefaire() {                           // avant de repeupler l'île : on repart du sol d'origine
+  champsFloreRetirer();
   for (const [i, h] of TerrSol) if (Hgt[i] !== h) { Hgt[i] = h; signalDecor('dalle', i); }
   for (const [i, k] of TerrFlo) if (!Flo[i]) { Flo[i] = k; signalDecor('flore', i); }
   TerrSol.clear(); TerrFlo.clear(); terrSig = null;
@@ -4176,8 +4226,10 @@ function majTerrasse() {
   if (typeof djIci === 'function' && djIci()) return;  // sous terre, le sol est celui du donjon
   const L = campsIci();
   let s = ''; for (const c of L) s += (c.x | 0) + ',' + (c.y | 0) + ',' + Math.round(c.z) + ';';
+  const LC = champsIci(); for (const c of LC) s += 'c' + c.x + ',' + c.y + ',' + Math.round(c.z) + ';';   // (§119) et les carrés de culture
   if (s === terrSig) return;
   terrSig = s;
+  champsFloreRetirer();                                // (§119) les plantes des carrés s'en vont, et reviennent à la fin
   const sol0 = new Map(), flo0 = new Map();            // ce qu'on touche : case -> ce qu'elle portait
   for (const [i, h] of TerrSol) { sol0.set(i, Hgt[i]); Hgt[i] = h; }
   for (const [i, k] of TerrFlo) { flo0.set(i, Flo[i]); Flo[i] = k; }
@@ -4195,6 +4247,21 @@ function majTerrasse() {
       if (dedans && Flo[i]) { TerrFlo.set(i, Flo[i]); if (!flo0.has(i)) flo0.set(i, Flo[i]); Flo[i] = 0; }
     }
   }
+  // (§119) un carré de culture nivelle son carré, à un cube de marche autour, et le désherbe
+  for (const c of LC) {
+    const z0 = Math.round(c.z), D = CHAMP_DEMI[c.n];
+    for (let dy = -D - 1; dy <= D + 1; dy++) for (let dx = -D - 1; dx <= D + 1; dx++) {
+      const x = c.x + dx, y = c.y + dy;
+      if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) continue;
+      const i = y * WS + x, h = Hgt[i], dedans = Math.abs(dx) <= D && Math.abs(dy) <= D;
+      if (h <= SEA || Bio[i] === 8 || Eau[i] || PlT[i]) continue;
+      const v = Math.max(SEA + 1, dedans ? z0 : Math.max(z0 - 1, Math.min(z0 + 1, h)));
+      if (v !== h) { if (!TerrSol.has(i)) TerrSol.set(i, h); if (!sol0.has(i)) sol0.set(i, h); Hgt[i] = v; }
+      if (dedans && Flo[i]) { TerrFlo.set(i, Flo[i]); if (!flo0.has(i)) flo0.set(i, Flo[i]); Flo[i] = 0; }
+    }
+  }
+  champsFloreMettre();
+  coupesCampAppliquer();                               // (§124) ce qui a été abattu chez soi le reste
   const change = new Map();                            // case -> hauteur d'avant, là où le sol a vraiment bougé
   for (const [i, h] of sol0) if (Hgt[i] !== h) { change.set(i, h); signalDecor('dalle', i); }
   for (const [i, k] of flo0) if (Flo[i] !== k && !change.has(i)) signalDecor('flore', i);
@@ -4229,8 +4296,334 @@ function reprendreCampement() {
   for (const c of P.compagnes) if (c.mode === 'camp') { c.mode = 'joueur'; c.aucamp = 0; if (c.b) { c.b.mode = 'joueur'; c.b.gite = [c.b.x, c.b.y]; } }
   burst(P.camp.x, P.camp.y, P.camp.z + .5, 18, '#8b95aa');
   P.camp = null; delete P.objets.foyer;
+  const nc = P.champs.length; if (nc) { P.champs = []; Sauve.sale = true; }   // (§119) ses carrés de culture reviennent au sac, vides
+  CAMP_COUPES.clear(); PL_CUEILLIES.clear(); coupesG = 0;   // (§124) sans campement, l'île redevient une île comme les autres
   majTerrasse();                                       // le sol reprend sa forme
+  if (nc) say('campement repris · ' + (nc > 1 ? 'les carrés de culture reviennent' : 'le carré de culture revient') + ' au sac, vide' + (nc > 1 ? 's' : ''), 3);
   say(nivCamp() > 1 ? 'campement repris · il garde son niveau ' + nivCamp() : 'campement repris', 2.6); majSac();
+}
+// ============================================================
+//  LA CULTURE (§119, §120) — LES CARRÉS DE CULTURE
+//  Un carré se fabrique à l'établi et se pose, comme le campement, sur l'île du campement : nivelé,
+//  désherbé, bordé de planches. Trois tailles, chacune débloquée par un niveau d'établi :
+//   - niveau 1 (établi 1) : 5 × 5 cases, quatre petits emplacements ;
+//   - niveau 2 (établi 2) : 7 × 7, clos d'une palissade, six petits et deux moyens ;
+//   - niveau 3 (établi 3) : 9 × 9, clos, huit petits, trois moyens et un grand.
+//  Petit : une herbe, une fleur, un champignon, un buisson à baies, une petite plante rare (commune, peu
+//  commune). Moyen : un arbuste, un cactus, un bambou, une plante rare géante (rare, exotique). Grand : un
+//  arbre, ou une plante rare vive (légendaire), docile au carré. On plante ce qu'on a rapporté : graines,
+//  boutures et plants se trouvent en cueillant ou en abattant au sauvage.
+//  La plante de la flore est un pied comme les autres (Flo), mais sa maturité est la sienne ; une plante
+//  rare est un corps à part (CHAMP_RARES), qu'on ne voit que chez soi. Elle pousse au temps réel, absence
+//  comprise, tant qu'elle a de l'eau ; à sec, elle s'arrête sans mourir. La pluie et le seau arrosent.
+//  Les mauvaises herbes viennent en poussant et ralentissent de moitié ; l'engrais d'os accélère de
+//  moitié jusqu'à maturité. Récoltée, elle rend plus qu'au sauvage ; un arbre se taille (il repart du
+//  tiers). Sans clôture (niveau 1), les herbivores sauvages qui entrent broutent ce qui est mûr.
+// ============================================================
+const CHAMP_DEMI = { 1: 2, 2: 3, 3: 4 }, CHAMP_DENIV = 1;
+const CHAMP_PLACES = {                                  // [dx, dy, taille] : p petit, m moyen, g grand
+  1: [[-1, -1, 'p'], [1, -1, 'p'], [-1, 1, 'p'], [1, 1, 'p']],
+  2: [[-2, -2, 'm'], [-2, 2, 'm'], [0, -2, 'p'], [2, -2, 'p'], [0, 0, 'p'], [2, 0, 'p'], [0, 2, 'p'], [2, 2, 'p']],
+  3: [[-2, -2, 'g'], [2, -2, 'm'], [-2, 2, 'm'], [2, 2, 'm'], [0, -3, 'p'], [0, -1, 'p'], [0, 1, 'p'], [0, 3, 'p'], [-3, 0, 'p'], [-1, 0, 'p'], [1, 0, 'p'], [3, 0, 'p']],
+};
+const TAILLE_N = { p: 'petit', m: 'moyen', g: 'grand' };
+const POUSSE_K = { p: 12, m: 24, g: 60 }, EAU_K = { p: 1, m: 2, g: 4 }, RECOLTE_K = { p: 1.5, m: 2, g: 3 };
+const BUTTE = { p: .64, m: 1.5, g: 2.4 }, PORTEE_P = { p: 1.6, m: 2.1, g: 2.7 };
+const POUSSE_RARE = { simple: 2400, geante: 7200, vive: 14400 };
+const CHAMP_EAU = 1800, SEAU_MAX = 4, HERBE_T = 5400, ENGRAIS_OS = 2;   // les mauvaises herbes : une en moyenne par heure et demie de pousse
+const NIV_CARRE = { carre: 1, carre2: 2, carre3: 3 };
+const CULTIVABLE_FORMES = new Set(['fleur', 'touffe', 'buisson', 'champi', 'boule', 'roseau']);
+const ARBRES = new Set(['feuillu', 'conifere', 'palme', 'geant', 'josue', 'sakura', 'verre']);
+const MINERAUX = new Set(['rocher', 'cristal', 'geode', 'engrenage', 'pylone', 'bobine', 'toro', 'mort']);
+// La taille d'emplacement qu'il faut à une espèce de la flore — ou rien (les pierres, les métaux, les arbres morts).
+function tailleFlore(sp) {
+  if (!sp || sp.dalle || MINERAUX.has(sp.forme) || !['fibre', 'baies', 'bois'].includes(sp.res)) return null;
+  if (sp.res !== 'bois' && CULTIVABLE_FORMES.has(sp.forme) && sp.h <= 1.3) return 'p';
+  if (ARBRES.has(sp.forme) && sp.h > 1.8) return 'g';
+  return sp.h <= 1.8 || sp.forme === 'roseau' ? 'm' : null;
+}
+const cultivable = sp => !!tailleFlore(sp);
+const RARE_ID = new Map();
+const rarePar = id => { if (!RARE_ID.size && typeof FLORE_RARES !== 'undefined') for (const p of FLORE_RARES) RARE_ID.set(p.id, p); return RARE_ID.get(id) || null; };
+// Ce qu'est une graine : sa plante, la taille d'emplacement qu'elle demande, sa rareté.
+function graineInfo(k) {
+  const sp = FLORE[k];
+  if (sp) { const ta = tailleFlore(sp); return ta ? { k, ta, sp, pl: null, n: sp.n, r: 1 } : null; }
+  const pl = rarePar(k); if (!pl) return null;
+  return { k, ta: pl.port === 'simple' ? 'p' : pl.port === 'geante' ? 'm' : 'g', sp: null, pl, n: pl.n, r: pl.r || 3 };
+}
+const champsMax = () => 1 + (nivCamp() >= 3 ? 1 : 0) + (nivCamp() >= 8 ? 1 : 0);   // un carré, un de plus au palier 3, un autre au palier 8
+const carresTot = () => (P.carresN[1] | 0) + (P.carresN[2] | 0) + (P.carresN[3] | 0);
+const carresSac = n => (P.carresN[n] | 0) - P.champs.filter(c => c.n === n).length;
+const champsIci = () => campIci() ? P.champs.filter(c => c.g === SEED) : [];
+const placesDe = c => CHAMP_PLACES[c.n].map(([dx, dy, ta]) => [c.x + dx, c.y + dy, ta]);
+const dansChamp = (c, x, y, m = 0) => Math.abs(x - c.x - .5) <= CHAMP_DEMI[c.n] + .5 + m && Math.abs(y - c.y - .5) <= CHAMP_DEMI[c.n] + .5 + m;
+const slotNeuf = () => ({ e: null, m: 0, eau: 1, t: Date.now(), h: 0, eng: 0 });
+const deDe = n => (/^[aeiouyéèêàâîôûœh]/.test(n) ? 'd\'' : 'de ') + n;
+const nomGraine = k => { const G = graineInfo(k); if (!G) return 'graine'; const n = G.n.toLowerCase();
+  return (G.sp && G.sp.res === 'baies' ? 'bouture ' : G.sp && G.sp.res === 'bois' ? 'plant ' : 'graine ') + deDe(n); };
+function gagnerGraine(id) { P.graines[id] = (P.graines[id] | 0) + 1; Sauve.sale = true; }
+// La graine à semer dans un emplacement de cette taille : celle qu'on a choisie si elle y va, sinon la plus nombreuse.
+function graineChoisie(ta) {
+  const va = k => P.graines[k] > 0 && graineInfo(k) && (!ta || graineInfo(k).ta === ta);
+  if (va(P.graineSel)) return P.graineSel;
+  return Object.keys(P.graines).filter(va).sort((a, b) => P.graines[b] - P.graines[a])[0] || null;
+}
+// La durée d'une pousse complète, en secondes : douze à soixante fois la repousse sauvage selon la taille ;
+// une plante rare, de quarante minutes (simple) à quatre heures (vive). Hors de son biome, moitié plus.
+function dureeChamp(G, i) {
+  const bio = G.sp ? G.sp.bio : [G.pl.bio], base = G.pl ? POUSSE_RARE[G.pl.port] : G.sp.pousse * POUSSE_K[G.ta];
+  return base * (bio && !bio.includes(Bio[i]) ? 1.5 : 1);
+}
+// La pousse depuis la dernière fois : au temps réel, tant qu'il reste de l'eau ; l'eau ne se boit qu'en poussant ;
+// les mauvaises herbes ralentissent de moitié, l'engrais accélère de moitié ; elles viennent en poussant.
+function pousserPlace(s, i, now, ta) {
+  const dt = Math.max(0, Math.min(30 * 86400, (now - (s.t || now)) / 1000)); s.t = now;
+  if (!s.e || s.m >= 1 || !dt) return;
+  const G = graineInfo(s.e); if (!G) { s.e = null; s.m = 0; return; }
+  const k = (s.h ? .5 : 1) * (s.eng ? 1.5 : 1), dur = dureeChamp(G, i) / k, eauT = CHAMP_EAU * EAU_K[ta || 'p'];
+  const g = Math.min(dt, s.eau * eauT, (1 - s.m) * dur);
+  if (g > 0) {
+    s.m = Math.min(1, s.m + g / dur); s.eau = Math.max(0, s.eau - g / eauT);
+    if (!s.h && Math.random() < 1 - Math.exp(-g / HERBE_T)) s.h = 1;
+  }
+  if (s.m >= 1) s.eng = 0;                              // l'engrais ne sert qu'une pousse
+}
+// Une case de carré : son pied dans la flore (ou rien), parmi ceux qui repoussent tant qu'il n'est pas mûr ;
+// une plante rare, son corps à part.
+const CHAMP_RARES = new Map();                          // case -> le corps d'une plante rare semée
+function corpsRare(f, s) { f.ech = (f.pl.port === 'simple' ? 1.3 : 1) * (.25 + .75 * s.m); f.cueillie = s.m < 1; }
+function majPlace(c, k) {
+  const [x, y, ta] = placesDe(c)[k], i = y * WS + x, s = c.s[k];
+  pousserPlace(s, i, Date.now(), ta);
+  CHAMP_CASE.set(i, { c, s, k, ta });
+  const G = s.e ? graineInfo(s.e) : null, e = G && G.sp ? ESP.indexOf(G.sp) : -1;
+  Flo[i] = e >= 0 ? e + 1 : 0;
+  if (Flo[i] && s.m < 1) coupes.set(i, t); else coupes.delete(i);
+  signalDecor('flore', i);
+  if (G && G.pl) {
+    let f = CHAMP_RARES.get(i);
+    if (!f || f.pl !== G.pl) { f = { sp: specById[G.pl.port === 'simple' ? 'plante_r' : G.pl.port === 'geante' ? 'plante_l' : 'plante_e'], pl: G.pl,
+      x: x + .5, y: y + .5, z: c.z, dir: hachCell(x, y) * 6.2832, graine: hachCell(x + 7, y + 3), hit: 0, etat: 'pousse', age: 1e6, pv: 1 }; CHAMP_RARES.set(i, f); }
+    corpsRare(f, s);
+  } else CHAMP_RARES.delete(i);
+}
+function champsFloreRetirer() {
+  for (const i of CHAMP_CASE.keys()) { coupes.delete(i); if (Flo[i]) { Flo[i] = 0; signalDecor('flore', i); } }
+  CHAMP_CASE.clear(); CHAMP_RARES.clear();
+}
+function champsFloreMettre() { for (const c of champsIci()) c.s.forEach((_, k) => majPlace(c, k)); }
+// Où poser : un carré de terre ferme, presque plat, à l'écart du campement, de l'arche et des autres carrés.
+function placeChamp(x, y, n) {
+  if (!campIci()) return null;
+  const cx = x | 0, cy = y | 0, D = CHAMP_DEMI[n];
+  if (cx < D + 4 || cy < D + 4 || cx >= WS - D - 4 || cy >= WS - D - 4) return null;
+  if ((cx + .5 - P.camp.x) ** 2 + (cy + .5 - P.camp.y) ** 2 < (CAMP_RAYON + CAMP_TALUS + D + 2.5) ** 2) return null;
+  if (PortailIle && (cx - PortailIle.x) ** 2 + (cy - PortailIle.y) ** 2 < (D + 6) ** 2) return null;
+  if (Fourmi && (cx - Fourmi.x) ** 2 + (cy - Fourmi.y) ** 2 < (Fourmi.r + D + 3) ** 2) return null;
+  for (const c of champsIci()) if (Math.max(Math.abs(c.x - cx), Math.abs(c.y - cy)) < D + CHAMP_DEMI[c.n] + 3) return null;
+  for (const b of beasts) if (!b.dead && (b.sp.batiment || b.sp.plante) && Math.abs(b.x - cx - .5) < D + 1.5 && Math.abs(b.y - cy - .5) < D + 1.5) return null;
+  const compte = {}; let h = hAt(cx, cy);
+  for (let dy = -D; dy <= D; dy++) for (let dx = -D; dx <= D; dx++) {
+    const u = cx + dx, v = cy + dy, hn = hAt(u, v);
+    if (hn <= SEA || vide(u, v) || eauAt(u, v) || plaT(u, v) || bAt(u, v) === 22) return null;
+    compte[hn] = (compte[hn] || 0) + 1;
+  }
+  for (const k in compte) if (compte[k] > (compte[h] || 0)) h = +k;
+  for (const k in compte) if (Math.abs(k - h) > CHAMP_DENIV) return null;
+  return { g: SEED, x: cx, y: cy, z: h, n, s: CHAMP_PLACES[n].map(slotNeuf) };
+}
+const COTE = { 1: 'cinq', 2: 'sept', 3: 'neuf' };
+function poserChamp(n = 1) {
+  if (!campIci()) { say('un carré de culture se pose sur l\'île du campement', 2.6); return false; }
+  if (carresSac(n) <= 0) { say('aucun carré de cette taille dans le sac', 2); return false; }
+  const q = placeChamp(P.x, P.y, n);
+  if (!q) { say('il faut un carré de terre ferme de ' + COTE[n] + ' cases, presque plat, sans eau, à l\'écart du campement et de l\'arche', 3.2); return false; }
+  P.champs.push(q); terrSig = null; majTerrasse(); Sauve.sale = true;
+  burst(q.x + .5, q.y + .5, q.z + .4, 22, '#9fd08a'); SON.jouer('fabrique');
+  const t3 = { p: 0, m: 0, g: 0 }; for (const [, , ta] of CHAMP_PLACES[n]) t3[ta]++;
+  say('carré de culture posé · ' + ['p', 'm', 'g'].filter(k => t3[k]).map(k => t3[k] + ' ' + TAILLE_N[k] + (t3[k] > 1 ? 's' : '')).join(', ') + ' · ACTION devant un emplacement pour semer', 3.2); majSac();
+  return true;
+}
+function reprendreChamp() {
+  const c = champsIci().find(c => dansChamp(c, P.x, P.y, 1.5)); if (!c) return;
+  P.champs.splice(P.champs.indexOf(c), 1); terrSig = null; majTerrasse(); Sauve.sale = true;
+  burst(c.x + .5, c.y + .5, c.z + .4, 16, '#8b95aa');
+  say('carré de culture repris · au sac', 2.4); majSac();
+}
+// L'emplacement visé : le plus proche à sa mesure, un peu plus volontiers devant soi.
+function placeProche() {
+  let best = null, sb = 1;
+  const fa = P.faceS ?? P.face ?? 0, fx = Math.cos(fa), fy = Math.sin(fa);
+  for (const c of champsIci()) {
+    if (!dansChamp(c, P.x, P.y, 1.5) || Math.abs(c.z - P.z) > 2) continue;
+    placesDe(c).forEach(([x, y, ta], k) => {
+      const ux = x + .5 - P.x, uy = y + .5 - P.y, d = ux * ux + uy * uy, R2 = PORTEE_P[ta] ** 2; if (d > R2) return;
+      const dv = d > 1e-4 ? Math.max(0, (ux * fx + uy * fy) / Math.sqrt(d)) : 1, sc = d / R2 * (1.15 - .3 * dv);
+      if (sc < sb) { sb = sc; best = { c, s: c.s[k], k, x, y, i: y * WS + x, ta }; }
+    });
+  }
+  return best;
+}
+function semer(q, g) {
+  const G = g && graineInfo(g);
+  if (!G || !(P.graines[g] > 0) || q.s.e || G.ta !== q.ta) return;
+  pousserPlace(q.s, q.i, Date.now(), q.ta);
+  P.graines[g]--; if (!P.graines[g]) delete P.graines[g];
+  Object.assign(q.s, { e: g, m: 0, t: Date.now(), h: 0, eng: 0 });
+  majPlace(q.c, q.k); Sauve.sale = true; SON.jouer('ramasse');
+  burst(q.x + .5, q.y + .5, q.c.z + .2, 8, '#9fd08a');
+  const mn = Math.round(dureeChamp(G, q.i) / 60);
+  say(G.n + ' planté · mûr dans ' + (mn >= 90 ? Math.round(mn / 6) / 10 + ' h' : mn + ' min') + (q.s.eau < .3 ? ' · il faut l\'arroser' : ' s\'il a de l\'eau'), 2.8);
+}
+function arroser(q) {
+  if (!(P.seau > 0)) return;
+  pousserPlace(q.s, q.i, Date.now(), q.ta);
+  P.seau--; q.s.eau = 1; Sauve.sale = true;
+  SON.jouer('plouf', {}, q.x + .5, q.y + .5, q.c.z);
+  for (let k = 0; k < 14; k++) parts.push({ x: q.x + .5 + (Math.random() - .5) * .6, y: q.y + .5 + (Math.random() - .5) * .6, z: q.c.z + 1.1, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, vz: -1.5, g: 3, life: .6, age: 0, col: '#8fc8ff', tl: .05 });
+  say('arrosé · le seau : ' + P.seau + ' sur ' + SEAU_MAX, 1.8);
+}
+function desherber(q) {
+  pousserPlace(q.s, q.i, Date.now(), q.ta);
+  q.s.h = 0; Sauve.sale = true; SON.jouer('coupe', { res: 'fibre', dernier: true }, q.x + .5, q.y + .5, q.c.z);
+  burst(q.x + .5, q.y + .5, q.c.z + .3, 10, '#6aa84f');
+  if (Math.random() < .5) { P.sac.fibre += 1; majSac(); }
+  say('désherbé · la pousse reprend son allure', 1.8);
+}
+function engraisser(q) {
+  if (dispo('os') < ENGRAIS_OS) return;
+  pousserPlace(q.s, q.i, Date.now(), q.ta);
+  payer({ os: ENGRAIS_OS }); q.s.eng = 1; Sauve.sale = true; SON.jouer('ramasse');
+  burst(q.x + .5, q.y + .5, q.c.z + .2, 10, '#e8e2d0');
+  say('engrais d\'os · −' + ENGRAIS_OS + ' os · la pousse va moitié plus vite jusqu\'à maturité', 2.4); majSac();
+}
+// Cueillir une plante rare au carré : un peu plus qu'au sauvage ; une graine, parfois ; elle repousse sur place.
+function cueillirChamp(q) {
+  const G = graineInfo(q.s.e); if (!G || !G.pl || q.s.m < 1) return;
+  const pl = G.pl, n = pl.port === 'simple' ? 2 : pl.port === 'geante' ? 2 : 3;
+  metSacIngr(pl.ingr, sacIngr(pl.ingr) + n);
+  const gr = Math.random() < 1 / 7; if (gr) gagnerGraine(pl.id);
+  q.s.m = pl.port === 'simple' ? 0 : .4; q.s.t = Date.now(); majPlace(q.c, q.k); Sauve.sale = true;
+  say(`${pl.rang} · ${pl.n} · +${n} ${INGR[pl.ingr].n.toLowerCase()}` + (gr ? ' · +1 ' + nomGraine(pl.id) : ''), 3);
+  burst(q.x + .5, q.y + .5, q.c.z + (pl.port === 'simple' ? .8 : 2), 18, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac();
+}
+const pctC = v => Math.round(v * 100) + ' %';
+// ACTION près d'un carré : semer, désherber, arroser, cueillir une rare, engraisser, voir la pousse — et,
+// mûr, la récolte ordinaire pour la flore.
+function champAction() {
+  const q = placeProche(); if (!q) return null;
+  const s = q.s, G = s.e ? graineInfo(s.e) : null;
+  if (!G) {
+    const g = graineChoisie(q.ta);
+    return g ? { v: 'SEMER', o: nomGraine(g) + ' · ' + P.graines[g], f: () => semer(q, g), r: graineInfo(g).r }
+      : { v: 'SEMER', o: 'aucune graine · emplacement ' + TAILLE_N[q.ta], f: () => say('aucune graine pour un emplacement ' + TAILLE_N[q.ta] + ' · on en trouve en cueillant et en abattant au sauvage', 3.2), vide: true };
+  }
+  if (s.h) return { v: 'DÉSHERBER', o: G.n + ' · mauvaises herbes', f: () => desherber(q) };
+  const soif = s.m < 1 && s.eau < (s.m >= .35 ? .25 : .5);
+  if (soif && P.objets.seau && P.seau > 0) return { v: 'ARROSER', o: G.n + ' · eau ' + pctC(s.eau), f: () => arroser(q) };
+  if (G.pl && s.m >= 1) return { v: 'CUEILLIR', o: G.n, f: () => cueillirChamp(q), r: G.r };
+  if (!G.pl && s.m >= .35) return null;                 // mûr (ou presque) : la récolte ordinaire s'en charge
+  if (s.m < 1 && !s.eng && dispo('os') >= ENGRAIS_OS) return { v: 'ENGRAISSER', o: G.n + ' · ' + pctC(s.m) + ' · ' + ENGRAIS_OS + ' os', f: () => engraisser(q) };
+  const o = G.n + ' · ' + pctC(s.m) + (s.eau <= 0 ? ' · à sec' : ' · eau ' + pctC(s.eau));
+  return { v: 'POUSSE', o, f: () => say(o + (s.eau <= 0 ? (P.objets.seau ? ' · le seau est vide : au bord de l\'eau' : ' · un seau (établi), ou la pluie') : ''), 2.4), vide: true };
+}
+// Chaque seconde : le seau se remplit au bord de l'eau ; la pluie arrose ; les plantes poussent ; sans clôture,
+// un herbivore sauvage entré dans le carré broute ce qui est mûr.
+let champT = 0;
+function majChamps(dt) {
+  if ((champT -= dt) > 0) return; champT = 1;
+  if (typeof djIci === 'function' && djIci()) return;
+  if (P.objets.seau && P.seau < SEAU_MAX) {
+    const x = P.x | 0, y = P.y | 0;
+    if ([[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => habitatEau(x + dx, y + dy))) { P.seau = SEAU_MAX; Sauve.sale = true; say('le seau est plein · ' + SEAU_MAX + ' arrosages', 1.8); }
+  }
+  const L = champsIci(); if (!L.length) return;
+  const now = Date.now(), pl = met('pluie');
+  for (const c of L) {
+    placesDe(c).forEach(([x, y, ta], k) => {
+      const s = c.s[k], i = y * WS + x, avant = s.m;
+      if (pl > .3) s.eau = Math.min(1, s.eau + pl / (90 * EAU_K[ta]));   // une bonne averse remplit un petit emplacement en une minute et demie
+      pousserPlace(s, i, now, ta);
+      if (s.e && Flo[i]) {
+        if (avant < 1 && s.m >= 1) { coupes.delete(i); signalDecor('flore', i); }   // mûre : elle rejoint le décor figé
+        else if (s.m < 1 && !coupes.has(i)) coupes.set(i, t);
+      }
+      const f = CHAMP_RARES.get(i); if (f) corpsRare(f, s);
+    });
+    if (c.n === 1) for (const b of beasts) {
+      if (b.dead || b.tame || b.sp.diet !== 'h' || b.sp.plante || b.sp.batiment || b.sp.pnj || b.sp.villageois || !dansChamp(c, b.x, b.y) || Math.random() > .05) continue;
+      const k = c.s.findIndex(s => s.e && s.m >= .35); if (k < 0) continue;
+      c.s[k].m = .15; majPlace(c, k); Sauve.sale = true;
+      if (Math.hypot(P.x - b.x, P.y - b.y) < 25) say((b.comp ? b.comp.nom : b.sp.n) + ' broute le carré · une palissade (carré de niveau 2) l\'en garderait', 3);
+    }
+  }
+}
+// Le carré, dessiné : la terre labourée et ses sillons, les buttes des emplacements (plus sombres là où c'est
+// arrosé), le piquet d'un emplacement libre, les mauvaises herbes, la bordure de planches, et la palissade.
+const C_LABOUR = [108, 80, 56], C_SILLON = [80, 58, 40], C_HERBE = [96, 150, 66];
+function champOs(c) {
+  const [B, bat] = osDe(), D = CHAMP_DEMI[c.n];
+  for (let dy = -D; dy <= D; dy++) for (let dx = -D; dx <= D; dx++) {
+    const v = ((dx * 5 + dy * 3) & 3) * 3;
+    B.push({ a: [dx - .5, dy, .03], b: [dx + .5, dy, .03], w: 1, h: .06, luit: 0, sol: 1, c: [C_LABOUR[0] - v, C_LABOUR[1] - v, C_LABOUR[2] - v] });
+    for (const o of [-.25, .25]) B.push({ a: [dx - .45, dy + o, .07], b: [dx + .45, dy + o, .07], w: .12, h: .05, luit: 0, sol: 1, c: C_SILLON });
+  }
+  CHAMP_PLACES[c.n].forEach(([dx, dy, ta], k) => {
+    const s = c.s[k], w = s.eau, L = BUTTE[ta], col = [Math.round(132 - 54 * w), Math.round(104 - 44 * w), Math.round(76 - 34 * w)];
+    B.push({ a: [dx - L / 2, dy, .11], b: [dx + L / 2, dy, .11], w: L, h: .12, luit: 0, sol: 1, c: col });   // la butte
+    if (!s.e) bat([dx + L / 2 - .12, dy - L / 2 + .12, .1], [dx + L / 2 - .12, dy - L / 2 + .12, .6], .06, .06, C_BOIS);   // le piquet
+    if (s.h) for (const [ox, oy] of [[-.3, -.25], [.28, .2], [-.15, .32]]) {   // les mauvaises herbes
+      const hx = dx + ox * L, hy = dy + oy * L;
+      bat([hx, hy, .15], [hx + .05, hy, .42], .05, .05, C_HERBE); bat([hx + .06, hy + .04, .15], [hx + .12, hy + .06, .34], .05, .05, C_HERBE);
+    }
+  });
+  const e = D + .5;
+  bat([-e, -e, .12], [e, -e, .12], .12, .22, C_BOIS); bat([-e, e, .12], [e, e, .12], .12, .22, C_BOIS);
+  bat([-e, -e, .12], [-e, e, .12], .12, .22, C_BOISF); bat([e, -e, .12], [e, e, .12], .12, .22, C_BOISF);
+  if (c.n >= 2) {                                        // la palissade : des pieux, deux lisses, une ouverture au sud
+    for (let p = -e; p <= e + .01; p += 1.5) for (const [x0, y0] of [[p, -e], [p, e], [-e, p], [e, p]])
+      if (!(y0 === e && Math.abs(x0) < 1)) bat([x0, y0, .1], [x0, y0, .95], .1, .1, C_BOISF);
+    for (const z of [.4, .75]) {
+      bat([-e, -e, z], [e, -e, z], .06, .06, C_BOIS); bat([-e, -e, z], [-e, e, z], .06, .06, C_BOIS); bat([e, -e, z], [e, e, z], .06, .06, C_BOIS);
+      bat([-e, e, z], [-1, e, z], .06, .06, C_BOIS); bat([1, e, z], [e, e, z], .06, .06, C_BOIS);
+    }
+  }
+  return B;
+}
+// La fiche d'un carré, au sac : poser ceux de cette taille, reprendre celui où l'on est, choisir la graine.
+function ficheCarre(o) {
+  const n = NIV_CARRE[o.id], libres = carresSac(n), q = libres > 0 && campIci() ? placeChamp(P.x, P.y, n) : null;
+  const ici = champsIci().find(c => dansChamp(c, P.x, P.y, 1.5)), conf = confirmeAct.id === 'champrep' && maintenantSac() < confirmeAct.jusqua;
+  const gr = Object.keys(P.graines).filter(k => P.graines[k] > 0 && graineInfo(k));
+  let h = `<div class="fiche" id="sac-fiche">${caseObjet(o.id, { taille: 'grande', inerte: true })}<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}.</p>`
+    + `<p>De cette taille : ${P.carresN[n] | 0} fabriqué${(P.carresN[n] | 0) > 1 ? 's' : ''}, ${libres} au sac. En tout : ${carresTot()} carré${carresTot() > 1 ? 's' : ''} sur ${champsMax()} au plus (un de plus au palier 3 du campement, un autre au palier 8).</p><div class="gestes">`;
+  if (libres > 0) h += !campIci() ? `<span class="note">il se pose sur l'île du campement</span>`
+    : `<button class="btn principal" data-champ="poser:${n}"${q ? '' : ' disabled'}>Poser ici</button>` + (q ? '' : `<span class="note">ici, non : il faut un carré de terre ferme de ${COTE[n]} cases, presque plat, sans eau, à l'écart du campement et de l'arche</span>`);
+  if (ici) h += `<button class="btn" data-champ="reprendre">${conf ? 'Confirmer : ce qui y pousse est perdu' : 'Reprendre ce carré'}</button>`;
+  h += `</div>`;
+  if (ici) h += `<p class="note">Ce carré : ` + ici.s.map((s, k) => { const ta = CHAMP_PLACES[ici.n][k][2], G = s.e && graineInfo(s.e);
+    return (ta === 'p' ? '' : TAILLE_N[ta] + ' : ') + (G ? ESC(G.n) + ' ' + pctC(s.m) + (s.m < 1 && s.eau <= 0 ? ' (à sec)' : '') + (s.h ? ' (herbes)' : '') : 'libre'); }).join(' · ') + `</p>`;
+  h += `<h4 style="margin-top:8px">Graines et plants</h4>` + (gr.length
+    ? `<div class="gestes">` + gr.map(k => { const G = graineInfo(k); return `<button class="btn${k === P.graineSel ? ' principal' : ''}" data-graine="${k}"><span class="${clRar(G.r)}">${ESC(nomGraine(k))}</span> ×${P.graines[k]} · ${TAILLE_N[G.ta]}</button>`; }).join('')
+      + `</div><p class="note">ACTION devant un emplacement libre plante la graine choisie, si elle est à sa taille ; sinon, la plus nombreuse de cette taille.</p>`
+    : `<p class="note">Aucune graine. On en trouve parfois en cueillant ou en abattant au sauvage : herbes, fleurs, buissons, arbustes, arbres, plantes rares.</p>`);
+  h += `<p class="note">${P.objets.seau ? 'Seau : ' + P.seau + ' arrosage' + (P.seau > 1 ? 's' : '') + ' sur ' + SEAU_MAX + ' · il se remplit au bord de l\'eau.' : 'Un seau (établi) permet d\'arroser ; la pluie arrose aussi.'} Sans eau, une plante ne pousse plus. Engrais : ${ENGRAIS_OS} os, ACTION devant une pousse.</p>`;
+  return h + `</div></div>`;
+}
+function ficheSeau(o) {
+  return `<div class="fiche" id="sac-fiche">${caseObjet(o.id, { taille: 'grande', inerte: true })}<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}.</p>`
+    + `<p>${P.seau ? P.seau + ' arrosage' + (P.seau > 1 ? 's' : '') + ' sur ' + SEAU_MAX : 'vide : passer au bord de l\'eau'}.</p></div></div>`;
+}
+// Ce qu'une sauvegarde dit d'un carré : des cases entières sur l'île, des graines connues à la bonne taille, des nombres bornés.
+function champLu(c) {
+  const bn = (v, a, b, d) => Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : d;
+  if (!c || !Number.isInteger(c.g) || !Number.isInteger(c.x) || !Number.isInteger(c.y) || !Number.isFinite(c.z)) return null;
+  const n = CHAMP_PLACES[c.n | 0] ? c.n | 0 : 1, D = CHAMP_DEMI[n], S = Array.isArray(c.s) ? c.s : [];
+  if (c.x < D + 2 || c.y < D + 2 || c.x > WS - D - 3 || c.y > WS - D - 3) return null;
+  return { g: c.g, x: c.x, y: c.y, z: bn(c.z, -8, 64, 0), n, s: CHAMP_PLACES[n].map(([, , ta], k) => {
+    const s = S[k] && typeof S[k] === 'object' ? S[k] : {}, G = typeof s.e === 'string' ? graineInfo(s.e) : null, e = G && G.ta === ta ? s.e : null;
+    return { e, m: e ? bn(s.m, 0, 1, 0) : 0, eau: bn(s.eau, 0, 1, 1), t: bn(s.t, 0, 1e15, Date.now()), h: e && s.h ? 1 : 0, eng: e && s.eng ? 1 : 0 }; }) };
 }
 // Voyager campement au sac : on l'emporte au niveau suivant, où il se replante. Pas de chez-soi
 // entre-temps — pas de pierre de foyer, pas de retour —, et trois cœurs perdus avant de l'avoir
@@ -4284,13 +4677,35 @@ function laisserAuCamp(d, g) {
 // pas plus d'une heure et demie comptée : le campement travaille, il ne travaille pas pour l'éternité.
 const ABS_MAX = 90;
 let bilanAbsence = null;
+// (§124) Ce qu'une récolteuse rapporte en votre absence, pris sur la flore de l'île du campement : les pieds les
+// plus proches du feu, à 24 cases au plus, jamais dans un carré ; chacun abattu pour de bon. Rend ce qu'elle a trouvé.
+const ABS_PIEDS = 25;                                  // pas plus de vingt-cinq pieds abattus par récolteuse et par absence
+function recolteReelle(k, n, cf) {
+  if (!P.camp || P.camp.graine !== SEED || n <= 0) return n;
+  if (coupesG !== SEED) { CAMP_COUPES.clear(); PL_CUEILLIES.clear(); coupesG = SEED; }
+  const R = 24, cx = P.camp.x | 0, cy = P.camp.y | 0, L = [];
+  const dansCarre = (x, y) => P.champs.some(c => c.g === SEED && Math.abs(x - c.x) <= CHAMP_DEMI[c.n] + 1 && Math.abs(y - c.y) <= CHAMP_DEMI[c.n] + 1);
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+    const x = cx + dx, y = cy + dy, d = dx * dx + dy * dy; if (d > R * R || d < (CAMP_RAYON + 1.5) ** 2 || x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) continue;   // pas dans le rond du campement
+    const i = y * WS + x; if (!Flo[i] || CAMP_COUPES.has(i) || dansCarre(x, y)) continue;
+    const e = ESP[Flo[i] - 1]; if (e.res !== k || e.dalle) continue;
+    L.push([d, i, e]);
+  }
+  L.sort((a, b) => a[0] - b[0]);
+  let got = 0, pieds = 0;
+  for (const [, i, e] of L) { if (got >= n || pieds >= ABS_PIEDS) break; got += Math.max(1, Math.round(e.rend * cf)); CAMP_COUPES.add(i); pieds++; }
+  recolteReelle.epuise = got < n && pieds >= L.length;   // plus rien de cette matière autour du feu
+  return Math.min(n, got);
+}
 function travailAbsence(liste, depuis) {
   const min = Math.max(0, Math.min(ABS_MAX, (Date.now() - depuis) / 60000));
-  const gain = {}, qui = [];
+  const gain = {}, qui = [], jard = [], epuise = new Set();
   for (const r of liste) {
     if (!r.aucamp || r.ko) continue;
     r.faim = Math.min(r.faim, .2); r.soif = Math.min(r.soif, .2); r.nrj = 1;   // le feu les a tenues
-    if (r.role !== 'recolte' || !aModule('coffre')) continue;   // sans coffre, rien à engranger
+    if (r.role !== 'recolte') continue;
+    if (recolteDe(r) === 'jardin') { if (specById[r.esp]) jard.push(r); continue; }   // (§121) les jardinières : ensemble, plus bas (sans coffre, elles soignent sans récolter)
+    if (!aModule('coffre')) continue;                    // sans coffre, rien à engranger
     const k = recolteDe(r), cf = coefApt(r.esp, k) * (1 + .1 * potComp(r, 'recolte'));
     if (!specById[r.esp] || !cf) continue;
     let tot = 0;
@@ -4300,6 +4715,7 @@ function travailAbsence(liste, depuis) {
       if (n > 0) { gain.poissons = (gain.poissons || 0) + n; tot += n; }
     } else
     { let n = Math.floor(min * (k === 'os' ? 1.5 : 4) * cf), k2 = k;
+      if (k !== 'os' && k !== 'eclat') { const r2 = recolteReelle(k, n, cf); if (recolteReelle.epuise) epuise.add(k); n = r2; }   // (§124) ce qui ne repousse pas se prend sur l'île
       if (k === 'baies' && specById[r.esp].nectar && n > 0) { k2 = 'nectar'; n = Math.max(1, Math.round(n * .5)); }   // l'oglodon en fait du nectar, comme sur place
       if (n > 0) { gain[k2] = (gain[k2] || 0) + n; tot += n; } }
     { const rk = potComp(r, 'comp');                    // les trouvailles d'une Douce, au cellier
@@ -4307,10 +4723,12 @@ function travailAbsence(liste, depuis) {
         for (let j = 0; j < nf; j++) { const id = trouvaille(rk); if (id) { P.cellier[id] = (P.cellier[id] || 0) + 1; gain.trouvailles = (gain.trouvailles || 0) + 1; } } } }
     if (tot) qui.push(r.nom || specById[r.esp].n);
   }
-  for (const k in gain) if (k !== 'poissons' && k !== 'trouvailles') { const R = reserveDe(k); R[k] = (R[k] || 0) + gain[k]; }   // le nectar : au cellier
+  if (jard.length && jardinAbsence(jard, depuis, gain)) for (const r of jard) qui.push(r.nom || specById[r.esp].n);   // (§121)
+  for (const k in gain) if (k !== 'poissons' && k !== 'trouvailles' && k !== 'produits du jardin') { const R = reserveDe(k); R[k] = (R[k] || 0) + gain[k]; }   // le nectar : au cellier
   const total = Object.values(gain).reduce((a2, n) => a2 + n, 0);
   bilanAbsence = { min: Math.round(min), gain, qui, total, quand: Date.now() };
-  if (total) say('pendant votre absence · ' + total + ' au coffre · ' + qui.join(', '), 4.5);
+  if (total) say('pendant votre absence · ' + total + ' au coffre · ' + qui.join(', ') + (epuise.size ? ' · plus de ' + [...epuise].map(k => RES[k] || k).join(', ') + ' autour du campement' : ''), 5);
+  else if (epuise.size) say('pendant votre absence · plus de ' + [...epuise].map(k => RES[k] || k).join(', ') + ' autour du campement : rien ne repousse chez vous', 5);
   return bilanAbsence;
 }
 function ouvrirPortail() {
@@ -4990,7 +5408,8 @@ function recevoir(m) {
   else if (evt === 'parti') effacerDistant(d.u);
   else if (evt === 'coupe') {
     const i = d.i | 0;
-    if (i >= 0 && i < WS * WS && !coupes.has(i)) { coupes.set(i, t); signalDecor('flore', i); }
+    if (i >= 0 && i < WS * WS && coupeDefinitive(i)) retirerPied(i);   // (§124) un équipier abat chez vous : pour de bon
+    else if (i >= 0 && i < WS * WS && !coupes.has(i)) { coupes.set(i, t); signalDecor('flore', i); }
   }
   else if (evt === 'baie') { const br = berries[d.i | 0]; if (br && br.pris <= t) br.pris = t + 120; }
   else if (evt === 'fleche') {                         // une flèche d'en face, en vol : on la voit, elle ne blesse rien ici
@@ -5690,6 +6109,7 @@ function verrouFab(o) {
 function toutFabriquer() {
   for (const o of OBJETS) if (!enSerie(o) && !o.offert && !P.objets[o.id]) { P.objets[o.id] = 1; if (o.emp !== 'camp' && o.emp !== 'ceinture') P.equip[o.emp] = o.id; }
   P.ceinture = CEINTURE_MAX;                       // la ceinture au plus haut : trois barres
+  P.carresN = { 1: 1, 2: 1, 3: 1 }; P.seau = SEAU_MAX;   // (§119, §120)
   P.fleches += 64; P.liens = Math.max(P.liens, 6); P.pv = 1;
   remplirRaccourcis();
   burst(P.x, P.y, P.z + .5, 20, '#ffd27d'); say('tout est fabriqué', 2.4); majSac();
@@ -5698,6 +6118,21 @@ const coutTexte = o => Object.entries(o.cout).map(([r, n]) => n + ' ' + nomRes(r
 function fabriquer(id) {
   const o = objet(id);
   { const v = verrouFab(o); if (v) { say(v, 2.4); return; } }
+  if (NIV_CARRE[o.id]) {                         // (§119, §120) les carrés : un de plus à chaque palier du campement, jusqu'à trois
+    const n = NIV_CARRE[o.id];                     // au plafond, un plus petit qui attend au sac s'agrandit
+    let monte = 0;
+    if (carresTot() >= champsMax()) {
+      monte = [1, 2].filter(k => k < n && carresSac(k) > 0).pop() || 0;
+      if (!monte) { say(carresTot() >= 3 ? 'trois carrés de culture au plus · reprendre un petit au sac pour l\'agrandir' : 'déjà ' + carresTot() + ' carré' + (carresTot() > 1 ? 's' : '') + ' · un de plus au palier ' + (nivCamp() < 3 ? 3 : 8) + ' du campement, ou un petit au sac à agrandir', 3); return; }
+    }
+    if (!payable(o)) { say('matières manquantes', 1.4); return; }
+    if (!essai) payer(o.cout);
+    if (monte) { P.carresN[monte]--; if (!P.carresN[monte]) delete P.objets[monte === 1 ? 'carre' : 'carre2']; }
+    P.carresN[n] = (P.carresN[n] | 0) + 1; P.objets[o.id] = 1; Sauve.sale = true;
+    burst(P.x, P.y, P.z + .5, 14, '#ffd27d'); SON.jouer('fabrique');
+    say(o.n.toLowerCase() + (monte ? ' · le carré du sac est agrandi' : ' · fabriqué') + ' · à poser sur l\'île du campement (sac)', 2.8); majSac(); return;
+  }
+
   if (enSerie(o)) {                               // flèches et liens se refont autant qu'on veut
     if (!payable(o)) { say('matières manquantes', 1.4); return; }
     const prix = o.cout;                          // lu une fois : pour un lien, il change dès qu'on l'a fait
@@ -5734,6 +6169,7 @@ function fabriquer(id) {
   if (!payable(o)) { say('matières manquantes', 1.4); return; }
   if (!essai) payer(o.cout);
   P.objets[id] = 1;
+  if (id === 'seau') P.seau = SEAU_MAX;            // (§119) il sort de l'atelier plein
   if (o.emp !== 'camp') P.equip[o.emp] = id;      // fabriqué, donc équipé — sauf ce qui se pose
   if (o.emp !== 'camp' && o.emp !== 'armure') rangerRaccourci(id);   // et rangé dans une case
   burst(P.x, P.y, P.z + .5, 14, '#ffd27d'); SON.jouer('fabrique');
@@ -6482,6 +6918,8 @@ function ficheSac() {
       + `<div class="gestes">${n < CEINTURE_MAX ? `<button class="btn principal" data-voirrecette="ceinture">Améliorer la ceinture</button>`
           + `<span class="note">${ESC(coutTexte(o))}</span>` : `<span class="note">au plus haut : trois barres</span>`}</div></div></div>`;
   }
+  if (NIV_CARRE[o.id]) return ficheCarre(o);           // (§119, §120)
+  if (o.id === 'seau') return ficheSeau(o);
   if (o.emp === 'camp') {                               // ce qui se pose, pas ce qui se porte
     const g = o.id === 'campement'
       ? (!P.camp ? `<button class="btn principal" data-camp="poser">Poser ici</button>`
@@ -7035,7 +7473,7 @@ function ficheCompagne(c) {
     + `<div class="besoins">${jauge('pv', 'Santé', 'vie')}${automate(sp) ? jauge('nrj', 'Charge', 'nrj')
         : jauge('faim', 'Faim', 'faim') + jauge('soif', 'Soif', 'soif') + jauge('nrj', 'Énergie', 'nrj')}</div>`
     + `<h3>Ordres</h3>${ordres}`
-    + `<p class="note" style="margin:6px 0 0">${ESC(c.nom)} ${ESC(ORDRES_DIT[c.role + ':' + (c.mode || 'joueur')] || '')}`
+    + `<p class="note" style="margin:6px 0 0">${ESC(c.nom)} ${ESC(ORDRES_DIT[(c.role === 'recolte' && recolteDe(c) === 'jardin' ? 'jardin' : c.role) + ':' + (c.mode || 'joueur')] || '')}`
     + `${c.role === 'recolte' ? ' — ' + (recolteDe(c) === 'os' ? 'elle chasse, et rapporte les os' : recolteDe(c) === 'peche' ? 'elle pêche, et rapporte le poisson' : 'elle récolte ' + LE_APT[recolteDe(c)]) : ''}.</p>`
     + (P.camp ? '' : `<p class="note" style="margin:4px 0 0">« Au campement » se choisit une fois le campement posé.</p>`)
     + (!c.dehors && !c.aucamp && !c.ko && enJeu() >= EN_JEU_MAX
@@ -7400,6 +7838,15 @@ function clicSac(b) {
     else { confirmeAct = { id: d.campc, jusqua: maintenantSac() + 5 }; setTimeout(() => { if (sacOuvert && ongletSac === 'camp') majSac(); }, 5100); }
     majSac();
   }
+  else if (d.champ) {                                   // (§119) les carrés de culture
+    if (d.champ.startsWith('poser')) poserChamp(+d.champ.split(':')[1] || 1);
+    else if (d.champ === 'reprendre') {
+      if (confirmeAct.id === 'champrep' && maintenantSac() < confirmeAct.jusqua) { confirmeAct.id = ''; reprendreChamp(); }
+      else { confirmeAct = { id: 'champrep', jusqua: maintenantSac() + 5 }; setTimeout(() => { if (sacOuvert) majSac(); }, 5100); }
+    }
+    majSac();
+  }
+  else if (d.graine) { P.graineSel = d.graine; majSac(); }
   else if (d.camp) {
     if (d.camp === 'poser') poserCampement();
     else if (d.camp === 'portail') ouvrirPortail();
@@ -7699,9 +8146,9 @@ const proiesDe = sp => automate(sp) ? null : sp.chasse || [];
 // On choisit ce que récolte chaque compagne, quelle que soit son espèce ; l'espèce dit combien elle en
 // rapporte. Une note de 1 à 5 par récolte, et une en défense ; 0 : la chasse, pour qui ne chasse pas.
 // Une récolte rend le pied × COEF_APT[note] : 4 fait autant que vous, 5 moitié plus.
-const APT_RES = ['bois', 'pierre', 'fibre', 'baies', 'eclat', 'ferraille', 'os', 'peche'];
-const NOM_APT = { bois: 'Bois', pierre: 'Pierre', fibre: 'Fibre', baies: 'Baies', eclat: 'Éclats', ferraille: 'Ferraille', os: 'Chasse', peche: 'Pêche' };
-const LE_APT = { bois: 'le bois', pierre: 'la pierre', fibre: 'la fibre', baies: 'les baies', eclat: 'les éclats', ferraille: 'la ferraille', os: 'le gibier', peche: 'le poisson' };
+const APT_RES = ['bois', 'pierre', 'fibre', 'baies', 'eclat', 'ferraille', 'os', 'peche', 'jardin'];
+const NOM_APT = { bois: 'Bois', pierre: 'Pierre', fibre: 'Fibre', baies: 'Baies', eclat: 'Éclats', ferraille: 'Ferraille', os: 'Chasse', peche: 'Pêche', jardin: 'Jardin' };
+const LE_APT = { bois: 'le bois', pierre: 'la pierre', fibre: 'la fibre', baies: 'les baies', eclat: 'les éclats', ferraille: 'la ferraille', os: 'le gibier', peche: 'le poisson', jardin: 'le jardin' };
 const COEF_APT = [0, .2, .35, .55, 1, 1.5];
 const CHANCE_APT = [0, .3, .45, .65, 1, 1.25];   // la chance d'un ingrédient (produit d'une plante, viande d'une prise) : 4 comme vous
 const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
@@ -7719,11 +8166,13 @@ const APT = {   //  bois pierre fibre baies éclats ferraille chasse · défense
 };
 const aptDe = esp => APT[esp] || [1, 1, 1, 1, 1, 1, 0, 2];
 const PECHE_APT = { sterne: 5 };                     // la pêche : qui sait pêcher (hors du tableau, dont la 8e case est la défense)
-const noteApt = (esp, res) => res === 'peche' ? PECHE_APT[esp] || 0 : aptDe(esp)[APT_RES.indexOf(res)] || 0;
+// (§121) Le jardin : la moyenne de la fibre et des baies, un point de plus pour les Douces ; jamais moins d'un.
+const noteJardin = esp => { const a = aptDe(esp), sp = specById[esp]; return Math.max(1, Math.min(5, Math.round((a[2] + a[3]) / 2) + (sp && doux(sp) ? 1 : 0))); };
+const noteApt = (esp, res) => res === 'peche' ? PECHE_APT[esp] || 0 : res === 'jardin' ? noteJardin(esp) : aptDe(esp)[APT_RES.indexOf(res)] || 0;
 const coefApt = (esp, res) => COEF_APT[noteApt(esp, res)];
 const noteDef = esp => aptDe(esp)[7];
 const points = n => '●'.repeat(n) + '○'.repeat(5 - n);
-function metierDe(esp) { let k = APT_RES[0]; for (const r of APT_RES) if (noteApt(esp, r) > noteApt(esp, k)) k = r; return k; }
+function metierDe(esp) { let k = APT_RES[0]; for (const r of APT_RES) if (r !== 'jardin' && noteApt(esp, r) > noteApt(esp, k)) k = r; return k; }   // le jardin : seulement sur ordre
 const recolteDe = c => c && c.recolte && noteApt(c.esp, c.recolte) ? c.recolte : metierDe(c ? c.esp : '');
 const recolteB = b => b.comp ? recolteDe(b.comp) : metierDe(b.sp.id);
 const automate = sp => !!sp && sp.fam === 'automate';
@@ -8886,6 +9335,7 @@ document.getElementById('sac').addEventListener('click', e => {
 function update(dt) {
   t += dt;
   majTerrasse();                                     // le rond des campements de l'île, s'il a changé
+  majChamps(dt);                                     // (§119) les carrés de culture : la pousse, la pluie, le seau
   majMurs(); majTours(); majToursRaid();             // les remparts de l'île ; les tours de son campement, celles du campement qu'on pille
   cuisineTic(dt);                                    // le plat servi refroidit, ceux du sac se gâtent (voir LA CUISINE)
   grilleCorps();                                     // où sont les corps, pour ce tour (voir LES CORPS)
@@ -12400,16 +12850,20 @@ function bestiaireGraine(graine, niv) {
   let r = tir() * 100, n = 2;
   for (const [k, p] of NB_ESPECES) if ((r -= p) <= 0) { n = k; break; }
   const e = new Set();
-  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && nivEspece(sp) <= niv);   // ni Telluriens, ni coursiers rares
+  // (§118) une bête dont la viande est plus rare que l'île ne le permet n'y vit pas (spectre, coursier orange : dès 4)
+  const okR = id => rareteOk(rareEspece(specById[id]), niv);
+  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && nivEspece(sp) <= niv && okR(sp.id));   // ni Telluriens, ni coursiers rares
   if (niv < NIV_RAMPANTS) n = n <= 3 ? 2 : 3;          // aux premières îles : deux ou trois Doux, pas plus
   e.add(tirerParmi(tirables.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.roche)).id);
   while (e.size < n && e.size < tirables.length) e.add(tirerParmi(tirables.filter(sp => !e.has(sp.id))).id);
-  if (ogloGraine(graine)) e.add('oglodon');           // la fourmilière est dans le relief de la graine
-  for (const b of betesRaresGraine(graine)) if (b.niv <= niv) e.add(b.id);
-  if (niv >= NIV_FELIN && felinGraine(graine)) e.add('felin');   // tiré à part : le reste du bestiaire ne bouge pas
-  if (niv >= 1 && bramardGraine(graine)) e.add('bramard');
-  if (sterneGraine(graine)) e.add('sterne');
-  if (niv >= 3 && dragonGraine(graine)) e.add('dragon');
+  // (§118) les bêtes tirées à part suivent aussi la rareté de leur viande : l'oglodon dès 4, le coursier rouge et
+  // le dragon dès 6, le coursier d'aurore dès 8
+  if (ogloGraine(graine) && okR('oglodon')) e.add('oglodon');           // la fourmilière est dans le relief de la graine
+  for (const b of betesRaresGraine(graine)) if (b.niv <= niv && okR(b.id)) e.add(b.id);
+  if (niv >= NIV_FELIN && felinGraine(graine) && okR('felin')) e.add('felin');   // tiré à part : le reste du bestiaire ne bouge pas
+  if (niv >= 1 && bramardGraine(graine) && okR('bramard')) e.add('bramard');
+  if (sterneGraine(graine) && okR('sterne')) e.add('sterne');
+  if (niv >= 3 && dragonGraine(graine) && okR('dragon')) e.add('dragon');
   { const rg = biomesGraine(graine); if (rg.includes(19)) e.add('silencieux'); if (rg.includes(20)) e.add('millegueule'); }   // l'effroi vit sur son sol          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
   return e;
 }
@@ -12606,7 +13060,7 @@ function majAutomate(b, dt) {
       for (let k = 0; k < 30 && !b.tache; k++) {
         const x = (b.x + (Math.random() - .5) * 24) | 0, y = (b.y + (Math.random() - .5) * 24) | 0;
         const i = y * WS + x, f = typeFlore(x, y);
-        if (f && FLORE[f] && FLORE[f].res !== 'eclat' && !coupes.has(i) && hAt(x, y) > SEA && Math.abs(hAt(x, y) - b.z) < 3) b.tache = { i, x: x + .5, y: y + .5 };
+        if (f && FLORE[f] && FLORE[f].res !== 'eclat' && !coupes.has(i) && !CHAMP_CASE.has(i) && !campIci() && hAt(x, y) > SEA && Math.abs(hAt(x, y) - b.z) < 3) b.tache = { i, x: x + .5, y: y + .5 };
       }
       b.tacheT = b.t;
     }
@@ -13451,6 +13905,9 @@ const ORDRES_DIT = {
   'recolte:autonome': 'parcourt toute l\'île à sa guise et remplit votre sac',
   'recolte:joueur':   'récolte autour de vous, à une douzaine de pas, et vous suit d\'île en île',
   'recolte:camp':     'récolte autour du campement et remplit le coffre ; elle ne part pas en expédition, et travaille en votre absence',
+  'jardin:camp':      'soigne les carrés de culture de l\'île : elle désherbe, arrose, récolte ce qui est mûr pour le coffre, et continue en votre absence',
+  'jardin:joueur':    'vous suit ; sur l\'île du campement, elle soigne les carrés de culture près de vous',
+  'jardin:autonome':  'sur l\'île du campement, va de carré en carré : désherber, arroser, récolter',
   'defense:autonome': 'patrouille l\'île et s\'en prend aux chasseurs qu\'elle croise',
   'defense:joueur':   'marche dans vos pas : elle frappe ce que vous frappez, ce qui vous attaque, et ce qui se défend contre vous',
   'defense:camp':     'garde le campement contre ce qui en approche ; elle ne part pas en expédition',
@@ -13771,7 +14228,7 @@ function menaceOrdre(b) {
 // Où se tient une compagne : à vous, au campement, ou nulle part (autonome).
 function ancre(b) {
   if (b.rappel > 0 || b.mode === 'joueur') return { x: P.x, y: P.y, r: b.role === 'recolte' ? 12 : 5 };
-  if (b.mode === 'camp' && campIci()) return { x: P.camp.x, y: P.camp.y, r: b.role === 'recolte' ? 16 : 9 };
+  if (b.mode === 'camp' && campIci()) return { x: P.camp.x, y: P.camp.y, r: b.role === 'recolte' ? (jardiniere(b) ? rayonJardin() : 16) : 9 };
   return null;
 }
 // Chaque compagne du campement a sa place autour du feu, pour qu'elles ne s'empilent pas.
@@ -13893,7 +14350,7 @@ function chercherTache(b) {
   if (tc) { b.rienT = 0; return tc; }
   if (!b.rienT) b.rienT = b.t;
   if (b.t - b.rienT < 20) return null;                 // elle explore encore un peu
-  const L = APT_RES.filter(k => k !== r && k !== 'os' && k !== 'peche' && noteApt(b.sp.id, k)).sort((u, v) => noteApt(b.sp.id, v) - noteApt(b.sp.id, u));
+  const L = APT_RES.filter(k => k !== r && k !== 'os' && k !== 'peche' && k !== 'jardin' && noteApt(b.sp.id, k)).sort((u, v) => noteApt(b.sp.id, v) - noteApt(b.sp.id, u));
   for (const k of L) {
     const t2 = chercherTacheTr(b, { [k]: coefApt(b.sp.id, k) }); if (!t2) continue;
     if (b.comp && !(b.ditRien > b.t)) { b.ditRien = b.t + 120; say(b.comp.nom + ' ne trouve pas ' + LE_APT[r] + ' ici · elle prend ' + LE_APT[k], 2.4); }
@@ -13912,7 +14369,7 @@ function chercherTacheTr(b, tr) {
     if (dx * dx + dy * dy > R * R) continue;
     const x = px + dx, y = py + dy;
     if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) continue;
-    const i = y * WS + x, k = Flo[i]; if (!k || hors(x + .5, y + .5)) continue;
+    const i = y * WS + x, k = Flo[i]; if (!k || hors(x + .5, y + .5) || CHAMP_CASE.has(i)) continue;   // (§121) les carrés : aux jardinières
     const e = ESP[k - 1]; if ((e.dalle && !bondit) || !tr[e.res]) continue;
     const dalle = PlT[i] && bondit ? PlT[i] : 0;   // le cerf de verre : ce qui pousse là-haut (druses, mousse céleste)
     if (!dalle && (Hgt[i] <= SEA || Eau[i] || PlT[i] || (!b.sp.volant && Math.abs(Hgt[i] - hb) > 8))) continue;   // elle grimpe
@@ -13969,7 +14426,120 @@ function descendreDalle(b) {
   b.z = sol(b.x, b.y); b.vz = 0;
   burst(b.x, b.y, b.z + .6, 14, '#bfe8ff');
 }
+// ============================================================
+//  LES COMPAGNES AU JARDIN (§121)
+//  Une compagne en récolte « Jardin » soigne les carrés de culture de l'île du campement : elle va
+//  au plus pressé — récolter ce qui est mûr, puis désherber, puis arroser ce qui a soif (elle va
+//  chercher l'eau elle-même : pas besoin de seau) —, y travaille, et ce qu'elle récolte va au coffre
+//  (au sac si elle n'est pas du campement). Sa note au jardin (la moyenne de la fibre et des baies,
+//  un point de plus pour les Douces) dit sa vitesse et ce qu'elle rapporte. Elle ne sème pas : les
+//  graines, c'est vous. Les autres récolteuses laissent les carrés tranquilles. En votre absence,
+//  chaque jardinière du campement tient le jardin une heure et demie (voir jardinAbsence).
+// ============================================================
+const jardiniere = b => !!(b && b.comp && b.role === 'recolte' && recolteDe(b.comp) === 'jardin');
+function rayonJardin() {
+  let r = 16; if (!P.camp) return r;
+  for (const c of champsIci()) r = Math.max(r, Math.hypot(c.x + .5 - P.camp.x, c.y + .5 - P.camp.y) + CHAMP_DEMI[c.n] + 3);
+  return r;
+}
+const DUREE_JARDIN = [0, 2, 1.6, 1.3, 1, .8];       // par note : la durée d'un geste, en durées de récolte
+// Ce que demande un emplacement, du plus pressé au moins pressé — ou rien.
+const besoinPlace = s => !s.e ? null : s.m >= 1 ? 'recolter' : s.h ? 'herbe' : s.eau < .4 ? 'arroser' : null;
+const PRIO_JARDIN = { recolter: 1, herbe: 1.6, arroser: 2.2 };
+function chercherJardin(b) {
+  const A = ancre(b), prises = new Set();
+  for (const c of P.compagnes) if (c.b && c.b !== b && c.b.tache) prises.add(c.b.tache.cle);
+  let best = null, bd = 1e9;
+  for (const c of champsIci()) placesDe(c).forEach(([x, y, ta], k) => {
+    const s = c.s[k], q = besoinPlace(s); if (!q) return;
+    const cle = 'j' + (y * WS + x); if (prises.has(cle)) return;
+    if (A && b.mode === 'joueur' && (x + .5 - A.x) ** 2 + (y + .5 - A.y) ** 2 > 14 * 14) return;   // avec vous : les carrés près de vous
+    const d = ((x + .5 - b.x) ** 2 + (y + .5 - b.y) ** 2) * PRIO_JARDIN[q];
+    if (d < bd) { bd = d; best = { k: 'jardin', c, kk: k, s, ta, quoi: q, x: x + .5, y: y + .5, i: y * WS + x, cle, t0: b.t, w: 0 }; }
+  });
+  return best;
+}
+// Rien à faire : elle attend au bord du carré le plus proche.
+function jardinAttente(b) {
+  let m = null, dm = 1e9;
+  for (const c of champsIci()) { const d = (c.x + .5 - b.x) ** 2 + (c.y + .5 - b.y) ** 2; if (d < dm) { dm = d; m = c; } }
+  if (!m) return explorer(b);
+  const gx = m.x + .5 + ((b.comp && b.comp.id) % 3 - 1) * 1.5, gy = m.y + .5 + CHAMP_DEMI[m.n] + 1.2;
+  if ((b.x - gx) ** 2 + (b.y - gy) ** 2 > 2) return [gx, gy, false];
+  return [b.x, b.y, true];
+}
+function faireJardin(b, tc) {
+  const s = tc.s, note = noteApt(b.sp.id, 'jardin'), now = Date.now();
+  pousserPlace(s, tc.i, now, tc.ta);
+  if (tc.quoi === 'herbe') { s.h = 0; burst(tc.x, tc.y, tc.c.z + .3, 8, '#6aa84f'); }
+  else if (tc.quoi === 'arroser') {
+    s.eau = 1;
+    for (let k = 0; k < 10; k++) parts.push({ x: tc.x + (Math.random() - .5) * .6, y: tc.y + (Math.random() - .5) * .6, z: tc.c.z + 1, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, vz: -1.5, g: 3, life: .6, age: 0, col: '#8fc8ff', tl: .05 });
+  } else if (tc.quoi === 'recolter' && s.m >= 1) {
+    const G = graineInfo(s.e); if (!G) return;
+    if (G.sp) {
+      const n = Math.max(1, Math.round(G.sp.rend * RECOLTE_K[tc.ta] * COEF_APT[note]));
+      let ex = null; { const q = produitDe(G.sp.id); if (q && Math.random() < [.5, .35, .25, .15, .1][q.r - 1] * CHANCE_APT[note]) ex = q.id; }
+      couperPied(tc.i);                                  // le carré la fait repartir (un arbre : taillé)
+      gerbe(tc.x, tc.y, tc.c.z + G.sp.h * .5, 8, G.sp, null);
+      rapporter(b.comp, G.sp.res, n, ex);
+    } else {
+      const pl = G.pl, n = pl.port === 'vive' ? 3 : 2, coffre = !!(b.comp.mode === 'camp' && aModule('coffre'));
+      if (coffre) P.cellier[pl.ingr] = (P.cellier[pl.ingr] || 0) + n; else metSacIngr(pl.ingr, sacIngr(pl.ingr) + n);
+      s.m = pl.port === 'simple' ? 0 : .4; s.t = now; majPlace(tc.c, tc.kk);
+      burst(tc.x, tc.y, tc.c.z + 1, 14, 'rgb(' + pl.pal[3].join(',') + ')');
+      if (!(b.ditRare > b.t)) { b.ditRare = b.t + 8; say(b.comp.nom + ' cueille ' + pl.n.toLowerCase() + ' · +' + n + (coffre ? ' au garde-manger du campement' : ' au sac'), 2.4); }
+    }
+    majSac();
+  }
+  Sauve.sale = true;
+}
+function majJardin(b, dt) {
+  let tc = b.tache;
+  if (tc && (tc.k !== 'jardin' || besoinPlace(tc.s) !== tc.quoi || b.t - tc.t0 > 30)) b.tache = tc = null;
+  if (!tc) {
+    if (b.t >= (b.cherche || 0)) { b.cherche = b.t + 1; tc = b.tache = chercherJardin(b); }
+    if (!tc) {
+      if (!champsIci().length && b.comp && !(b.ditRien > b.t)) { b.ditRien = b.t + 180; say(b.comp.nom + ' n\'a pas de carré de culture à soigner ici', 2.4); }
+      return jardinAttente(b);
+    }
+  }
+  const R = BUTTE[tc.ta] / 2 + .55;
+  if (b.mur || (b.x - tc.x) ** 2 + (b.y - tc.y) ** 2 > R * R) { tc.w = 0; return [tc.x, tc.y, false]; }
+  tc.w += dt; b.bob += dt * 5;
+  b.dirT = Math.atan2(tc.y - b.y, tc.x - b.x);
+  const note = noteApt(b.sp.id, 'jardin');
+  if (tc.w < DUREE_RECOLTE * DUREE_JARDIN[note] * (tc.quoi === 'arroser' ? 1.5 : 1) * (b.nrj < .25 ? 1.6 : 1)) return [b.x, b.y, true];
+  faireJardin(b, tc);
+  b.tache = null; b.cherche = b.t + .5;
+  return [b.x, b.y, true];
+}
+// En votre absence : chaque jardinière du campement tient le jardin une heure et demie (ABS_MAX). Minute
+// par minute, depuis le départ : les mauvaises herbes ôtées, l'eau remise, ce qui mûrit récolté (au coffre,
+// au garde-manger pour les plantes rares) — s'il y a un coffre ; sans lui, elle soigne mais ne récolte pas.
+// Le reste de l'absence, les plantes poussent seules, comme d'habitude.
+function jardinAbsence(J, depuis, gain) {
+  const L = P.camp ? P.champs.filter(c => c.g === P.camp.graine) : []; if (!L.length || !J.length) return 0;
+  const note = Math.max(...J.map(r => noteApt(r.esp, 'jardin'))), coef = COEF_APT[note], coffre = aModule('coffre');
+  const fin = Math.min(Date.now(), depuis + ABS_MAX * 60000 * J.length);
+  let n = 0;
+  for (const c of L) placesDe(c).forEach(([x, y, ta], k) => {
+    const s = c.s[k], i = y * WS + x; if (!s.e) return;
+    if (s.t < depuis) pousserPlace(s, i, depuis, ta);
+    for (let tt = Math.max(s.t, depuis); tt < fin;) {
+      const nx = Math.min(fin, tt + 60000);
+      s.h = 0; if (s.m < 1 && s.eau < .4) s.eau = 1;
+      pousserPlace(s, i, nx, ta); tt = nx;
+      if (s.m < 1 || !coffre) continue;
+      const G = graineInfo(s.e); if (!G) break;
+      if (G.sp) { const q = Math.max(1, Math.round(G.sp.rend * RECOLTE_K[ta] * coef)); gain[G.sp.res] = (gain[G.sp.res] || 0) + q; n += q; s.m = G.sp.res === 'bois' ? .3 : 0; }
+      else { const q = G.pl.port === 'vive' ? 3 : 2; P.cellier[G.pl.ingr] = (P.cellier[G.pl.ingr] || 0) + q; gain['produits du jardin'] = (gain['produits du jardin'] || 0) + q; n += q; s.m = G.pl.port === 'simple' ? 0 : .4; }
+    }
+  });
+  return n;
+}
 function majRecolte(b, dt) {
+  if (jardiniere(b)) return majJardin(b, dt);       // (§121) au jardin
   let tc = b.tache;
   if (tc) {
     const mur = tc.k === 'plante' ? Flo[tc.i] && maturite(tc.i, tc.e) >= .9 : tc.br.pris <= t;
@@ -15340,6 +15910,7 @@ function entreeProche(b) {
 // Un buisson mûr, à moins de soixante pas de la fourmilière, que nul autre oglodon ne vise : parmi
 // les quatre plus proches, au hasard.
 function buissonPourOglodon(b) {
+  if (campIci()) return null;                          // (§124) chez vous, les oglodons ne cueillent pas : rien n'y repousserait
   const F = Fourmi, L = [];
   for (const br of berries) {
     if (!baieMure(br) || (br.x - F.x) ** 2 + (br.y - F.y) ** 2 > 3600) continue;
@@ -15501,8 +16072,13 @@ function quandOk(f) {
 // Une eau qui borde la cerisaie (§112) : la koï n'est que là.
 function presBiome(x, y, b, r = 3) { x |= 0; y |= 0; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (bAt(x + dx, y + dy) === b) return true; return false; }
 function tirerPoisson(hab, x, y) {
-  const L = POISSONS.filter(f => f.ou.includes(hab) && quandOk(f) && (!f.bio || (x !== undefined && presBiome(x, y, f.bio))));
-  let tot = 0; const w = L.map(f => { const v = f.p * (f.id === 'carpe' && met('pluie') > .3 ? 2 : 1); tot += v; return v; });
+  // (§118) un poisson plus rare que l'île ne le permet n'y nage pas (anguille et raie dès 4, lune-de-fond dès 8) ; une
+  // rareté tout juste permise mord moins souvent, puis de plus en plus en s'enfonçant
+  const niv = profondeur(), rf = f => (POISSON_R[f.id] || [1])[0];
+  let L = POISSONS.filter(f => f.ou.includes(hab) && quandOk(f) && (!f.bio || (x !== undefined && presBiome(x, y, f.bio))) && rareteOk(rf(f), niv));
+  // rien de permis à cette heure (l'océan la nuit, avant la raie) : les poissons communs de cette eau mordent quand même
+  if (!L.length) L = POISSONS.filter(f => f.ou.includes(hab) && !f.bio && rf(f) <= 1);
+  let tot = 0; const w = L.map(f => { const v = f.p * (f.id === 'carpe' && met('pluie') > .3 ? 2 : 1) * (rf(f) <= centreRarete(niv) ? 1 : poidsRarete(rf(f), niv)); tot += v; return v; });
   let r = Math.random() * tot;
   for (let i = 0; i < L.length; i++) if ((r -= w[i]) <= 0) return L[i];
   return L[L.length - 1] || null;
@@ -15843,7 +16419,15 @@ function blocPeche() {
 //  remarquables attendent qu'on tombe sur leur mariage.
 //  On cuisine au feu du campement, ou partout ailleurs avec sa marmite posée.
 // ============================================================
-const RARETES = ['commune', 'peu commune', 'rare', 'très rare', 'légendaire', 'épique'];
+const RARETES = ['commune', 'peu commune', 'rare', 'exotique', 'légendaire', 'épique'];   // (§117) « très rare » s'appelle « exotique »
+// (§118) LA RARETÉ SUIT LA PROFONDEUR : une seule échelle pour la flore rare, les bêtes, les poissons et les
+// curiosités des nomades. Une rareté ne se montre qu'à partir d'une exploration (NIV_RARETE : rare dès 4,
+// exotique dès 6, légendaire dès 8, épique dès 10) ; et là où on tire au sort, la plus fréquente est celle du
+// « centre », qui monte d'un demi-cran par niveau à partir de 2 (commune à 2, peu commune à 4, rare à 6…).
+const NIV_RARETE = [0, 0, 0, 4, 6, 8, 10];
+const rareteOk = (r, niv) => niv >= (NIV_RARETE[r | 0] ?? 0);
+const centreRarete = niv => 1 + Math.max(0, niv - 2) * .5;
+const poidsRarete = (r, niv, cap = 9) => Math.exp(-((r - Math.min(cap, centreRarete(niv))) ** 2) / .72);
 const SOIN_FAM = { viande: .15, fruit: .06, racine: .07, graine: .04, fleur: .03, feuille: .04, champignon: .05, douceur: .08 };
 const NOM_FAM = { viande: 'Viandes', poisson: 'Poissons', fruit: 'Fruits', racine: 'Racines', graine: 'Graines', fleur: 'Fleurs', feuille: 'Feuilles', champignon: 'Champignons', douceur: 'Douceurs' };
 const EFFETS = { nuit: 'vision de nuit', braise: 'insensible aux braises', vif: 'pas vif', fort: 'coups puissants', robuste: 'peau dure', souffle: 'grand souffle',
@@ -15862,7 +16446,7 @@ const EFFETS_UNIQUES = new Set(['surplus', 'coeur', 'second']);
 //  des légendaires, et parfois une épique.
 // ============================================================
 const CURIOS = [
-  // r : 2 peu commune, 3 rare, 4 très rare, 5 légendaire, 6 épique ; mat : la matière qu'en demande le voyageur
+  // r : 2 peu commune, 3 rare, 4 exotique, 5 légendaire, 6 épique ; mat : la matière qu'en demande le voyageur
   { id: 'cu_lanterne', n: 'Lanterne de tourbe', r: 2, forme: 'lanterne', c: [196, 150, 80], mat: 'fibre', fx: { nuit: 1 }, h: 'Elle brûle sans flamme, comme la tourbe sous la pluie.' },
   { id: 'cu_plume', n: 'Plume de héron', r: 2, forme: 'plume', c: [222, 228, 236], mat: 'fibre', fx: { plume: 1 }, h: 'Le héron ne tombe jamais : il se pose.' },
   { id: 'cu_mousse', n: 'Semelles de mousse', r: 2, forme: 'bourse', c: [96, 150, 84], mat: 'fibre', fx: { silence: 1 }, h: 'Cousues par une veuve qui ne voulait plus réveiller personne.' },
@@ -15919,9 +16503,11 @@ function porterCurio(id) {
   P.equip[s] = id; say(o.n + ' · portée' + (avant ? ' à la place de ' + avant.n : '') + ' · ' + texteCurio(o), 2.6);
 }
 // Ce qu'un voyageur propose : selon le niveau de l'île, des raretés plus hautes ; jamais deux fois la même, ni ce qu'on a déjà.
-const CURIO_POIDS = [[0, [70, 25, 5, 0, 0]], [4, [35, 45, 17, 3, 0]], [8, [15, 35, 35, 13, 2]], [13, [5, 20, 35, 30, 10]]];
+// (§118) La même échelle que la flore, les bêtes et les poissons : peu communes jusqu'à 3, rares dès 4, exotiques dès 6,
+// légendaires dès 8, épiques dès 10 (le centre plafonne à 5 : au plus loin, surtout des légendaires, parfois une épique).
+const curioPoids = niv => [2, 3, 4, 5, 6].map(r => !rareteOk(r, niv) ? 0 : poidsRarete(r, niv, 5) + (r === 2 ? poidsRarete(1, niv, 5) : 0));
 function tirerCurios(niv, n = 3) {
-  const W = CURIO_POIDS.filter(([d]) => niv >= d).pop()[1], pris = new Set(), L = [];
+  const W = curioPoids(niv), pris = new Set(), L = [];
   for (let k = 0; k < n; k++) {
     let x = Math.random() * W.reduce((a, b) => a + b, 0), r = 2; for (let i = 0; i < 5; i++) { if ((x -= W[i]) < 0) { r = i + 2; break; } }
     for (const dr of [0, -1, 1, -2, 2, -3, 3, -4, 4]) {
@@ -15993,7 +16579,7 @@ const VIANDES = [
   ['coursier_r', 'Blanc de coursier rouge', 'coursier rouge', 4, 'vif', [220, 110, 96]],
   ['coursier_a', 'Blanc d\'aurore', 'aurore', 5, 'vif', [240, 180, 200]],
   ['crapaud', 'Cuisses de crapaud-buffle', 'crapaud', 2, null, [170, 176, 120]],
-  ['varan', 'Queue de varan', 'varan', 3, 'fort', [200, 130, 84]],
+  ['varan', 'Queue de varan', 'varan', 2, 'fort', [200, 130, 84]],   // (§118) peu commune, comme son canyon (dès l'exploration 2)
   ['vesseron', 'Chapeau de vesseron', 'vesseron', 2, null, [168, 96, 186]],
   ['cerf', 'Venaison de verre', 'cerf de verre', 3, 'souffle', [214, 150, 170]],
   ['salamandre', 'Chair de braise', 'salamandre', 4, 'braise', [236, 110, 60]],
@@ -16053,7 +16639,8 @@ const PRODUITS = [
   ['pivoine', 'Pétales de pivoine', 'pivoine', 'fleur', 2, 'souffle', [244, 128, 174]],
   ['iris', 'Iris d\'eau', 'iris', 'fleur', 2, 'nuit', [140, 116, 230]],
 ];
-const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], anguille: [3, 'nuit'], sardine: [1, null], raie: [3, 'robuste'], lune: [5, 'souffle'], koi: [4, 'apprivoiseur'] };
+// (§118) la koï passe peu commune : la cerisaie ne vient qu'aux explorations 1 à 5, une exotique n'y mordrait jamais
+const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], anguille: [3, 'nuit'], sardine: [1, null], raie: [3, 'robuste'], lune: [5, 'souffle'], koi: [2, 'apprivoiseur'] };
 // Tous les ingrédients, par identifiant : les poissons gardent le leur ; viandes et produits de la
 // flore en prennent un préfixé (v_brouteur, p_chene) ; et la baie, le nectar.
 const INGR = {};
@@ -16132,7 +16719,8 @@ function preparer(ids) {
   const q = Math.max(R ? 4 : 1, Math.min(5, Math.round(score / 2.6)));
   const soin = Math.min(1, L.reduce((s, i) => s + i.soin, 0) * (.8 + .15 * q) + (R && R.id === 'lune' ? 1 : 0));
   // l'effet : celui qui revient le plus ; deux effets à égalité se contrarient
-  const rang = i => i.id && i.id.startsWith('p_fl') ? (i.r >= 6 ? 4 : i.r >= 5 ? 3 : 2) : 1;   // rare 2, légendaire 3, épique 4 — la flore de flore.js est toute rare pour l'instant (2)
+  // la flore de flore.js (§117) : commune et peu commune comme un ingrédient ordinaire (1), rare et exotique 2, légendaire 3, épique 4
+  const rang = i => i.id && i.id.startsWith('p_fl') ? (i.r >= 6 ? 4 : i.r >= 5 ? 3 : i.r >= 3 ? 2 : 1) : 1;
   const pu = Math.max(...L.map(rang));
   const cpt = {}; for (const i of L) if (i.tag) cpt[i.tag] = (cpt[i.tag] || 0) + rang(i);
   const tri = Object.entries(cpt).sort((a, b) => b[1] - a[1]);
@@ -16365,6 +16953,18 @@ function dessinIngr(d, i) {
 }
 for (const id in INGR) if (INGR[id].src === 'denree') DESSINS['ingr_' + id] = d => dessinIngr(d, INGR[id]);
 DESSINS.plat = d => { d.rect(2, 9, 13, 10, [150, 120, 90]); d.rect(3, 11, 12, 12, [120, 92, 66]); d.rect(5, 13, 10, 13, [96, 72, 52]); d.disque(8, 8, 4, [196, 130, 80]); d.net(6, 7, [230, 180, 120]); d.net(9, 6, [120, 170, 90]); d.ligne(6, 4, 7, 1, [236, 236, 236]); d.ligne(10, 4, 9, 1, [236, 236, 236]); };
+DESSINS.carre = d => {                              // (§119) un carré de terre, bordé de planches, deux pousses
+  d.rect(2, 4, 13, 13, [108, 80, 56]); d.ligne(3, 7, 12, 7, [80, 58, 40]); d.ligne(3, 10, 12, 10, [80, 58, 40]);
+  d.ligne(1, 4, 14, 4, PIX.bois); d.ligne(1, 13, 14, 13, PIX.boisF); d.ligne(1, 4, 1, 13, PIX.boisF); d.ligne(14, 4, 14, 13, PIX.boisF);
+  d.ligne(5, 9, 5, 5, PIX.fibreF); d.net(4, 5, PIX.fibre); d.net(6, 6, PIX.fibre); d.ligne(10, 12, 10, 8, PIX.fibreF); d.net(9, 8, PIX.fibreC); d.net(11, 9, PIX.baie);
+};
+DESSINS.carre2 = d => { DESSINS.carre(d); for (const x of [1, 5, 10, 14]) { d.ligne(x, 2, x, 5, PIX.boisF); } d.ligne(1, 3, 14, 3, PIX.bois); };   // (§120) clos
+DESSINS.carre3 = d => { DESSINS.carre2(d); d.ligne(11, 12, 11, 6, PIX.boisF); d.disque(11, 6, 2.4, PIX.vert); d.net(10, 5, PIX.vertC); };   // (§120) avec son arbre
+DESSINS.seau = d => {                               // (§119) un seau de bois cerclé, l'eau à ras
+  d.rect(4, 6, 11, 13, PIX.bois); d.ligne(4, 6, 4, 13, PIX.boisF); d.ligne(11, 6, 11, 13, PIX.boisF);
+  d.ligne(4, 8, 11, 8, PIX.pierre); d.ligne(4, 12, 11, 12, PIX.pierre); d.rect(5, 6, 10, 6, PIX.bleuC);
+  d.arc(7.5, 6, 4.5, 3.4, 6.0, PIX.pierreC, 1);
+};
 DESSINS.marmite = d => { d.rect(3, 6, 12, 12, [80, 76, 74]); d.rect(2, 5, 13, 6, [110, 104, 100]); d.rect(4, 7, 11, 7, [120, 170, 100]); d.ligne(1, 5, 1, 8, [110, 104, 100]); d.ligne(14, 5, 14, 8, [110, 104, 100]);
   d.rect(4, 13, 11, 14, [246, 150, 52]); d.net(6, 15, [255, 210, 110]); d.net(9, 15, [255, 210, 110]); d.ligne(6, 3, 7, 1, [236, 236, 236]); d.ligne(9, 3, 10, 1, [236, 236, 236]); };
 DESSINS.ongletCuisine = DESSINS.marmite;
@@ -16378,11 +16978,11 @@ DESSINS.tourdef = d => { d.rect(4, 12, 5, 14, PIX.boisF); d.rect(10, 12, 11, 14,
 DESSINS.tablesoin = d => { d.rect(2, 8, 13, 9, PIX.papier); d.rect(2, 10, 13, 10, PIX.bois); d.rect(3, 11, 4, 14, PIX.boisF); d.rect(11, 11, 12, 14, PIX.boisF); d.rect(4, 5, 7, 7, PIX.pierre); d.ligne(8, 2, 6, 5, PIX.boisC); d.rect(9, 6, 12, 7, PIX.osC); d.net(10, 6, PIX.rougeC); };
 const icIngr = id => INGR[id].src === 'poisson' ? 'poisson_' + id : INGR[id].src === 'baie' ? 'baies' : id === 'nectar' ? 'nectar' : 'ingr_' + id;   // le nectar garde sa goutte d'ambre
 // --- LA RARETÉ, EN COULEURS : tout ce qui a un rang le dit de la même façon, par son nom et par le
-// tour de sa vignette. 1 commun (neutre), 2 peu commun (vert), 3 rare (bleu), 4 très rare (violet),
+// tour de sa vignette. 1 commun (neutre), 2 peu commun (vert), 3 rare (bleu), 4 exotique (violet),
 // 5 légendaire (or), 6 épique (rouge). Une bête a la rareté de sa viande ; une robe rare la monte à 3,
 // une forme extrêmement rare à 5 ; un plat a celle de ses étoiles. ---
-const NOM_RARE = ['', 'commun', 'peu commun', 'rare', 'très rare', 'légendaire', 'épique'];
-const RANG_RARE = { 'commun': 1, 'peu commun': 2, 'rare': 3, 'très rare': 4, 'légendaire': 5 };
+const NOM_RARE = ['', 'commun', 'peu commun', 'rare', 'exotique', 'légendaire', 'épique'];
+const RANG_RARE = { 'commun': 1, 'peu commun': 2, 'rare': 3, 'très rare': 4, 'exotique': 4, 'légendaire': 5 };
 const clRar = r => r > 1 ? 'rar' + Math.min(6, r | 0) : '';
 const nomRare = (n, r) => r > 1 ? `<span class="${clRar(r)}">${ESC(n)}</span>` : ESC(n);
 const rareIngr = id => (INGR[id] || {}).r || 1;
@@ -16456,7 +17056,7 @@ const COMPETENCES = {
   tellurien: { n: 'Secousse', fam: ['racine', 'champignon', 'fleur'], d: 'il frappe le sol : les bêtes autour de lui sont repoussées et étourdies',
     v: r => r ? decAlch(SECOUSSE[r].r) + ' cases · ' + decAlch(SECOUSSE[r].et) + ' s étourdies · toutes les ' + SECOUSSE[r].del + ' s' : 'pas encore apprise' },
   doux: { n: 'Trouvaille', fam: ['fleur', 'douceur', 'graine'], d: 'en récoltant, elle déniche parfois un produit rare de la flore, de ceux qui servent aux potions',
-    v: r => r ? Math.round(TROUVE[r] * 100) + ' % par récolte rapportée' + (r >= 3 ? ' · parfois très rare' : '') : 'pas encore apprise' },
+    v: r => r ? Math.round(TROUVE[r] * 100) + ' % par récolte rapportée' + (r >= 3 ? ' · parfois exotique' : '') : 'pas encore apprise' },
   // les créatures à part : une compétence par espèce
   felin: { n: 'Voile de brume', fam: ['fleur', 'champignon', 'viande'], d: 'quand une bête vous a pris pour proie, il vous enveloppe de brume : vous voilà invisible',
     v: r => r ? BRUME[r].dur + ' s invisible · toutes les ' + BRUME[r].del + ' s' : 'pas encore apprise' },
@@ -16671,7 +17271,7 @@ function compSecousse(b, r) {
   SON.jouer('pilon', {}, b.x, b.y, b.z); poussiere(b.x, b.y, b.z, 22, 3.4); poussiere(b.x, b.y, b.z, 12, 1.8);
   if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 144) { P.secousse = t; P.secousseK = .45; }
 }
-// Ce qu'une Douce déniche en récoltant : un produit rare de la flore ; au rang 3, parfois un très rare.
+// Ce qu'une Douce déniche en récoltant : un produit rare de la flore ; au rang 3, parfois un exotique.
 function trouvaille(r) {
   const L4 = r >= 3 && Math.random() < .15 ? Object.keys(INGR).filter(id => INGR[id].src === 'denree' && INGR[id].fam !== 'viande' && INGR[id].r === 4) : [];
   const L = L4.length ? L4 : Object.keys(INGR).filter(id => id.startsWith('p_') && INGR[id].r === 3);
@@ -18313,6 +18913,12 @@ function emitPortailIle(view, out) {
   }
 }
 function emitCamp(view, out) {
+  for (const c of champsIci()) { const ox = c.x + .5, oy = c.y + .5; for (const o of champOs(c)) {   // (§119) les carrés de culture
+    const A = [ox + o.a[0], oy + o.a[1], c.z + o.a[2]], Bb = [ox + o.b[0], oy + o.b[1], c.z + o.b[2]];
+    const cle = view.kEnt && (o.sol ? kSol(A[0], Bb[0], A[1] - .5, A[1] + .5) : view.kEnt((A[0] + Bb[0]) / 2, (A[1] + Bb[1]) / 2));
+    emitLimb(A, Bb, o.w, o.h, o.c, view, out, cle, rangSol(c.z, false) + (o.sol ? .5 : 0));
+  } }
+  for (const f of CHAMP_RARES.values()) emitFoe(f, view, out);   // (§120) les plantes rares semées
   for (const c of campsIci()) for (const o of campOs(c)) {   // la bannière rouge : le campement qu'on pille
     const A = [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], Bb = [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]];
     // une case de terre battue se trie comme le sol — par le fond de son empreinte, et avant ce qu'elle porte
@@ -19557,7 +20163,7 @@ const MAT_FAM = { automate: 'metal', coursier: 'plume', doux: 'pelage', tellurie
 const matiereEspece = sp => !sp ? null : sp.illusion ? 'lisse' : sp.plante || sp.batiment ? '*' : sp.pnj || sp.villageois ? 'tissu' : MAT_CORPS[sp.corps] || MAT_FAM[sp.fam] || (sp.donjon ? 'metal' : 'chitine');
 // La matière d'une pièce d'après sa couleur, quand rien d'autre ne la dit : le gris est de la pierre
 // (le fer s'il est sombre), le brun du bois, le vert et le clair de la toile, le vif de l'étoffe.
-const MAT_VUE = new Map(), MAT_GENRE = { bati: 0, corps: 1, flore: 2, pierre: 3, tronc: 4, meca: 5 };
+const MAT_VUE = new Map(), MAT_GENRE = { bati: 0, corps: 1, flore: 2, pierre: 3, tronc: 4, meca: 5, terre: 6 };
 function matiereCouleur(c, genre) {
   const cle = ((c[0] & 0xf8) << 16 | (c[1] & 0xf8) << 8 | (c[2] & 0xf8)) + (MAT_GENRE[genre] | 0) * 0x1000000;
   let m = MAT_VUE.get(cle); if (m !== undefined) return m;
@@ -19568,6 +20174,7 @@ function matiereCouleur(c, genre) {
   else if (genre === 'flore') n = g >= r && g >= b && sat > .12 ? 'touffu' : brun && lum < 170 ? 'ecorce' : 'herbe';
   else if (genre === 'pierre') n = sat < .35 ? 'bloc' : null;
   else if (genre === 'meca') n = sat < .22 ? 'metal' : brun ? (sat > .6 && lum > 125 ? 'tissu' : 'planche') : 'tissu';   // sous terre, le gris est de la tôle
+  else if (genre === 'terre') n = 'terre';             // (§119) la terre labourée des carrés de culture
   else if (genre === 'tronc') n = brun && lum < 175 ? 'ecorce' : sat < .12 && lum < 150 ? 'ecorce' : null;
   else n = sat < .15 ? (lum < 75 ? 'metal' : 'bloc') : g >= r && g >= b ? 'toile' : brun ? (lum > 185 ? 'toile' : sat > .6 && lum > 125 ? 'tissu' : 'planche') : 'tissu';
   m = (n && TEX[n]) || null; MAT_VUE.set(cle, m); return m;
@@ -19881,6 +20488,7 @@ function actionContexte() {
   if (auPortailIle()) return { v: 'FRANCHIR', o: 'arche · exploration ' + (profondeur() + 1), f: franchirPortail };
   const lta = lutrinAction(); if (lta) return lta;     // un lutrin de pierre : le Tome I d'une matière
   const cpa = campAction(); if (cpa) return cpa;       // au campement : la tente, un module, un emplacement libre
+  const cha = champAction(); if (cha) return cha;      // (§119) à un carré de culture : semer, arroser, la pousse
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && (!b.sp.batiment || b.sp.plante) && !b.cache && Math.abs(b.z - P.z) < 2) {
@@ -20360,7 +20968,7 @@ function majCible() {
       info = `${nomEspeceDe(o).toLowerCase()} · ${nomRole(o.comp.role)} · ${nomMode(o.comp.mode)} · ${DITS_ETAT[o.etat] || o.etat}`; }
     else if (coursier(o.sp) && !o.tame) { nom = nomEspeceDe(o);
       info = o === P.monture && Rodeo ? `rodéo · fougue ${Math.round(Rodeo.fougue * 100)} % · tenez ACTION` : `${DITS_ETAT[o.etat] || o.etat} · souffle ${Math.round((o.endu ?? 1) * 100)} % · se monte au contact`; }
-    else if (o.sp.plante && o.pl) { nom = o.pl.n; cl = o.pl.port === 'vive' ? 'meca' : 'lie'; info = 'plante rare' + (o.pl.port === 'vive' ? (o.etat === 'arme' ? ' · elle s\'arme !' : ' · elle attaque qui s\'approche') : o.cueillie ? ' · cueillie, elle repousse' : ' · à cueillir'); }
+    else if (o.sp.plante && o.pl) { nom = o.pl.n; cl = o.pl.port === 'vive' ? 'meca' : 'lie'; info = 'plante ' + (o.pl.rang || 'rare') + (o.pl.port === 'vive' ? (o.etat === 'arme' ? ' · elle s\'arme !' : ' · elle attaque qui s\'approche') : o.cueillie ? ' · cueillie, elle repousse' : ' · à cueillir'); }
     else if (o.sp.villageois) { nom = o.nm ? o.nm.nom : o.sp.n; info = (VL_DIT_METIER[o.metier] || '') + ' du village' + (o.cache ? ' · chez lui' : o.etat === 'fuir' ? ' · en fuite' : o.etat === 'combat' ? ' · se bat' : o.etat === 'repas' ? ' · au repas' : ''); }
     else if (o.sp.horreur) { nom = o.sp.n; cl = 'meca'; info = (DITS_ETAT[o.etat] || o.etat) + (o.conf > 0 && !o.tame ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : '') + (o.sp.corps === 'silencieux' ? ' · il n\'entend que le bruit' : o.dehors ? ' · dehors : frappez !' : ' · sous la terre, hors d\'atteinte'); }
     else if (o.sp.boss) { nom = o.sp.n; cl = 'meca';
@@ -21588,6 +22196,16 @@ void main() { o = uC; }`;
         boite(TD, [q.x + o.a[0], q.y + o.a[1], q.z + o.a[2]], [q.x + o.b[0], q.y + o.b[1], q.z + o.b[2]],
           o.w, o.h, o.c, 0, o.luit ? 0 : kCouleur(o.c, 'pierre'), hq, 0, 0, 0, undefined, 2);
     }
+    for (const c of champsIci()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {   // (§119) les carrés de culture
+      const ox = c.x + .5, oy = c.y + .5, hc = L_FIXE + 256 * horizAt(ox, oy);
+      for (const o of champOs(c))
+        boite(TD, [ox + o.a[0], oy + o.a[1], c.z + o.a[2]], [ox + o.b[0], oy + o.b[1], c.z + o.b[2]],
+          o.w, o.h, o.c, 0, kCouleur(o.c, o.sol ? 'terre' : 'bati'), hc, 0, 0, 0, undefined, 2);
+    }
+    for (const f of CHAMP_RARES.values()) if ((f.x - ex) ** 2 + (f.y - ey) ** 2 < 60 * 60) {   // (§120) les plantes rares semées
+      const { U, put } = posBete(f), hb = L_FIXE + 256 * horizAt(f.x, f.y);
+      for (const o of foeBones(f)) boite(TD, put(o.a), put(o.b), o.w, o.h, o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(f.sp, o.c), o.luit ? L_FIXE : hb, 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5);
+    }
     for (const c of campsIci()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {
       const hc = L_FIXE + 256 * horizAt(c.x, c.y);
       for (const o of campOs(c))
@@ -21873,6 +22491,9 @@ function photo() {
     camp: P.camp ? { graine: P.camp.graine, x: Math.round(P.camp.x * 100) / 100,
                      y: Math.round(P.camp.y * 100) / 100, z: P.camp.z, niv: nivCamp(),
                      expl: P.camp.expl || 0 } : null,
+    champs: P.champs.map(c => ({ g: c.g, x: c.x, y: c.y, z: c.z, n: c.n, s: c.s.map(s => ({ e: s.e, m: Math.round(s.m * 1000) / 1000, eau: Math.round(s.eau * 1000) / 1000, t: s.t, h: s.h | 0, eng: s.eng | 0 })) })),
+    carres: Object.assign({}, P.carresN),
+    coupesCamp: P.camp && coupesG === P.camp.graine && (CAMP_COUPES.size || PL_CUEILLIES.size) ? { g: coupesG, c: coupesEcrire(), pl: [...PL_CUEILLIES] } : null, aviseRepousse: P.aviseRepousse ? 1 : 0,   // (§124) graines: Object.assign({}, P.graines), graineSel: P.graineSel || null, seau: P.seau,
     campNiv: nivCamp(), modules: Object.assign({}, P.modules), tomes: Object.assign({}, P.tomes), tomesPortes: P.tomesPortes.slice(), tomeHalte: P.tomeHalte | 0, sorts: P.sorts.slice(), sortMain: P.sortMain || null, codex: P.codex.slice(), nomsSorts: Object.assign({}, P.nomsSorts), alchimie: Object.assign({}, P.alchimie), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), f: P.chaudron.f } : null, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     coffre: Object.assign({}, P.coffre),
@@ -22014,6 +22635,17 @@ function appliquer(d, vivantes) {
   // le niveau tient au personnage ; une sauvegarde d'avant le portait sur le campement posé
   P.campNiv = (nb(d.campNiv, 1, CAMP_MAX, 0) | 0) || (c ? nb(c.niv, 1, CAMP_MAX, 1) | 0 : 0) || 1;
   P.modules = {}; for (const m of MODULES) { const n = nb(d.modules && d.modules[m.id], 0, 999, 0) | 0; if (n) P.modules[m.id] = n; }
+  // (§119) la culture
+  P.champs = Array.isArray(d.champs) ? d.champs.slice(0, 3).map(champLu).filter(Boolean) : [];
+  { const o = Number.isFinite(d.carres) ? { 1: d.carres } : d.carres && typeof d.carres === 'object' ? d.carres : {};   // (§120) un nombre : une sauvegarde du §119
+    P.carresN = {}; for (const n of [1, 2, 3]) { const v = Math.max(P.champs.filter(c => c.n === n).length, nb(o[n], 0, 3, 0) | 0); if (v) P.carresN[n] = v; }
+    delete P.objets.carre; delete P.objets.carre2; delete P.objets.carre3;
+    if (P.carresN[1]) P.objets.carre = 1; if (P.carresN[2]) P.objets.carre2 = 1; if (P.carresN[3]) P.objets.carre3 = 1; }
+  P.graines = {}; if (d.graines && typeof d.graines === 'object') for (const [k, n] of Object.entries(d.graines)) if (graineInfo(k)) { const v = nb(n, 0, 999, 0) | 0; if (v) P.graines[k] = v; }
+  P.graineSel = typeof d.graineSel === 'string' && P.graines[d.graineSel] ? d.graineSel : null;
+  P.seau = nb(d.seau, 0, SEAU_MAX, 0) | 0;
+  coupesLire(d.coupesCamp); if (P.camp && coupesG && coupesG !== P.camp.graine) { CAMP_COUPES.clear(); PL_CUEILLIES.clear(); coupesG = 0; }   // (§124)
+  P.aviseRepousse = d.aviseRepousse ? 1 : 0; terrSig = null;
   alchimieLue(d);
   if (P.camp) P.camp.niv = P.campNiv;
   { const o = d.portail && typeof d.portail === 'object' ? d.portail : {};

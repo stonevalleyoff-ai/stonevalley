@@ -117,7 +117,8 @@ function nmVenir(force, pour) {
   // qui vient : un à trois voyageurs, de métiers différents (le devin, à partir de l'exploration 3) ;
   // pour les trois métiers d'avant, une fois sur deux l'un des neuf qu'on connaît, s'il vit encore
   const niv = typeof profondeur === 'function' ? profondeur() : 0, vivants = NM_GENS.filter(g => !NM.moi.morts.includes(g.nom));
-  const POIDS = { marchand: 3, conteur: 2.5, dresseur: 2, cartographe: 2, egare: 1.5, devin: niv >= 3 ? 1.3 : 0 };
+  const POIDS = { marchand: 3, conteur: 2.5, dresseur: 2, cartographe: 2, egare: 1.5, devin: niv >= 3 ? 1.3 : 0,
+    herboriste: 2, forgeron: 1.5, musicien: 1.5, chasseur: niv >= 2 ? 1.6 : 0, collectionneur: niv >= 2 ? 1.2 : 0, erudit: niv >= 3 ? 1 : 0 };   // (§122)
   const nb = force && force.n ? force.n : 1 + (Math.random() < .55 ? 1 : 0) + (Math.random() < .25 ? 1 : 0), roles = [];
   if (force && force.roles) roles.push(...force.roles);
   while (roles.length < nb) { const L = Object.keys(POIDS).filter(r => POIDS[r] && !roles.includes(r)); let x = Math.random() * L.reduce((a, r) => a + POIDS[r], 0); for (const r of L) if ((x -= POIDS[r]) < 0) { roles.push(r); break; } }
@@ -360,6 +361,28 @@ function nmOs(f) {
   } else if (role === 'egare') {
     add([-.14, 0, hz + .02], [-.15, 0, cou + .02], .2, .15, [124, 98, 70]);       // un baluchon, tout ce qui lui reste
     add([-.18, 0, cou + .02], [-.1, 0, cou + .08], .03, .03, [90, 70, 50]);
+  } else if (role === 'herboriste') {                                              // (§122) un chapeau de paille, une hotte de plants
+    add([0, 0, tz + .075], [0, 0, tz + .088], .34, .34, [214, 186, 110]); add([0, 0, tz + .088], [0, 0, tz + .13], .12, .12, [196, 168, 96]);
+    add([-.15, 0, hz], [-.15, 0, cou + .04], .2, .16, [150, 110, 62]);
+    for (const [y0, h0, c0] of [[-.05, .14, [96, 160, 70]], [.04, .2, [120, 186, 84]], [0, .1, [230, 120, 150]]]) add([-.15, y0, cou + .04], [-.16, y0, cou + .04 + h0], .04, .04, c0);
+  } else if (role === 'chasseur') {                                                // (§122) un bonnet à plume, l'arbalète en travers du dos
+    add([-.01, 0, tz + .07], [-.03, 0, tz + .12], .15, .14, [70, 60, 50]); add([-.04, .05, tz + .1], [-.16, .07, tz + .22], .025, .025, [220, 70, 60]);
+    add([-.13, -.16, hz + .05], [-.13, .16, cou + .1], .04, .04, [96, 70, 48]); add([-.14, -.14, cou + .02], [-.14, .14, cou + .02], .03, .03, [140, 140, 150]);
+  } else if (role === 'collectionneur') {                                          // (§122) un haut chapeau, un monocle, le cabinet sur le dos
+    add([0, 0, tz + .075], [0, 0, tz + .085], .2, .2, [52, 44, 60]); add([0, 0, tz + .085], [0, 0, tz + .19], .12, .12, [62, 52, 72]);
+    add([.062, .04, tz + .018], [.064, .04, tz + .02], .035, .035, lueur);
+    add([-.16, 0, hz - .02], [-.16, 0, cou + .12], .22, .18, [116, 78, 50]);
+    for (const z of [hz + .05, hz + .15, cou + .02]) add([-.05, 0, z], [-.049, 0, z + .01], .16, .02, lueur);
+  } else if (role === 'forgeron') {                                                // (§122) le tablier de cuir, le marteau dans le dos
+    add([.11, 0, hz - .06], [.11, 0, cou - .03], .03, .2, [74, 52, 40]);
+    add([-.13, .05, hz + .02], [-.13, .02, cou + .16], .03, .03, [110, 82, 58]); add([-.13, -.04, cou + .16], [-.13, .08, cou + .16], .07, .07, [96, 100, 112]);
+  } else if (role === 'erudit') {                                                  // (§122) une calotte, des lunettes, des livres sur le dos
+    add([-.01, 0, tz + .06], [-.02, 0, tz + .1], .14, .14, robe);
+    for (const s2 of [-1, 1]) add([.062, s2 * .03, tz + .015], [.063, s2 * .03, tz + .03], .025, .025, lueur);
+    for (const [z, c0] of [[hz + .02, [120, 50, 50]], [hz + .1, [50, 80, 120]], [hz + .18, [90, 110, 60]]]) add([-.14, 0, z], [-.14, 0, z + .07], .14, .2, c0);
+  } else if (role === 'musicien') {                                                // (§122) un béret à plume, le luth dans le dos
+    add([-.01, 0, tz + .07], [-.02, .02, tz + .11], .17, .15, clair); add([-.03, -.05, tz + .1], [-.14, -.1, tz + .2], .02, .02, lueur);
+    add([-.15, 0, hz + .02], [-.15, 0, hz + .18], .2, .06, [176, 120, 70]); add([-.15, 0, hz + .18], [-.15, 0, cou + .2], .035, .035, [120, 82, 50]);
   } else if (role === 'dresseur') {
     const cb = Math.sin(ph * 2) * .02 * v + Math.sin(f.t * 1.3) * .006;          // la cape
     add([-.09, 0, cou - .01], [-.12 - cb, 0, hz - .08], .24, .025, clair);
@@ -417,6 +440,26 @@ function nmAction() {
 //  prennent des jetons : {nom} {moi} {bete} {betes} {role}. « Au revoir » s'ajoute de lui-même.
 // ============================================================
 const nmAmi = b => NM.moi.amis[b.nm.nom] || 0;
+// ---------- le privilège (§123) ----------
+// Faire affaire avec un voyageur du Seuil est un privilège : chacun ne fait qu'UNE affaire par halte (un
+// achat, une vente, un service) et ne donne qu'UN indice (une rumeur, un conseil, une marque) ; un ami, deux
+// de chaque. Ce qu'ils proposent est réduit d'autant : une curiosité, deux trocs, un ou deux sachets, une
+// marque, une technique, un service. Les nœuds d'affaire sont listés dans NM_AFFAIRES : au-delà, leurs
+// choix restent visibles mais grisés. Les indices passent par nmUnIndice.
+const nmBudget = b => nmAmi(b) >= 3 ? 2 : 1;
+const nmPeutAffaire = b => (b.nAff || 0) < nmBudget(b);
+const nmAffaire = b => { b.nAff = (b.nAff || 0) + 1; };
+const NM_AFFAIRES = { marchand: ['etal', 'curios'], dresseur: ['apprendre'], cartographe: ['cartes'], devin: ['vision', 'autre'], herboriste: ['graines'],
+  collectionneur: ['rachat', 'echange'], forgeron: ['forge'], erudit: ['tomes'], musicien: ['jouer'] };
+const NM_TOUT_DIT = ['C\'est tout ce que je sais pour aujourd\'hui.', 'Je t\'ai dit ce que je savais. Le Seuil m\'en soufflera d\'autres.', 'Le reste, je le garde pour une autre halte.'];
+// Un indice, s'il en reste à donner : gen() le tire (rien : on ne compte rien, l'appelant répond autrement).
+function nmUnIndice(b, gen, retour = 'accueil') {
+  const fin = { t: 'Autre chose.', va: retour };
+  if ((b.nInd || 0) >= nmBudget(b)) return { dit: NM_TOUT_DIT[Math.random() * NM_TOUT_DIT.length | 0], choix: [fin] };
+  const d = gen(); if (!d) return null;
+  b.nInd = (b.nInd || 0) + 1;
+  return { dit: d, choix: [fin] };
+}
 const nmNiveau = b => nmAmi(b) >= 3 ? 'ami' : nmAmi(b) >= 1 ? 'connu' : 'inconnu';
 function nmGagne(b, n) { NM.moi.amis[b.nm.nom] = Math.min(10, nmAmi(b) + n); }
 function nmJetons(s, b) {
@@ -488,8 +531,8 @@ const NM_TROCS = [
 const NM_MOTS = { bois: 'bois', fibre: 'fibres', pierre: 'pierres', os: 'os', eclat: 'éclats', ferraille: 'ferraille', nectar: 'nectar', baies: 'baies', fleches: 'flèches' };
 function nmTirerTrocs() {
   const niv = typeof profondeur === 'function' ? profondeur() : 0;
-  const L = NM_TROCS.filter(o => !(o.niv > niv)).slice().sort(() => Math.random() - .5).slice(0, 4);
-  return L.map(o => ({ donne: o.donne, recoit: o.recoit, stock: 2 }));
+  const L = NM_TROCS.filter(o => !(o.niv > niv)).slice().sort(() => Math.random() - .5).slice(0, 2);   // (§123) deux trocs, un de chaque
+  return L.map(o => ({ donne: o.donne, recoit: o.recoit, stock: 1 }));
 }
 const nmA = r => r === 'fleches' ? P.fleches || 0 : auSac(r);
 const nmMet = (r, v) => { if (r === 'fleches') P.fleches = Math.max(0, v | 0); else metSac(r, v); };
@@ -512,7 +555,7 @@ function nmEtal(b) {
 // Les curiosités (§109, index.html) : trois par halte, plus rares à mesure que l'île est loin ; une seule de chaque.
 // Elles se paient en éclats et en matière ; un ami a un rabais, le sceau des nomades aussi.
 function nmCurios(b) {
-  const C = NM.car; if (!C.curios) C.curios = tirerCurios(typeof profondeur === 'function' ? profondeur() : 0, 3);
+  const C = NM.car; if (!C.curios) C.curios = tirerCurios(typeof profondeur === 'function' ? profondeur() : 0, 1);   // (§123) une seule
   const k = (nmAmi(b) >= 3 ? .85 : 1) * (1 - .25 * curioFx('marchand'));
   const choix = C.curios.map(id => {
     const o = CURIO[id], prix = prixCurio(o, k), a = !!P.objets[id], manque = Object.entries(prix).filter(([r, n]) => nmA(r) < n);
@@ -540,9 +583,11 @@ const NM_SAVOIRS = {
     lecon: 'Respire par le ventre, lentement. Les bêtes ombrageuses entendent un cœur qui s\'emballe. Leur méfiance montera moins vite.' },
 };
 function nmApprendre(b) {
-  const ami = nmAmi(b) >= 3, reste = Object.entries(NM_SAVOIRS).filter(([id]) => !nmSait(id));
+  const ami = nmAmi(b) >= 3, tout = Object.entries(NM_SAVOIRS).filter(([id]) => !nmSait(id));
+  if (tout.length && (!b.savoir || nmSait(b.savoir))) b.savoir = tout[Math.random() * tout.length | 0][0];   // (§123) une seule technique par halte
+  const reste = tout.filter(([id]) => id === b.savoir);
   if (!reste.length) return { dit: 'Je t\'ai appris tout ce que je sais. Le reste, les bêtes te l\'apprendront.', choix: [{ t: 'Merci, {nom}.', va: 'accueil' }] };
-  return { dit: ami ? 'Pour un ami, les leçons sont offertes. Que veux-tu apprendre ?' : 'Une leçon se paie : ce que je donne, je l\'ai appris de bêtes qui m\'ont mordu. Choisis.',
+  return { dit: ami ? 'Pour un ami, la leçon est offerte. Aujourd\'hui, je t\'apprends celle-ci.' : 'Une leçon se paie : ce que je donne, je l\'ai appris de bêtes qui m\'ont mordu. Aujourd\'hui, celle-ci.',
     choix: reste.map(([id, s]) => {
       const manque = !ami && Object.entries(s.prix).some(([r, n]) => nmA(r) < n);
       return { t: s.n + ' — ' + s.d + (ami ? ' (offert)' : ' (' + nmListe(s.prix) + ')'), grise: manque, va: 'apprendre',
@@ -611,16 +656,19 @@ NM_INDICES.tomes = [
 function nmTomes(b) {
   const retour = { t: 'Autre chose.', va: 'accueil' };
   if (typeof LUTRINS === 'undefined') return { dit: 'Les livres dorment encore. Reviens me voir.', choix: [retour] };
-  const ici = LUTRINS.filter(l => !tomeAcquis(l.m, 1));
-  const dit = ici.length
+  const ind = (b.nInd || 0) < nmBudget(b);              // (§123) un indice : le lutrin le plus proche
+  const ici = ind ? LUTRINS.filter(l => !tomeAcquis(l.m, 1)).sort((u, v) => Math.hypot(u.x - P.x, u.y - P.y) - Math.hypot(v.x - P.x, v.y - P.y)).slice(0, 1) : [];
+  if (ind) b.nInd = (b.nInd || 0) + 1;
+  const dit = !ind ? NM_TOUT_DIT[Math.random() * NM_TOUT_DIT.length | 0] : ici.length
     ? ici.map(l => { l.vu = true; return 'Un lutrin de pierre porte le ' + nomTome(cleTome(l.m, 1)) + ', ' + versLe(l.x - P.x, l.y - P.y) + '.'; }).join(' ') + ' La nuit, son livre luit : tu le verras de loin.'
     : nmPioche('t', NM_INDICES.tomes);
   const m = tomeConteur(), ami = nmAmi(b) >= 3, choix = [];
   if (m) {
-    const manque = !ami && Object.entries(TOME_CONTEUR).some(([r, n]) => nmA(r) < n);
-    choix.push({ t: 'Cède-moi le ' + nomTome(cleTome(m, 2)) + '.' + (ami ? ' (offert)' : ' (' + nmListe(TOME_CONTEUR) + ')'), grise: manque, va: 'tomes',
+    const manque = !ami && Object.entries(TOME_CONTEUR).some(([r, n]) => nmA(r) < n), pa = nmPeutAffaire(b);
+    choix.push({ t: 'Cède-moi le ' + nomTome(cleTome(m, 2)) + '.' + (!pa ? ' — nous avons déjà fait affaire' : ami ? ' (offert)' : ' (' + nmListe(TOME_CONTEUR) + ')'), grise: manque || !pa, va: 'tomes',
       fait: () => {
         if (!gagnerTome(m, 2)) return null;
+        nmAffaire(b);
         if (!ami) for (const [r, n] of Object.entries(TOME_CONTEUR)) nmMet(r, nmA(r) - n);
         P.tomeHalte = NM.moi.vues; nmGagne(b, 1); if (typeof majSac === 'function') majSac();
         say(nomTome(cleTome(m, 2)) + ' reçu · à déchiffrer au pupitre de la bibliothèque', 3.2);
@@ -650,7 +698,7 @@ const NM_DIALOGUES = {
     curios: nmCurios,
     origine: () => ({ dit: NM_LORE.origine, choix: [{ t: 'Et vous ne vous arrêtez jamais ?', va: 'jamais' }, { t: 'Parlons d\'autre chose.', va: 'accueil' }] }),
     jamais: { dit: ['S\'arrêter, c\'est laisser le Seuil se refermer. Nous préférons les haltes : courtes, et souvent.'], choix: [{ t: 'Je comprends.', va: 'accueil' }] },
-    rumeur: () => ({ dit: nmRumeur(), choix: [{ t: 'Une autre ?', va: 'rumeur' }, { t: 'Parlons d\'autre chose.', va: 'accueil' }] }),
+    rumeur: b => nmUnIndice(b, nmRumeur),
     peuple: () => ({ dit: NM_LORE.peuple, choix: [{ t: 'Parlons d\'autre chose.', va: 'accueil' }] }),
   },
   dresseur: {
@@ -671,10 +719,10 @@ const NM_DIALOGUES = {
       { t: 'Que sais-tu de cette île ?', va: 'ile' }, { t: 'Un conseil pour la route ?', va: 'conseil' }, { t: 'Que sais-tu des tomes ?', va: 'tomes' }, { t: 'Parle-moi des automates.', va: 'automates' },
       { t: 'Qui êtes-vous ?', va: 'peuple' }, { t: 'Qu\'est-ce que le Seuil ?', va: 'seuil' }] }),
     tomes: nmTomes,
-    tomesPlus: () => ({ dit: nmPioche('t', NM_INDICES.tomes), choix: [{ t: 'Encore.', va: 'tomesPlus' }, { t: 'Revenons aux tomes.', va: 'tomes' }, { t: 'Autre chose.', va: 'accueil' }] }),
-    automates: () => ({ dit: nmPioche('a', NM_INDICES.automates), choix: [{ t: 'Encore.', va: 'automates' }, { t: 'Autre chose.', va: 'accueil' }] }),
-    conseil: () => ({ dit: nmRumeur(), choix: [{ t: 'Un autre.', va: 'conseil' }, { t: 'Autre chose.', va: 'accueil' }] }),
-    ile: () => ({ dit: nmIndiceVivant('ici') || 'Cette île ne m\'a rien dit que tu ne saches déjà. Les autres en savent peut-être plus : demande-leur.', choix: [{ t: 'Autre chose sur l\'île ?', va: 'ile' }, { t: 'Autre chose.', va: 'accueil' }] }),
+    tomesPlus: b => nmUnIndice(b, () => nmPioche('t', NM_INDICES.tomes)),
+    automates: b => nmUnIndice(b, () => nmPioche('a', NM_INDICES.automates)),
+    conseil: b => nmUnIndice(b, nmRumeur),
+    ile: b => nmUnIndice(b, () => nmIndiceVivant('ici')) || { dit: 'Cette île ne m\'a rien dit que tu ne saches déjà. Les autres en savent peut-être plus : demande-leur.', choix: [{ t: 'Autre chose.', va: 'accueil' }] },
     peuple: () => ({ dit: NM_LORE.peuple, choix: [{ t: 'Et les Horlogers ?', va: 'horlogers' }, { t: 'Autre chose.', va: 'accueil' }] }),
     horlogers: { dit: ['Ils ont bâti les automates, et les ont laissés sans maître. Leurs horloges battent encore, sous les tôles. Personne n\'a trouvé le cœur de la dernière.'], choix: [{ t: 'Autre chose.', va: 'accueil' }] },
     seuil: () => ({ dit: NM_LORE.seuil, choix: [{ t: 'Autre chose.', va: 'accueil' }] }),
@@ -684,13 +732,13 @@ const NM_DIALOGUES = {
 Object.assign(NM_DIALOGUES, {
   cartographe: {
     accueil: b => ({ dit: nmAccueil(b), choix: [{ t: 'Que sais-tu de cette île ?', va: 'cartes' }, { t: 'Des nouvelles ?', va: 'rumeur' }, { t: 'Comment dessines-tu les îles ?', va: 'metier' }] }),
-    rumeur: () => ({ dit: nmRumeur(), choix: [{ t: 'Une autre ?', va: 'rumeur' }, { t: 'Autre chose.', va: 'accueil' }] }),
+    rumeur: b => nmUnIndice(b, nmRumeur),
     cartes: nmCartes,
     metier: { dit: ['À pied, et en comptant mes pas. Le Seuil me pose quelque part ; je marche jusqu\'à ce que l\'île n\'ait plus de secret.', 'Je ne dessine pas les îles : je dessine ce qui s\'y cache. Le reste, n\'importe qui le voit.'], choix: [{ t: 'Autre chose.', va: 'accueil' }] },
   },
   devin: {
     accueil: b => ({ dit: nmAccueil(b), choix: [{ t: 'Que vois-tu derrière l\'arche ?', va: 'vision' }, { t: 'Cherche-moi un autre chemin.', va: 'autre', si: () => nmOracle() }, { t: 'Que vois-tu pour moi ?', va: 'rumeur' }, { t: 'Comment vois-tu ?', va: 'don' }] }),
-    rumeur: () => ({ dit: nmRumeur(), choix: [{ t: 'Et encore ?', va: 'rumeur' }, { t: 'Autre chose.', va: 'accueil' }] }),
+    rumeur: b => nmUnIndice(b, nmRumeur),
     vision: nmVision, autre: nmAutreChemin,
     don: { dit: ['Les seuils sont des portes qu\'on n\'a pas encore ouvertes. Moi, je regarde par le trou de la serrure.', 'Je ne vois pas l\'avenir. Je vois les îles qui attendent qu\'on vienne.'], choix: [{ t: 'Autre chose.', va: 'accueil' }] },
   },
@@ -728,7 +776,8 @@ function nmMarques() {                                     // pour la boussole (
   return L;
 }
 function nmCartes(b) {
-  const L = nmLieux(), k = (nmAmi(b) >= 3 ? .7 : 1) * (1 - .25 * (typeof curioFx === 'function' ? curioFx('marchand') : 0));
+  const T = nmLieux(); if (T.length && (!b.lieu || !T.some(l => l.cle === b.lieu))) b.lieu = T[Math.random() * T.length | 0].cle;   // (§123) une seule marque par halte
+  const L = T.filter(l => l.cle === b.lieu), k = (nmAmi(b) >= 3 ? .7 : 1) * (1 - .25 * (typeof curioFx === 'function' ? curioFx('marchand') : 0));
   const choix = L.map(l => { const prix = Math.max(1, Math.round(l.prix * k)), manque = nmA('eclat') < prix;
     return { t: 'Marque-moi ' + l.n + ' — ' + prix + ' éclats' + (manque ? ' (il vous en manque ' + (prix - nmA('eclat')) + ')' : ''), grise: manque, va: 'cartes',
       fait: () => { nmMet('eclat', nmA('eclat') - prix); (NM.marques || (NM.marques = [])).push({ g: SEED, cle: l.cle, x: l.x, y: l.y, n: l.n.replace(/^(un |la |le |l')/, '') });
@@ -759,7 +808,7 @@ function nmVision(b) {
 function nmAutreChemin(b) {
   if (!nmOracle()) return nmVision(b);
   const o = P.oracle, prix = 12 * (o.essais + 1), manque = nmA('eclat') < prix;
-  if (o.essais >= 3) return { dit: 'Trois fois j\'ai cherché. Les seuils se taisent, maintenant : celle-ci sera la tienne. ' + nmDecrire(o.g, o.n), choix: [{ t: 'Autre chose.', va: 'accueil' }] };
+  if (o.essais >= 1) return { dit: 'J\'ai cherché une fois. Les seuils se taisent, maintenant : celle-ci sera la tienne. ' + nmDecrire(o.g, o.n), choix: [{ t: 'Autre chose.', va: 'accueil' }] };
   return { dit: 'Un autre chemin ? Chercher coûte plus cher que voir : ' + prix + ' éclats.', choix: [{ t: 'Voici ' + prix + ' éclats.', grise: manque, va: 'vision',
     fait: () => { nmMet('eclat', nmA('eclat') - prix); let g = o.g; for (let k = 0; k < 6 && g === o.g; k++) g = tirerGraine(o.n, SEED); o.g = g; o.essais++; return null; } }, { t: 'Garde celle-là.', va: 'accueil' }] };
 }
@@ -802,7 +851,13 @@ function nmEgare(b) {
 // Les services en cours : le sac qu'on cherche (il luit), l'égaré qu'on escorte ; tant qu'ils durent, la halte attend.
 function nmServices(C, dt) {
   for (const b of C.gens) {
-    const q = b.quete; if (!q || q.fait || b.dead || q.etat !== 'en cours') continue;
+    const q = b.quete;
+    if (q && q.type === 'prime' && !b.dead) {          // (§122) la prime : la halte attend dix minutes, et le temps de la payer
+      if (q.etat === 'en cours' && t > q.limite) { q.etat = 'expiree'; say('prime expirée · ' + b.nm.nom + ' repart', 2.6); }
+      if (q.etat === 'en cours' || q.etat === 'pret') C.fin = Math.max(C.fin, t + 30);
+      continue;
+    }
+    if (!q || q.fait || b.dead || q.etat !== 'en cours') continue;
     C.fin = Math.max(C.fin, t + 30);
     if (q.type === 'sac' && !q.trouve) {
       if (Math.random() < dt * 3) parts.push({ x: q.x + (Math.random() - .5) * .4, y: q.y + (Math.random() - .5) * .4, z: q.z + .2, vx: 0, vy: 0, vz: .5, g: 0, life: .8, age: 0, col: '#ffe9a0', luit: 1, tl: .07 });
@@ -813,6 +868,247 @@ function nmServices(C, dt) {
     }
   }
 }
+
+// ============================================================
+//  LES AUTRES MÉTIERS (§122) — quatrième livraison des voyageurs du Seuil
+//  L'herboriste vend des graines et des plants (la flore, et des plantes rares de la rareté de l'île) ; le
+//  chasseur de primes paie pour des bêtes de l'île ; le collectionneur rachète les ingrédients rares et
+//  échange une curiosité ; le forgeron affûte, renforce et forge des flèches ; l'érudit déchiffre les tomes
+//  loin de la bibliothèque ; le musicien joue des airs qui donnent un effet de plat, et la nuit une berceuse.
+//  Tous sont des inconnus (un nom, une robe, un caractère tirés au hasard) ; un ami paie moins, le Sceau aussi.
+// ============================================================
+const nmRemise = b => (nmAmi(b) >= 3 ? .85 : 1) * (1 - .25 * (typeof curioFx === 'function' ? curioFx('marchand') : 0));
+const nmPrix = (b, o) => { const k = nmRemise(b), p = {}; for (const [r, n] of Object.entries(o)) p[r] = Math.max(1, Math.round(n * k)); return p; };
+const nmPeutPayer = p => Object.entries(p).every(([r, n]) => nmA(r) >= n);
+const nmPayer = p => { for (const [r, n] of Object.entries(p)) nmMet(r, nmA(r) - n); if (typeof majSac === 'function') majSac(); };
+const nmManque = p => Object.entries(p).filter(([r, n]) => nmA(r) < n).map(([r, n]) => (n - nmA(r)) + ' ' + NM_MOTS[r]).join(' et ');
+// un effet de plat, pour un temps (le forgeron, le musicien)
+function nmEffet(k, sec, n) {
+  P.effetsN = P.effetsN || {};
+  const actif = (P.effets[k] || 0) > t ? (P.effetsN[k] || 1) : 0;   // un plat déjà mangé : on garde le plus fort
+  P.effets[k] = Math.max(P.effets[k] || 0, t + sec); P.effetsN[k] = Math.max(n, actif);
+}
+Object.assign(NM_ROLE, { herboriste: ['herboriste', 'herboriste'], chasseur: ['chasseur de primes', 'chasseuse de primes'], collectionneur: ['collectionneur', 'collectionneuse'],
+  forgeron: ['forgeron', 'forgeronne'], erudit: ['érudit', 'érudite'], musicien: ['musicien', 'musicienne'] });
+Object.assign(NM_ACCUEIL, {
+  herboriste: { inconnu: ['Attention où tu marches : il y a des graines partout. Je suis {nom}.', 'Tu sens ? Le Seuil sent le foin, aujourd\'hui. Je suis {nom}, je vends ce qui pousse.'],
+    connu: ['{moi} ! Tes carrés poussent bien ?', 'Te revoilà. J\'ai des graines neuves.'], ami: ['{moi}, mon ami ! J\'ai gardé le meilleur de ma récolte pour toi.', 'Ah, un jardinier ! Viens, viens.'],
+    froid: ['Les plantes pardonnent plus vite que moi. Mais je vends quand même.'] },
+  chasseur: { inconnu: ['Tu chasses ? Moi, je paie ceux qui chassent. Je suis {nom}.', 'Pas un geste brusque : j\'ai l\'arbalète nerveuse. {nom}, chasseur de primes.'],
+    connu: ['{moi}. Bon tir, la dernière fois.', 'Te revoilà. J\'ai une nouvelle prime.'], ami: ['{moi} ! La meilleure lame du Seuil. J\'ai du travail pour toi.', 'Ami ! Les bêtes tremblent quand tu passes.'],
+    froid: ['Tu as frappé les miens. Je paie quand même : l\'argent n\'a pas de rancune.'] },
+  collectionneur: { inconnu: ['Oh, quelle allure ! Vous transportez sûrement des merveilles. {nom}, collectionneur.', 'Je cherche ce qui est rare. Vous, peut-être ? Je suis {nom}.'],
+    connu: ['{moi} ! Avez-vous trouvé quelque chose pour ma collection ?', 'Te revoilà. Mon cabinet a encore de la place.'], ami: ['Mon cher {moi} ! Pour vous, mes plus belles pièces.', 'Ah, mon fournisseur préféré !'],
+    froid: ['Je collectionne aussi les mauvais souvenirs. Mais faisons affaire.'] },
+  forgeron: { inconnu: ['Ta lame a besoin de moi, ça s\'entend d\'ici. Je suis {nom}.', 'Le Seuil m\'a posé avec mon enclume. Je suis {nom}, forgeron.'],
+    connu: ['{moi} ! Ta lame tient encore ?', 'Te revoilà. Le feu est chaud.'], ami: ['{moi}, mon ami ! Pour toi, je bats le fer gratis… presque.', 'Ami ! Montre-moi ce que tu portes.'],
+    froid: ['Tu as levé la main sur nous. Mon marteau s\'en souvient. Parle.'] },
+  erudit: { inconnu: ['Silence, je lis… Ah, un voyageur. Je suis {nom}. Je lis ce que d\'autres ne savent pas lire.', 'Des tomes ? Vous avez des tomes ? Je suis {nom}, érudit.'],
+    connu: ['{moi} ! Avez-vous rapporté de nouveaux tomes ?', 'Te revoilà. Mes lunettes sont propres.'], ami: ['Mon ami {moi}. Asseyez-vous, lisons ensemble.', 'Ah, {moi} ! J\'ai déchiffré une nouvelle page.'],
+    froid: ['Les livres ne frappent pas, eux. Que voulez-vous ?'] },
+  musicien: { inconnu: ['Tu tombes bien : je cherchais un public. Je suis {nom}.', 'Une chanson, voyageur ? Je suis {nom}, et je joue pour qui écoute.'],
+    connu: ['{moi} ! Tu fredonnes encore mon air ?', 'Te revoilà. J\'ai appris une nouvelle chanson.'], ami: ['{moi}, mon ami ! Viens, je joue pour toi.', 'Ah, mon meilleur auditeur !'],
+    froid: ['Même les mains qui frappent ont droit à une chanson. Écoute.'] },
+});
+// ---------- l'herboriste ----------
+const NM_HERBES = [
+  'Arrose avant que la terre ne pâlisse : une plante à sec ne meurt pas, mais elle ne pousse plus.',
+  'Les mauvaises herbes viennent avec le temps. Arrache-les : elles volent la moitié de la pousse.',
+  'Deux os en poudre, et la plante pousse moitié plus vite jusqu\'à ce qu\'elle soit mûre.',
+  'Une plante pousse mieux dans son biome. Ailleurs, elle traîne : moitié plus lentement.',
+  'Un arbre au carré ne s\'abat pas : il se taille, et repart du tiers.',
+  'Une Douce au jardin vaut deux mains de plus. Elle arrose, elle désherbe, elle récolte, même quand tu n\'es pas là.',
+  'Sans palissade, les brouteurs viennent manger tes carrés. Un carré clos les tient dehors.',
+  'Les graines rares se trouvent loin : plus l\'île est profonde, plus ses plantes sont rares.',
+];
+function nmHerbOffre(b) {
+  if (b.offre) return b.offre;
+  const niv = typeof profondeur === 'function' ? profondeur() : 0, L = [];
+  const flore = typeof tailleFlore === 'function' ? ESP.filter(sp => tailleFlore(sp)) : [];
+  // (§123) un sachet de la flore (petit le plus souvent) ; une fois sur deux, un second : une plante rare dès l'exploration 2
+  { const u = Math.random(), ta = u < .55 ? 'p' : u < .85 ? 'm' : 'g', C = flore.filter(sp => tailleFlore(sp) === ta); if (C.length) L.push({ k: C[Math.random() * C.length | 0].id }); }
+  const second = Math.random() < .5;
+  if (second && niv < 2) { const C = flore.filter(sp => tailleFlore(sp) === 'p' && !L.some(o => o.k === sp.id)); if (C.length) L.push({ k: C[Math.random() * C.length | 0].id }); }
+  if (second && niv >= 2 && typeof FLORE_RARES !== 'undefined' && typeof poidsRarete === 'function') for (let n = 0; n < 1; n++) {
+    const W = [1, 2, 3, 4, 5].map(r => rareteOk(r, niv) ? poidsRarete(r, niv, 4.4) : 0), tot = W.reduce((a, v) => a + v, 0);
+    let u = Math.random() * tot, r = 1; for (let k = 0; k < 5; k++) if ((u -= W[k]) < 0) { r = k + 1; break; }
+    const C = FLORE_RARES.filter(p => p.r === r && !L.some(o => o.k === p.id)); if (C.length) L.push({ k: C[Math.random() * C.length | 0].id });
+  }
+  for (const o of L) { const G = graineInfo(o.k);
+    o.prix = G.pl ? { eclat: [0, 4, 8, 14, 24, 40][G.r], fibre: 6 } : G.ta === 'p' ? { eclat: 3, fibre: 4 } : G.ta === 'm' ? { eclat: 5, bois: 6 } : { eclat: 8, bois: 10 };
+    o.n = G.pl ? 1 : G.ta === 'p' ? 2 : 1; }
+  return (b.offre = L);
+}
+function nmGraines(b) {
+  const L = nmHerbOffre(b).filter(o => !o.vendu);
+  if (!L.length) return { dit: 'Tu m\'as tout pris ! Reviens à une autre halte, j\'aurai d\'autres sachets.', choix: [{ t: 'Parlons d\'autre chose.', va: 'accueil' }] };
+  return { dit: 'Voilà mes sachets. Tout pousse, si on s\'en occupe.', choix: L.map(o => {
+    const G = graineInfo(o.k), p = nmPrix(b, o.prix), manque = nmManque(p);
+    return { t: nomGraine(o.k) + (o.n > 1 ? ' ×' + o.n : '') + ' · ' + TAILLE_N[G.ta] + (G.pl ? ' · ' + G.pl.rang : '') + ' — ' + nmListe(p) + (manque ? ' — il vous manque ' + manque : ''),
+      grise: !!manque, va: 'graines',
+      fait: () => { nmPayer(p); P.graines[o.k] = (P.graines[o.k] | 0) + o.n; o.vendu = 1; nmGagne(b, 1); if (typeof Sauve !== 'undefined') Sauve.sale = true; SON.jouer('ramasse');
+        say(nomGraine(o.k) + (o.n > 1 ? ' ×' + o.n : '') + ' · dans le sac (fiche du carré de culture)', 3);
+        return ['Plante-la dans un emplacement ' + TAILLE_N[G.ta] + '. Et arrose-la, surtout.', 'Elle te le rendra, si tu t\'en occupes.', 'Bon choix. Elle aime l\'eau.'][Math.random() * 3 | 0]; } };
+  }).concat([{ t: 'Parlons d\'autre chose.', va: 'accueil' }]) };
+}
+// ---------- le chasseur de primes ----------
+function nmPrimeQuete(b) {
+  if (b.quete) return b.quete;
+  const cpt = {};
+  for (const o of beasts) if (!o.dead && !o.tame && o.sp && !o.sp.pnj && !o.pnjSuit && !o.sp.plante && !o.sp.batiment && !o.sp.boss && !o.sp.illusion && !o.sp.brume && !o.sp.villageois && !o.sp.horreur && !o.gardeCamp && !o.sp.donjon)
+    cpt[o.sp.id] = (cpt[o.sp.id] || 0) + 1;
+  const L = Object.keys(cpt).filter(id => cpt[id] >= 2 && specById[id]);
+  if (!L.length) return (b.quete = { type: 'prime', rien: 1 });
+  const D = L.filter(id => predateur(specById[id]) || automate(specById[id])), C = D.length ? D : L;
+  const esp = C[Math.random() * C.length | 0], dur = predateur(specById[esp]) || automate(specById[esp]);
+  const n = Math.min(cpt[esp], 2 + (Math.random() < .5 ? 1 : 0)), niv = typeof profondeur === 'function' ? profondeur() : 0;
+  return (b.quete = { type: 'prime', esp, n, k: 0, etat: 'demande', ec: Math.round((5 + 2 * niv) * n * (dur ? 1.5 : 1)), os: 2 * n });
+}
+const nmNomEsp = (id, n) => { const s = specById[id]; const m = s ? s.n.toLowerCase() : id; return n > 1 ? m.replace(/^(\S+)/, '$1s') : m; };
+function nmChasseur(b) {
+  const q = nmPrimeQuete(b);
+  const lore = [{ t: 'Comment chasses-tu ?', va: 'art' }];
+  if (q.rien) return { dit: nmAccueil(b) + ' Mais cette île ne vaut rien : pas une bête qui mérite sa prime.', choix: lore };
+  if (q.etat === 'payee') return { dit: 'La prime est payée. On se recroisera sur une île plus sauvage.', choix: lore };
+  if (q.etat === 'expiree') return { dit: 'Trop tard : le Seuil n\'attend pas. Une autre fois.', choix: lore };
+  if (q.etat === 'pret') return { dit: q.n + ' ' + nmNomEsp(q.esp, q.n) + ' ! Beau travail. Voici ta prime.', choix: [{ t: 'Merci.', va: 'accueil', fait: () => {
+    q.etat = 'payee'; q.fait = true; nmMet('eclat', nmA('eclat') + q.ec); nmMet('os', nmA('os') + q.os); nmGagne(b, 2); SON.jouer('rare');
+    let cu = ''; if (Math.random() < .3 && typeof tirerCurios === 'function') { const Lc = tirerCurios(profondeur(), 1); if (Lc.length) { const o = CURIO[Lc[0]]; P.objets[o.id] = 1; cu = ' Et prends ceci, je l\'ai trouvé sur une carcasse : ' + o.n + '.'; say(o.n + ' (' + NOM_RARE[o.r] + ') · dans le sac', 3.5); } }
+    if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof majSac === 'function') majSac();
+    say('prime · +' + q.ec + ' éclats · +' + q.os + ' os', 3);
+    return q.ec + ' éclats et ' + q.os + ' os. Le compte est bon.' + cu; } }] };
+  if (q.etat === 'en cours') return { dit: 'Encore ' + (q.n - q.k) + ' ' + nmNomEsp(q.esp, q.n - q.k) + '. Le Seuil ne m\'attendra pas toujours : fais vite.', choix: lore };
+  return { dit: nmAccueil(b) + ' Il y a des ' + nmNomEsp(q.esp, 2) + ' sur cette île. Abats-en ' + q.n + ', et la prime est à toi : ' + q.ec + ' éclats et ' + q.os + ' os.',
+    choix: [{ t: 'J\'accepte.', va: 'accueil', fait: () => { q.etat = 'en cours'; q.limite = t + 600; say('prime · ' + q.n + ' ' + nmNomEsp(q.esp, q.n) + ' à abattre · dix minutes', 3.5); return 'Marché conclu. Dix minutes, pas plus : ensuite je repars.'; } },
+      { t: 'Pas maintenant.', va: 'art' }].concat(lore) };
+}
+// Une bête abattue (index.html, butin) : elle compte pour la prime en cours.
+function nmPrime(bk) {
+  const C = NM.car; if (!C || !bk || bk.tame) return;
+  for (const b of C.gens) { const q = b.quete;
+    if (!q || q.type !== 'prime' || q.etat !== 'en cours' || !bk.sp || bk.sp.id !== q.esp) continue;
+    q.k++;
+    if (q.k >= q.n) { q.etat = 'pret'; say('prime remplie · retournez voir ' + b.nm.nom, 3.5); SON.jouer('rare'); }
+    else say('prime · ' + q.k + '/' + q.n + ' ' + nmNomEsp(q.esp, q.n), 2.2);
+  }
+}
+// ---------- le collectionneur ----------
+const NM_RACHAT = [0, 0, 0, 2, 5, 10, 20];                 // par rareté d'ingrédient : ce qu'il en donne, en éclats
+function nmRachat(b) {
+  const ids = Object.keys(INGR).filter(id => INGR[id].r >= 3 && sacIngr(id) > 0).sort((u, v) => INGR[v].r - INGR[u].r || sacIngr(v) - sacIngr(u)).slice(0, 1);   // (§123) le plus rare, seulement
+  if (!ids.length) return { dit: 'Rien de rare dans vos sacs, hélas. Rapportez-moi des ingrédients rares, exotiques, légendaires : je les paie en éclats.', choix: [{ t: 'Parlons d\'autre chose.', va: 'accueil' }] };
+  const k = nmAmi(b) >= 3 ? 1.15 : 1;
+  return { dit: 'Voyons… Oh, voilà qui ferait bien dans mon cabinet. Je ne prends que celui-là, et pas plus de trois :', choix: ids.map(id => {
+    const q = Math.min(3, sacIngr(id)), p = Math.round(NM_RACHAT[Math.min(6, INGR[id].r)] * k) * q;
+    return { t: q + ' × ' + INGR[id].n + ' (' + RARETES[INGR[id].r - 1] + ') — ' + p + ' éclat' + (p > 1 ? 's' : ''), va: 'rachat',
+      fait: () => { metSacIngr(id, sacIngr(id) - q); nmMet('eclat', nmA('eclat') + p); nmGagne(b, 0); SON.jouer('ramasse'); if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof majSac === 'function') majSac();
+        return ['Merveilleux.', 'Une pièce de plus !', 'Ah, l\'odeur des îles lointaines.'][Math.random() * 3 | 0]; } };
+  }).concat([{ t: 'Parlons d\'autre chose.', va: 'accueil' }]) };
+}
+function nmEchange(b) {
+  if (b.curio === undefined) { const L = typeof tirerCurios === 'function' ? tirerCurios(profondeur(), 1) : []; b.curio = L[0] || null; }
+  const o = b.curio && CURIO[b.curio];
+  if (!o || P.objets[o.id]) return { dit: 'Ma pièce d\'échange est partie. Une autre fois.', choix: [{ t: 'Parlons d\'autre chose.', va: 'accueil' }] };
+  const miennes = CURIOS.filter(c => P.objets[c.id] && c.r >= o.r && c.id !== o.id);
+  return { dit: 'J\'ai ' + o.n + ' (' + NOM_RARE[o.r] + ' · ' + texteCurio(o) + '). Je l\'échange contre une de vos curiosités, de même rareté ou plus.' + (miennes.length ? '' : ' Vous n\'en avez aucune qui fasse l\'affaire.'),
+    choix: miennes.slice(0, 5).map(c => ({ t: 'Donner ' + c.n + ' (' + NOM_RARE[c.r] + (curioPortee(c.id) ? ', portée' : '') + ') contre ' + o.n, va: 'accueil', fait: () => {
+      for (const s of CURIO_PLACES) if (P.equip[s] === c.id) P.equip[s] = null;
+      delete P.objets[c.id]; P.objets[o.id] = 1; b.curio = null; nmGagne(b, 1); SON.jouer('rare'); if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof majSac === 'function') majSac();
+      say(o.n + ' · dans le sac · ' + c.n + ' est parti', 3);
+      return 'Affaire faite. ' + o.h; } })).concat([{ t: 'Parlons d\'autre chose.', va: 'accueil' }]) };
+}
+// ---------- le forgeron ----------
+const NM_FORGE = [
+  { id: 'affuter', t: 'Affûte mon arme.', prix: { pierre: 8, eclat: 4 }, fx: 'fort', n: 2, dit: 'Voilà. Dix minutes de tranchant : tes coups porteront plus fort.' },
+  { id: 'renfort', t: 'Renforce mon armure.', prix: { pierre: 10, os: 3 }, fx: 'robuste', n: 2, dit: 'Rivets neufs, cuir tendu. Dix minutes, ta peau sera dure comme mon enclume.' },
+  { id: 'fleches', t: 'Forge-moi dix flèches.', prix: { bois: 6, pierre: 3 }, dit: 'Dix pointes, bien droites. Ne les perds pas toutes.' },
+];
+function nmForge(b) {
+  if (!b.service) b.service = NM_FORGE[Math.random() * NM_FORGE.length | 0].id;   // (§123) un seul service par halte
+  return { dit: 'Aujourd\'hui, mon feu est prêt pour ça :', choix: NM_FORGE.filter(f => f.id === b.service).map(f => {
+    const p = nmPrix(b, f.prix), manque = nmManque(p);
+    return { t: f.t + ' — ' + nmListe(p) + (manque ? ' — il vous manque ' + manque : ''), grise: !!manque, va: 'forge', fait: () => {
+      nmPayer(p); nmGagne(b, 1); SON.jouer('coupe', { res: 'pierre', dernier: true }, b.x, b.y, b.z + .6);
+      for (let k = 0; k < 16; k++) parts.push({ x: b.x, y: b.y, z: b.z + .7, vx: (Math.random() - .5) * 3, vy: (Math.random() - .5) * 3, vz: 1 + Math.random() * 2, g: 6, life: .5, age: 0, col: '#ffb040', luit: 1, tl: .04 });
+      if (f.fx) { nmEffet(f.fx, 600, f.n); say((f.fx === 'fort' ? 'coups puissants' : 'peau dure') + ' II · dix minutes', 3); }
+      else { P.fleches = (P.fleches || 0) + 10; say('+10 flèches · ' + P.fleches, 2.4); }
+      if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof majSac === 'function') majSac();
+      return f.dit; } };
+  }).concat([{ t: 'Parlons d\'autre chose.', va: 'accueil' }]) };
+}
+// ---------- l'érudit ----------
+function nmDechiffrer(b) {
+  const L = (P.tomesPortes || []).map(k => tomeLu(k)).filter(q => q && tomeDe(q.m) === q.n - 1).slice(0, 1);   // (§123) un tome par halte
+  if (!L.length) return { dit: (P.tomesPortes || []).length ? 'Ces tomes-là se lisent dans l\'ordre : déchiffrez d\'abord ceux d\'avant.' : 'Vous n\'avez aucun tome à lire. Les lutrins de pierre en gardent : recopiez-les, et revenez.', choix: [{ t: 'Parlons d\'autre chose.', va: 'accueil' }] };
+  return { dit: 'Je lis vite, et sans pupitre. Mais l\'encre se paie : un peu plus cher qu\'à votre bibliothèque.', choix: L.map(q => {
+    const p = nmPrix(b, { eclat: Math.round(DECHIFFRE[q.n] * 1.5) }), manque = nmManque(p);
+    return { t: 'Le ' + nomTome(q.k) + ' — ' + nmListe(p) + (manque ? ' — il vous manque ' + manque : ''), grise: !!manque, va: 'accueil', fait: () => {
+      nmPayer(p); P.tomes[q.m] = Math.max(P.tomes[q.m] | 0, q.n); rangerTomes(); nmGagne(b, 1); SON.jouer('niveau');
+      if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof majSac === 'function') majSac();
+      say(nomTome(q.k) + ' déchiffré par ' + b.nm.nom, 3.5);
+      return 'Voilà. ' + (q.n === 1 ? 'Cette matière peut maintenant s\'écrire.' : q.n === 2 ? 'Cette matière pourra se mélanger.' : 'Cette matière pourra s\'accentuer.') + ' Lisez-le à votre tour, à la bibliothèque.'; } };
+  }).concat([{ t: 'Parlons d\'autre chose.', va: 'accueil' }]) };
+}
+// ---------- le musicien ----------
+const NM_AIRS = [
+  { id: 'marche', t: 'Un air de marche.', fx: 'vif', notes: [0, 2, 4, 7, 4, 2, 4, 7, 9, 7], dit: 'Une-deux, une-deux… Tu sens tes jambes ? Huit minutes de pas vif.' },
+  { id: 'souffle', t: 'Un chant des grands vents.', fx: 'souffle', notes: [0, 4, 7, 12, 9, 7, 4, 7, 9, 12], dit: 'Respire avec la mélodie… Voilà. Huit minutes, ton souffle tiendra.' },
+  { id: 'berceuse', t: 'Une berceuse.', nuit: 1, notes: [7, 4, 2, 0, 2, 4, 2, 0, -3, 0], dit: 'Chut… Dors un peu, toi et les tiennes. Au réveil, vous serez comme neufs.' },
+];
+function nmMelodie(notes, lent) {
+  if (!SON.ctx || typeof SON.note !== 'function') return;
+  const t0 = SON.ctx.currentTime + .05, d = lent ? .42 : .26;
+  notes.forEach((k, i) => SON.note(330 * 2 ** (k / 12), t0 + i * d, 'pluck', lent ? 1.2 : .7, .9));
+}
+function nmJouer(b) {
+  const nuit = typeof lumiere === 'function' && lumiere() < .45;
+  if (!b.air || (b.air === 'berceuse' && !nuit)) b.air = nuit && Math.random() < .5 ? 'berceuse' : ['marche', 'souffle'][Math.random() * 2 | 0];   // (§123) un air par halte
+  return { dit: nuit ? 'La nuit est belle pour la musique. Ce soir, je joue ceci :' : 'Trois baies, et je joue. Aujourd\'hui, ceci :', choix: NM_AIRS.filter(a => a.id === b.air).map(a => {
+    const p = nmAmi(b) >= 3 ? {} : { baies: 3 }, manque = Object.keys(p).length ? (nmA('baies') < 3 ? 3 - nmA('baies') + ' baies' : '') : '';
+    return { t: a.t + (Object.keys(p).length ? ' — 3 baies' : ' — offert') + (manque ? ' — il vous manque ' + manque : ''), grise: !!manque, va: 'accueil', fait: () => {
+      if (Object.keys(p).length) nmPayer(p);
+      nmMelodie(a.notes, a.id === 'berceuse'); nmGagne(b, 1);
+      for (let k = 0; k < 10; k++) parts.push({ x: b.x + (Math.random() - .5) * .6, y: b.y + (Math.random() - .5) * .6, z: b.z + 1.1, vx: (Math.random() - .5) * .5, vy: (Math.random() - .5) * .5, vz: .6, g: -.1, life: 2, age: 0, col: 'rgb(' + b.nm.lueur.join(',') + ')', luit: 1, tl: .06 });
+      if (a.fx) { nmEffet(a.fx, 480, 1); say((a.fx === 'vif' ? 'pas vif' : 'grand souffle') + ' · huit minutes', 2.6); }
+      else { P.pv = 1; for (const c of P.compagnes) { c.nrj = 1; if (c.b) { c.b.nrj = 1; c.b.pv = Math.max(c.b.pv, .8); } } say('la berceuse · vie et forces rendues, à vous et aux vôtres', 3); }
+      return a.dit; } };
+  }).concat([{ t: 'Parlons d\'autre chose.', va: 'accueil' }]) };
+}
+Object.assign(NM_DIALOGUES, {
+  herboriste: {
+    accueil: b => ({ dit: nmAccueil(b), choix: [{ t: 'Montre-moi tes graines.', va: 'graines' }, { t: 'Un conseil pour mes carrés ?', va: 'conseil' }, { t: 'Des nouvelles des îles ?', va: 'rumeur' }] }),
+    graines: nmGraines,
+    conseil: b => nmUnIndice(b, () => nmPioche('h', NM_HERBES)),
+    rumeur: b => nmUnIndice(b, nmRumeur),
+  },
+  chasseur: {
+    accueil: nmChasseur,
+    art: { dit: ['Je vise l\'épaule, jamais la tête : une bête blessée à la tête court encore. Et je ne chasse jamais la nuit.', 'Les prédateurs vont par deux. Abats le premier, le second hésite : c\'est là qu\'il faut frapper.', 'Une prime n\'est pas une vengeance. On paie pour une île plus sûre, pas pour la haine.'], choix: [{ t: 'Revenons à la prime.', va: 'accueil' }] },
+  },
+  collectionneur: {
+    accueil: b => ({ dit: nmAccueil(b), choix: [{ t: 'Que rachètes-tu ?', va: 'rachat' }, { t: 'Tu échanges des curiosités ?', va: 'echange', si: () => typeof CURIOS !== 'undefined' }, { t: 'Que collectionnes-tu ?', va: 'cabinet' }] }),
+    rachat: nmRachat, echange: nmEchange,
+    cabinet: { dit: ['Tout ce qui est rare. Une plume qui ne tombe jamais, une écaille plus dure que la pierre, un pétale qui brûle… Mon cabinet a cent tiroirs, et il en manque.', 'Les îles fabriquent des merveilles sans le savoir. Moi, je les range.'], choix: [{ t: 'Autre chose.', va: 'accueil' }] },
+  },
+  forgeron: {
+    accueil: b => ({ dit: nmAccueil(b), choix: [{ t: 'Que peux-tu forger ?', va: 'forge' }, { t: 'Améliorerais-tu mes outils ?', va: 'outils' }, { t: 'Des nouvelles ?', va: 'rumeur' }] }),
+    forge: nmForge,
+    outils: { dit: ['Tes outils, c\'est ton établi qui les fait. Moi, j\'affûte et je rive : ça ne dure qu\'un temps, mais ça sauve des vies.'], choix: [{ t: 'Autre chose.', va: 'accueil' }] },
+    rumeur: b => nmUnIndice(b, nmRumeur),
+  },
+  erudit: {
+    accueil: b => ({ dit: nmAccueil(b), choix: [{ t: 'Peux-tu lire mes tomes ?', va: 'tomes' }, { t: 'Parle-moi des matières.', va: 'matieres' }, { t: 'Que vois-tu de mon chemin ?', va: 'rumeur' }] }),
+    tomes: nmDechiffrer,
+    matieres: b => nmUnIndice(b, () => nmPioche('t', NM_INDICES.tomes)),
+    rumeur: b => nmUnIndice(b, nmRumeur),
+  },
+  musicien: {
+    accueil: b => ({ dit: nmAccueil(b), choix: [{ t: 'Joue-moi quelque chose.', va: 'jouer' }, { t: 'D\'où viennent tes chansons ?', va: 'chansons' }, { t: 'Des nouvelles ?', va: 'rumeur' }] }),
+    jouer: nmJouer,
+    chansons: { dit: ['Chaque île a sa chanson. Je les apprends en écoutant le vent, puis je les emporte.', 'Une chanson, c\'est une île qu\'on peut porter dans sa poche.'], choix: [{ t: 'Autre chose.', va: 'accueil' }] },
+    rumeur: b => nmUnIndice(b, nmRumeur),
+  },
+});
 
 // ---------- les indices vivants (§111) ----------
 // Ce que disent les voyageurs ne vient plus d'une liste : c'est tiré de votre partie. Ce qu'il y a sur cette île
@@ -897,6 +1193,11 @@ function nmAller(id, replique) {
   const R = NM_DIALOGUES[b.nm.role];
   let n = R[id]; if (typeof n === 'function') n = n(b);
   if (!n) { nmFermer(); return; }
+  if ((NM_AFFAIRES[b.nm.role] || []).includes(id)) {   // (§123) une affaire par halte : au-delà, les offres grisées
+    const ok = nmPeutAffaire(b);
+    n = Object.assign({}, n, { choix: (n.choix || []).map(c => !c.fait ? c : ok ? Object.assign({}, c, { fait: () => { const r = c.fait(); nmAffaire(b); return r; } })
+      : Object.assign({}, c, { grise: true, t: c.t.replace(/ — .*$/, '').replace(/ \((offert|[0-9][^)]*)\)$/, '') + ' — nous avons déjà fait affaire' })) });
+  }
   NM.noeud = n;
   let dit = replique || (typeof n.dit === 'function' ? n.dit(b) : Array.isArray(n.dit) ? n.dit[Math.random() * n.dit.length | 0] : n.dit);
   nmEcrire(nmJetons(dit, b));

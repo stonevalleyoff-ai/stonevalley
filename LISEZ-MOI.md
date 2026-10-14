@@ -953,7 +953,7 @@ Testé avec deux joueurs simulés (Alice et Bob) : demande, acceptation, invitat
 - **Légendaires** (géantes) : le **colosse** (une fleur de quatre mètres, dix pétales qui respirent, des étamines qui luisent et tournent, du pollen), le **saule** (une ramure en touffes, vingt-quatre chevelures qui ondoient au vent, leurs pointes lumineuses), la **méduse** (elle flotte à deux mètres, pulse, traîne dix filaments), l'**arbre-lumière** (une ramure en touffes, douze fruits lumineux qui tournent lentement).
 - **Épiques** (géantes, et elles attaquent) : la **gueule** (deux mâchoires dentées sur une tige en S, une langue : elle se cabre, s'ouvre en grand, se détend et mord — 3,4 cases), la **fouetteuse** (cinq fouets d'épines qui ondulent ; l'un se lève et cingle — 4,2 cases, ça repousse), la **cracheuse** (un bulbe veiné qui gonfle et crache un venin en cloche — 9 cases, le nuage empoisonne). Chaque attaque s'annonce (0,6 à 0,9 s), puis elle se remet.
 
-**Sur l'île** (`floreIle`, la graine décide) : sur chaque biome assez grand, **2 à 7 rares**, **une légendaire** une fois sur deux environ (un peu plus en s'enfonçant), **une épique** une fois sur trois environ dès l'exploration 2 ; jamais près de l'arche, du village ni du point d'arrivée. Leurs lueurs : du pollen lumineux autour des légendaires et des épiques ; la nuit, **les quatre plus proches éclairent** autour d'elles. La fiche dit leur nom et leur rang.
+**Sur l'île** (`floreIle`, la graine décide ; *remplacé par la section 116 : une ou deux par île*) : sur chaque biome assez grand, **2 à 7 rares**, **une légendaire** une fois sur deux environ (un peu plus en s'enfonçant), **une épique** une fois sur trois environ dès l'exploration 2 ; jamais près de l'arche, du village ni du point d'arrivée. Leurs lueurs : du pollen lumineux autour des légendaires et des épiques ; la nuit, **les quatre plus proches éclairent** autour d'elles. La fiche dit leur nom et leur rang.
 
 **Les cueillir** (ACTION : **CUEILLIR**) : la rare donne 1 ou 2 de son ingrédient et repousse en dix minutes ; la légendaire, 1, et repousse en une demi-heure ; l'épique **se défend** : il faut l'**abattre** (robustesse 3), et elle donne 2 de son ingrédient. Cueillie, la plante pâlit, ses pétales se ferment.
 
@@ -2582,3 +2582,456 @@ Comme avant (§107), le son est placé au feu : on l'entend en s'approchant, plu
 Dans le code : `index.html`, `SON`, `feuDeCamp` et sa ligne dans `AMB.maj`.
 
 **À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-83`), `LISEZ-MOI.md`.
+
+## 116. Les plantes rares se font rares
+
+Il y en avait trop : de deux à sept par biome, plus une géante et une vive de temps en temps, soit souvent une vingtaine par île. Maintenant :
+
+| Exploration | Plantes rares sur l'île |
+|---|---|
+| 0 et 1 | aucune |
+| 2 | une |
+| 3 à 8 | une, et une seconde de plus en plus souvent (15 % de chances en plus par niveau) |
+| 9 et plus | deux |
+
+Quand il y en a deux, elles poussent sur deux biomes différents si l'île en a plusieurs. Le biome nuage (les dalles des îles volantes) compte comme un biome parmi les autres.
+
+*(Remplacé par la section 117 : le port suit maintenant la rareté.)* Leur port vient avec la profondeur : à l'exploration 2, une simple le plus souvent, parfois une géante ; les vives n'apparaissent qu'à partir de l'exploration 3 (6 % + 2 % par niveau, jusqu'à 30 %) ; les géantes passent de 20 % à 40 %.
+
+Mesuré sur 60 graines par niveau : 0 plante aux explorations 0 et 1 ; 1 à l'exploration 2 ; 1,2 en moyenne à 3 ; 1,6 à 6 ; 2 à 9 et au-delà.
+
+Dans le code : `flore.js`, la fin de `floreIle`.
+
+**À déposer** : `flore.js`, `sw.js` (qui passe en `stone-valley-84`), `LISEZ-MOI.md`.
+
+## 117. La rareté des plantes suit le niveau de l'île
+
+Les plantes rares de `flore.js` étaient toutes « rares ». Chacune a maintenant sa rareté, qui est aussi celle de son ingrédient. Dans chaque biome, sur les douze plantes :
+
+| Rareté | Plantes | Port |
+|---|---|---|
+| commune | les 3 premières simples (étoile, clochettes, éventail) | simple |
+| peu commune | les 3 autres simples (crosse, orbe, arbuste) | simple |
+| rare | 2 géantes (colosse, saule) | géante |
+| exotique | 2 géantes (méduse, arbre-lumière) | géante |
+| légendaire | les 2 vives | vive, il faut l'abattre |
+
+**L'île tire la rareté d'après son niveau d'exploration.** Le tirage se centre sur un rang qui monte d'un demi-cran par niveau : commune à l'exploration 2, peu commune vers 4, rare vers 6, exotique vers 8, puis moitié exotiques, moitié légendaires à partir de 9. Mesuré sur 100 graines par niveau (en % des plantes posées) :
+
+| Exploration | commune | peu commune | rare | exotique | légendaire |
+|---|---|---|---|---|---|
+| 2 | 80 | 19 | 1 | – | – |
+| 3 | 43 | 55 | 2 | – | – |
+| 4 | 15 | 75 | 9 | 1 | – |
+| 5 | 6 | 60 | 31 | 2 | – |
+| 6 | 1 | 27 | 58 | 14 | 1 |
+| 7 | – | 7 | 49 | 39 | 5 |
+| 8 | – | 1 | 14 | 65 | 20 |
+| 9 et plus | – | – | 4 | 48 | 48 |
+
+**Pour les potions**, le chaudron demande une rareté minimale par étape (`ALCH_MOTIF`) : les rangs 1 et 2 se font avec des peu communes (explorations 2 à 5), le rang 3 demande des rares (vers 5 à 7), les rangs 4 et 5 des exotiques (vers 7 à 9). La force du personnage suit donc la profondeur. Les autres denrées gardent leur rareté d'avant ; les bêtes et les poissons suivent eux aussi la profondeur depuis la section 118.
+
+**Pour la cuisine**, la flore commune et peu commune compte comme un ingrédient ordinaire ; la rare et l'exotique donnent le même bonus qu'avant ; la légendaire donne la régénération des plats légendaires.
+
+**« Très rare » s'appelle maintenant « exotique »**, partout dans le jeu (même couleur violette, même rang 4), pour que l'échelle soit la même pour tout : commune, peu commune, rare, exotique, légendaire (et épique au-dessus).
+
+Les ingrédients de flore déjà dans le sac prennent la rareté de leur plante. Les effets des ingrédients (tirés d'après leur nom) peuvent changer pour les communes et peu communes : le « cœur » est réservé aux rares et au-delà.
+
+Dans le code : `flore.js` (`FL_TIER`, `FL_RANG`, la fin de `floreIle`) ; `index.html` (`RARETES`, `NOM_RARE`, `RANG_RARE`, le rang de la flore dans les plats).
+
+**À déposer** : `flore.js`, `index.html`, `sw.js` (qui passe en `stone-valley-85`), `LISEZ-MOI.md`.
+
+## 118. Les bêtes, les poissons et les curiosités suivent aussi la profondeur
+
+Une seule échelle pour tout ce qui a une rareté et se trouve sur l'île (index.html, à côté de `RARETES`) :
+
+- `NIV_RARETE` : l'exploration à partir de laquelle une rareté peut se montrer : **commune et peu commune partout, rare dès 4, exotique dès 6, légendaire dès 8, épique dès 10** ;
+- `centreRarete(niv)` : la rareté la plus fréquente à ce niveau, qui monte d'un demi-cran par niveau à partir de 2 (commune à 2, peu commune à 4, rare à 6, exotique à 8, légendaire à 10) ;
+- `poidsRarete(r, niv)` : le poids d'une rareté autour de ce centre. La flore rare (§117) s'en sert maintenant aussi.
+
+**Les bêtes.** Une bête a la rareté de sa viande. Elle ne vit sur l'île que si cette rareté y est permise ; sinon elle sort du tirage et une autre espèce prend sa place (il y a toujours autant d'espèces).
+
+| Bête | Viande | Avant | Maintenant |
+|---|---|---|---|
+| spectre | rare | dès 3 | dès 4 |
+| coursier orange | rare | dès 3 | dès 4 |
+| oglodon | rare | partout (une île sur deux) | dès 4 |
+| félin de brume | rare | dès 4 | dès 4 |
+| dragon à plumes | exotique | dès 3 | dès 6 |
+| coursier rouge | exotique | dès 3 | dès 6 |
+| coursier d'aurore | légendaire | dès 6 | dès 8 |
+
+Au-delà de ces seuils, les îles gardent exactement le même bestiaire qu'avant. Les créatures des biomes rares ne sont pas filtrées (leur biome l'est déjà), mais la **queue de varan passe peu commune** : son canyon vient dès l'exploration 2. Les robes et les formes rares (`tirerVariante`) montaient déjà avec la profondeur ; elles ne changent pas.
+
+**Les poissons.** Un poisson ne mord que si sa rareté est permise : anguille et raie (rares) dès 4, lune-de-fond (légendaire) dès 8. Une rareté tout juste permise mord moins souvent, puis de plus en plus en s'enfonçant (l'anguille : 4 % des prises à l'exploration 4, 10 % à 6). Quand rien n'est permis à cette heure (l'océan la nuit avant l'exploration 4), les poissons communs de cette eau mordent quand même. **La carpe koï passe peu commune** : la cerisaie ne vient qu'aux explorations 1 à 5, une exotique n'y aurait jamais mordu.
+
+**Les curiosités des nomades.** Même échelle (`curioPoids`), au lieu des quatre paliers d'avant (0, 4, 8, 13). En % des curiosités proposées :
+
+| Exploration | peu commune | rare | exotique | légendaire | épique |
+|---|---|---|---|---|---|
+| 0 à 3 | 100 | – | – | – | – |
+| 4 | 83 | 17 | – | – | – |
+| 5 | 52 | 48 | – | – | – |
+| 6 | 17 | 67 | 17 | – | – |
+| 7 | 3 | 48 | 48 | – | – |
+| 8 | – | 17 | 67 | 17 | – |
+| 9 | – | 3 | 48 | 48 | – |
+| 10 et plus | – | – | 17 | 67 | 17 |
+
+Avant, une île de départ proposait déjà 25 % de rares et 5 % d'exotiques. Quand toutes les curiosités d'une rareté sont prises, le voyageur propose la plus proche (comme avant).
+
+Dans le code : `index.html` — `NIV_RARETE`, `rareteOk`, `centreRarete`, `poidsRarete` ; `bestiaireGraine` ; `tirerPoisson` et `POISSON_R` ; `curioPoids` et `tirerCurios` ; `VIANDES` (varan). `flore.js` — `floreIle` utilise `poidsRarete`.
+
+**À déposer** : `index.html`, `flore.js`, `sw.js` (qui passe en `stone-valley-86`), `LISEZ-MOI.md`.
+
+## 119. La culture, livraison 1 : le carré de culture
+
+Le début de l'agriculture. Le plan complet :
+
+1. le carré de niveau 1 (cette livraison) ;
+2. les niveaux 2 et 3, avec des emplacements moyens et grands, les arbres, les plantes rares, les mauvaises herbes, l'engrais, la clôture et la taille ;
+3. les compagnes au jardin ;
+4. l'herboriste nomade ;
+5. la fin de la repousse sur l'île du campement. Seuls les éclats y repousseront.
+
+Les règles décidées : les carrés ne se posent que sur l'île du campement. Le niveau de l'établi débloque chaque nouvelle taille (établi 1 : petits emplacements, 2 : moyens, 3 : grands). Une plante sans eau ne pousse plus, mais ne meurt pas.
+
+**Le carré de culture** (`carre`, établi 1, 40 bois et 30 fibres) :
+
+- **Le poser.** Il se pose depuis sa fiche au sac (« Poser ici »), comme le campement, et seulement sur l'île du campement. Il faut un carré de cinq cases en terre ferme, à un cube de dénivelé au plus, sans eau, à l'écart du campement, de l'arche, de la fourmilière et des autres carrés.
+- **Le terrain.** Le carré nivelle et désherbe son terrain (même mécanisme que le terrassement du campement, avec un cube de marche autour). Il est bordé de planches, et sa terre est labourée en sillons.
+- **Combien.** Un carré, un deuxième au palier 3 du campement, un troisième au palier 8 (`champsMax`). La fiche dit combien sont posés et combien restent au sac.
+- **Le reprendre.** Il revient au sac (avec confirmation) ; ce qui y poussait est perdu. Reprendre le campement renvoie aussi tous les carrés au sac, vides.
+
+**Quatre petits emplacements**, aux coins du carré du milieu. Chacun montre une butte, et un piquet tant qu'il est libre. On y plante une herbe, une fleur, un champignon, une touffe, un roseau ou un buisson à baies de la flore (`cultivable` : fibre ou baies, petite taille, pas des dalles).
+
+**Les graines** (`P.graines`) :
+
+- **D'où elles viennent.** On en trouve en abattant un pied sauvage cultivable : une fois sur cinq. Au carré, la récolte en rend une fois sur sept. Pour les buissons à baies, c'est une « bouture ».
+- **Les choisir.** La fiche du carré les liste ; un appui choisit celle à semer. Par défaut, c'est celle qu'on a en plus grand nombre.
+
+**À la main, devant un emplacement (ACTION) :**
+
+- **SEMER** quand il est libre ;
+- **ARROSER** quand la plante a soif et que le seau n'est pas vide ;
+- **POUSSE** pour voir où elle en est (pourcentage de pousse et d'eau) ;
+- une fois mûre (à partir de 35 %, comme au sauvage), la récolte ordinaire : elle rend **moitié plus** qu'un pied sauvage, puis la plante repart de zéro à la même place.
+
+**La pousse** :
+
+- **Au temps réel, absence comprise** (horodatage `t` de chaque emplacement). Elle dure douze fois la repousse sauvage de l'espèce (`CHAMP_POUSSE`) : de 12 minutes (herbe haute) à une heure environ. C'est moitié plus long hors du biome de la plante.
+- **L'eau.** Chaque emplacement a une réserve d'eau. Pleine, elle tient 30 minutes de pousse (`CHAMP_EAU`). L'eau ne se boit qu'en poussant. À sec, la plante s'arrête sans mourir.
+- **La pluie** arrose tout le carré : une bonne averse remplit la réserve en une minute et demie.
+- **Le seau** (`seau`, établi 1, 8 bois et 6 fibres) arrose. Il sort plein de l'atelier et se remplit tout seul quand on passe au bord de l'eau ; il tient quatre arrosages.
+- **À l'œil.** La terre d'un emplacement est plus sombre quand elle est arrosée, plus claire quand elle sèche.
+
+**Dans le code** (`index.html`, section LA CULTURE, juste après le campement) :
+
+- `CHAMP_PLACES`, `cultivable`, `champsMax`, `champsIci` ;
+- `pousserPlace` (la pousse), `majPlace`, `champsFloreRetirer` et `champsFloreMettre` (le pied dans la flore) ;
+- `placeChamp`, `poserChamp`, `reprendreChamp`, `placeProche`, `semer`, `arroser`, `champAction`, `majChamps` (chaque seconde) ;
+- `champOs` (le dessin), `ficheCarre`, `ficheSeau`, `champLu` (la relecture).
+
+**Les branchements** :
+
+- **Dans la flore.** La plante est un pied de la flore comme un autre (`Flo`), mais `maturite` lit sa pousse dans `CHAMP_CASE`. Tant qu'elle n'est pas mûre, elle est rangée avec les pieds qui repoussent (`coupes`), pour se dessiner à part.
+- **Récolte.** `couperPied` la remet à zéro ; `coupRecolte` donne le bonus et les graines.
+- **Terrassement.** `majTerrasse` nivelle aussi les carrés.
+- **Dessin.** Les carrés se dessinent dans `emitCamp` (vue de dessus en canvas et première personne) et dans le rendu WebGL, avec la texture `terre` (nouveau genre de matière).
+- **Bêtes.** Le moissonneur sauvage ne fauche pas les carrés.
+- **Sauvegarde.** Sont enregistrés : `champs`, `carres`, `graines`, `graineSel` et `seau`.
+
+**Pas encore** : les autres joueurs ne voient pas les carrés (ils ne sont qu'au personnage). Les compagnes récolteuses peuvent y cueillir comme ailleurs. La repousse sauvage est inchangée.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-87`), `LISEZ-MOI.md`.
+
+## 120. La culture, livraison 2 : les carrés clos et grands, les arbres, les plantes rares
+
+**Trois tailles de carré**, chacune débloquée par un niveau d'établi :
+
+| Carré | Établi | Taille | Emplacements | Coût |
+|---|---|---|---|---|
+| Carré de culture (`carre`) | 1 | 5 × 5 | 4 petits | 40 bois, 30 fibres |
+| Carré clos (`carre2`) | 2 | 7 × 7, palissade | 6 petits, 2 moyens | 120 bois, 60 pierres, 10 os |
+| Grand carré (`carre3`) | 3 | 9 × 9, palissade | 8 petits, 3 moyens, 1 grand | 300 bois, 150 pierres, 30 éclats |
+
+**Combien de carrés.** Le plafond n'a pas changé : un carré, un deuxième au palier 3 du campement, un troisième au palier 8, toutes tailles confondues. Au plafond, fabriquer une taille plus grande **agrandit** un carré plus petit qui attend au sac (`fabriquer`), en le consommant. La fiche de chaque taille dit combien il y en a de fabriqués, combien au sac, et le total. La sauvegarde garde le nombre par taille (`carres: {1, 2, 3}`) ; un nombre seul, venu d'une sauvegarde du §119, compte comme des carrés de niveau 1.
+
+**Ce qui va où** (`tailleFlore`, `graineInfo`) :
+
+- **Petit** : comme au §119 (herbes, fleurs, champignons, touffes, roseaux, buissons à baies), et les plantes rares simples, donc communes ou peu communes.
+- **Moyen** : arbustes (genévrier), cactus, bambou, et les plantes rares géantes, donc rares ou exotiques.
+- **Grand** : les arbres (feuillus, conifères, palmiers, josué, géant, arbre de verre, cerisier), et les plantes rares vives, donc légendaires. Au carré, une vive est docile : elle ne bouge pas, ne mord pas, et se cueille comme une autre.
+- **Exclus** : les pierres, les métaux, les cristaux, les arbres morts. On ne les cultive pas.
+
+ACTION devant un emplacement libre plante la graine choisie si elle est à sa taille. Sinon, il plante celle qu'on a en plus grand nombre pour cette taille. La fiche donne pour chaque graine sa taille et sa rareté (en couleur).
+
+**Les graines et les plants** (`nomGraine` : « graine », « bouture » pour les baies, « plant » pour le bois) :
+
+| Source | Chance |
+|---|---|
+| Pied sauvage cultivable abattu, arbres compris | 1 sur 5 |
+| Récolte au carré | 1 sur 7 |
+| Plante rare cueillie au sauvage | 1 sur 4 |
+| Plante rare vive abattue | toujours |
+
+La rareté d'une plante rare suit le niveau de l'île (§117). Une graine légendaire ne se trouve donc que loin, et elle demande un grand carré, donc l'établi 3.
+
+**La pousse** (`dureeChamp`) :
+
+| Plante | Durée de pousse | Exemples |
+|---|---|---|
+| Flore, petit emplacement | 12 × la repousse sauvage | 12 min à 1 h |
+| Flore, moyen emplacement | 24 × la repousse sauvage | bambou 36 min, genévrier 1 h 15 |
+| Flore, grand emplacement | 60 × la repousse sauvage | arbres 2 h 30 à 4 h 30 |
+| Plante rare simple | 40 min | |
+| Plante rare géante | 2 h | |
+| Plante rare vive | 4 h | |
+
+Hors de son biome, une plante pousse moitié plus lentement. La réserve d'eau d'un emplacement est plus grande selon sa taille : 30 minutes de pousse pour un petit, 1 h pour un moyen, 2 h pour un grand (`EAU_K`). La pluie la remplit d'autant plus lentement.
+
+**À la main, devant un emplacement (ACTION)**, dans cet ordre :
+
+1. **SEMER**, si l'emplacement est libre.
+2. **DÉSHERBER**, s'il y a des mauvaises herbes. Elles viennent en poussant, environ une par heure et demie de pousse (`HERBE_T`), et ralentissent la pousse de moitié. Désherber rend parfois une fibre.
+3. **ARROSER**, si la plante a soif et que le seau n'est pas vide.
+4. **CUEILLIR**, pour une plante rare mûre. Elle rend 2 ingrédients (3 pour une vive), et une graine une fois sur sept. Une simple repart de zéro ; une géante ou une vive repart de 40 %.
+5. **La récolte ordinaire**, pour la flore mûre (dès 35 %).
+6. **ENGRAISSER**, pendant la pousse : 2 os, et la plante pousse moitié plus vite jusqu'à maturité.
+7. **POUSSE**, qui dit où en est la plante.
+
+**La récolte** rend selon la taille de l'emplacement : moitié plus qu'au sauvage dans un petit, le double dans un moyen, le triple dans un grand (`RECOLTE_K`). Un pin mûr rend environ 15 bois au lieu de 5.
+
+**La taille.** Ce qui donne du bois (arbres, genévrier, bambou) n'est pas abattu au carré : il est **taillé**, et repart du tiers de sa pousse. C'est sous le seuil de récolte, pour qu'on ne puisse pas le tailler en boucle.
+
+**La clôture.** Le carré de niveau 1 n'en a pas. Un herbivore sauvage qui y entre broute ce qui est mûr : la plante retombe à 15 %, avec un message quand on est à moins de 25 pas. Les carrés clos (niveaux 2 et 3) ont une palissade de pieux et de deux lisses, ouverte au sud, et les bêtes n'y broutent plus. La palissade ne bloque pas le passage.
+
+**Ce qu'on voit.**
+
+- Chaque emplacement est une butte à sa taille : plus sombre quand elle est arrosée, plus claire quand elle sèche, avec un piquet tant qu'elle est libre et des brins verts quand il y a des mauvaises herbes.
+- La flore semée est un pied de la flore. Une plante rare semée est un corps à part (`CHAMP_RARES`), dessiné comme celles des îles mais sans vie de bête, et qui grandit avec sa pousse.
+- Ces corps ne sont qu'au personnage : les autres joueurs ne les voient pas.
+
+Dans le code : `index.html`, section LA CULTURE (réécrite), `couperPied` (la taille), `coupRecolte` (le rendement selon la taille), `emitCamp` et le rendu WebGL (les plantes rares semées), `fabriquer` (l'agrandissement). `flore.js` : `cueillirPlante` et `majPlante` (les graines de plantes rares).
+
+**À déposer** : `index.html`, `flore.js`, `sw.js` (qui passe en `stone-valley-88`), `LISEZ-MOI.md`.
+
+## 121. La culture, livraison 3 : les compagnes au jardin
+
+**Une nouvelle récolte, « Jardin ».** Elle se choisit dans l'onglet Compagnes, avec le rôle Récolte, comme le bois ou la fibre. La compagne soigne alors les carrés de culture de l'île du campement. Elle va au plus pressé :
+
+1. récolter ce qui est mûr ;
+2. désherber ;
+3. arroser ce qui a soif (moins de 40 % d'eau). Elle va chercher l'eau elle-même : pas besoin de seau.
+
+Deux jardinières ne visent jamais le même emplacement. **Elle ne sème pas** : les graines, c'est vous. Quand il n'y a rien à faire, elle attend au bord du carré le plus proche. S'il n'y a aucun carré sur l'île, elle le dit (une fois toutes les trois minutes).
+
+**Selon le comportement :**
+
+- **Au campement** : tous les carrés de l'île du campement. Son rayon s'élargit jusqu'au carré le plus éloigné (`rayonJardin`). Ce qu'elle récolte va au coffre ; les plantes rares vont au garde-manger du campement (le cellier).
+- **Avec le joueur** : les carrés à moins de 14 pas de vous, sur l'île du campement. Ce qu'elle récolte va au sac.
+- **Autonome** : les carrés de l'île du campement, de carré en carré.
+
+**Sa note au jardin** (`noteJardin`) : la moyenne de ses notes de fibre et de baies, plus un point pour les Douces, de 1 à 5. Elle règle sa vitesse : un geste dure de 2 fois à 0,8 fois une récolte ordinaire (`DUREE_JARDIN`), et une fois et demie pour arroser. Elle règle aussi ce qu'elle rapporte : le rendement du carré (`RECOLTE_K`) multiplié par le coefficient de sa note, et la chance du produit de la plante. Une plante rare rend 2 ingrédients, 3 pour une vive.
+
+| Bête | Note au jardin |
+|---|---|
+| Brouteur, glaneur, cotonnier, lentigrade-cerisier | 5 |
+| Lentigrade | 4 |
+
+Le jardin ne devient jamais la récolte par défaut d'une espèce (`metierDe`) : il ne se choisit que sur ordre.
+
+**Pendant votre absence** (`jardinAbsence`, appelée par `travailAbsence`) :
+
+- **Combien de temps.** Chaque jardinière du campement tient le jardin une heure et demie (`ABS_MAX`) ; deux jardinières, trois heures.
+- **Ce qu'elle fait.** Minute par minute, depuis le départ, elle ôte les mauvaises herbes, remet l'eau, et récolte ce qui mûrit : au coffre, ou au garde-manger pour les plantes rares. Un arbre est taillé, comme sur place.
+- **Sans coffre**, elle soigne mais ne récolte pas.
+- **Après ce temps**, les plantes poussent seules, comme d'habitude.
+- **Le bilan d'absence** compte ce qui a été récolté ; les produits des plantes rares y figurent comme « produits du jardin ».
+
+Exemple mesuré : un carré de quatre petits emplacements, trois heures d'absence, une jardinière : 106 fibres et 4 ingrédients rares en 90 minutes de soins.
+
+**Les autres récolteuses** laissent désormais les carrés tranquilles (`chercherTacheTr`) : seules les jardinières y récoltent. La récolte abstraite des autres récolteuses en votre absence ne change pas : elle reflète la flore sauvage, qui repousse encore. Elle sera revue avec la fin de la repousse sur l'île du campement (livraison 5).
+
+Dans le code : `index.html`, section LES COMPAGNES AU JARDIN, juste avant `majRecolte` : `jardiniere`, `rayonJardin`, `chercherJardin`, `jardinAttente`, `faireJardin`, `majJardin`, `jardinAbsence`. `APT_RES`, `NOM_APT` et `LE_APT` gagnent « jardin ». Ont aussi changé : `noteApt`, `metierDe`, `ancre`, `ORDRES_DIT` (trois textes), `chercherTacheTr` et `travailAbsence`.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-89`), `LISEZ-MOI.md`.
+
+## 122. Les voyageurs du Seuil, quatrième livraison : six nouveaux métiers
+
+La dernière étape du plan des voyageurs (§109). Six métiers rejoignent les haltes. Ce sont tous des inconnus : un nom, une robe et un caractère tirés au hasard. Comme pour les autres, un ami paie 15 % de moins, et le Sceau des nomades un quart de moins.
+
+**Fréquences** : dans 400 haltes tirées à l'exploration 5, chacun des nouveaux métiers paraît de 40 à 58 fois, contre 98 pour la marchande et 83 pour le conteur.
+
+| Métier | Poids | Dès l'exploration | Tenue |
+|---|---|---|---|
+| Herboriste | 2 | 0 | chapeau de paille, hotte de plants |
+| Chasseur de primes | 1,6 | 2 | bonnet à plume rouge, arbalète en travers du dos |
+| Collectionneur | 1,2 | 2 | haut-de-forme, monocle, cabinet à tiroirs sur le dos |
+| Forgeron | 1,5 | 0 | tablier de cuir, marteau dans le dos |
+| Érudit | 1 | 3 | calotte, lunettes, pile de livres sur le dos |
+| Musicien | 1,5 | 0 | béret à plume, luth dans le dos |
+
+Les métiers d'avant : marchande 3, conteur 2,5, dresseur 2, cartographe 2, égaré 1,5, devin 1,3 dès l'exploration 3.
+
+**L'herboriste** (« Montre-moi tes graines ») vend quelques sachets par halte, un de chaque :
+
+- de la flore : deux petits, un moyen, un grand ;
+- à partir de l'exploration 2, une ou deux graines de plantes rares, dont la rareté suit le niveau de l'île (`poidsRarete`, §117–118).
+
+| Sachet | Contenu | Prix |
+|---|---|---|
+| Graines, petit emplacement | 3 | 3 éclats et 4 fibres |
+| Plants, moyen emplacement | 2 | 5 éclats et 6 bois |
+| Plant, grand emplacement | 1 | 8 éclats et 10 bois |
+| Plante rare | 1 | de 4 à 40 éclats selon la rareté, et 6 fibres |
+
+Il donne aussi des conseils pour les carrés (« Un conseil pour mes carrés ? », huit, sans redite) et des nouvelles.
+
+**Le chasseur de primes** propose une prime sur une espèce de l'île, plutôt un prédateur ou un automate, dont il reste au moins deux bêtes sauvages.
+
+- **Combien.** Deux ou trois bêtes, payées (5 + 2 × l'exploration) éclats par bête, moitié plus pour un prédateur, plus 2 os par bête. Une fois sur trois, une curiosité en plus (tirée selon le niveau).
+- **Le délai.** Dix minutes une fois acceptée. La halte attend jusque-là, et le temps qu'on revienne chercher la paie.
+- **Le compte.** Chaque bête de l'espèce qu'on abat compte (`butin` appelle `nmPrime`). Le message dit où on en est (« prime · 2/3 renards des pétales »).
+
+**Le collectionneur** :
+
+- **Il rachète** les ingrédients rares du sac, au plus six sortes à la fois, une unité par appui : 2 éclats pour un rare, 5 pour un exotique, 10 pour un légendaire, 20 pour un épique ; 15 % de plus pour un ami.
+- **Il échange** sa curiosité (tirée selon le niveau) contre une des vôtres de même rareté ou plus. Elle est retirée de sa place si on la portait.
+
+**Le forgeron** (les effets sont ceux des plats, et s'ajoutent à leur ligne) :
+
+| Service | Effet | Prix |
+|---|---|---|
+| Affûte mon arme | coups puissants II, 10 minutes | 8 pierres et 4 éclats |
+| Renforce mon armure | peau dure II, 10 minutes | 10 pierres et 3 os |
+| Forge-moi dix flèches | 10 flèches | 6 bois et 3 pierres |
+
+Il n'améliore pas les outils : c'est le rôle de l'établi.
+
+**L'érudit** déchiffre les tomes rapportés, sans bibliothèque et sans être au campement. Il respecte l'ordre (le Tome II après le Tome I) et coûte une fois et demie l'encre du pupitre (15, 38 ou 68 éclats). Il parle aussi des matières, sans redite, et donne des nouvelles.
+
+**Le musicien** joue des airs, contre 3 baies (offert pour un ami). La mélodie s'entend : luth pincé, sur la gamme pentatonique (`nmMelodie`).
+
+| Air | Quand | Effet |
+|---|---|---|
+| Air de marche | toujours | pas vif, 8 minutes |
+| Chant des grands vents | toujours | grand souffle, 8 minutes |
+| Berceuse | la nuit seulement | toute la vie rendue, toutes les forces rendues aux compagnes, et au moins 80 % de vie à celles qui sont dehors |
+
+**Vérifié en simulation** :
+
+- deux haltes réelles avec les six métiers ;
+- un achat de graines (graines au sac, éclats retirés) ;
+- une prime de trois renards des pétales (acceptée, comptée, payée : 45 éclats et 6 os) ;
+- un rachat (10 éclats pour un croc légendaire) et un échange de curiosités (la portée est retirée de sa place) ;
+- l'affûtage (coups puissants II) et les dix flèches ;
+- un Tome I déchiffré par l'érudit ;
+- l'air de marche et la berceuse, la nuit ;
+- 400 haltes tirées, avec leurs métiers ;
+- les six tenues, en jeu.
+
+**Ce que j'ai décidé seul** :
+
+- les six métiers et leurs services ;
+- les prix, les poids et les niveaux d'apparition ;
+- que l'échange accepte une curiosité de rareté supérieure ;
+- la durée des effets ;
+- que la berceuse ne se joue que la nuit.
+
+Dans le code : `nomades.js`, section LES AUTRES MÉTIERS. On y trouve `nmRemise`, `nmPrix`, `nmPayer`, `nmEffet`, et pour chaque métier :
+
+- l'herboriste : `nmHerbOffre`, `nmGraines`, `NM_HERBES` ;
+- le chasseur : `nmPrimeQuete`, `nmChasseur`, `nmPrime` ;
+- le collectionneur : `nmRachat`, `nmEchange` ;
+- le forgeron : `NM_FORGE`, `nmForge` ;
+- l'érudit : `nmDechiffrer` ;
+- le musicien : `NM_AIRS`, `nmMelodie`, `nmJouer`.
+
+Les nouveaux rôles s'ajoutent à `NM_ROLE`, `NM_ACCUEIL` et `NM_DIALOGUES`. Ont aussi changé : `nmVenir` (les poids), `nmServices` (la prime retient la halte), `nmOs` (les tenues). Dans `index.html`, `butin` compte les bêtes de la prime.
+
+**À déposer** : `nomades.js`, `index.html`, `sw.js` (qui passe en `stone-valley-90`), `LISEZ-MOI.md`.
+
+## 123. Faire affaire avec le Seuil est un privilège
+
+Les voyageurs proposaient trop : trois curiosités, quatre trocs, des indices à volonté, cinq marques… C'est fini.
+
+**La règle** (`nomades.js`, section « le privilège ») :
+
+- **Une affaire par halte et par voyageur** : un achat, une vente, un service. Un ami (amitié 3 et plus) en fait deux.
+- **Un indice par halte et par voyageur** : une rumeur, un conseil, une marque, un lutrin. Un ami en donne deux.
+- **Une fois le compte atteint**, les offres restent visibles mais grisées (« — nous avons déjà fait affaire »). Les questions d'indice répondent « C'est tout ce que je sais pour aujourd'hui ».
+- **Les récits** (« D'où venez-vous ? », l'histoire du dresseur, le métier du cartographe…) restent libres.
+
+**Ce que chacun propose, par halte :**
+
+| Voyageur | Avant | Maintenant |
+|---|---|---|
+| Marchande, curiosités | 3 | 1 |
+| Marchande, étal | 4 trocs, 2 fois chacun | 2 trocs, 1 fois chacun |
+| Dresseur | toutes les techniques qu'on ignore | une seule, tirée au hasard |
+| Cartographe | jusqu'à 5 marques | 1, tirée au hasard |
+| Devin | la vision, et jusqu'à 3 autres chemins | la vision ; un autre chemin une fois, qui compte pour une seconde affaire (donc pour un ami) |
+| Conteur | tous les lutrins de l'île | le lutrin le plus proche, qui compte pour son indice ; le Tome II cédé compte pour son affaire |
+| Herboriste | 5 à 6 sachets | 1 sachet, et une fois sur deux un second (une plante rare dès l'exploration 2) |
+| Collectionneur | tous vos ingrédients rares, un par un | seulement le plus rare, jusqu'à trois en une fois ; l'échange de curiosité compte aussi comme une affaire |
+| Forgeron | ses trois services | un seul, tiré au hasard (affûtage, renfort ou flèches) |
+| Érudit | tous les tomes lisibles | un seul tome |
+| Musicien | tous ses airs | un seul (la nuit, une fois sur deux la berceuse) |
+| Chasseur de primes, égaré | | inchangés : c'était déjà une seule prime, un seul service |
+
+Taille des sachets de l'herboriste : 2 graines pour un petit emplacement, 1 plant pour un moyen ou un grand, 1 graine de plante rare.
+
+**Dans le code** :
+
+- `nmBudget`, `nmPeutAffaire` et `nmAffaire` comptent les affaires de chaque voyageur.
+- `NM_AFFAIRES` liste les nœuds d'affaire par métier.
+- `nmAller` compte l'affaire au moment du choix, et grise au-delà.
+- `nmUnIndice` donne un indice s'il en reste.
+- `nmTomes` gère à part le lutrin et le Tome II du conteur.
+- Les offres réduites : `nmTirerTrocs`, `nmCurios`, `nmApprendre`, `nmCartes`, `nmAutreChemin`, `nmHerbOffre`, `nmRachat`, `nmForge`, `nmDechiffrer`, `nmJouer`.
+
+**À déposer** : `nomades.js`, `sw.js` (qui passe en `stone-valley-91`), `LISEZ-MOI.md`.
+
+## 124. La culture, livraison 5 : rien ne repousse sur l'île du campement (sauf les éclats)
+
+La dernière étape du plan de la culture (§119).
+
+**Chez soi**, sur l'île du campement, ce qu'on abat ne repousse plus : arbres, buissons, herbes, fleurs, roseaux, pierres, ferraille, buissons à baies, mousse des nuages. **Seuls les éclats repoussent** (druses, obsidienne, lanternes, condensateurs…). Les carrés de culture sont ce qui pousse.
+
+- **Le pied abattu disparaît de la flore**, et l'île s'en souvient (`CAMP_COUPES`). C'est valable que ce soit vous, une compagne ou un équipier qui l'abatte.
+- **Les plantes rares** de l'île du campement, une fois cueillies, ne repoussent plus. Une plante vive abattue ne revient pas (`PL_CUEILLIES`).
+- **La première fois**, un message le dit : « chez vous, rien ne repousse — sauf les éclats · ce qui pousse, ce sont les carrés de culture ».
+- **Les autres îles** ne changent pas : on les retrouve neuves à chaque passage, et elles repoussent comme avant.
+- **Reprendre le campement** efface ce souvenir. L'île redevient une île comme les autres, et un nouveau campement repart d'une île intacte.
+
+**La sauvegarde** garde l'île (`coupesCamp.g`), ses cases abattues (en ordre croissant, chacune par son écart à la précédente, en base 36 : environ 3 octets par case, 212 octets pour 71 cases) et ses plantes rares cueillies. Au chargement, le terrassement les réapplique (`coupesCampAppliquer`).
+
+**Les bêtes et les gens qui ne cueillent plus chez vous** (sinon ils videraient l'île) :
+
+- les cueilleuses et cueilleurs d'un village posé sur l'île du campement ;
+- les oglodons, qui ne vont plus chercher de baies ;
+- le moissonneur sauvage, qui ne fauche plus.
+
+**Les récolteuses pendant votre absence** (`travailAbsence`, `recolteReelle`) :
+
+- **Ce qui ne repousse pas** (bois, pierre, fibre, baies, ferraille) se prend maintenant sur la flore réelle de l'île. Elles abattent les pieds les plus proches du feu, à 24 cases au plus, jamais dans un carré ni dans le rond du campement, et pas plus de 25 pieds par récolteuse et par absence (`ABS_PIEDS`). Ces pieds sont abattus pour de bon.
+- **Quand il n'y a plus rien** de leur matière autour du feu, le bilan le dit : « plus de bois autour du campement ».
+- **Les éclats, la chasse et la pêche** restent comptés comme avant : ils se renouvellent.
+- **Sur place**, une récolteuse au campement abat pour de bon, comme vous.
+
+Exemple mesuré : une récolteuse de bois (carillonneur), deux heures d'absence, 158 bois (25 pieds) ; l'île de l'essai n'avait que 71 pieds de bois autour du feu, épuisés à la troisième absence.
+
+**Dans le code** : `index.html`, juste après `CHAMP_CASE` : `CAMP_COUPES`, `PL_CUEILLIES`, `coupeDefinitive`, `retirerPied`, `coupesCampAppliquer`, `coupesEcrire`, `coupesLire`. Ont aussi changé :
+
+- `couperPied` (la coupe définitive) ;
+- la réception d'une coupe d'équipier ;
+- `majTerrasse` ;
+- le moissonneur sauvage, et `buissonPourOglodon` ;
+- `recolteReelle` et `travailAbsence` ;
+- la sauvegarde et `reprendreCampement`.
+
+Ailleurs : `flore.js` (`plCueillie`, dans `cueillirPlante` et à la mort d'une vive) et `village.js` (les cueilleuses).
+
+**À déposer** : `index.html`, `flore.js`, `village.js`, `sw.js` (qui passe en `stone-valley-92`), `LISEZ-MOI.md`.
+

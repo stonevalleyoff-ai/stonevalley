@@ -1,7 +1,9 @@
 // Stone Valley — LA FLORE RARE (flore.js)
-// Pour chaque biome, douze plantes qu'on ne trouve qu'une à une. TOUTES SONT RARES : même rang, même
-// rareté d'ingrédient (« rare »). Les légendaires et les épiques restent à créer. Ce qui les
-// distingue n'est plus leur rang mais leur PORT (`port`), qui règle la taille et le comportement :
+// Pour chaque biome, douze plantes qu'on ne trouve qu'une à une. Chacune a sa RARETÉ (§117), qui est celle
+// de son ingrédient : les trois premières simples sont communes, les trois autres peu communes, les deux
+// premières géantes rares, les deux autres exotiques, les deux vives légendaires. L'île tire la rareté
+// d'après son niveau d'exploration (voir floreIle) : la force des potions suit la profondeur.
+// Leur PORT (`port`) règle la taille et le comportement :
 //  simples (six) : l'étoile (les pétales s'ouvrent le jour, se ferment la nuit), les clochettes (un arc
 //               d'où pendent des cloches qui luisent), l'éventail (des frondes qui ondulent), la crosse
 //               (des spirales qui se déroulent), l'orbe (des lanternes qui flottent au bout des tiges),
@@ -16,6 +18,8 @@
 // et la géante repoussent ; la vive, il faut d'abord l'abattre). Les ingrédients rejoignent le
 // garde-manger, tous de rareté « rare », et chacun porte un effet.
 // Le biome nuage n'existe qu'en îles volantes : ses plantes se posent sur les dalles de nuage.
+// Combien (§116) : aucune aux explorations 0 et 1 ; une par île à partir de 2, puis de plus en plus souvent deux.
+// Laquelle (§117) : la rareté se tire d'après le niveau de l'île (commune près de chez soi, légendaire au loin).
 // Partagées entre les joueurs d'une île (voir LISEZ-MOI, section 58) : la plante cueillie l'est pour tous
 // (« fcueille », et l'état de l'île donné au nouveau venu) ; la vive est une bête du gardien de la faune :
 // elle attaque le joueur le plus proche, d'ici ou d'en face, et chez les autres n'est qu'une marionnette.
@@ -48,17 +52,20 @@ const FL_BIOMES = [
   [23, [[96, 70, 66], [150, 186, 120], [255, 182, 208], [255, 236, 160], [255, 250, 252]], "Étoile de sakura|Clochettes de glycine|Éventail d'érable rouge|Crosse de jade|Lampion de pétales|Prunier du Japon|Pivoine-reine|Saule de pétales|Voile de pétales|Arbre aux mille fleurs|Gueule de camélia|Fouet d'églantier"],   // la cerisaie (§112)
 ];
 const FLORE_RARES = [], FLORE_PRODUITS = [];
+const FL_TIER = [1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5];
+const FL_RANG = ['', 'commune', 'peu commune', 'rare', 'exotique', 'légendaire'];
 const flElide = s => { const m = s.charAt(0).toLowerCase() + s.slice(1); return (/^[aeiouyéèêàâîôûœh]/i.test(m) ? "d'" : 'de ') + m; };
 for (const [bio, pal, noms] of FL_BIOMES) {
   noms.split('|').forEach((n, i) => {
-    const port = i < 6 ? 'simple' : i < 10 ? 'geante' : 'vive';   // sa stature et sa conduite — pas son rang : toutes sont rares
+    const port = i < 6 ? 'simple' : i < 10 ? 'geante' : 'vive';   // sa stature et sa conduite
+    const r = FL_TIER[i];                                           // sa rareté (§117), de 1 commune à 5 légendaire
     let forme = port === 'simple' ? FL_FORMES_R[i] : port === 'geante' ? FL_FORMES_L[i - 6] : i === 10 ? 'gueule' : /^Fouet/.test(n) ? 'fouetteuse' : 'cracheuse';
     if (bio === 12 && forme === 'etoile') forme = 'cristalline';
     const id = 'fl' + bio + '_' + i, [part, fam] = FL_PART[forme], tag = FL_TAGS[(bio + i) % FL_TAGS.length];
-    FLORE_RARES.push({ id, n, bio, rang: 'rare', port, forme, pal, ingr: 'p_' + id });
+    FLORE_RARES.push({ id, n, bio, r, rang: FL_RANG[r], port, forme, pal, ingr: 'p_' + id });
     const dejaNomme = n.toLowerCase().startsWith(part.toLowerCase()), ni = dejaNomme ? n : part + ' ' + flElide(n);   // « Orbe des aigles », pas « Orbe d'orbe des aigles »
     const court = n.charAt(0).toLowerCase() + n.slice(1);    // sous l'icône et dans le nom des plats : la plante, sans la partie
-    FLORE_PRODUITS.push([id, ni, court, fam, 3, tag, pal[2].slice()]);   // rareté 3 : « rare », pour toutes
+    FLORE_PRODUITS.push([id, ni, court, fam, r, tag, pal[2].slice()]);
   });
 }
 const FLORE_SPEC = [
@@ -66,7 +73,6 @@ const FLORE_SPEC = [
   { id: 'plante_l', n: 'Grande plante rare', plante: 1, batiment: 1, diet: 'p', sz: 1, spd: 0, vue: 0, peur: 0, herd: 0, cap: 0, mat: 9999, shell: [120, 170, 90], dark: [70, 100, 60], leg: [80, 110, 60], oeil: [255, 240, 160], bio: [], dur: 1, lien: 0, chasse: [], travail: {}, metier: '', grimpe: 0 },
   { id: 'plante_e', n: 'Plante rare vive', plante: 1, epique: 1, diet: 'p', sz: 1.4, spd: 0, vue: 9, peur: 0, herd: 0, cap: 0, mat: 9999, shell: [120, 60, 70], dark: [70, 30, 40], leg: [80, 60, 50], oeil: [255, 80, 60], bio: [], dur: 3, lien: 0, chasse: [], travail: {}, metier: '', grimpe: 0 },
 ];
-const FL_RANG = { rare: 'rare' };
 // ---------- l'île : quelques plantes, une à une, sur leur biome ----------
 function floreIle() {
   let s = (SEED ^ 0xf10e5) >>> 0 || 1; const r = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
@@ -87,24 +93,35 @@ function floreIle() {
       const b = naitre(sp, x, y); b.age = 1e6; b.ech = pl.port === 'simple' ? 1.3 : 1; b.pv = 1; b.z = dalle ? PlT[i] : sol(x, y); b.pl = pl; b.dir = b.dirT = r() * 6.2832; b.graine = r(); b.etat = 'pousse';
       for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) if (Flo[i + dy * WS + dx]) Flo[i + dy * WS + dx] = 0;
       beasts.push(b); return b; } return null; };
+  // Combien (§116) : AUCUNE sur les îles d'exploration 0 et 1. À partir de 2, une seule par île, et une seconde de plus
+  // en plus souvent en s'enfonçant (15 % de plus par niveau : toujours à partir de 9), sur un autre biome si l'île en a
+  // plusieurs.
+  // Laquelle (§117) : sa rareté se tire autour d'un rang qui monte d'un demi-cran par niveau — commune à
+  // l'exploration 2, peu commune vers 4, rare vers 6, exotique vers 8, et la légendaire de plus en plus souvent
+  // au-delà (le centre plafonne à 4,4). Le port suit la rareté : les géantes sont rares ou exotiques, les vives
+  // légendaires.
   const niv = profondeur();
-  for (const [bio, L] of cases) {
-    const cat = FLORE_RARES.filter(p => p.bio === bio); if (!cat.length || L.length < 60) continue;
-    const nR = Math.max(2, Math.min(7, L.length / 350 | 0));
-    for (let k = 0; k < nR; k++) poser(cat[r() * 6 | 0], L, 0);
-    if (r() < .45 + Math.min(.3, niv * .02)) poser(cat[6 + (r() * 4 | 0)], L, 2);
-    if (niv >= 2 && r() < .35 + Math.min(.25, niv * .015)) poser(cat[10 + (r() * 2 | 0)], L, 1);
-  }
-  // Le nuage n'a pas de sol : il n'existe qu'en îles volantes. Ses plantes se posent sur les dalles,
-  // après toutes les autres (le tirage des plantes du sol ne change pas). Mêmes parts que les autres biomes.
+  if (niv < 2) return;
+  const lieux = [];
+  for (const [bio, L] of cases) { const cat = FLORE_RARES.filter(p => p.bio === bio); if (cat.length && L.length >= 60) lieux.push({ cat, L, dalle: false }); }
+  // Le nuage n'a pas de sol : il n'existe qu'en îles volantes. Ses plantes se posent sur les dalles (jamais conjurées).
   { const cat = FLORE_RARES.filter(p => p.bio === 17), L = [];
     for (let i = 0; i < WS * WS; i++) if (PlT[i] && !(typeof dalleConjuree === 'function' && dalleConjuree(i))) L.push(i);
-    if (cat.length && L.length >= 60) {
-      const nR = Math.max(2, Math.min(7, L.length / 350 | 0));
-      for (let k = 0; k < nR; k++) poser(cat[r() * 6 | 0], L, 0, true);
-      if (r() < .45 + Math.min(.3, niv * .02)) poser(cat[6 + (r() * 4 | 0)], L, 2, true);
-      if (niv >= 2 && r() < .35 + Math.min(.25, niv * .015)) poser(cat[10 + (r() * 2 | 0)], L, 1, true);
-    } }
+    if (cat.length && L.length >= 60) lieux.push({ cat, L, dalle: true }); }
+  const poids = [1, 2, 3, 4, 5].map(k => poidsRarete(k, niv, 4.4)), somme = poids.reduce((a, b) => a + b);   // (§118) l'échelle commune (index.html)
+  const tirerRang = () => { let u = r() * somme; for (let k = 0; k < 5; k++) if ((u -= poids[k]) < 0) return k + 1; return 5; };
+  let reste = 1 + (r() < Math.min(1, (niv - 2) * .15) ? 1 : 0);
+  for (let essai = 0; reste > 0 && essai < 6 && lieux.length; essai++) {
+    const j = r() * lieux.length | 0, li = lieux[j], rg = tirerRang(), C = li.cat.filter(p => p.r === rg), pl = C[r() * C.length | 0];
+    if (pl && poser(pl, li.L, pl.port === 'geante' ? 2 : pl.port === 'vive' ? 1 : 0, li.dalle)) { reste--; if (lieux.length > 1) lieux.splice(j, 1); }
+    else lieux.splice(j, 1);
+  }
+}
+// (§124) Une plante rare de l'île du campement cueillie ou abattue : la case s'en souvient (index.html, PL_CUEILLIES).
+function plCueillie(b) {
+  if (typeof PL_CUEILLIES === 'undefined') return;
+  if (coupesG !== SEED) { CAMP_COUPES.clear(); PL_CUEILLIES.clear(); coupesG = SEED; }
+  PL_CUEILLIES.add((b.x | 0) + ',' + (b.y | 0)); if (typeof Sauve !== 'undefined') Sauve.sale = true;
 }
 // ---------- la vie : le vent, la repousse, et la vive qui attaque ----------
 function majPlante(b, dt, marionnette) {
@@ -115,7 +132,8 @@ function majPlante(b, dt, marionnette) {
     // suiveur, seulement si c'est lui qui vient de la frapper
     const moi = marionnette ? maintenant() - (b.coupT ?? -99) < 2.5 : !b.tueDistant;
     if (!b.butin && !moi) b.butin = true;
-    if (!b.butin) { b.butin = true; const n = 2; metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); say(`${pl.n} est vaincue · +${n} ${INGR[pl.ingr].n.toLowerCase()}`, 3.5); burst(b.x, b.y, b.z + 1, 24, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac(); }
+    if (!b.butin) { b.butin = true; const n = 2; metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); if (typeof gagnerGraine === 'function') gagnerGraine(pl.id); if (typeof campIci === 'function' && campIci()) plCueillie(b);   // (§120) abattue : sa graine, toujours ; (§124) chez soi, elle ne revient pas
+      say(`${pl.n} est vaincue · +${n} ${INGR[pl.ingr].n.toLowerCase()}` + (typeof nomGraine === 'function' ? ' · +1 ' + nomGraine(pl.id) : ''), 3.5); burst(b.x, b.y, b.z + 1, 24, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac(); }
     b.dead = 1; return;
   }
   if (b.cueillie && t > b.repousseT) b.cueillie = false;
@@ -169,8 +187,10 @@ function cueillirPlante(b) {
   if (b.cueillie) { say(pl.n + ' a déjà été cueillie · elle repousse', 2); return; }
   const n = pl.port === 'simple' ? 1 + (Math.random() < .5 ? 1 : 0) : 1;
   metSacIngr(pl.ingr, sacIngr(pl.ingr) + n); b.cueillie = true; b.repousseT = t + (pl.port === 'simple' ? 600 : 1800);
+  if (typeof campIci === 'function' && campIci()) { b.repousseT = Infinity; plCueillie(b); }   // (§124) chez soi : elle ne repousse pas
+  const gr = typeof gagnerGraine === 'function' && Math.random() < .25; if (gr) gagnerGraine(pl.id);   // (§120) une graine, une fois sur quatre
   if (b.num !== undefined && RS.ouvert && Autres.size && Compte.uid) diffuser(canalIle(), 'fcueille', { u: Compte.uid, n: b.num, r: Math.round(b.repousseT - t) });
-  say(`${FL_RANG[pl.rang]} · ${pl.n} · +${n} ${INGR[pl.ingr].n.toLowerCase()}`, 3);
+  say(`${pl.rang} · ${pl.n} · +${n} ${INGR[pl.ingr].n.toLowerCase()}` + (gr ? ' · +1 ' + nomGraine(pl.id) : ''), 3);
   burst(b.x, b.y, b.z + (pl.port === 'geante' ? 2 : .8), pl.port === 'geante' ? 30 : 14, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac();
 }
 // ---------- en volumes ----------
