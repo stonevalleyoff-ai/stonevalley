@@ -3085,6 +3085,7 @@ Ce qui se passe en partie part, par paquets, dans une table Supabase, `vp_journa
 | `fabrique`, `module`, `campement` | objet fabriqué, module créé ou amélioré, campement posé ou repris | objet, niveaux, coffre |
 | `culture` | carré posé ou repris, semis, cueillette, geste d'un visiteur | graine, taille |
 | `lien` | bête liée | espèce, rareté, nombre de compagnes |
+| `culture` (§139) | semer, cueillir, récolter, arracher au carré | `q` : `seme`, `cueille`, `recolte`, `arrache` ; la graine, ce qui est rapporté |
 | `potion`, `plat` | essai d'alchimie, plat cuisiné | potion, rang, chance, ingrédients, réussite, et depuis le §133 : points perdus aux gestes, fautes d'ordre, eau, cuisson (`tot`, `ok`, `tard`), potion parfaite ; niveau de la cuisine |
 | `nomade`, `prime` | affaire faite avec un voyageur, prime remplie | métier, affaire, amitié |
 | `absence` | retour au jeu | minutes, compagnes au camp, ce qu'elles ont rapporté |
@@ -3519,7 +3520,7 @@ On peut verser un peu avant le terme (1,5 s) ou un peu après (3 s). La cuisson 
 
 **Le carnet de l'alchimiste.** Chaque geste fait juste se note pour sa recette, et s'affiche ensuite en clair même à la table 1 (marqué ✎). Le carnet garde aussi, par recette, les essais, les réussites, la meilleure chance et la potion parfaite. Il se lit au sac.
 
-**Le sac.** Le volet Alchimie du Campement ne prépare plus rien. Il garde la fiche en lecture seule (vos caractéristiques, vos compagnes) et ajoute le carnet. Il signale un chaudron qui attend.
+**Le sac.** Le volet Alchimie du Campement ne prépare plus rien. Il garde la fiche en lecture seule (vos caractéristiques, vos compagnes) et ajoute le carnet. Il signale un chaudron qui attend. *(Depuis le §140, ce volet n'existe plus : la fiche et le carnet sont dans la fenêtre de la table.)*
 
 **Le journal de jeu** (§126) note aussi, pour chaque essai : les points perdus aux gestes, les fautes d'ordre, l'eau, la cuisson et la potion parfaite. La chance y était mal notée (un nombre illisible) : c'est corrigé.
 
@@ -3656,3 +3657,237 @@ Rien ne change au jeu (mouvements, jeux, combat, apprivoisement, récolte, soins
 **Dans le code** (`index.html`, section LES TROTTINS) : `TROTTINS` (noms, couleurs : `crin`, `plume`, `plume2`, `pierre`, yeux d'ambre), `TROTTIN_FORME` (refait), `osTrottin` et `dessinTrottin` (refaits), `TROTTIN_CUIR`, `TROTTIN_OS`, `TROTTIN_BOIS`, `TROTTIN_CORNE`, `TROTTIN_SABOT` ; `MAT_FAM.trottin` passe à `ecorce`.
 
 **À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-105`), `LISEZ-MOI.md`.
+
+## 139. Journal de jeu : le contexte de l'appareil, les récoltes des carrés
+
+L'analyse du journal (§126) a montré deux trous.
+
+**Le contexte perdu.** Sur la plupart des événements `session` et `arrivee`, le contexte de l'appareil (navigateur, écran, images par seconde, carte graphique) était remplacé par `ReferenceError: Cannot access 'Panne' before initialization`. Quand la sauvegarde est lue sur l'appareil (à chaque changement d'île, la page se recharge), le journal démarre pendant le chargement, avant la fin du script. Or `Panne`, le compteur des incidents que `contexteJeu` lit en dernier, n'était déclaré que tout en bas. Il l'est maintenant **tout en haut du script** : le contexte part complet à chaque session et à chaque arrivée. Rien ne changeait au jeu lui-même.
+
+**Les récoltes des carrés.** Seuls les semis et la cueillette étaient notés. Le journal note maintenant aussi, depuis la fenêtre du carré (§131) :
+
+| `culture`, `q` | Quand | Champs |
+|---|---|---|
+| `recolte` | Récolter un emplacement mûr | `g` la graine, `res` la ressource, `n` ce qui est arrivé au sac et au coffre, `m` la maturité |
+| `arrache` | Arracher | `g`, `m` |
+
+**Dans le code** : `const Panne` en tête du script principal ; dans `jnlBrancher`, les branchements `recolterPlace` et `arracherPlace`.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-106`), `LISEZ-MOI.md`.
+
+## 140. Le sac : plus de volet Alchimie, et un défilement qui tient
+
+**Le volet Alchimie disparaît du sac.** Le Campement n'a plus que ses volets Camp, Cuisine, Magie, Portail et Journal. Ce qu'il montrait passe dans la fenêtre de la table d'alchimie (§133) :
+
+- **la fiche** : chaque vignette de potion porte maintenant la **valeur d'aujourd'hui** sous son nom (Vie 120, Vitesse 104 %…), et celles des compagnes leur récolte, leur défense, le rang de leur compétence ;
+- **le carnet de l'alchimiste** : un bouton **Le carnet** dans l'en-tête de la fenêtre remplace la recette par la liste des recettes essayées (essais, réussites, meilleure chance, potion parfaite, gestes notés). **La recette** y revient, et choisir une potion aussi.
+
+La carte « Vos caractéristiques, le carnet » de la case Table d'alchimie disparaît avec le volet ; la case elle-même (créer, améliorer la table) reste.
+
+**Le défilement du sac.** Il revenait souvent en haut, ou se figeait sous le doigt. Deux causes :
+
+- **le focus** : après un appui, le bouton touché gardait le focus, et chaque mise à jour du sac (une récolte d'une compagne, la vie qui bouge…) le refaisait puis lui rendait le focus, ce qui **faisait défiler la liste jusqu'à lui**. Le focus se rend maintenant sans faire défiler, et seulement s'il a été perdu ;
+- **la réécriture complète** : le sac était reconstruit en entier à chaque mise à jour. Le défilement était remis à sa place, mais l'élan du doigt cassé. Désormais, sur la même page, le sac **n'est plus reconstruit** : l'ancien et le nouveau se comparent nœud à nœud, et seul ce qui a changé est modifié. Les listes, l'élan du doigt et le bouton touché restent tels quels. Une page identique n'est pas touchée du tout.
+
+Changer d'onglet ou de volet réécrit la page comme avant, et **chaque page retrouve son défilement** (il était perdu dès qu'on passait par un autre onglet).
+
+**Dans le code** : `majSac` (`SAC_VU` : la dernière page dessinée, sa clé, les défilements de chaque page), `morphSac` et `morphNoeud` ; `VOLETS_CAMP` sans `alchimie`, `ongletDe('alchimie')` mène au volet Camp ; `pageAlchimie` disparaît, remplacée par `nomCarnet`, `notesCarnet` et la vue `AL.vue = 'carnet'` de `rendreAlchimie`.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-107`), `LISEZ-MOI.md`.
+
+## 141. Le bilan de la fiole
+
+Mettre en fiole ouvre maintenant **une petite fenêtre de bilan** par-dessus la table d'alchimie :
+
+- **le verdict**, en couleur : **★ Potion parfaite** (cadre et fiole d'or, qui luit), **Potion réussie** (vert), **La potion a tourné** (la fiole noircie, penchée) ;
+- **le sort contre la chance** : une jauge dont la part verte est la chance de réussite ; un trait y glisse jusqu'au nombre tiré. Sous la part verte, la potion prend ; au-delà, elle tourne. (« chance 62 % · le sort est tombé sur 37, sous la chance ») ;
+- **les gestes**, une pastille chacun, verte si juste, orange sinon : l'eau, chaque ingrédient versé (son icône, puis ✓ ou « trop chaud », « trop froid », « trop tôt », « trop tard »), la cuisson (à point, pas assez cuite, trop cuite), et les ingrédients versés hors de leur tour. Dessous, le détail de la chance (base, table, rareté, ordre, gestes, parfaite) ;
+- **ce que la potion a fait** : « Bue · Vie 110 → 120 », « Donnée à … », « … apprend … » ; ou, ratée, « Tout est perdu : ce qui était versé, et 12 éclats ». Puis les rangs en pastilles, la nouvelle qui s'allume.
+
+**Continuer** la ferme, comme Entrée, Espace, Échap ou un appui à côté. Entrée ne relance pas la fiole. Pendant le bilan, la table derrière ne reçoit rien. S'éloigner de la table ferme les deux.
+
+**Dans le code** : `bilanFiole` (appelée par `tenterAlch` avant que le chaudron ne se vide), `montrerBilan`, `fermerBilan`, `bilanOuvert` ; `detChance`, le détail de la chance, est partagé avec la fenêtre. Le style est dans `alStyle` (`#al-bilan`, `.ab-*`).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-108`), `LISEZ-MOI.md`.
+
+## 142. L'éclat d'encre, une potion
+
+**Inscrire un sort coûte maintenant un éclat d'encre**, quel qu'il soit (simple, accord, avec accent). Avant, c'était 10, 20 ou 30 éclats. L'éclat d'encre se prépare **à la table d'alchimie**, dès le niveau 1 : une vignette **Encre**, sous « Le grimoire », à gauche de la fenêtre.
+
+**La recette** est fixe, sans rang. Trois ingrédients alternent avec trois versées de 10 éclats :
+
+| Étape | Ce qu'on verse |
+|---|---|
+| 1 | un champignon (toute rareté) |
+| 2 | 10 éclats |
+| 3 | une racine (toute rareté) |
+| 4 | 10 éclats |
+| 5 | une graine (toute rareté) |
+| 6 | 10 éclats |
+
+Les éclats se versent comme un ingrédient. Le bouton éclat de la liste « À verser » montre la versée attendue (10), et il est grisé s'il en manque. Ils sont pris au moment de la versée et perdus si la potion tourne ou si l'on vide le chaudron. Ils comptent comme le reste pour l'ordre, le feu et le repos, et l'eau prend la couleur de l'encre à mesure. Rien de plus n'est payé à la mise en fiole.
+
+**Chance de base : 70 %**, plus le bonus de la table. Les gestes de l'encre sont les siens, les mêmes pour tous, et le carnet les note sous « Éclat d'encre ». **Une fiole réussie donne 1 éclat d'encre ; parfaite, elle en donne 2.** Le bilan (§141) le dit : « +2 éclats d'encre · 3 en réserve ».
+
+**Où on le voit** : la vignette Encre (le nombre en réserve), le sac (case **Encre** parmi les réserves, dès qu'on en a), le pupitre (« 1 éclat d'encre pour l'inscrire (n en réserve) »). Sans encre, le pupitre le dit et le bouton « Inscrire au grimoire » est grisé.
+
+**Les tomes ne changent pas** : on les déchiffre toujours contre des éclats (10, 25, 45 ; chez l'érudit, une fois et demie). Seuls les mots changent : « Il faut 10 éclats pour le déchiffrer », sans « d'encre », pour ne pas confondre avec l'éclat d'encre. Les répliques des nomades ont été ajustées de même.
+
+**Dans le code** : `ENCRE_ALCH`. La potion `'encre'` de `potionDe` porte `motif`, `base`, `niv`, `cout`. `recetteAlch` lit l'étape `E` comme une versée d'éclats (`{ fam: 'eclat', n }`). `coutAlch`, `etapeVa`, `ditEtape`, `icIngr`, `icFiole`, `nomPotion` et `nomCarnet` connaissent l'éclat. `verserAlch('eclat')` paie la versée. `tenterAlch` ajoute à `P.encre` (sauvegardé, plafonné à 10 000). `DESSINS.encre`, `AL_TEINTE.eclat`, `AL_FIOLE.encre`. Côté grimoire, `inscrireSort` retire un éclat d'encre, et `ENCRE`, `ENCRE_MELANGE`, `ENCRE_ACCENT` et `encreDe` disparaissent. `nomades.js` : trois répliques.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-109`), `nomades.js`, `LISEZ-MOI.md`.
+
+## 143. La magie en fenêtre : le pupitre, et l'onglet Grimoire
+
+**Le volet Magie quitte le sac.** Le Campement garde Camp, Cuisine, Portail et Journal. La magie se partage désormais entre deux endroits.
+
+### Au campement : la fenêtre du pupitre
+
+**ACTION devant la bibliothèque** (« MAGIE · le pupitre ») ouvre la fenêtre ; ACTION à nouveau, Échap, ✕ ou s'éloigner la ferment. Comme la table d'alchimie, le geste part à l'appui, et la fenêtre ne réécrit que ce qui a changé.
+
+**Au centre, la scène**, en pixels agrandis (128 × 88) :
+
+- un mur de planches, deux rayons de livres ;
+- un lutrin, **le grimoire ouvert**, aux pages bombées ;
+- **une bougie qui vacille** et éclaire tout d'une lumière chaude qui faiblit au loin ; de la poussière dorée flotte dans sa lueur ;
+- **un encrier** dont le niveau suit la réserve d'éclats d'encre ;
+- **la pile des tomes rapportés**, à la couleur de leur matière (quatre au plus).
+
+**La plume trace le glyphe** de la phrase composée sur la page de gauche, point par point, à la couleur de la matière (deux couleurs pour un accord). Une matière inconnue ne donne qu'**une esquisse grise**. **La page de droite joue l'aperçu du sort** :
+
+| Forme | Aperçu |
+|---|---|
+| Trait | une flèche de lumière en arc, avec sa traîne |
+| Onde | des anneaux qui s'élargissent |
+| Piège | une rune qui pulse, des étincelles qui montent |
+| Mur | trois piliers qui montent, tiennent, redescendent |
+| Égide | une bulle qui miroite autour d'une silhouette |
+
+L'accent est marqué dans le coin.
+
+**Inscrire** (bouton sous le lutrin, ou Entrée ; 1 éclat d'encre) : le glyphe s'embrase et ses lettres s'envolent. Puis **la page tourne** et la plume retrace la phrase sur la page neuve. **Déchiffrer un tome** : ses lettres partent de la pile et tourbillonnent jusqu'à la page, qui s'illumine à sa couleur.
+
+**À gauche** :
+
+- **les matières**, avec leur pastille et leurs tomes (●●○) ; une matière inconnue est grisée mais reste choisissable, pour lire où trouver son Tome I ;
+- **« + mêler »** (bibliothèque 2) : la tuile touchée ensuite devient la seconde matière, en pointillés ; « ✕ » la retire ;
+- **les formes**, leur vignette à la couleur de la phrase ;
+- **l'accent** (bibliothèque 3) : Sans, Aigu, Grave, Circonflexe.
+
+**Sous le lutrin** : le nom de la phrase, son rôle, ses éclats par lancer, son délai, ce qui empêche de l'écrire, et le bouton **Inscrire au grimoire** avec la réserve d'encre.
+
+**À droite** :
+
+- **les tomes rapportés**, chacun avec son bouton **Déchiffrer** ;
+- ce que fait la phrase : l'accord simple, remarquable ou jamais essayé, la stabilité, où trouver une matière inconnue ;
+- **le grimoire**, une carte par sort : Tenir (L), les cases, Nommer (la saisie n'est pas effacée par le rafraîchissement), Effacer (deux appuis). **Toucher la vignette d'un sort le relit au pupitre** : sa phrase revient sur la page.
+
+Deux boutons dans l'en-tête : **Codex** (les accords, essayés ou non, et les accents) et **Tomes** (chaque matière, ses tomes, où trouver le suivant ; les formes).
+
+Sur téléphone, la scène vient en premier, puis les tuiles (quatre par ligne), puis le grimoire.
+
+### Partout : l'onglet Grimoire du sac
+
+Un **onglet Grimoire** rejoint le sac, après Campement (touche **5** ; Amis, Sauvegarde, Réglages et Bêta passent à 6, 7, 8 et 9). C'est **l'usage** des phrases inscrites, où qu'on soit : les tenir en main, les ranger dans les cases, les nommer. Il rappelle les tomes rapportés à déchiffrer. Au campement, près de la bibliothèque, un bouton **Ouvrir le pupitre** mène à la fenêtre. Écrire, effacer et déchiffrer ne se font qu'au pupitre.
+
+**Dans le code** :
+
+- `pageGrimoire` (l'onglet) ;
+- `PU`, `puStyle`, `ouvrirPupitre`, `fermerPupitre`, `basculerPupitre`, `majPupitreUI`, `puGeste`, `puRendre`, `codexPu`, `tomesPu`, `glyphePu` (le glyphe tiré de `dessinSort`, dans l'ordre de la plume), `puInscrit`, `puDechiffre`, `puBoucle`, `dessinerPupitre` ;
+- `pageBiblio`, `blocTomesPortes` et `blocCodex` disparaissent, avec les gestes `data-pup*`, `data-inscrire` et `data-dechiffre` du sac ;
+- `ongletDe('biblio')` mène à l'onglet Grimoire ; `campAction` ouvre la fenêtre ;
+- l'état du pupitre (`pupitre`) est partagé entre la fenêtre et l'onglet.
+
+**Ce que j'ai décidé seul** : Effacer reste au pupitre (c'est écrire dans le grimoire) ; l'onglet n'a que l'usage. L'onglet vient après Campement.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-110`), `LISEZ-MOI.md`.
+
+## 144. La cuisine en fenêtre : le feu, la marmite, et des recettes à découvrir
+
+**Le volet Cuisine quitte le sac.** Le Campement garde Camp, Portail et Journal. Le garde-manger et les plats (manger, ranger dans une case) restaient déjà dans l'onglet Sac.
+
+### La fenêtre
+
+**ACTION à la cuisine du campement**, ou **devant la marmite portable**, l'ouvre. ACTION à nouveau, Échap, ✕ ou s'éloigner la ferment. Fermée, la marmite est couverte : rien n'y avance, ni le feu ni la cuisson.
+
+**La scène**, en pixels agrandis (128 × 88) :
+
+- **au campement**, un âtre de pierres, sa hotte noircie, la marmite pendue à la chaîne de la crémaillère ;
+- **dehors** (la marmite portable), un ciel du soir, quelques étoiles, l'herbe, un trépied de bois ;
+- les bûches, les braises, **une langue de flamme par cran de feu**, une lumière chaude qui faiblit au loin ;
+- la panse de fonte, chauffée par en dessous ; l'eau qui monte à chaque louche ; le bouillon qui prend la couleur des ingrédients ;
+- **des morceaux de chaque ingrédient** qui tournent, vite quand on remue ; **la louche** posée au bord, qui tourne dans la marmite quand on remue ;
+- les bulles à l'eau, le grésillement à sec, la vapeur ;
+- **la fumée noire quand ça brûle**, des lueurs rouges au fond ;
+- **des volutes dorées quand c'est cuit à point** (jamais pour une mixture).
+
+**À gauche, le garde-manger**, en tuiles par famille avec leur nombre : un appui met l'ingrédient dans la marmite (2, 3 ou 4 places selon le feu, comme avant). **« Une poignée au hasard »** la remplit avec ce qui tombe sous la main.
+
+**Au centre, les gestes** : Louche (d'eau, six au plus), Attiser, Étouffer (cinq crans ; le feu suit le réglage avec un temps de retard), **Remuer** (un appui, un tour de louche), **Servir**, Vider (deux appuis s'il y a des ingrédients). Au clavier : ↑ ↓ le feu, Espace remue, Entrée sert, Échap. Au-dessus des gestes : ce qu'on voit, et la jauge **« ça brûle »**.
+
+**À droite, la marmite** : ses places ; ce qu'elle promet (« Un plat inconnu… », le nom d'une recette déjà faite, ou « Ça ne se marie pas » pour un mélange déjà raté) ; **la manière** de ce plat (l'eau, le feu, remuer, la cuisson) telle qu'on la connaît. Le bouton **Le livre** remplace ce panneau par le livre de recettes.
+
+### La manière de chaque plat
+
+Chaque sorte de plat a **sa manière, cachée**, la même pour tout le monde. Elle est tirée d'une graine qui ne dépend que de la sorte, dans les bornes de son genre :
+
+| Genre | Sortes | Eau | Feu | Remuer | Cuisson |
+|---|---|---|---|---|---|
+| Grillé | grillade, brochette, brochette sucrée, aux fleurs | à sec | vif ou ardent | jamais | 6 à 10 s |
+| Sauté | poêlée | à sec ou 1 | moyen ou vif | souvent | 8 à 12 s |
+| Au four | rôti, tourte, pain, galette ; Tarte d'ambre, Pain des premiers jours, Panier d'hanami | 1 | doux ou moyen | jamais | 14 à 20 s |
+| Mijoté | ragoût, terre et mer ; Festin des Horlogers | 2 ou 3 | doux ou moyen | de temps en temps | 16 à 22 s |
+| Bouillon | soupe, soupe des bois ; Soupe de lune, Bouillon de braise | 4 à 6 | moyen ou vif | de temps en temps | 12 à 18 s |
+| Infusé | infusion ; Thé du printemps, Sérum | 4 ou 5 | braises ou doux | jamais | 6 à 10 s |
+| Sucré | confiture, compote, caramel, sirop ; Gelée-lanterne | 1 ou 2 | braises ou doux | souvent | 14 à 20 s |
+| Cru | salade | à sec | **sans feu** | de temps en temps | 3 à 5 s |
+
+- **L'eau** se juge au service, à la louche près. Au feu ardent, elle s'évapore doucement.
+- **Le feu** se juge en moyenne, sur toute la cuisson, à moins d'un cran près.
+- **La cuisson** compte depuis le dernier ingrédient versé. On peut servir de 2 s avant le terme à 4 s après (3 s et 6 s avec la cuisine de niveau 3). Avant : pas assez cuit ; après : trop cuit.
+- **« Ça brûle »** : la jauge monte tant qu'il y a des ingrédients. Elle monte d'autant plus vite que le feu est fort, l'eau rare et le plat de ceux qui attachent (beaucoup pour un plat sucré ou sauté, un peu pour un mijoté, presque pas pour un grillé). Un tour de louche la fait redescendre de près de moitié. Pleine, le fond brûle : fumée noire, et chaque seconde coûte. Une confiture bien menée mais jamais remuée finit par brûler.
+- **Remuer** un plat qui ne se remue pas (grillé, au four, infusé), plus d'une fois : il se défait.
+
+**Ce qu'on en lit** : la marmite portable et la cuisine de niveau 1, à l'œil (« un peu d'eau », « feu doux »). Au niveau 2, le thermomètre et la louche graduée : l'eau et le feu en clair. Au niveau 3, le sablier : le temps de cuisson, et plus de marge. La manière d'une sorte, elle, ne se lit pas : **elle se découvre**.
+
+### La réussite fait la puissance
+
+Au service, une note sur 100 : l'eau (−7 par louche d'écart), le feu (−10, ou −20 au-delà de près de deux crans), la cuisson (−18 pas assez cuit, −12 trop cuit), ce qui a brûlé (−10, plus 3 par seconde, 25 au plus), ce qui s'est défait (−12).
+
+| Palier | Note | Vie | Effet |
+|---|---|---|---|
+| Raté | moins de 35 | la moitié | aucun |
+| Correct | 35 à 69 | ×0,8 | durée ×0,7 |
+| Réussi | 70 à 99 | telle quelle | tel quel |
+| **★ Parfait** | 100 | ×1,3 | durée ×1,5 et **un niveau de plus** (IV au plus) |
+
+Les étoiles viennent toujours des ingrédients. Le nom porte le palier quand il compte (« Ragoût de cerf · parfait », « … · raté »). **Le bilan** s'ouvre au service, comme pour la fiole (§141) : le palier, la jauge de réussite, une pastille par geste (l'eau, le feu, la cuisson, le remuage ou le brûlé), ce que fait le plat, ses parts.
+
+### La découverte
+
+- **Au début, on ne sait rien** : on mélange, au hasard s'il le faut.
+- **Certains mélanges ne se marient pas** et donnent **une mixture** (+5 % de vie, rien d'autre) : tout ce qui n'entre dans aucune sorte (l'ancien « plat du voyageur »), et quatre mariages qui ne se font pas, **poisson et douceur, poisson et fleur, champignon et fruit, champignon et douceur**, sauf dans un plat remarquable. Le livre les retient (« Ne se marient pas »), et la marmite prévient quand on y remet le même mélange.
+- **Un mélange qui se marie** entre au livre, avec ses ingrédients et son meilleur palier. **Les gestes justes s'y notent** au fil des essais, pour toute la sorte : une fois noté, un geste se lit en clair (✎). Une sorte déjà cuisinée se devine à l'œil (« beaucoup d'eau », « feu doux », « longtemps ») ; jamais cuisinée, sa manière n'est que « ? ».
+- **Le livre** : chaque recette avec ses étoiles, son meilleur palier, sa manière connue, ses ingrédients (ce qu'on en a), **Refaire** (ses ingrédients dans la marmite vide) et **Épingler** (trois au plus, comme avant). Puis les mariages ratés, puis les plats remarquables encore à trouver, avec leurs indices.
+- Les recettes déjà au livre restent connues, avec leurs ingrédients. Leurs gestes sont à découvrir. Les recettes « plat du voyageur » en sortent.
+
+**Dans le code** :
+
+- `GENRES_CUISINE`, `GENRE_SORTE`, `maniereDe`, `MARIAGES_RATES`, `mixtureDe` ;
+- `P.pot` (la marmite : ingrédients, eau, feu, temps, feu moyen, « ça brûle », tours de louche ; sauvegardée) ;
+- `avancerCuisine`, `bilanCuisine`, `appliquerPalier`, `ajouterMarmite`, `poigneeHasard`, `viderMarmite`, `refaire`, `cuire` (servir ; rend le plat) ;
+- `P.manieres` (les gestes notés, par sorte), `P.ratees` (les mariages ratés), `cuisineLue` ;
+- la fenêtre : `CZ`, `czStyle`, `ouvrirCuisine`, `fermerCuisine`, `basculerCuisine`, `czGeste`, `czRendre`, `ditManiere`, `livreCz`, `bilanPlat`, `czBoucle`, `dessinerMarmite`, `czFx` ;
+- `pageCuisine`, `blocServi`, `blocPlats`, `blocRecettes` et la sélection `marmiteSel` disparaissent ;
+- le journal (`plat`) note la sorte, la note et le palier.
+
+**Ce que j'ai décidé seul** :
+
+- les genres, leurs bornes et les quatre mariages ratés ;
+- la salade se fait sans feu ;
+- les seuils des paliers et ce que chacun change ;
+- une mixture va au sac comme un plat chaud ;
+- le palier dans le nom du plat.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-111`), `LISEZ-MOI.md`.
+
