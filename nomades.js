@@ -638,7 +638,7 @@ NM_INDICES.tomes = [
   'Chaque matière a trois tomes. Le premier se lit sur un lutrin de pierre, dans la terre qui lui ressemble : la fange dans la tourbière, la braise dans la caldeira.',
   'Les seconds tomes, les Horlogers les ont mis sous clé, dans leurs coffres gardés, sous les îles de métal. Il m\'en reste parfois un.',
   'Le troisième tome d\'une matière, la Tisseuse de fer le porte dans son ventre. Il faut la faire tomber pour le lire.',
-  'Un tome ne s\'apprend pas sur la route. Il se déchiffre au pupitre d\'une bibliothèque, avec de l\'encre d\'éclat, et dans l\'ordre : pas de second sans premier.',
+  'Un tome ne s\'apprend pas sur la route. Il se déchiffre au pupitre d\'une bibliothèque, contre des éclats, et dans l\'ordre : pas de second sans premier.',
   'Qui tient déjà le Souffle connaît le vent sans l\'avoir lu. Pour les autres matières, il faut marcher.',
   'L\'effroi s\'écrit aussi. Son lutrin se dresse dans l\'ossuaire, ou sur les terres creuses : va le lire sans courir.',
   'Deux matières se mêlent dans une même phrase, si ta bibliothèque est assez haute. Sans leurs seconds tomes, l\'accord se défait une fois sur quatre — ou brûle les éclats dans ton sac, et tes mains avec.',
@@ -1040,7 +1040,7 @@ function nmForge(b) {
 function nmDechiffrer(b) {
   const L = (P.tomesPortes || []).map(k => tomeLu(k)).filter(q => q && tomeDe(q.m) === q.n - 1).slice(0, 1);   // (§123) un tome par halte
   if (!L.length) return { dit: (P.tomesPortes || []).length ? 'Ces tomes-là se lisent dans l\'ordre : déchiffrez d\'abord ceux d\'avant.' : 'Vous n\'avez aucun tome à lire. Les lutrins de pierre en gardent : recopiez-les, et revenez.', choix: [{ t: 'Parlons d\'autre chose.', va: 'accueil' }] };
-  return { dit: 'Je lis vite, et sans pupitre. Mais l\'encre se paie : un peu plus cher qu\'à votre bibliothèque.', choix: L.map(q => {
+  return { dit: 'Je lis vite, et sans pupitre. Mais ça se paie : un peu plus cher qu\'à votre bibliothèque.', choix: L.map(q => {
     const p = nmPrix(b, { eclat: Math.round(DECHIFFRE[q.n] * 1.5) }), manque = nmManque(p);
     return { t: 'Le ' + nomTome(q.k) + ' — ' + nmListe(p) + (manque ? ' — il vous manque ' + manque : ''), grise: !!manque, va: 'accueil', fait: () => {
       nmPayer(p); P.tomes[q.m] = Math.max(P.tomes[q.m] | 0, q.n); rangerTomes(); nmGagne(b, 1); SON.jouer('niveau');
@@ -1132,7 +1132,7 @@ function nmIndicesVivants() {
   if (typeof RaresIle !== 'undefined') for (const r of new Set(RaresIle.map(famille))) { const R = rareDe(r); if (!R || P.biomes.includes(r)) continue; const c = nmCoeurBiome(r);
     if (c) ajoute('i:b' + r + ':' + SEED, R.n + ' pousse sur cette île, ' + dir(c[0], c[1]) + '. Tu n\'y as encore jamais mis les pieds.', 'ici', { cle: 'b' + r, x: c[0], y: c[1], n: R.n }); }
   // --- ce qui vous manque
-  for (const k of P.tomesPortes || []) ajoute('m:porte:' + k, 'Tu portes le ' + nomTome(k) + ' sans l\'avoir déchiffré. Il se lit au pupitre de la bibliothèque, au campement, avec un peu d\'encre d\'éclat.', 'manque');
+  for (const k of P.tomesPortes || []) ajoute('m:porte:' + k, 'Tu portes le ' + nomTome(k) + ' sans l\'avoir déchiffré. Il se lit au pupitre de la bibliothèque, au campement, contre quelques éclats.', 'manque');
   for (const m of MATIERES) {
     const n = tomeDe(m.id); if (n >= TOME_MAX || tomePorte(m.id, n + 1)) continue;
     const ou = ouTome(m, n).replace(/^Tome [IV]+ : /, '');

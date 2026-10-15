@@ -3891,3 +3891,165 @@ Les étoiles viennent toujours des ingrédients. Le nom porte le palier quand il
 
 **À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-111`), `LISEZ-MOI.md`.
 
+## 145. Le lien d'éclat se lance : apprivoiser, chaque créature à sa façon
+
+**Le lien se lance.** Sur la bête visée, avec **Y**, ou avec **ACTION « LIER »** :
+
+- ACTION propose « LIER » dès que la chance atteint 50 %, ou quand il n'y a rien d'autre à faire ;
+- sous 50 %, ACTION garde ses autres gestes (nourrir, récolter…), et Y lance quand même.
+
+**Le déroulé** :
+
+1. Le lien file en arc, avec une traîne d'or et de rouge.
+2. Il enserre la bête de fils de lumière ; elle se fige.
+3. Elle **se débat une à trois fois** : chaque secousse est un tirage, et il en faut trois pour qu'elle cède.
+4. Elle cède et se lie (le lien la tient, comme avant). **Ou le lien se brise : il est perdu**, et la bête réagit à sa façon (voir le tableau).
+
+Un lien à la fois. Si la bête disparaît pendant le vol, le lien retombe intact.
+
+**La bête visée** : la fiche de la cible (en haut de l'écran) choisit, quand on a un lien libre, la bête qu'on lierait devant soi, à neuf cases au plus. Une ligne dorée y dit **la chance et chaque condition, remplie (✓) ou non (✗)**. Par exemple : « lien 65 % · affaiblie, sous 40 % ✓ · presque à terre (en plus) ✗ ».
+
+**Le prix ne change pas.** Il monte avec les liens qu'on possède : ceux du sac, plus ceux qui tiennent les compagnes. Un lien brisé ne compte plus, donc le suivant coûte un peu moins. Il se fabrique toujours à l'établi du campement. Six compagnes dehors au plus, comme avant ; aucune autre limite que le prix.
+
+**Les offrandes ne lient plus.** Baies, poissons, friandises, viande et offrandes aux horreurs donnent la confiance comme avant. À confiance entière, il faut lancer le lien. Chaque offrande dit maintenant où en est le lien (« confiance 60 % · lien 65 % »).
+
+**Les cas particuliers** :
+
+- **Les automates** : la nuit, en veille, **G glisse l'éclat dans sa poitrine** (plusieurs pour l'élite), comme avant. Mais il faut ensuite **lui lancer un lien** avant qu'il ne s'éveille.
+- **Les coursiers** : **le rodéo dompte**. Tenu jusqu'au bout, on descend, il reste là, essoufflé, **dix secondes** : c'est le moment du lien. Monter sans lien libre est refusé (« il faut un lien d'éclat pour le lier, une fois dompté »).
+- **L'Appel** (grimoire) **ne lie plus** : il calme la bête (sans échec, au moins une fois sur trois), et le lien prend **+15 % pendant dix secondes**.
+
+### Créature par créature
+
+| Créature | Sa façon | Hors condition → dans la condition | À l'échec |
+|---|---|---|---|
+| Brouteur | la confiance (baies) | 20 % → 95 % | fuit |
+| Glaneur | par surprise : ne vous a pas vu, sans courir | 15 % → 70 % | fuit |
+| Bossu | affaibli, sous 40 % (presque à terre : +10) | 5 % → 65 % (75 %) | attaque |
+| Traqueur | repu (une proie, de la viande offerte) ; affaibli : +20 | 5 % → 60 % (80 %) | attaque |
+| Spectre | **de nuit**, et affaibli sous un tiers | 0 % de jour ; 10 % → 60 % | fuit |
+| Traceur, Moissonneur, Mercenaire, Sentinelle | **en veille**, et l'éclat glissé (G) | 0 % éveillé ; 10 % → 70 % | rejette le lien, furieux, l'éclat perdu |
+| Tireur d'élite, Mortier | pareil, avec plusieurs éclats | 0 % ; 10 % → 60 % | pareil |
+| Coursiers | **dompté au rodéo**, dix secondes | 0 % → 90 % (aurore 70 %) | fuit |
+| Crapaud-buffle | repu (un poisson offert) | 15 % → 75 % | fuit |
+| Varan d'ocre | à l'aube, engourdi | 5 % → 65 % | attaque |
+| Vesseron | la confiance | 20 % → 90 % | fuit |
+| Cerf de verre | la confiance | 10 % → 90 % | fuit, **et oublie toute sa confiance** |
+| Cerf des cerisiers | la confiance | 15 % → 90 % | fuit |
+| Salamandre de braise | endormie | 5 % → 70 % | attaque |
+| Lentigrade, Lentigrade-cerisier | la confiance | 30 % → 100 % | rien : il retourne à ses affaires |
+| Cotonnier | aucune arme en main, et la confiance | 10 % → 80 % | fuit |
+| Carillonneur | endormi | 10 % → 70 % | fuit |
+| Oglodon | la confiance de sa colonie (rien sous la moitié) | 0 % → 80 % | attaque |
+| Félin de brume | **sorti de sa brume**, et affaibli sous 30 % | 0 % caché ; 5 % → 60 % | fuit |
+| Bramard | en rut | 5 % → 70 % | attaque |
+| Sterne des nues | la confiance (poissons) ; ou endormie : 60 % | 10 % → 90 % | fuit |
+| Dragon à plumes | **posé**, et affaibli sous un tiers ; la confiance (viande) jusqu'à +35 | 0 % en vol ; 5 % → 50 % (85 %) | attaque |
+| Renard des pétales | de nuit, et la confiance | 10 % → 85 % | fuit |
+| Silencieux | **vous, immobile** ; la confiance (offrandes) jusqu'à +30 | 0 % ; 50 % → 80 % | attaque |
+| Mille-gueules | **sorti de terre**, et la confiance (offrandes) | 0 % dessous ; 10 % → 80 % | fuit |
+| Trottins | en plein jeu ; la confiance (friandises) jusqu'à +30 | 15 % → 60 % (90 %) | toute la bande se sauve |
+| Trottin augure | pareil, plus farouche | 10 % → 45 % (70 %) | toute la bande se sauve |
+
+Chaque fuite fait aussi perdre un peu de confiance (−15 points). L'Appel ajoute 15 points à toutes les façons. La chance plafonne à 95 % (100 % pour les lentigrades).
+
+**Ne se lient pas** :
+
+- la Tisseuse et ses araignons ;
+- les automates du Centre (tourelle, araignée de maintenance, gardien de salle) ;
+- les horreurs du Korlaz (Décharné, Silhouette, Rampant, Main) ;
+- les êtres de la brume ;
+- les nomades, les villageois, les maisons, les plantes rares, les pièces des énigmes.
+
+Ce sont les créatures sans façon : la fiche n'affiche pas de ligne de lien, et Y dit « … ne se lie pas ».
+
+**Dans le code** :
+
+- `COND_LIEN` (les conditions : ce qu'en dit la fiche, ce qu'elles valent) ;
+- `FACONS` (par espèce : `req`, `c`, `b0`, `b1`, `plus`, `conf`, `ou`, `max`, `rate`, `perd`) ;
+- `etatLien` (la chance et les conditions) et `lienDit` ;
+- `viseLien`, `viseLienCone` (la fiche de la cible les suit, avec un lien libre) ;
+- `lancerLien`, `majLiens` (appelée par `majSorts` : le vol, la prise, les secousses ; `__LIEN_DE` fixe le tirage pour les essais), `rateLien`, `lienApres` ;
+- `rallumer` glisse l'éclat (`b.eclatG`), le rodéo pose `b.dompteT`, l'Appel pose `b.appelT` ;
+- `lier` n'est plus appelée que par le lien lancé ;
+- la touche Y ; la ligne `#cible small.lien`.
+
+**Ce que j'ai décidé seul** :
+
+- la confiance s'ajoute à quelques façons qui avaient déjà leurs offrandes (dragon, Silencieux, trottins) ;
+- le Silencieux se lie à 50 % dès qu'on est immobile ;
+- les automates gardent leur éclat glissé (G) avant le lien ;
+- l'Appel calme au lieu de lier ;
+- la fiche montre tout de suite la façon d'une créature (avec le pourcentage et les conditions) : rien à découvrir dans le bestiaire ;
+- **la robe rare ne change pas la chance** (proposée dans le plan, pas faite).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-112`), `LISEZ-MOI.md`.
+
+## 146. Le renard ne grimpe plus aux parois
+
+Le Renard des pétales (§112) avait hérité du corps du félin, et avec lui sa faculté de **grimper aux parois** (`grimpe: .5`) : il marchait sur les murs. Un renard ne grimpe pas. Il ne grimpe donc plus ; il **bondit**, comme le cerf des cerisiers, jusqu'à **deux cubes** de haut (`bond: 2`). Une paroi plus haute, il la longe comme les autres marcheurs. Lié, il vous suit par les mêmes chemins.
+
+Testé : trois renards posés au pied d'une paroi de trois cubes ou plus, poussés vers elle pendant trente secondes de jeu : aucun ne s'y accroche, aucun ne monte.
+
+**À déposer** : `index.html` (la fiche `renard`), `sw.js` (qui passe en `stone-valley-113`), `LISEZ-MOI.md`.
+
+## 147. Le félin de brume ne grimpe plus : il saute
+
+Le félin de brume n'est pas un Rampant : il ne grimpe plus aux parois (`grimpe: 0`). À la place, c'est **un sauteur** (`sauteur: 1`) :
+
+- **il bondit sur une marche de deux cubes** (`bond: 2`), comme le renard et le cerf des cerisiers ;
+- **il se jette du haut d'une falaise**, jusqu'à **six cubes** en contrebas (`SAUT_FALAISE`). Les autres marcheurs s'arrêtent au bord, le coursier saute trois cubes ;
+- **il saute par-dessus les trous** : l'eau, le vide, ou une fosse plus profonde que son bond. Il lui faut une terre où retomber, de deux à quatre cases devant, pas plus haute que son bond ni plus basse de deux cubes, et rien qui monte en travers. Il prend alors son élan et file en arc au-dessus du trou. Une paroi rencontrée en plein bond l'arrête, et il retombe. Sans terre où retomber, il ne s'y risque pas.
+- Sa façon de choisir son chemin le sait : un trou qu'il peut franchir ne l'arrête plus, une falaise de six cubes non plus.
+
+Lié, il vous suit par les mêmes bonds.
+
+**Dans le code** : la fiche `felin`, `SAUT_FALAISE`, `enjambe` (la descente du sauteur), `sautPossible` (la terre où retomber), `bondir`, `b.bondL` (le bond en cours : `chute` le porte, `pasBete` le laisse faire), `libre` dans le choix du chemin.
+
+Testé : trois trous (eau ou fosse), trois falaises de quatre cubes, trois parois de trois cubes et plus, avec le félin et le renard poussés droit dessus. Le félin franchit les trous et retombe sur la terre d'en face, descend les falaises, s'arrête aux parois. Le renard s'arrête partout.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-114`), `LISEZ-MOI.md`.
+
+## 148. Le renard et les cerfs sautent aussi
+
+Le **Renard des pétales**, le **Cerf de verre** et le **Cerf des cerisiers** deviennent des sauteurs (`sauteur: 1`), comme le félin de brume (§147). Ils sautent d'une falaise de six cubes au plus, sautent par-dessus les trous (l'eau, le vide, une fosse) quand une terre les attend à deux ou quatre cases, et bondissent sur une marche de deux cubes. Les parois les arrêtent. Liés, ils vous suivent par les mêmes bonds.
+
+Testé : les mêmes trous, falaises et parois qu'au §147. Les trois franchissent les trous, descendent les falaises et s'arrêtent aux parois. Un brouteur, poussé de même sans grimper, s'arrête partout.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-115`), `LISEZ-MOI.md`.
+
+## 149. Le dragon à plumes revu : longiforme, plus petit, couvert de plumes
+
+**La taille.** Il était énorme : six mètres et demi de long au sol, deux mètres et demi de haut. Il fait maintenant **environ 3 m de long, queue comprise, et 1,2 m de haut** à la crête, pour un corps fin (moins de 30 cm d'épaisseur). C'est à peine plus gros qu'un lentigrade (1,7 m de long, 1,15 m de haut), en plus long. L'échelle tient dans `DR_ECH` (0,8).
+
+**La forme.** Fini le torse potelé. Le dragon est **un long corps souple de onze anneaux**, du poitrail au bout de la queue, qui s'amincit après les hanches. Il a quatre pattes courtes (sous les épaules et sous les hanches), un cou de quatre anneaux et une tête fine et longue avec de petites cornes.
+
+**Le dos ondule** :
+
+- **au sol**, une bosse douce entre les épaules et les hanches, et une onde qui court dans la queue, plus vive quand il marche ; la queue se balance de côté ;
+- **en vol**, tout le corps nage dans l'air, l'onde allant de la tête à la queue ;
+- **endormi**, il se couche à plat, la queue revenue le long du flanc.
+
+**Les plumes** :
+
+- une **crête** dressée vers l'arrière sur chaque anneau, jusque sur la nuque, qui tire vers la couleur des pointes au bout de la queue ;
+- sur chaque flanc, **deux rangs de plumes couchées** qui se recouvrent (le rang du haut décalé d'un demi-anneau) et frémissent ;
+- un **éventail** de cinq longues plumes au bout de la queue ;
+- sur la tête, une **aigrette** de quatre plumes et des **moustaches de plumes** sous les joues ;
+- une culotte de plumes en haut de chaque patte ;
+- **les ailes** gardent leurs rémiges et leurs secondaires, à la nouvelle taille. Repliées, elles se couchent le long du dos.
+
+Les quatre robes (vert et orange, pourpre et or, bleu et blanc, fauve et brun) ne changent pas.
+
+**Ce qui suit la taille** :
+
+- le feu part de la gueule, où le dessin la place (`b._bouche`) ;
+- les flèches et les coups le touchent sur trois cercles, du poitrail à la queue ;
+- le pictogramme montre le long corps ondulant.
+
+Rien ne change dans son comportement : le vol, l'aire, la chasse, le feu, l'apprivoisement (§145 : posé, et affaibli ou en confiance).
+
+**Dans le code** : `osDragon` réécrite (`DR_NS`, `DR_SEG`, `DR_AILE`, `DR_ECH`), `dessinDragon`, `cracheFeu`, la touche des coups dans `toucheBete`, l'étendue de dessin du dragon (2,8 au lieu de 4,5).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-116`), `LISEZ-MOI.md`.
+

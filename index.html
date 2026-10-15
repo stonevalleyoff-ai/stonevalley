@@ -286,6 +286,7 @@
   #incant.urgent{animation:incantBat .8s ease-in-out infinite;border-color:#ff5a48;}
   @keyframes incantBat{50%{box-shadow:0 0 12px 2px rgba(255,50,40,.75);}}
   body.incant #cible{top:calc(68px + env(safe-area-inset-top));}
+  #cible small.lien{display:block;color:#ffd27d;margin-top:2px;}
   @media (max-width:760px){
     #incant{top:calc(51px + env(safe-area-inset-top));left:auto;right:calc(14px + env(safe-area-inset-right));transform:none;
       width:calc(100vw - 112px - env(safe-area-inset-left) - env(safe-area-inset-right));}
@@ -741,7 +742,7 @@
     <div class="gestes"><button id="retour-non">Fermer</button><button class="principal" id="retour-oui">Envoyer</button></div>
   </div>
 </div>
-<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
+<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
 <script src="donjon.js"></script>
 <script src="nomades.js"></script>
@@ -6350,10 +6351,9 @@ function lancerSort() {
       const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d < dp) { dp = d; pr = b; }
     }
     if (!pr) { ok = false; say('aucune bête à portée', 1.6); }
-    else if (liensLibres() <= 0) { ok = false; say(P.liens ? 'aucun lien libre · voir l\'onglet Compagnes' : 'il faut un lien d\'éclat · à l\'établi', 2.2); }
-    else {
+    else {                                               // (§145) l'Appel ne lie plus : il calme, dix secondes, et le lien prend mieux
       const ch = chanceLien(pr);
-      if (Math.random() < ch) lier(pr, 'appel');
+      if (Math.random() < Math.max(.35, ch)) { pr.appelT = t + 10; pr.alarm = 0; pr.colere = 0; burst(pr.x, pr.y, pr.z + .5, 14, '#ffd68a'); say(pr.sp.n + ' se calme à l\'appel · lien +15 % pendant dix secondes' + lienApres(pr), 2.6); }
       else {
         pr.alarm = 1; pr.conf = Math.max(0, pr.conf - .2);
         if (pr.sp.chasse) pr.colere = Math.max(pr.colere || 0, 12);   // un prédateur le prend mal
@@ -7711,7 +7711,7 @@ function pageCompagnes() {
   if (!P.liens && !P.compagnes.length) {
     return `<div class="sac-corps lignes"><div class="vide-texte">`
       + `<p style="margin:10px 0 0">Aucun lien d'éclat. Un lien retient une bête apprivoisée : autant de compagnes que de liens dans le sac, six en jeu au plus, et chaque lien coûte bien plus que le précédent.</p>`
-      + `<p style="margin:0">Nourrie jusqu'à la confiance (G), ou gagnée par l'Appel, une bête se lie à un lien libre.</p>`
+      + `<p style="margin:0">Un lien se lance (Y, ou ACTION « LIER ») sur la bête visée : chaque créature a sa façon de l'accepter, et un lien qui se brise est perdu.</p>`
       + `<button class="btn principal" data-voir="compagnes">Voir la fabrication</button></div></div>`;
   }
   const libres = liensLibres();
@@ -7741,9 +7741,9 @@ function ficheLienLibre() {
   const appel = P.objets.appel;
   return `<div class="fiche haute" id="sac-fiche">${caseObjet('lien', { taille: 'grande', inerte: true })}`
     + `<div class="fiche-texte"><h4>Lien libre</h4><p>Une place pour une bête.</p></div></div>`
-    + `<p class="note" style="margin:12px 0 0">Offrez des baies à une bête (G) : quand sa confiance est entière, elle se lie. `
-    + `Les espèces rares se laissent moins faire — le spectre surtout — et une bête blessée cède plus volontiers.</p>`
-    + `<p class="note">${appel ? 'Le grimoire Appel la lie d\'un coup, s\'il est porté (X) : sa chance s\'affiche près de la bête.' : 'Le grimoire Appel, à l\'établi, lie une bête d\'un coup.'}</p>`;
+    + `<p class="note" style="margin:12px 0 0">Lancez-le (Y, ou ACTION « LIER ») sur la bête visée : il l'enserre, elle se débat, puis cède — ou le lien se brise et il est perdu. `
+    + `Chaque créature a sa façon : la confiance (les offrandes, G), la faiblesse, la nuit, le sommeil, la surprise… La fiche de la cible dit la chance et ce qui est rempli.</p>`
+    + `<p class="note">${appel ? 'Le grimoire Appel (X) calme la bête : dix secondes, et le lien prend mieux.' : 'Le grimoire Appel, à l\'établi, calme une bête : le lien prend mieux.'}</p>`;
 }
 function ficheCompagne(c) {
   if (!c) return '';
@@ -8348,7 +8348,7 @@ const SPEC = [
     lien:.85, travail:{ fibre:1, bois:.8 }, metier:'cueille la fibre et abat les champignons géants', grimpe:0 },
   { id:'cerf',       n:'Cerf de verre',        fam:'tellurien', corps:'cerf',     biome:12, diet:'h', sz:1.4, spd:3.6, vue:20, peur:1, herd:1, cap:8, mat:130,
     shell:[226,244,252], dark:[96,140,176], leg:[132,176,204], oeil:[30,50,80], bois:[150,250,255], bio:[12], dur:.9, lueur:2, anneau:1.3,
-    lien:.2, travail:{ eclat:.6, fibre:.6 }, metier:'détache les éclats des druses', grimpe:0, bond:2 },
+    lien:.2, travail:{ eclat:.6, fibre:.6 }, metier:'détache les éclats des druses', grimpe:0, bond:2, sauteur:1 },   // (§148) un sauteur, comme le félin
   { id:'salamandre', n:'Salamandre de braise', fam:'tellurien', corps:'saurien',  biome:13, diet:'o', sz:1.25, spd:2.8, vue:16, peur:.1, herd:0, cap:4, mat:140,
     shell:[58,44,46], dark:[255,122,44], leg:[70,52,52], oeil:[255,220,120], bio:[13,14], nuit:1, dur:1.6, brule:1, lueur:2.4, anneau:.6,
     chasse:['coursier_r','traqueur','glaneur','brouteur','varan','cotonnier','carillonneur','oglodon','villageois'],
@@ -8399,7 +8399,7 @@ const FELINS = [
   { id:'felin', n:'Félin de brume', corps:'felin', diet:'c', sz:1.05, spd:3.7, vue:22, peur:.15, herd:1, meute:1, camo:1, cap:4, mat:120,
     shell:[164,174,188], dark:[88,96,114], leg:[142,152,168], ventre:[208,214,222], oeil:[178,236,255], bio:[2,3,4],
     chasse:['brouteur','glaneur','bosseu','coursier','cotonnier','carillonneur','lentigrade','crapaud','cerf','vesseron','villageois'],
-    lien:.2, travail:{ os:1 }, metier:'chasse à l\'affût, et rapporte les os', grimpe:.5 },
+    lien:.2, travail:{ os:1 }, metier:'chasse à l\'affût, et rapporte les os', grimpe:0, bond:2, sauteur:1 },   // (§147) pas un Rampant : il ne grimpe pas, il saute — du haut des falaises, et par-dessus les trous
 ];
 // ============================================================
 //  LE BRAMARD
@@ -8454,10 +8454,10 @@ SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefin
 const CERISAIE_SPEC = [
   { id:'sika', n:'Cerf des cerisiers', fam:'tellurien', corps:'cerf', biome:23, diet:'h', sz:1.3, spd:3.3, vue:18, peur:.85, herd:1, cap:7, mat:120,
     shell:[246,238,232], dark:[214,188,192], leg:[226,206,204], oeil:[40,30,36], bois:[112,84,80], fleurBois:[255,178,206], bio:[23], dur:1, lueur:1.2, anneau:.9,
-    lien:.45, travail:{ fibre:1, baies:1 }, metier:'cueille les fleurs et les cerises', grimpe:0, bond:2 },
+    lien:.45, travail:{ fibre:1, baies:1 }, metier:'cueille les fleurs et les cerises', grimpe:0, bond:2, sauteur:1 },   // (§148) un sauteur, comme le félin
   { id:'renard', n:'Renard des pétales', corps:'felin', renard:1, queues:3, biome:23, diet:'h', sz:.85, spd:3.4, vue:20, peur:.9, herd:0, cap:4, mat:100,
     shell:[246,226,214], dark:[232,138,164], leg:[238,218,208], ventre:[255,250,246], oeil:[255,196,96], bio:[23], dur:.9, lueur:.9,
-    lien:.4, travail:{ baies:1.2 }, metier:'rapporte les cerises ; la nuit, ses queues éclairent', grimpe:.5 },
+    lien:.4, travail:{ baies:1.2 }, metier:'rapporte les cerises ; la nuit, ses queues éclairent', grimpe:0, bond:2, sauteur:1 },   // (§146, §148) il ne grimpe pas aux parois : il bondit, saute des falaises et par-dessus les trous
   { id:'lentisakura', n:'Lentigrade-cerisier', fam:'doux', corps:'lentigrade', arbre:1, biome:23, diet:'h', sz:2.2, spd:.8, vue:10, peur:.1, herd:0, cap:2, mat:260,
     shell:[150,128,118], dark:[100,84,80], leg:[124,106,98], oeil:[40,34,30], mousse:[236,200,206], mousseF:[204,160,170], fleurs:[[255,190,212],[255,236,242],[244,140,176]],
     bio:[23], dur:3, lien:.7, travail:{ fibre:1.4 }, metier:'porte un cerisier sur le dos, et vous en rapporte des brassées de fleurs', grimpe:0 },
@@ -9353,7 +9353,7 @@ function dessinerCompagnes() {
   rp.title = 'Un coup de sifflet : celles qui sont dehors accourent (H)';
   const ol = el.querySelector('ol');
   if (!P.compagnes.length) {
-    ol.innerHTML = `<li class="vide">Aucune compagne. Offrez des baies à une bête (G) : quand sa confiance est entière, elle se lie à un lien d'éclat libre${P.liens ? '' : ' — il s\'en fabrique un à l\'établi'}.</li>`;
+    ol.innerHTML = `<li class="vide">Aucune compagne. Lancez un lien d'éclat (Y) sur une bête : chacune a sa façon de l'accepter${P.liens ? '' : ' — il s\'en fabrique à l\'établi'}.</li>`;
     return;
   }
   ol.innerHTML = P.compagnes.map(c => {
@@ -9476,6 +9476,7 @@ const TOUCHES = {
   KeyC:   () => { actQ = true; },                    // l'action du moment : récolter, nourrir, franchir…
   KeyX:   () => { agirQ = true; },                   // attaquer : frapper, bander l'arc
   KeyG:   () => { nourrir = true; },
+  KeyY:   () => { lancerLien(); },                     // (§145) lancer un lien d'éclat sur la bête visée
   KeyH:   () => { sifflerQ = true; },                // le sifflet : rappeler les compagnes
   KeyL:   () => { sortQ = true; },                   // lancer le sort en main (ou le grimoire équipé)
   KeyN:   () => boireNectar(),                       // un nectar d'oglodon
@@ -9926,8 +9927,7 @@ function update(dt) {
         c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1) * (pois ? 2 : 1) * (1 + .5 * effet('apprivoiseur')));
         const colonie = c.sp.roche ? ' · colonie ' + Math.round(Math.min(1, confColonie() + 1 / OG_BAIES) * 100) + ' %' : '';
         if (c.sp.roche) { c.doute = Math.max(0, (c.doute || 0) - .6); gagnerColonie(1 / OG_BAIES); }
-        if (c.conf >= 1) { if (!lier(c, 'baies')) say('confiance totale · il faut un lien d\'éclat libre' + colonie, 2.6); }
-        else say('confiance ' + Math.round(c.conf * 100) + ' %' + colonie, 1.5);
+        say((c.conf >= 1 ? 'confiance totale' : 'confiance ' + Math.round(c.conf * 100) + ' %') + colonie + lienApres(c), 1.8);   // (§145) le lien se lance
       }
     }
   }
@@ -10507,7 +10507,29 @@ function curieuse(b, dJ, dzJ) {
 }
 // Ce qu'une bête qui ne grimpe pas peut franchir à pied : un cube, ou trois en descente pour un
 // coursier ; le crapaud et le cerf, deux cubes d'un bond, en montant comme en descendant.
-const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) || (!!b.sp.monture && h - hn <= 3 && hn < h);
+const SAUT_FALAISE = 6;                                  // (§147) le sauteur se jette d'une falaise de six cubes au plus
+const enjambe = (b, h, hn) => Math.abs(hn - h) <= Math.max(1, b.sp.bond || 0) || (!!b.sp.monture && h - hn <= 3 && hn < h) || (!!b.sp.sauteur && hn < h && h - hn <= SAUT_FALAISE);
+// (§147) Par-dessus un trou (l'eau, le vide, une fosse qu'il ne remonterait pas) : une terre où retomber, à deux ou
+// quatre cases devant, pas plus haute que son bond, rien qui monte en travers. Rend la terre, ou rien.
+function sautPossible(b, ux, uy, h) {
+  const bond = Math.max(1, b.sp.bond || 0);
+  for (const d of [2, 2.5, 3, 3.5, 4]) {
+    const x = b.x + ux * d, y = b.y + uy * d; if (x < 2 || y < 2 || x > WS - 3 || y > WS - 3) break;
+    const hL = hAt(x | 0, y | 0); if (hL <= SEA || hL > h + bond || hL < h - 2) continue;
+    let trou = false, mur = false;
+    for (let s2 = .5; s2 < d; s2 += .5) { const hp = hAt((b.x + ux * s2) | 0, (b.y + uy * s2) | 0);
+      if (hp > Math.max(h, hL) + .5) { mur = true; break; } if (hp <= SEA || hp < Math.min(h, hL) - 1) trou = true; }
+    if (mur) return null;
+    if (trou) return { x, y, h: hL, d };
+  }
+  return null;
+}
+function bondir(b, L) {
+  const T = .45 + .07 * L.d, vz = (L.h - b.z + 11 * T * T) / T;
+  b.bondL = { vx: (L.x - b.x) / T, vy: (L.y - b.y) / T, fin: t + T + .3 };
+  b.vz = vz; b.z += .05; b.dirT = Math.atan2(L.y - b.y, L.x - b.x);
+  burst(b.x, b.y, b.z + .1, 6, '#b9ad98');
+}
 // ============================================================
 //  LES TERRES DE L'EFFROI : deux biomes, deux bêtes qu'on fuit
 //  L'OSSUAIRE (exploration 9) : un sol d'os pâle, des arbres-côtes, un brouillard blanc. Y rôde le
@@ -10570,8 +10592,7 @@ function offrandeHorreur(c) {
   if (typeof fauneGeste === 'function' && c.num !== undefined && c.conf < 1) fauneGeste('offrande', { n: c.num, c: r2(c.conf) });
   c.calmeT = c.t + 8;
   if (sil) { c.etat = 'écouter'; c.ecT = 3; } else { c.etat = 'plonger'; c.plT = 0; c.frappe = 1; c.cdT = c.t + 8; }
-  if (c.conf >= 1) { if (!lier(c)) { c.conf = .95; say('plus de lien libre', 1.6); } }
-  else say(c.sp.n + ' prend l\'offrande · confiance ' + Math.round(c.conf * 100) + ' %', 1.8);
+  say(c.sp.n + ' prend l\'offrande · confiance ' + Math.round(c.conf * 100) + ' %' + lienApres(c), 1.8);
 }
 function sonHorreur(x, y, z, nom, op) { if (Math.hypot(P.x - x, P.y - y) < 40) SON.jouer(nom, op || {}, x, y, z); }
 // ------------------------------------------------------------
@@ -11115,7 +11136,7 @@ function poserDragon(sp) {
 const ptDragon = (b, lx, ly, lz) => { const R = repere(b); return [b.x + R.F[0] * lx + R.L[0] * ly + R.U[0] * lz, b.y + R.F[1] * lx + R.L[1] * ly + R.U[1] * lz, b.z + R.F[2] * lx + R.L[2] * ly + R.U[2] * lz]; };
 // La boule de feu : en cloche, un peu devant ce qui court ; le cercle au sol l'annonce.
 function cracheFeu(b, c) {
-  const m = ptDragon(b, 2.25, 0, b.enVol ? 1.15 : 1.9), cz = c === P ? P.z : c.z;
+  const m = ptDragon(b, ...(b._bouche || [1.05, 0, b.enVol ? .25 : .9])), cz = c === P ? P.z : c.z;   // (§149) la gueule, où osDragon l'a dessinée
   const d = Math.hypot(c.x - m[0], c.y - m[1]), vol = Math.max(.8, Math.min(1.5, .55 + d * .05));
   const e = b.tame ? .4 : .9 + d * .04, a = Math.random() * 6.2832;
   const cx = c.x + (c.vx || 0) * vol * .7 + Math.cos(a) * e * Math.random(), cy = c.y + (c.vy || 0) * vol * .7 + Math.sin(a) * e * Math.random();
@@ -11174,8 +11195,7 @@ function nourrirDragon(c) {                              // à la viande seuleme
   if (c.tame) { say(c.comp.nom + ' dévore ' + INGR[v].n.toLowerCase(), 1.6); return; }
   c.conf = Math.min(1, (c.conf || 0) + (.2 + .05 * (INGR[v].r || 1)) * (1 + .5 * effet('apprivoiseur')));
   if (typeof fauneGeste === 'function' && c.num !== undefined && c.conf < 1) fauneGeste('nourrir', { n: c.num, c: r2(c.conf) });
-  if (c.conf >= 1) { if (!lier(c)) { c.conf = .95; say('plus de lien libre', 1.6); } }
-  else say(c.sp.n + ' · confiance ' + Math.round(c.conf * 100) + ' %', 1.6);
+  say(c.sp.n + ' · confiance ' + Math.round(c.conf * 100) + ' %' + lienApres(c), 1.6);
 }
 function majDragon(b, dt) {
   const sp = b.sp; b.t += dt; b.age += dt; b.ech = 1;
@@ -11338,6 +11358,12 @@ function majDragonLie(b, dt) {
 // à la pointe ; repliées, les plumes se couchent le long du flanc. Tout le corps roule dans les
 // virages. La gorge et la gueule rougeoient quand il va cracher.
 const COU_DORT = [-.75, -.6, -.45, -.25, -.05];             // le cou endormi : il descend du poitrail, puis se couche le long du flanc
+// (§149) Le dragon à plumes, revu : longiforme, à peine plus gros qu'un lentigrade. Un long corps souple de onze
+// anneaux, du poitrail à la queue, dont le dos ondule — au sol, une bosse entre les épaules et les hanches et une
+// onde qui court dans la queue ; en vol, tout le corps nage dans l'air. Il est couvert de plumes : une crête
+// dressée sur chaque anneau, deux rangs couchés sur chaque flanc qui se recouvrent, un éventail au bout de la
+// queue, une aigrette et des moustaches de plumes sur la tête, des ailes de rémiges. Quatre pattes courtes.
+const DR_NS = 11, DR_SEG = .25, DR_AILE = .45, DR_ECH = .8;   // DR_ECH : tout le dragon, à la fin, à sa taille
 function osDragon(f) {
   const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
   const dtl = Math.min(.1, Math.max(0, t - (f._osT ?? t))); f._osT = t;
@@ -11345,86 +11371,107 @@ function osDragon(f) {
   const mix = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
   const M = morpheDragon(f), E = f.etat, mort = f.dead > 0, vol = !!f.enVol && !mort;
   const dort = E === 'dormir' && !mort, mange = (E === 'manger' || E === 'dévorer') && !mort, menace = E === 'menacer' && !mort;
-  const dk = lisse('_dk', dort && !vol ? 1 : 0, 1.6);        // le sommeil vient doucement : le cou se couche, les pattes se replient
+  const dk = lisse('_dk', dort && !vol ? 1 : 0, 1.6);        // le sommeil vient doucement : il se couche, la queue s'enroule
   const crache = E === 'cracher' && !mort, coq = lisse('_coq', E === 'décoller' ? 1 : 0, 10);
   const pli = lisse('_pli', mort ? .3 : vol ? 0 : menace ? .35 : 1, vol ? 5 : 4);
   const bat = lisse('_bat', mort ? 0 : f.bat || 0, 5), ph = f.ph || 0, A = (.14 + .78 * bat) * (1 - pli);
   const fl = lisse('_fl', vol && (E === 'poser' || E === 'descendre' || E === 'escorter') && f.pres ? 1 : 0, 4);
   const gorge = crache ? Math.min(1, (f.feuT || 0) / .9) : f.gueuleT != null && t - f.gueuleT < .4 ? 1 - (t - f.gueuleT) / .4 : 0;
-  const zc = vol ? .1 : 1.0 - coq * .3 - dk * .45 - (mort ? .65 : 0) + Math.sin(t * (dort ? .9 : 1.6) + (f.bob || 0)) * (dort ? .025 : .015);   // endormi, il respire lentement
-  // le torse
-  add([-.7, 0, zc + .02], [.65, 0, zc + .08], .78, .72, M.corps);
-  add([-.5, 0, zc - .26], [.55, 0, zc - .2], .6, .22, M.ventre);
-  add([.35, 0, zc + .14], [.85, 0, zc + .24], .62, .6, M.corps);                       // le poitrail
-  for (const x of [-.45, -.1, .25, .6]) add([x, 0, zc + .4], [x + .1, 0, zc + .5], .1, .14, M.crete);   // la crête du dos
-  // le cou : cinq anneaux, levé posé, tendu en vol, plongeant pour manger, replié la nuit
-  const yaw = mort ? .6 : lisse('_yaw', vol ? 0 : dort ? 2.4 : menace ? 0 : f.regard || 0, 2.5);
-  const eBase = lisse('_cou', vol ? .12 : dort ? -.25 : mange ? -.42 : menace ? 1.25 : crache ? .35 : 1.0, 3) - (crache ? 0 : 0);
-  const pente = lisse('_pente', vol ? .02 : mange ? .12 : dort ? 0 : .28, 3);   // la courbe du cou, qui change en douceur (endormi, le cou ne pique plus vers le sol)
-  let N = [.85, 0, zc + .3], dir = 0;
-  const anneaux = [];
-  for (let k = 0; k < 5; k++) {
-    const e0 = eBase - k * pente + (mange ? Math.sin(t * 9) * .06 * (k > 2) : 0), e = e0 + (COU_DORT[k] - e0) * dk;   // endormi : le cou descend, puis se couche à plat (la tête ne s'enfonce plus dans le sol)
-    const yk = yaw * (k + 1) / 5;
-    const L = .3, nx = N[0] + Math.cos(e) * Math.cos(yk) * L, ny = N[1] + Math.cos(e) * Math.sin(yk) * L, nz = N[2] + Math.sin(e) * L;
-    const n2 = [nx, ny, nz]; add(N, n2, .3 - k * .03, .3 - k * .03, k % 2 ? M.corps : M.corps); anneaux.push(n2); N = n2; dir = yk;
+  const vit = vol ? 0 : Math.min(1, (f.vit || 0) / 1.2);
+  const zb = vol ? .1 : .5 - coq * .12 - dk * .26 - (mort ? .3 : 0) + Math.sin(t * (dort ? .9 : 1.6) + (f.bob || 0)) * (dort ? .015 : .008);
+  // l'onde du dos et le balancement de la queue : plus vifs quand il marche, amples en vol
+  const phD = f._phD = (f._phD || 0) + dtl * (vol ? 3.2 : 1.1 + vit * 4.5), phL = f._phL = (f._phL || 0) + dtl * (vol ? 2 : 1.3 + vit * 3);
+  const S = [], W = [];
+  for (let k = 0; k < DR_NS; k++) {
+    const u = k / (DR_NS - 1), w = k <= 4 ? .34 - .01 * k : .3 * (1 - (k - 4) / 7) + .05;
+    const env = vol ? .05 + .1 * u : k <= 4 ? Math.sin(Math.PI * k / 4) * .07 : .02 + (k - 4) / 6 * .1;
+    let x = .45 - k * DR_SEG, y = Math.sin(phL - k * .65) * (vol ? .05 : .09) * Math.pow(u, 1.2) * (1 - dk);
+    let z = zb - (vol ? 0 : Math.max(0, k - 4) * .045 * (1 - dk)) + env * Math.sin(phD - k * .8) * (mort ? 0 : 1 - dk * .8);
+    if (dk > 0 && k > 3) { const c = Math.pow((k - 3) / 7, 1.5) * dk; y += c * .95; x += c * .7; }   // endormi : la queue revient le long du flanc
+    if (!vol) z = Math.max(z, .06 + w * .5);
+    S.push([x, y, z]); W.push(w);
   }
-  add(anneaux[1], [anneaux[3][0], anneaux[3][1], anneaux[3][2] - .12], .16, .12, gorge > 0 ? [255, Math.round(120 + 100 * gorge), 50] : M.ventre, gorge > .2);   // la gorge
-  // la tête
-  // pour manger, la tête descend au ras de la proie, sans entrer dans le sol ; endormie, elle se pose à plat
-  const he = vol ? -.05 : mange ? -.38 : menace ? .15 : -.25 + .27 * dk, cd = Math.cos(dir), sd = Math.sin(dir), ce = Math.cos(he), se = Math.sin(he);
+  // le corps, le ventre clair dessous
+  for (let k = 0; k < DR_NS - 1; k++) {
+    add(S[k], S[k + 1], W[k], W[k] * .9, M.corps);
+    if (k < 7) add([S[k][0], S[k][1], S[k][2] - W[k] * .28], [S[k + 1][0], S[k + 1][1], S[k + 1][2] - W[k + 1] * .28], W[k] * .7, W[k] * .3, M.ventre);
+  }
+  // les plumes du corps : la crête, dressée vers l'arrière ; deux rangs couchés sur chaque flanc, qui se recouvrent
+  for (let k = 0; k < DR_NS - 1; k++) {
+    const a = S[k], w = W[k], fr = Math.sin(t * 5 + k * .9) * .015 * (mort ? 0 : 1);
+    const top = [a[0], a[1], a[2] + w * .42];
+    add(top, [top[0] - .15, top[1], top[2] + .1 - k * .004 + fr], .016, .07, k < 5 ? M.crete : mix(M.crete, M.pointe, (k - 4) / 6));
+    for (const s of [-1, 1]) for (const [ang, col, dec] of [[.75, mix(M.aile, M.corps, .3), DR_SEG * .5], [.15, M.corps, 0]]) {
+      const o = [a[0] - .03 + dec, a[1] + s * Math.cos(ang) * w * .48, a[2] + Math.sin(ang) * w * .48];
+      add(o, [o[0] - .17, o[1] + s * .015, o[2] - .02 + fr], .018, .085 * Math.max(.35, w / .34), k > 6 ? mix(col, M.pointe, (k - 6) / 4) : col);
+    }
+  }
+  // l'éventail au bout de la queue
+  { const T = S[DR_NS - 1], P0 = S[DR_NS - 2], dx = T[0] - P0[0], dy = T[1] - P0[1], a0 = Math.atan2(dy, dx);
+    for (let i = 0; i < 5; i++) { const q = a0 + (i - 2) * .3 + Math.sin(t * 3 + i) * .05 * (mort ? 0 : 1), ln = .42 - Math.abs(i - 2) * .05;
+      add(T, [T[0] + Math.cos(q) * ln, T[1] + Math.sin(q) * ln, T[2] + .02], .07, .015, i % 2 ? M.crete : M.pointe); } }
+  // le cou : quatre anneaux, levé posé, tendu en vol, plongeant pour manger, couché la nuit
+  const yaw = mort ? .6 : lisse('_yaw', vol ? 0 : dort ? 2.2 : menace ? 0 : f.regard || 0, 2.5);
+  const eBase = lisse('_cou', vol ? .12 : dort ? -.25 : mange ? -.5 : menace ? 1.15 : crache ? .35 : .8, 3);
+  const pente = lisse('_pente', vol ? .02 : mange ? .12 : dort ? 0 : .22, 3);
+  let N = [S[0][0] + .1, S[0][1], S[0][2] + .06], dir = 0;
+  const anneaux = [];
+  for (let k = 0; k < 4; k++) {
+    const e0 = eBase - k * pente + (mange ? Math.sin(t * 9) * .06 * (k > 1) : 0), e = e0 + (COU_DORT[k + 1] - e0) * dk;
+    const yk = yaw * (k + 1) / 4, L = .17;
+    const n2 = [N[0] + Math.cos(e) * Math.cos(yk) * L, N[1] + Math.cos(e) * Math.sin(yk) * L, N[2] + Math.sin(e) * L];
+    add(N, n2, .21 - k * .02, .2 - k * .02, M.corps);
+    add([N[0], N[1], N[2] + .08], [n2[0] - .06, n2[1], n2[2] + .15], .014, .05, M.crete);   // la crête, jusque sur la nuque
+    anneaux.push(n2); N = n2; dir = yk;
+  }
+  add(anneaux[0], [anneaux[2][0], anneaux[2][1], anneaux[2][2] - .07], .1, .07, gorge > 0 ? [255, Math.round(120 + 100 * gorge), 50] : M.ventre, gorge > .2);   // la gorge
+  // la tête, fine et longue
+  const he = vol ? -.05 : mange ? -.4 : menace ? .15 : -.22 + .25 * dk, cd = Math.cos(dir), sd = Math.sin(dir), ce = Math.cos(he), se = Math.sin(he);
   const fw = [cd * ce, sd * ce, se], up = [-cd * se, -sd * se, ce], H0 = N;
   const P_ = (u, w) => [H0[0] + fw[0] * u + up[0] * w, H0[1] + fw[1] * u + up[1] * w, H0[2] + fw[2] * u + up[2] * w];
-  add(P_(-.05, 0), P_(.38, .02), .3, .28, M.corps);                                    // le crâne
-  add(P_(.35, -.02), P_(.68, -.06), .2, .17, M.corps);                                 // le museau
-  const J0 = P_(.12, -.12);
-  // au sol, la mâchoire s'ouvre au plus jusqu'au ras du sol (avant : elle passait dessous en mangeant)
+  add(P_(-.03, 0), P_(.2, .01), .16, .15, M.corps);                                    // le crâne
+  add(P_(.18, -.01), P_(.37, -.03), .1, .09, M.corps);                                 // le museau
+  const J0 = P_(.06, -.07);
   let gueule = Math.max(gorge * .55, menace ? .45 + Math.sin(t * 6) * .1 : 0, mange ? Math.abs(Math.sin(t * 9)) * .35 : 0);
-  if (!vol) gueule = Math.min(gueule, Math.max(0, he - Math.asin(Math.max(-1, Math.min(1, (.075 - J0[2]) / .52)))));
+  if (!vol) gueule = Math.min(gueule, Math.max(0, he - Math.asin(Math.max(-1, Math.min(1, (.04 - J0[2]) / .28)))));
   const mj = [fw[0] * Math.cos(gueule) - up[0] * Math.sin(gueule), fw[1] * Math.cos(gueule) - up[1] * Math.sin(gueule), fw[2] * Math.cos(gueule) - up[2] * Math.sin(gueule)];
-  add(J0, [J0[0] + mj[0] * .52, J0[1] + mj[1] * .52, J0[2] + mj[2] * .52], .17, .07, M.ventre);   // la mâchoire
-  if (gorge > .15) add(P_(.55, -.1), P_(.72, -.1), .1 + gorge * .1, .1 + gorge * .1, [255, 210, 120], true);   // le feu dans la gueule
+  add(J0, [J0[0] + mj[0] * .28, J0[1] + mj[1] * .28, J0[2] + mj[2] * .28], .09, .04, M.ventre);   // la mâchoire
+  f._bouche = P_(.38, -.04);                                                           // d'où part le feu (voir cracheFeu)
+  if (gorge > .15) add(P_(.3, -.05), P_(.4, -.05), .06 + gorge * .06, .06 + gorge * .06, [255, 210, 120], true);   // le feu dans la gueule
   for (const s of [-1, 1]) {
-    const lat = [-sd * s, cd * s, 0];
-    add([...P_(.05, .14)].map((q, j) => q + lat[j] * .1), [...P_(-.3, .34)].map((q, j) => q + lat[j] * .16), .06, .06, [226, 214, 190]);   // les cornes
-    add([...P_(.22, .06)].map((q, j) => q + lat[j] * .145), [...P_(.26, .06)].map((q, j) => q + lat[j] * .145), .05, dort ? .01 : .05, dort ? M.corps : [255, 196, 60], !dort && !mort);   // les yeux
+    const lat = [-sd * s, cd * s, 0], L_ = (p, k) => p.map((q, j) => q + lat[j] * k);
+    add(L_(P_(.02, .08), .05), L_(P_(-.15, .18), .08), .03, .03, [226, 214, 190]);   // les petites cornes
+    add(L_(P_(.12, .04), .075), L_(P_(.14, .04), .075), .028, dort ? .006 : .028, dort ? M.corps : [255, 196, 60], !dort && !mort);   // les yeux
+    add(L_(P_(.1, -.04), .07), L_(P_(-.1, -.12), .14), .012, .035, M.pointe);      // les moustaches de plumes
   }
-  for (let k = 0; k < 3; k++) add(P_(.05 - k * .12, .16), P_(-.15 - k * .14, .42 - k * .05), .08, .03, M.crete);   // la crête de plumes
-  // la queue : sept anneaux qui ondulent, et le panache
-  let T = [-.7, 0, zc + .05];
-  for (let k = 0; k < 7; k++) {
-    const amp = (vol ? .05 : .14) * (k / 6), sway = dort ? .5 * (k / 6) : Math.sin(t * (vol ? 2.2 : 1.4) - k * .7 + (f.bob || 0)) * amp;
-    const n2 = [T[0] - .36, T[1] + sway * .6 + (dort ? .18 : 0), T[2] - (vol ? .01 : .07) + (vol ? 0 : k * .004)];
-    if (!vol && n2[2] < .12) n2[2] = .12;
-    add(T, n2, .26 - k * .03, .24 - k * .028, M.corps); T = n2;
-  }
-  for (const q of [-.5, 0, .5]) add(T, [T[0] - .55 * Math.cos(q), T[1] + .55 * Math.sin(q), T[2] + .05], .16, .03, M.crete);   // le panache
-  // les pattes : marche en diagonale posé, repliées en vol, tendues au freinage
-  const R = repere(f), ca = Math.cos(f.dir), sa = Math.sin(f.dir), vit = vol ? 0 : Math.min(1, (f.vit || 0) / 1.2);
-  f.gph = (f.gph || 0) + dtl * (f.vit || 0) * 2.6;
-  for (const [ox, s, ph0, av] of [[.5, 1, 0, 1], [.5, -1, .5, 1], [-.55, 1, .75, 0], [-.55, -1, .25, 0]]) {
-    const hip = [ox, s * .32, zc - .05];
+  for (let k = 0; k < 4; k++) add(P_(.02 - k * .05, .08), P_(-.2 - k * .06, .2 - k * .02), .012, .05, k % 2 ? M.pointe : M.crete);   // l'aigrette
+  // les pattes : courtes, sous les épaules et sous les hanches ; posées sur le sol, repliées en vol
+  const R = repere(f), ca = Math.cos(f.dir), sa = Math.sin(f.dir);
+  f.gph = (f.gph || 0) + dtl * (f.vit || 0) * 3.2;
+  for (const [ki, s, ph0, av] of [[0, 1, 0, 1], [0, -1, .5, 1], [4, 1, .75, 0], [4, -1, .25, 0]]) {
+    const hip = [S[ki][0], S[ki][1] + s * .12, S[ki][2] - W[ki] * .3];
     let foot;
-    if (vol) foot = mix(av ? [.7, s * .22, zc - .25] : [-1.05, s * .28, zc - .2], av ? [1.0, s * .38, zc - .95] : [-.3, s * .45, zc - .95], fl);
+    if (vol) foot = mix([hip[0] - .14, hip[1] + s * .04, hip[2] - .1], [hip[0] + (av ? .2 : -.05), hip[1] + s * .1, hip[2] - .45], fl);
     else {
-      const p = (f.gph + ph0) * 6.2832, lx = (av ? .72 - .1 * dk : -.62 + .12 * dk) + Math.sin(p) * .28 * vit, ly = s * (.44 + .22 * dk), lift = Math.max(0, Math.cos(p)) * .16 * vit;   // endormi : les pieds sous les épaules, un peu écartés
-      const wx = f.x + lx * ca - ly * sa, wy = f.y + lx * sa + ly * ca;
-      foot = [lx, ly, (mort ? 0 : sol(wx, wy) - f.z) + .06 + lift];   // la patte posée sur le sol, pas à moitié dedans
-      if (menace && av) foot = [.85, s * .5, .08];
+      const p = (f.gph + ph0) * 6.2832, lx = hip[0] + (av ? .1 : -.02) + Math.sin(p) * .14 * vit, ly = s * (.2 + .1 * dk), lift = Math.max(0, Math.cos(p)) * .1 * vit;
+      const wx = f.x + (lx * ca - ly * sa) * DR_ECH, wy = f.y + (lx * sa + ly * ca) * DR_ECH;
+      foot = [lx, ly, (mort ? 0 : (sol(wx, wy) - f.z) / DR_ECH) + .04 + lift];   // le sol, ramené à l'échelle du dessin
+      if (menace && av) foot = [hip[0] + .3, s * .24, .05];
     }
-    const L1 = av ? .55 : .62, L2 = av ? .55 : .62, d0 = Math.hypot(foot[0] - hip[0], foot[1] - hip[1], foot[2] - hip[2]) || 1;
+    const L1 = av ? .26 : .28, L2 = av ? .26 : .28, d0 = Math.hypot(foot[0] - hip[0], foot[1] - hip[1], foot[2] - hip[2]) || 1;
     const d = Math.min(L1 + L2 - .01, d0), u = [(foot[0] - hip[0]) / d0, (foot[1] - hip[1]) / d0, (foot[2] - hip[2]) / d0];
     const c1 = (L1 * L1 + d * d - L2 * L2) / (2 * L1 * d), s1 = Math.sqrt(Math.max(0, 1 - c1 * c1));
-    const pl = [(av ? -1 : 1) * (1 - dk), s * dk, 0], pu = pl[0] * u[0] + pl[1] * u[1] + pl[2] * u[2];   // endormi, les genoux s'ouvrent sur les côtés au lieu de se croiser sous le ventre
+    const pl = [(av ? -1 : 1) * (1 - dk), s * dk, 0], pu = pl[0] * u[0] + pl[1] * u[1] + pl[2] * u[2];
     let n = [pl[0] - u[0] * pu, pl[1] - u[1] * pu, pl[2] - u[2] * pu]; const nn = Math.hypot(...n) || 1; n = n.map(q => q / nn);
     const K = [hip[0] + u[0] * L1 * c1 + n[0] * L1 * s1, hip[1] + u[1] * L1 * c1 + n[1] * L1 * s1, hip[2] + u[2] * L1 * c1 + n[2] * L1 * s1];
     const Fd = [hip[0] + u[0] * d, hip[1] + u[1] * d, hip[2] + u[2] * d];
-    add(hip, K, av ? .2 : .26, av ? .2 : .26, M.corps); add(K, Fd, .15, .15, M.corps);
-    for (const q of [-.35, 0, .35]) add([Fd[0], Fd[1], Fd[2] - (vol ? 0 : .04)], [Fd[0] + Math.cos(q) * .18, Fd[1] + Math.sin(q) * .18 * s, Fd[2] - (vol ? 0 : .04)], .05, .04, [60, 52, 48]);   // les griffes, au ras du sol
+    add(hip, K, av ? .1 : .12, av ? .1 : .12, M.corps); add(K, Fd, .07, .07, M.corps);
+    add(hip, [K[0] - .06, K[1] + s * .02, K[2] + .02], .02, .08, M.aile);            // la culotte de plumes
+    for (const q of [-.35, 0, .35]) add([Fd[0], Fd[1], Fd[2] - (vol ? 0 : .02)], [Fd[0] + Math.cos(q) * .1, Fd[1] + Math.sin(q) * .1 * s, Fd[2] - (vol ? 0 : .02)], .03, .025, [60, 52, 48]);   // les griffes
   }
-  // les ailes, et leurs plumes
+  // les ailes, de rémiges : repliées le long du dos, déployées en vol
   for (const s of [-1, 1]) {
-    const Sh = [.35, s * .36, zc + .35];
+    const Sh = [S[0][0] - .05, S[0][1] + s * .14, S[0][2] + .14], K_ = DR_AILE;
     const et = !vol && !mort && f.etireT > t && f.etireC === s ? Math.sin(Math.min(1, (f.etireT - t) / 1.4) * Math.PI) : 0;
     const pw = Math.max(0, pli - et * .9);
     let e1, e2, e3;
@@ -11434,33 +11481,37 @@ function osDragon(f) {
     } else if (menace) { e1 = 1.0 + Math.sin(t * 5) * .08; e2 = e1 + .2; e3 = e2 + .1; }
     else { e1 = -.1; e2 = -.25; e3 = -.4; }
     const dirW = (sx, e, ln) => { const v = [sx, s * Math.cos(e), Math.sin(e)], q = Math.hypot(...v); return [v[0] / q * ln, v[1] / q * ln, v[2] / q * ln]; };
-    const d1 = dirW(-.1, e1, .75), d2 = dirW(.22 + fl * .2, e2, 1.0), d3 = dirW(-.35 + fl * .25, e3, .7);
+    const d1 = dirW(-.1, e1, .75 * K_), d2 = dirW(.22 + fl * .2, e2, 1.0 * K_), d3 = dirW(-.35 + fl * .25, e3, .7 * K_);
     const Eo = [Sh[0] + d1[0], Sh[1] + d1[1], Sh[2] + d1[2]], Wo = [Eo[0] + d2[0], Eo[1] + d2[1], Eo[2] + d2[2]], To = [Wo[0] + d3[0], Wo[1] + d3[1], Wo[2] + d3[2]];
-    const Ef = [Sh[0] - .45, s * .5, Sh[2] - .02], Wf = [Ef[0] + .55, s * .55, Ef[2] + .12], Tf = [Wf[0] - .9, s * .52, Wf[2] + .05];
+    const Ef = [Sh[0] - .45 * K_, Sh[1] + s * .06, Sh[2] - .01], Wf = [Ef[0] + .55 * K_, Ef[1] + s * .02, Ef[2] + .06], Tf = [Wf[0] - .9 * K_, Wf[1] - s * .01, Wf[2] + .02];
     const El = mix(Eo, Ef, pw), Wl = mix(Wo, Wf, pw), Tl = mix(To, Tf, pw);
-    add(Sh, El, .2, .12, M.aile); add(El, Wl, .16, .1, M.aile); add(Wl, Tl, .12, .08, M.aile);
+    add(Sh, El, .1, .06, M.aile); add(El, Wl, .08, .05, M.aile); add(Wl, Tl, .06, .04, M.aile);
     const arr = [-1, 0, -.12 + (vol ? A * .3 * Math.sin(ph - .4) : 0)], kf = 1 - pw * .45;
     for (let i = 0; i < 5; i++) {                       // les rémiges : la pointe tendue, les autres en éventail vers l'arrière
       const r0 = mix(Wl, Tl, i / 4), wsp = [(Tl[0] - Wl[0]), (Tl[1] - Wl[1]), (Tl[2] - Wl[2])], q = Math.hypot(...wsp) || 1;
       const k2 = .9 - i * .2, dv = [wsp[0] / q * (1 - k2) + arr[0] * k2, wsp[1] / q * (1 - k2) + arr[1] * k2, wsp[2] / q * (1 - k2) + arr[2] * k2], qq = Math.hypot(...dv) || 1;
-      const ln = (1.0 + i * .1) * kf;
-      add(r0, [r0[0] + dv[0] / qq * ln, r0[1] + dv[1] / qq * ln, r0[2] + dv[2] / qq * ln], .17 * kf + .03, .03, mix(M.aile, M.pointe, .3 + i * .15));
+      const ln = (1.0 + i * .1) * kf * K_;
+      add(r0, [r0[0] + dv[0] / qq * ln, r0[1] + dv[1] / qq * ln, r0[2] + dv[2] / qq * ln], (.17 * kf + .03) * .55, .018, mix(M.aile, M.pointe, .3 + i * .15));
     }
     for (let i = 0; i < 4; i++) {                       // les secondaires, le long de l'avant-bras
-      const r0 = mix(El, Wl, i / 3), ln = .8 * kf;
-      add(r0, [r0[0] + arr[0] * ln, r0[1] + arr[1] * ln, r0[2] + arr[2] * ln], .2 * kf + .03, .03, mix(M.aile, M.corps, .3));
+      const r0 = mix(El, Wl, i / 3), ln = .8 * kf * K_;
+      add(r0, [r0[0] + arr[0] * ln, r0[1] + arr[1] * ln, r0[2] + arr[2] * ln], (.2 * kf + .03) * .55, .018, mix(M.aile, M.corps, .3));
     }
   }
   // le roulis : tout le corps tourne autour de son axe dans les virages ; mort, il gît sur le flanc
   const r = f.roll || 0;
-  if (Math.abs(r) > .002) { const c = Math.cos(r), sn = Math.sin(r), rot = p => [p[0], p[1] * c - (p[2] - zc) * sn, zc + p[1] * sn + (p[2] - zc) * c]; for (const o of B) { o.a = rot(o.a); o.b = rot(o.b); } }
+  if (Math.abs(r) > .002) { const c = Math.cos(r), sn = Math.sin(r), rot = p => [p[0], p[1] * c - (p[2] - zb) * sn, zb + p[1] * sn + (p[2] - zb) * c]; for (const o of B) { o.a = rot(o.a); o.b = rot(o.b); } }
+  const e = DR_ECH, ech = p => [p[0] * e, p[1] * e, p[2] * e];
+  for (const o of B) { o.a = ech(o.a); o.b = ech(o.b); o.w *= e; o.h *= e; }
+  f._bouche = ech(f._bouche);
   return B;
 }
-function dessinDragon(d, sp) {                            // le pictogramme : ailes ouvertes, cou levé
+function dessinDragon(d, sp) {                            // le pictogramme : un long corps ondulant, ailes ouvertes, la tête levée
   const M = MORPHES_DRAGON[0];
-  d.ligne(2, 4, 7, 9, M.aile); d.ligne(1, 6, 7, 10, M.pointe); d.ligne(14, 4, 9, 9, M.aile); d.ligne(15, 6, 9, 10, M.pointe);
-  d.rect(6, 9, 10, 11, M.corps); d.ligne(10, 9, 12, 5, M.corps); d.rect(11, 4, 13, 5, M.corps); d.net(13, 5, M.crete); d.net(12, 4, [255, 196, 60]);
-  d.ligne(6, 11, 3, 13, M.corps); d.net(2, 13, M.crete); d.net(3, 14, M.crete);
+  d.ligne(5, 5, 8, 9, M.aile); d.ligne(4, 6, 7, 10, M.pointe); d.ligne(10, 4, 9, 9, M.aile); d.ligne(11, 5, 10, 9, M.pointe);
+  d.ligne(1, 12, 4, 11, M.corps); d.ligne(4, 11, 7, 12, M.corps); d.ligne(7, 12, 10, 10, M.corps); d.ligne(10, 10, 12, 7, M.corps);
+  d.rect(12, 5, 14, 6, M.corps); d.net(14, 6, M.corps); d.net(13, 4, M.crete); d.net(12, 4, M.crete); d.net(13, 5, [255, 196, 60]);
+  d.net(3, 10, M.crete); d.net(6, 11, M.crete); d.net(9, 9, M.crete); d.net(0, 11, M.pointe); d.net(0, 13, M.pointe); d.net(1, 13, M.crete);
 }
 // ============================================================
 //  LA TISSEUSE DE FER
@@ -12129,7 +12180,7 @@ function pasVersBete(b, tx, ty, vit, dt) {
   // Une bête qui ne grimpe pas — automate, coursier — voit la paroi comme l'eau : elle la longe.
   // Et la falaise aussi : elle ne s'y jette pas, sauf le coursier, qui saute trois cubes en contrebas.
   const grimpe = (b.sp.grimpe || 0) > 0 && b.t >= (b.murPause || 0);
-  const libre = (ux, uy) => { const hn = hAt((b.x + ux * .8) | 0, (b.y + uy * .8) | 0); return hn > SEA && (grimpe || enjambe(b, h, hn)); };
+  const libre = (ux, uy) => { const hn = hAt((b.x + ux * .8) | 0, (b.y + uy * .8) | 0); return hn > SEA && (grimpe || enjambe(b, h, hn)) || (!!b.sp.sauteur && !!sautPossible(b, ux, uy, h)); };
   if (!libre(dx, dy)) {
     // Falaise ou eau : on longe. Le côté de l'esquive se tirait de la parité de la position —
     // il changeait tous les vingtièmes de case, si bien que la bête hésitait sur place au lieu
@@ -12384,6 +12435,12 @@ function lacherParoi(b) {
 }
 // Au sol : la pesanteur, et le corps qui se remet à plat après une chute.
 function chute(b, dt) {
+  if (b.bondL) {                                        // (§147) en plein bond : il file au-dessus du trou ; une paroi l'arrête
+    const L = b.bondL, nx = b.x + L.vx * dt, ny = b.y + L.vy * dt, hn = hAt(nx | 0, ny | 0);
+    if (hn > b.z + .3 && hn > SEA) b.bondL = null;
+    else { b.x = Math.max(2, Math.min(WS - 3, nx)); b.y = Math.max(2, Math.min(WS - 3, ny)); }
+    if (b.bondL && (t > L.fin || (b.vz <= 0 && b.z <= sol(b.x, b.y) + .02))) b.bondL = null;
+  }
   if (b.surDalle && !(b.tache && b.tache.dalle && plaT(b.x | 0, b.y | 0) === b.surDalle)) descendreDalle(b);
   const gs = b.surDalle || sol(b.x, b.y);
   if (b.z > gs + .05 || b.vz > 0) { b.vz -= 22 * dt; b.z += b.vz * dt; if (b.z <= gs && b.vz <= 0) { b.z = gs; b.vz = 0; } }
@@ -12402,7 +12459,7 @@ function toucheBete(b, x, y, z) {
   if (b.sp.batiment || b.cache) return false;
   if (b.sp.corps === 'silencieux') return (b.x - x) ** 2 + (b.y - y) ** 2 < .3 && z > b.z && z < b.z + 2.7;
   if (b.sp.corps === 'millegueule') return !!b.seg && b.seg.some(q => q[2] > sol(q[0], q[1]) - .2 && (q[0] - x) ** 2 + (q[1] - y) ** 2 < .36 && Math.abs(z - q[2]) < .5);
-  if (b.sp.dragon) { const c = ptDragon(b, 0, 0, b.enVol ? .1 : 1); return (c[0] - x) ** 2 + (c[1] - y) ** 2 < 1.3 && Math.abs(z - c[2]) < .75; }
+  if (b.sp.dragon) { const zc = (b.enVol ? .1 : .5) * DR_ECH; for (const lx of [.6, -.3, -1.2]) { const c = ptDragon(b, lx * DR_ECH, 0, zc * (lx < -1 ? .7 : 1)); if ((c[0] - x) ** 2 + (c[1] - y) ** 2 < .3 && Math.abs(z - c[2]) < .45) return true; } return false; }   // (§149) le long corps : trois cercles, du poitrail à la queue
   if (b.sp.boss) { const cx = b.x - Math.cos(b.dir) * .35, cy = b.y - Math.sin(b.dir) * .35; if ((cx - x) ** 2 + (cy - y) ** 2 < 3.6 && z > (b.zc || b.z) - .7 && z < (b.zc || b.z) + 1.1) return true; return pattesTiss(b).some(([A, K, H]) => dSegment([x, y, z], A, K) < .32 || dSegment([x, y, z], K, H) < .3); }   // le corps, puis les pattes
   const k = b.sp.sz, r = .34 + k * .30;
   if (!b.mur && !b.tang) return (b.x - x) ** 2 + (b.y - y) ** 2 < r * r && z > b.z - .15 && z < b.z + k * .95;
@@ -12415,6 +12472,7 @@ function toucheBete(b, x, y, z) {
 // la bête doit avoir la place de se cabrer. Une paroi qui descend se prend au bord même.
 // Une paroi abordée de biais, à moins de 20° de sa face, ne se grimpe pas : la bête la longe.
 function pasBete(b, nx, ny, grimpe, glisse) {
+  if (b.bondL) return 1;                                // (§147) en plein bond : c'est le bond qui le porte (voir chute)
   if (!glisse && aCorps(b)) { const q = heurtCorps(b, nx, ny); if (!q) return 2; nx = q[0]; ny = q[1]; }   // les autres corps d'abord (voir LES CORPS)
   const x0 = b.x, y0 = b.y, sx = nx - x0, sy = ny - y0, ls = Math.hypot(sx, sy);
   if (ls < 1e-9) return 1;
@@ -12432,6 +12490,9 @@ function pasBete(b, nx, ny, grimpe, glisse) {
     const f = ax ? fy : fx;
     if (f > 1) break;
     const i2 = ax ? i : ei, j2 = ax ? ej : j, h2 = hAt(i2, j2), dansPas = f <= fPas;
+    if (b.sp.sauteur && dansPas && !grimpe && (h2 <= SEA || h - h2 > Math.max(1, b.sp.bond || 0) + .5) && b.z <= sol(b.x, b.y) + .1) {   // (§147) par-dessus le trou
+      const L = sautPossible(b, sx / ls, sy / ls, h); if (L) { bondir(b, L); return 1; }
+    }
     if (h2 <= SEA) { if (dansPas) return 0; break; }     // l'eau, le vide : refusé si le pas y entre
     if (Math.abs(h2 - h) > 1) {
       const monte = h2 > h;
@@ -13931,7 +13992,7 @@ function monter(b) {
     return;
   }
   if (b.etat === 'fuir' || b.fuite > 0) { say('il fuit : approchez sans courir, ou la nuit', 1.8); return; }
-  if (liensLibres() <= 0) { say('il faut un lien d\'éclat libre pour le garder', 2); return; }
+  if (liensLibres() <= 0) { say('il faut un lien d\'éclat pour le lier, une fois dompté', 2); return; }
   if (typeof fauneLien === 'function') fauneLien(b);   // au rodéo, c'est vous qui la menez : elle quitte la faune du gardien
   P.monture = b; P.rodeo = true;
   Rodeo = { b, fougue: 1, lache: 0, ruadeT: t + .8, cap: b.dir };
@@ -13984,10 +14045,9 @@ function majRodeo(dt) {
   P.bob += dt * Math.hypot(b.vx, b.vy) * 1.6;
   if (P.hurt > 0) P.hurt -= dt;
   if (R.fougue <= 0) {                                  // dompté
-    const c = lier(b, 'rodéo');
-    P.rodeo = false; Rodeo = null; b.ruade = 0; b.endu = .3; b.colere = 0; b.alarm = 0;
-    if (!c || !c.dehors) { descendre(false); return; }  // pas de lien, ou six déjà en jeu : il est allé au sac
-    say(c.nom + ' est dompté' + (b.sp.arc ? ' · l\'aurore est à vous' : ''), 3);
+    P.rodeo = false; Rodeo = null; b.ruade = 0; b.endu = .3; b.colere = 0; b.alarm = 0;   // (§145) dompté : il s'arrête, essoufflé ; dix secondes pour lui lancer le lien
+    descendre(false); b.dompteT = t + 10; b.etourdi = 10;
+    say(nomBete(b) + ' est dompté · lancez-lui un lien (Y), il attend dix secondes' + lienApres(b), 3.2);
   }
   else if (P.endu <= 0 || R.lache > .5) descendre(true);
 }
@@ -14046,8 +14106,7 @@ function nourrirTrottin(c) {
   if (c.num !== undefined && typeof fauneGeste === 'function') fauneGeste('mange', { n: c.num, f: .5, d: 0 });
   c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (aime ? 2 : 1) * (1 + .5 * effet('apprivoiseur')));
   const nom = INGR[id].n.toLowerCase();
-  if (c.conf >= 1) { if (!lier(c, 'friandise')) say('confiance totale · il faut un lien d\'éclat libre', 2.6); }
-  else say(nom + (aime ? ' · sa friandise !' : ' · il préfère ' + F.n) + ' · confiance ' + Math.round(c.conf * 100) + ' %', 2.2);
+  say(nom + (aime ? ' · sa friandise !' : ' · il préfère ' + F.n) + ' · confiance ' + Math.round(c.conf * 100) + ' %' + lienApres(c), 2.2);
   majSac();
 }
 // La compétence : elle accourt et vous pose un bandage de votre réserve (un cataplasme au rang 2, s'il n'y
@@ -14774,19 +14833,189 @@ function tirerNom() {
 // La chance qu'une bête accepte le lien : l'espèce d'abord, puis sa faiblesse et la confiance
 // déjà gagnée. On affaiblit un spectre avant de l'appeler, comme on nourrit longtemps un bossu.
 const chanceLien = b => automate(b.sp) || coursier(b.sp) || b.sp.horreur ? 0 : Math.min(1, b.sp.lien + (1 - Math.max(0, b.pv)) * .8 + (b.conf || 0) * .5);
-// Lier un automate : la nuit, en veille, un éclat dans la poitrine. Éveillé, il ne se laisse
-// pas approcher ; sans éclat, rien ne le rallume ; sans lien libre, il reste à l'île.
+// ============================================================
+//  LE LIEN D'ÉCLAT, LANCÉ (§145)
+//  Le lien se lance (Y, ou ACTION « LIER » quand une bête est visée) : il file en arc, l'enserre de fils de
+//  lumière ; elle se débat une à trois fois, puis cède — ou le lien se brise, et il est perdu. Chaque créature a
+//  sa façon d'accepter le lien : la confiance (les offrandes), la faiblesse, la nuit, le sommeil, la surprise…
+//  Hors de sa façon, elle ne cède presque jamais. La fiche de la cible dit la chance, et ce qui est rempli.
+//  Le prix ne change pas : il monte avec les liens qu'on possède (ceux du sac et ceux qui tiennent les compagnes).
+// ============================================================
+const LIEN_PORTEE = 9;
+// Les conditions : ce qu'en dit la fiche de la cible, et ce qu'elles valent (0 ou 1 ; la confiance compte en proportion).
+const COND_LIEN = {
+  conf: { d: b => 'confiance ' + Math.round((b.conf || 0) * 100) + ' %', v: b => Math.max(0, Math.min(1, b.conf || 0)), prog: 1 },
+  colonie: { d: () => 'colonie ' + Math.round(confColonie() * 100) + ' %', v: () => Math.max(0, Math.min(1, (confColonie() - .5) * 2)), prog: 1 },
+  faible40: { d: () => 'affaiblie, sous 40 %', v: b => b.pv < .4 ? 1 : 0 },
+  faible33: { d: () => 'affaiblie, sous un tiers', v: b => b.pv < .34 ? 1 : 0 },
+  faible30: { d: () => 'affaiblie, sous 30 %', v: b => b.pv < .3 ? 1 : 0 },
+  faible15: { d: () => 'presque à terre', v: b => b.pv < .15 ? 1 : 0 },
+  surprise: { d: () => 'ne vous a pas vu', v: b => !(b.alarm > .3) && !(b.colere > 0) && b.etat !== 'fuir' && Math.hypot(P.vx || 0, P.vy || 0) < 3.5 ? 1 : 0 },
+  repu: { d: () => 'repu', v: b => b.faim < .2 ? 1 : 0 },
+  nuit: { d: () => 'de nuit', v: () => lumiere() < .4 ? 1 : 0 },
+  aube: { d: () => 'à l\'aube, engourdi', v: () => horloge > .2 && horloge < .34 ? 1 : 0 },
+  dort: { d: () => 'endormi', v: b => b.etat === 'dormir' || b.etat === 'sommeil' ? 1 : 0 },
+  veille: { d: () => 'en veille', v: b => eveille(b) ? 0 : 1 },
+  eclat: { d: b => (b.sp.eclats || 1) > 1 ? b.sp.eclats + ' éclats glissés (G)' : 'un éclat glissé (G)', v: b => (b.eclatG || 0) >= (b.sp.eclats || 1) ? 1 : 0 },
+  dompte: { d: () => 'dompté au rodéo', v: b => b.dompteT > t ? 1 : 0 },
+  desarme: { d: () => 'aucune arme en main', v: () => porte('arme') ? 0 : 1 },
+  decouvert: { d: () => 'sorti de sa brume', v: b => b.camo > .5 ? 0 : 1 },
+  rut: { d: () => 'en rut', v: b => b.rut > .3 ? 1 : 0 },
+  pose: { d: () => 'posé', v: b => b.enVol ? 0 : 1 },
+  immobile: { d: () => 'vous, immobile', v: () => Math.hypot(P.vx || 0, P.vy || 0) < .3 ? 1 : 0 },
+  sorti: { d: () => 'sorti de terre', v: b => b.cache ? 0 : 1 },
+  jeu: { d: () => 'en plein jeu', v: b => b.etat === 'jouer' ? 1 : 0 },
+};
+// Les façons : req (sans elles, r0), c (ensemble : de b0 à b1), plus (un bonus), conf (la confiance en plus),
+// ou (une autre voie), max ; rate : ce qu'elle fait quand le lien se brise ; perd : elle oublie la confiance.
+const AUTOMATE_LIEN = { req: ['veille'], c: ['eclat'], b0: .1, b1: .7, rate: 'eveil' };
+const COURSIER_LIEN = { req: ['dompte'], c: [], b1: .9, rate: 'fuit' };
+const TROTTIN_LIEN = { c: ['jeu'], b0: .15, b1: .6, conf: .3, max: .9, rate: 'bande' };
+const FACONS = {
+  brouteur: { c: ['conf'], b0: .2, b1: .95, rate: 'fuit' },
+  glaneur: { c: ['surprise'], b0: .15, b1: .7, rate: 'fuit' },
+  bosseu: { c: ['faible40'], b0: .05, b1: .65, plus: ['faible15', .1], rate: 'attaque' },
+  traqueur: { c: ['repu'], b0: .05, b1: .6, plus: ['faible40', .2], rate: 'attaque' },
+  spectre: { req: ['nuit'], c: ['faible33'], b0: .1, b1: .6, rate: 'fuit' },
+  traceur: AUTOMATE_LIEN, moissonneur: AUTOMATE_LIEN, mercenaire: AUTOMATE_LIEN, sentinelle: AUTOMATE_LIEN,
+  tireur: { ...AUTOMATE_LIEN, b1: .6 }, mortier: { ...AUTOMATE_LIEN, b1: .6 },
+  coursier: COURSIER_LIEN, coursier_o: COURSIER_LIEN, coursier_r: COURSIER_LIEN, coursier_a: { ...COURSIER_LIEN, b1: .7 },
+  crapaud: { c: ['repu'], b0: .15, b1: .75, rate: 'fuit' },
+  varan: { c: ['aube'], b0: .05, b1: .65, rate: 'attaque' },
+  vesseron: { c: ['conf'], b0: .2, b1: .9, rate: 'fuit' },
+  cerf: { c: ['conf'], b0: .1, b1: .9, rate: 'fuit', perd: 1 },
+  sika: { c: ['conf'], b0: .15, b1: .9, rate: 'fuit' },
+  salamandre: { c: ['dort'], b0: .05, b1: .7, rate: 'attaque' },
+  lentigrade: { c: ['conf'], b0: .3, b1: 1, max: 1, rate: 'rien' }, lentisakura: { c: ['conf'], b0: .3, b1: 1, max: 1, rate: 'rien' },
+  cotonnier: { c: ['desarme', 'conf'], b0: .1, b1: .8, rate: 'fuit' },
+  carillonneur: { c: ['dort'], b0: .1, b1: .7, rate: 'fuit' },
+  oglodon: { c: ['colonie'], b0: 0, b1: .8, rate: 'attaque' },
+  felin: { req: ['decouvert'], c: ['faible30'], b0: .05, b1: .6, rate: 'fuit' },
+  bramard: { c: ['rut'], b0: .05, b1: .7, rate: 'attaque' },
+  sterne: { c: ['conf'], b0: .1, b1: .9, ou: ['dort', .6], rate: 'fuit' },
+  dragon: { req: ['pose'], c: ['faible33'], b0: .05, b1: .5, conf: .35, rate: 'attaque' },
+  renard: { c: ['nuit', 'conf'], b0: .1, b1: .85, rate: 'fuit' },
+  silencieux: { req: ['immobile'], c: [], b1: .5, conf: .3, rate: 'attaque' },
+  millegueule: { req: ['sorti'], c: ['conf'], b0: .1, b1: .8, rate: 'fuit' },
+  trottin_menu: TROTTIN_LIEN, trottin_echasse: TROTTIN_LIEN, trottin_pataud: TROTTIN_LIEN, trottin_bondeur: TROTTIN_LIEN,
+  trottin_huppe: { ...TROTTIN_LIEN, b0: .1, b1: .45, max: .7 },
+};
+// La chance qu'une bête accepte le lien, maintenant, et ce que dit chaque condition — ou rien, si elle ne se lie pas.
+function etatLien(b) {
+  if (!b || !b.sp || b.tame || b.dead || !(b.pv > 0) || b.gardeCamp || b.loin || b.sp.boss || b.sp.pnj || b.pnjSuit) return null;
+  const F = FACONS[b.sp.id]; if (!F) return null;
+  const L = [], val = k => COND_LIEN[k].v(b), dit = k => COND_LIEN[k].d(b), ok = k => COND_LIEN[k].prog ? val(k) >= .8 : val(k) >= 1;
+  for (const k of F.req || []) L.push([dit(k), ok(k)]);
+  for (const k of F.c) L.push([dit(k), ok(k)]);
+  if (F.conf && !F.c.includes('conf')) L.push([dit('conf') + ' (en plus)', ok('conf')]);
+  if (F.plus) L.push([dit(F.plus[0]) + ' (en plus)', ok(F.plus[0])]);
+  if (F.ou) L.push(['ou ' + dit(F.ou[0]), ok(F.ou[0])]);
+  let ch;
+  if ((F.req || []).some(k => !val(k))) ch = F.r0 || 0;
+  else {
+    let x = 1; for (const k of F.c) x *= val(k);
+    ch = (F.b0 || 0) + (F.b1 - (F.b0 || 0)) * x;
+    if (F.conf) ch += F.conf * COND_LIEN.conf.v(b);
+    if (F.plus && val(F.plus[0])) ch += F.plus[1];
+  }
+  if (F.ou && val(F.ou[0])) ch = Math.max(ch, F.ou[1]);
+  if (b.appelT > t) { ch += .15; L.push(['l\'Appel la calme', true]); }
+  return { F, L, ch: Math.max(0, Math.min(F.max || .95, ch)) };
+}
+const lienDit = E => 'lien ' + Math.round(E.ch * 100) + ' %' + (E.L.length ? ' · ' + E.L.map(([d, o]) => d + (o ? ' ✓' : ' ✗')).join(' · ') : '');
+// La bête qu'on lierait : celle de la fiche de la cible si elle se lie, sinon la plus proche devant soi.
+function viseLienCone(R = LIEN_PORTEE) {
+  const a = P.faceS ?? P.face ?? 0, fx = Math.cos(a), fy = Math.sin(a); let best = null, bs = 1e9;
+  for (const o of beasts) { if (o.tame || o.dead || !(o.pv > 0) || o.cache || o.camo > .5 || !FACONS[o.sp.id] || Math.abs(o.z - P.z) > 6) continue;
+    const dx = o.x - P.x, dy = o.y - P.y, dd = Math.hypot(dx, dy) || .01; if (dd > R) continue;
+    const cos = (dx * fx + dy * fy) / dd; if (cos < .5 && dd > 2) continue;
+    const s = dd * (2 - cos); if (s < bs) { bs = s; best = o; } }
+  return best;
+}
+function viseLien() {
+  const o = cibleVue();
+  if (o && o.sp && etatLien(o) && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < LIEN_PORTEE * LIEN_PORTEE) return o;
+  const c = viseLienCone(); return c && etatLien(c) ? c : null;
+}
+// --- le lancer, la prise ---
+const LIENS_VOL = [];
+function lancerLien() {
+  if (P.pv <= 0 || P.monture || P.rodeo || LIENS_VOL.length) return false;
+  if (liensLibres() <= 0) { say(P.liens ? 'plus de lien d\'éclat · il s\'en fabrique à l\'établi du campement' : 'il faut un lien d\'éclat · à l\'établi du campement', 2.4); return false; }
+  const b = viseLien();
+  if (!b) { const o = cibleVue(); say(o && o.sp && !o.tame && !o.sp.pnj ? o.sp.n + ' ne se lie pas' : 'aucune bête à lier devant vous', 1.8); return false; }
+  const E = etatLien(b), oz = P.z + 1.2, d = Math.hypot(b.x - P.x, b.y - P.y);
+  P.face = P.faceS = Math.atan2(b.y - P.y, b.x - P.x);
+  LIENS_VOL.push({ b, x0: P.x + Math.cos(P.face) * .4, y0: P.y + Math.sin(P.face) * .4, z0: oz, u: 0, T: Math.max(.3, Math.min(.75, d / 12)), ch: E.ch, F: E.F, phase: 'vol' });
+  SON.jouer('sort'); burst(P.x, P.y, oz, 6, '#ffd68a');
+  return true;
+}
+function majLiens(dt) {
+  for (let i = LIENS_VOL.length - 1; i >= 0; i--) {
+    const L = LIENS_VOL[i], b = L.b;
+    if (!b || b.dead || !(b.pv > 0) || b.tame || !beasts.includes(b)) {   // la bête n'est plus là : le lien retombe, intact
+      if (L.phase !== 'vol' && b) b.etourdi = 0;
+      LIENS_VOL.splice(i, 1); say('le lien retombe, intact', 1.4); continue; }
+    const tz = b.z + .45 * (b.sp.sz || 1);
+    if (L.phase === 'vol') {                              // il file en arc, une traîne d'or et de rouge
+      L.u = Math.min(1, L.u + dt / L.T);
+      const u = L.u, x = L.x0 + (b.x - L.x0) * u, y = L.y0 + (b.y - L.y0) * u, z = L.z0 + (tz - L.z0) * u + Math.sin(u * Math.PI) * 1.4;
+      for (let k = 0; k < 3; k++) parts.push({ x: x + (Math.random() - .5) * .15, y: y + (Math.random() - .5) * .15, z, vx: 0, vy: 0, vz: .2, g: 0, life: .35, age: 0, col: k ? '#ffd68a' : '#e8404e', luit: 1, tl: .05 });
+      if (u >= 1) {                                       // la prise : elle se fige, ses secousses sont tirées d'avance
+        L.phase = 'prise'; L.k = 0; L.tk = t + .55; b.etourdi = 5;
+        const r = Math.pow(L.ch, 1 / 3); let n = 0; const de = globalThis.__LIEN_DE;
+        while (n < 3 && (de != null ? de : Math.random()) < r) n++;
+        L.ok = n === 3; L.sec = L.ok ? 3 : n + 1;
+        burst(b.x, b.y, tz, 18, '#ffd68a'); SON.jouer('tic', {}, b.x, b.y, tz);
+      }
+      continue;
+    }
+    // les fils de lumière qui l'enserrent
+    const R0 = .55 * (b.sp.sz || 1);
+    for (let k = 0; k < 4; k++) { const a = t * 7 + k * 1.57, h = ((t * 1.3 + k * .25) % 1);
+      parts.push({ x: b.x + Math.cos(a) * R0, y: b.y + Math.sin(a) * R0, z: b.z + .1 + h * 1.2 * (b.sp.sz || 1), vx: 0, vy: 0, vz: 0, g: 0, life: .22, age: 0, col: k % 2 ? '#ffd68a' : '#ff7a7a', luit: 1, tl: .04 }); }
+    b.etourdi = Math.max(b.etourdi || 0, 1);
+    if (t < L.tk) continue;
+    L.k++; L.tk = t + .7;
+    if (L.k <= L.sec) {                                  // une secousse : elle se débat
+      b.dir += (L.k % 2 ? .35 : -.35); burst(b.x, b.y, tz, 10, '#ffe2a0'); SON.jouer('tic', {}, b.x, b.y, tz);
+      if (L.k < L.sec) continue;
+    }
+    LIENS_VOL.splice(i, 1); b.etourdi = 0;
+    if (L.ok) { lier(b, 'lien'); continue; }
+    // le lien se brise : il est perdu ; la bête réagit à sa façon
+    P.liens = Math.max(P.compagnes.length, P.liens - 1); Sauve.sale = true;
+    for (let k = 0; k < 16; k++) parts.push({ x: b.x, y: b.y, z: tz, vx: (Math.random() - .5) * 6, vy: (Math.random() - .5) * 6, vz: Math.random() * 4, g: 9, life: .5, age: 0, col: k % 2 ? '#ffd68a' : '#d8e8ff', luit: 1, tl: .05 });
+    SON.jouer('pilon', {}, b.x, b.y, tz);
+    rateLien(b, L.F);
+    say('le lien se brise · ' + b.sp.n.toLowerCase() + ' ' + ({ fuit: 'se libère et s\'enfuit', attaque: 'se libère, furieux', eveil: 'grésille et rejette le lien', bande: 'se libère : toute la bande se sauve', rien: 'se libère, et retourne à ses affaires' })[L.F.rate || 'fuit'] + (L.sec > 1 ? ' · ' + L.sec + ' secousses' : ''), 2.8);
+    if (sacOuvert) majSac();
+  }
+}
+function rateLien(b, F) {
+  if (F.perd) b.conf = 0;
+  const r = F.rate || 'fuit';
+  if (r === 'attaque') { b.colere = 20; b.aise = 0; b.alarm = 1; P.designe = { o: b, t }; }
+  else if (r === 'eveil') { b.eclatG = 0; b.colere = 15; }
+  else if (r === 'fuit' || r === 'bande') {
+    b.alarm = 1; b.conf = Math.max(0, (b.conf || 0) - .15);
+    if (r === 'bande') for (const o of beasts) if (o !== b && trottin(o.sp) && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) o.alarm = 1;
+  }
+}
+// Le dire d'une offrande, quand la façon de la bête compte la confiance : où en est le lien.
+const lienApres = b => { const E = liensLibres() > 0 && etatLien(b); return E ? ' · lien ' + Math.round(E.ch * 100) + ' %' : ''; };
+// (§145) Un automate en veille : G glisse l'éclat dans sa poitrine (l'élite en demande plusieurs) ; reste à lui
+// lancer un lien avant qu'il ne s'éveille. Éveillé, il ne se laisse pas approcher.
 function rallumer(b) {
   if (b.tame) { say(b.comp.nom + ' est déjà à vous · il ne mange pas', 1.6); return false; }
   if (eveille(b)) { say(b.sp.n + ' est éveillé · attendez la nuit, quand il s\'éteint', 2.4); return false; }
   const ne = b.sp.eclats || 1;                        // l'élite en demande plus d'un
+  if ((b.eclatG || 0) >= ne) { say('l\'éclat est en place · lancez-lui un lien (Y)' + lienApres(b), 2.2); return false; }
   if (!essai && P.sac.eclat < ne) { say(ne > 1 ? 'il faut ' + ne + ' éclats à glisser dans sa poitrine' : 'il faut un éclat à glisser dans sa poitrine', 2.2); return false; }
-  if (liensLibres() <= 0) { say('il faut un lien d\'éclat libre', 2.2); return false; }
   if (!essai) P.sac.eclat -= ne;
-  b.nrj = Math.max(b.nrj, .5); b.colere = 0;
-  const c = lier(b, 'eclat');
-  if (c) say(c.nom + ' · ' + b.sp.n.toLowerCase() + ' · rallumé à votre nom', 2.6);
-  return !!c;
+  b.eclatG = ne; b.colere = 0; burst(b.x, b.y, b.z + .8, 10, '#8fe4ec'); SON.jouer('tic', {}, b.x, b.y, b.z + .8);
+  say('éclat glissé dans sa poitrine · lancez-lui un lien (Y) avant qu\'il ne s\'éveille' + lienApres(b), 2.8);
+  return true;
 }
 function lier(b, voie) {
   if (liensLibres() <= 0 || b.tame || b.dead || b.pv <= 0 || b.gardeCamp || araignon(b)) return null;   // la gardienne d'un autre ne se lie pas
@@ -19055,6 +19284,7 @@ function murSort(x0, y0, x1, y1, z, moi) {                 // moi : le pas du jo
   return null;
 }
 function majSorts(dt) {
+  majLiens(dt);                                          // (§145) les liens lancés
   majSortsJoueurs(dt);
   if (poixFin > t) for (const o of beasts) if (o.poix > t && t >= o.poixT && prenable(o)) { o.poixT = t + POIX_PAS; burst(o.x, o.y, o.z + .5, 5, '#ff9a3c'); frapperSort(o, POIX_DEG); }   // la poix : prise, la bête brûle
   if (P.egide) {
@@ -22478,6 +22708,9 @@ function actionContexte() {
   const lta = lutrinAction(); if (lta) return lta;     // un lutrin de pierre : le Tome I d'une matière
   const cpa = campAction(); if (cpa) return cpa;       // au campement : la tente, un module, un emplacement libre
   const cha = champAction(); if (cha) return cha;      // (§119) à un carré de culture : semer, arroser, la pousse
+  const lv = liensLibres() > 0 && !LIENS_VOL.length ? viseLien() : null, lE = lv && etatLien(lv);   // (§145) le lien : LIER, si la chance est bonne, ou s'il n'y a rien d'autre à faire
+  const lier_ = lE ? { v: 'LIER', o: lv.sp.n.toLowerCase() + ' · ' + Math.round(lE.ch * 100) + ' %', f: lancerLien, r: rareBete(lv) } : null;
+  if (lier_ && lE.ch >= .5) return lier_;
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && !b.sp.achromie && (!b.sp.batiment || b.sp.plante) && !b.cache && Math.abs(b.z - P.z) < 2) {
@@ -22504,6 +22737,7 @@ function actionContexte() {
     if (nd.sp.res === 'eclat' && nivOutil() < 2) return { v: 'PIOCHE', o: 'il en faut une', f: recolter, vide: true };
     return { v: VERBE_RES[nd.sp.res] || 'RÉCOLTER', o: nom, f: recolter, r: (teinteNoeud(nd) || {}).r || 1 };
   }
+  if (lier_) return lier_;
   return { v: 'ACTION', o: '', f: () => say('rien à portée', 1), vide: true };
 }
 function faireAction() { actionContexte().f(); }
@@ -22939,6 +23173,7 @@ function cibleVue() {
   const d = P.designe;
   for (const b of beasts) if (b.sp.boss && !b.dead && b.pv > 0 && b.etat !== 'sommeil' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 3600) return b;   // la Tisseuse éveillée : sa barre en haut
   if (d && d.o && !d.o.dead && d.o.pv > 0 && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < 400) return d.o;
+  if (liensLibres() > 0) { const v = viseLienCone(); if (v) return v; }   // (§145) un lien en poche : la bête qu'on lierait, devant soi
   let pr = null, dp = 25;
   for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5) && !b.sp.illusion && (!b.sp.batiment || b.sp.plante) && !b.cache) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
   return pr;
@@ -22971,8 +23206,10 @@ function majCible() {
       + (o.conf > 0 ? ' · confiance ' + Math.round(o.conf * 100) + ' %' : ' · farouche : un poisson tendu, sans bouger'); }
     else { nom = nomEspeceDe(o);
       info = (tellurien(o.sp) ? 'tellurien · ' : '') + `${DITS_ETAT[o.etat] || o.etat} · faim ${Math.round(o.faim * 100)} % · confiance ${Math.round(o.conf * 100)} %`
-        + ((porte('grimoire') || {}).id === 'appel' ? ` · lien ${Math.round(chanceLien(o) * 100)} %` : ''); }
-    html = `<b class="${o.sp && !o.sp.pnj && !o.pnjSuit && !o.sp.villageois ? clRar(rareBete(o)) : ''}">${ESC(nom)}</b><div class="br"><i style="width:${Math.round(Math.max(0, o.pv) * 100)}%"></i></div><small>${ESC(info)}</small>`;
+; }
+    const E = o.sp && !o.tame && liensLibres() > 0 ? etatLien(o) : null;   // (§145) la chance du lien, et ce qui est rempli
+    html = `<b class="${o.sp && !o.sp.pnj && !o.pnjSuit && !o.sp.villageois ? clRar(rareBete(o)) : ''}">${ESC(nom)}</b><div class="br"><i style="width:${Math.round(Math.max(0, o.pv) * 100)}%"></i></div><small>${ESC(info)}</small>`
+      + (E ? `<small class="lien">${ESC(lienDit(E))}</small>` : '');
   }
   const sig = cl + html;
   if (sig === cibleSig) return;
@@ -24193,7 +24430,7 @@ void main() { o = uC; }`;
     if (iso || tierce) heros(TD);
     for (const b of beasts) {
       if ((b.x - ex) ** 2 + (b.y - ey) ** 2 >= r2) continue;
-      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.corps === 'millegueule' ? 9 : b.sp.plante ? 4 : b.sp.dragon ? 4.5 : b.sp.horreur ? 2 : 1.3 * kz + .3;
+      const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.corps === 'millegueule' ? 9 : b.sp.plante ? 4 : b.sp.dragon ? 2.8 : b.sp.horreur ? 2 : 1.3 * kz + .3;
       if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + (b.sp.boss ? 7 : 1.8 * kz + .4), .05)) continue;
       const { U, put } = posBete(b);
       if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol
@@ -25212,7 +25449,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-111', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-116', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
