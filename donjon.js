@@ -739,7 +739,7 @@ function djVisee(portee) {
   if (fc && fc.sp && !fc.tame && !fc.loin && !fc.dead) {
     const d = Math.hypot(fc.x - P.x, fc.y - P.y); let da = Math.atan2(fc.y - P.y, fc.x - P.x) - P.faceS;
     while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832;
-    if (d <= portee && Math.abs(da) < 1.22) { c = fc; dc = d; }
+    if (d <= portee && (Math.abs(da) < 1.22 || (typeof CIB !== 'undefined' && CIB.verrou))) { c = fc; dc = d; }
   }
   if (!c) for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
     const ex = b.x - P.x, ey = b.y - P.y, d = Math.hypot(ex, ey);

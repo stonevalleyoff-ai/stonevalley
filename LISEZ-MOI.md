@@ -4053,3 +4053,80 @@ Rien ne change dans son comportement : le vol, l'aire, la chasse, le feu, l'appr
 
 **À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-116`), `LISEZ-MOI.md`.
 
+
+## 150. Le rempart : les bêtes ne s'y coincent plus, les joueurs sont arrêtés dans les deux sens
+
+**Ce qui n'allait pas** : une bête sauvage qui marchait vers le campement entrait d'un pas dans le rond, était remise en arrière, puis recommençait. Elle restait collée à la palissade.
+
+**Les bêtes** :
+
+- la bête refuse le pas avant de toucher le rempart, à une marge qui dépend de sa taille ;
+- en cherchant son chemin, elle voit le rempart comme un obstacle : elle le longe ou s'en va au lieu de pousser contre lui ;
+- une bête sauvage déjà dedans peut toujours sortir ;
+- les compagnes passent, sauf pendant un pillage quand la porte est encore debout ;
+- **les bêtes volantes** (et celles qui sont en vol) passent par-dessus ;
+- une monture montée suit la règle du joueur.
+
+**Les joueurs** :
+
+- arrêtés **dans les deux sens** : on n'entre et on ne sort que par la porte ;
+- un étranger au campement ne passe pas, même par la porte ;
+- une petite marge empêche de se coller au rempart.
+
+**La hauteur** : le mur invisible monte à 30 cubes au-dessus du campement (il commence 3 cubes sous lui). Sauter ou grimper à côté ne suffit plus.
+
+**Dans le code** : `MUR_HAUT`, `MUR_MARGE`, `sousMur`, `murJoueur` réécrite, `murBetePas` (nouvelle). Elle est appelée au début de `pasBete` et dans `libre`, et `murBete` passe par elle.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-117`), `LISEZ-MOI.md`.
+
+## 151. La cible : proposée, désignée, suivie par la caméra ; le lien ne part plus par erreur
+
+**Ce qui n'allait pas** : dès qu'une bête qui se lie était devant vous avec 50 % de chance ou plus, ACTION devenait « LIER ». On croyait nourrir ou cueillir, et le lien partait.
+
+**Une seule cible pour tout** : la fiche, le coup, l'arc, les sorts et le lien visent la même bête. Un chevron la montre au-dessus d'elle :
+
+- **doré et discret** quand le jeu la propose ;
+- **rouge, avec quatre coins autour d'elle**, quand on l'a désignée.
+
+**La cible proposée** est la plus probable :
+
+- une bête qui vous attaque ou vous traque (jusqu'à 16 m), même derrière vous ;
+- celle que vous venez de frapper (jusqu'à 20 m, pendant 10 s) ;
+- sinon la plus proche devant vous (jusqu'à 9 m) ;
+- les compagnes, les villageois et les plantes passent en dernier, et n'ont pas de chevron.
+
+Le jeu ne change de cible que si une autre est nettement meilleure, sauf devant une bête qui attaque.
+
+**Désigner une cible** :
+
+- toucher ou cliquer la créature : elle est verrouillée ;
+- toucher le vide, ou la même créature, la libère ;
+- au clavier, **U** désigne la cible proposée (en 1re personne, ce qui est au viseur), puis les autres de la plus proche à la plus lointaine ; revenu à la première, on libère. **Maj+U** libère ;
+- en 1re personne : un toucher bref, un clic gauche quand la caméra n'est pas prise, ou un clic molette pour ce qui est au viseur.
+
+Une cible désignée tient tant qu'elle vit et reste à moins de 25 m ; sinon « cible perdue ».
+
+**La caméra suiveuse** (sur une cible désignée) :
+
+- **vue 3D** : la caméra pivote pour garder la cible devant vous, se centre entre vous deux, et recule tant que la cible passe sous la boussole ou la fiche, sort de l'écran, ou que vous descendez sur les commandes. Elle revient au zoom choisi quand on libère. Sans carte graphique, elle pivote par huitièmes de tour ;
+- **1re personne** : le regard se tourne vers la cible et se pose sur son corps ;
+- regarder à la main (glisser, la souris, Q et E) la suspend une seconde et demie.
+
+**Le lien sécurisé** :
+
+- « LIER » n'apparaît plus sur ACTION ;
+- le lien ne part que sur une bête **désignée**, par le bouton **LIER · %** sous sa fiche (ou Y). Le bouton est en haut de l'écran, loin du pouce qui tient ACTION. Trop loin, il le dit et ne fait rien ;
+- une bête qui se lie mais n'est pas désignée le rappelle sur sa fiche : « désignez-la pour la lier : touchez-la, ou U ».
+
+**Ce qui suit la cible désignée** : le coup au corps à corps la frappe d'abord si elle est à portée ; l'arc en vue de dessus et dans le donjon la vise où qu'elle soit autour de vous ; les sorts la visent d'abord.
+
+L'aide (Réglages) et les textes du lien sont mis à jour.
+
+**Dans le code** : `CIB` (près de la caméra) ; le bloc LA CIBLE (`scoreCible`, `cibleAuto`, `cibleVue` réécrite, `verrouiller`, `lacherCible`, `ecranMonde`, `sousPoint`, `toucherCible`, `cibleSuivante`, `suivreCible`, `cadreCible`, `zoomCible`, `majMire`). Autres changements :
+
+- `viseLien` ne prend que la cible désignée, et `viseLienCone` est supprimée ;
+- dans `actionContexte`, plus de LIER ;
+- `cibleContact`, l'arc, `viseSort` et `djVisee` (donjon.js) visent d'abord la cible ;
+- les gestes sur la vue (un toucher bref désigne), la touche U, le bouton LIER de `majCible`.
+
+**À déposer** : `index.html`, `donjon.js`, `sw.js` (qui passe en `stone-valley-118`), `LISEZ-MOI.md`.

@@ -287,6 +287,14 @@
   @keyframes incantBat{50%{box-shadow:0 0 12px 2px rgba(255,50,40,.75);}}
   body.incant #cible{top:calc(68px + env(safe-area-inset-top));}
   #cible small.lien{display:block;color:#ffd27d;margin-top:2px;}
+  /* (§151) désignée : la fiche se cerne de rouge ; LIER, le seul bouton de la fiche, le seul chemin du lien */
+  #cible.verrou{border-color:rgba(255,120,104,.8);box-shadow:0 0 0 1px rgba(255,120,104,.25),0 0 10px rgba(255,90,70,.25);}
+  #cible button.lier{pointer-events:auto;position:relative;display:block;width:100%;margin-top:6px;padding:7px 0 6px;border-radius:7px;cursor:pointer;
+    border:1px solid rgba(255,214,138,.65);background:rgba(128,30,42,.62);color:#ffe2b0;font:600 11px/1.2 inherit;font-family:inherit;letter-spacing:.8px;}
+  #cible button.lier:active{background:rgba(232,64,78,.7);}
+  #cible button.lier[disabled]{opacity:.5;cursor:default;}
+  #cible button.lier kbd{position:absolute;left:6px;top:7px;font-size:9px;font-family:inherit;color:#d8b98a;display:none;}
+  @media (hover:hover) and (pointer:fine){ #cible button.lier kbd{display:block;} }
   @media (max-width:760px){
     #incant{top:calc(51px + env(safe-area-inset-top));left:auto;right:calc(14px + env(safe-area-inset-right));transform:none;
       width:calc(100vw - 112px - env(safe-area-inset-left) - env(safe-area-inset-right));}
@@ -2486,6 +2494,9 @@ genWorld();                                          // après les accesseurs : 
 // ---------- caméra ----------
 let ang = Math.PI / 4, angT = Math.PI / 4;   // angle courant / visé
 let camX = 0, camY = 0, camZ = 0;
+// (§151) La cible : celle que le jeu propose (la plus probable), ou celle qu'on a désignée du doigt,
+// de la souris ou de la touche U (verrouillée). Voir LA CIBLE.
+const CIB = { o: null, verrou: false, auto: null, tc: -1, c: null, mainT: -99, snapT: -99, zf: 1, fiche: null, tour0: null };
 function proj(x, y, z) {
   const ca = Math.cos(ang), sa = Math.sin(ang);
   const X = x - camX, Y = y - camY, Z = z - camZ;
@@ -3998,7 +4009,7 @@ function tirerFleche(p) {
       const d = Math.hypot(fc.x - P.x, fc.y - P.y);
       let da = Math.atan2(fc.y - P.y, fc.x - P.x) - P.faceS;
       while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832;
-      if (d <= 34 && Math.abs(da) < 1.22) { c = fc; dc = d; }
+      if (d <= 34 && (CIB.verrou || Math.abs(da) < 1.22)) { c = fc; dc = d; }
     }
     if (!c) for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
       const ex = b.x - P.x, ey = b.y - P.y, d = Math.hypot(ex, ey);
@@ -7711,7 +7722,7 @@ function pageCompagnes() {
   if (!P.liens && !P.compagnes.length) {
     return `<div class="sac-corps lignes"><div class="vide-texte">`
       + `<p style="margin:10px 0 0">Aucun lien d'éclat. Un lien retient une bête apprivoisée : autant de compagnes que de liens dans le sac, six en jeu au plus, et chaque lien coûte bien plus que le précédent.</p>`
-      + `<p style="margin:0">Un lien se lance (Y, ou ACTION « LIER ») sur la bête visée : chaque créature a sa façon de l'accepter, et un lien qui se brise est perdu.</p>`
+      + `<p style="margin:0">Désignez la bête (touchez-la, cliquez-la, ou U), puis LIER sous sa fiche (ou Y) : chaque créature a sa façon de l'accepter, et un lien qui se brise est perdu.</p>`
       + `<button class="btn principal" data-voir="compagnes">Voir la fabrication</button></div></div>`;
   }
   const libres = liensLibres();
@@ -7741,7 +7752,7 @@ function ficheLienLibre() {
   const appel = P.objets.appel;
   return `<div class="fiche haute" id="sac-fiche">${caseObjet('lien', { taille: 'grande', inerte: true })}`
     + `<div class="fiche-texte"><h4>Lien libre</h4><p>Une place pour une bête.</p></div></div>`
-    + `<p class="note" style="margin:12px 0 0">Lancez-le (Y, ou ACTION « LIER ») sur la bête visée : il l'enserre, elle se débat, puis cède — ou le lien se brise et il est perdu. `
+    + `<p class="note" style="margin:12px 0 0">Désignez la bête (touchez-la, cliquez-la, ou U), puis LIER sous sa fiche (ou Y) : il l'enserre, elle se débat, puis cède — ou le lien se brise et il est perdu. `
     + `Chaque créature a sa façon : la confiance (les offrandes, G), la faiblesse, la nuit, le sommeil, la surprise… La fiche de la cible dit la chance et ce qui est rempli.</p>`
     + `<p class="note">${appel ? 'Le grimoire Appel (X) calme la bête : dix secondes, et le lien prend mieux.' : 'Le grimoire Appel, à l\'établi, calme une bête : le lien prend mieux.'}</p>`;
 }
@@ -7999,9 +8010,10 @@ function pageReglages() {
     ['C', 'l\'action du moment : récolter, nourrir, franchir, ouvrir le campement'], ['X', 'attaquer : frapper, ou bander l\'arc et relâcher'],
     ['1 à 5', 'utiliser une case : sort, sifflet, lanterne, arme, outil'], ['G', 'offrir une baie'], ['H', 'siffler : les compagnes accourent'], ['N', 'boire du nectar d\'oglodon'],
     ['Q, E', 'pivoter la vue (ou glisser sur l\'écran)'], ['R, F', 'incliner la vue'], ['+, −, molette', 'zoomer (ou pincer à deux doigts)'],
+    ['U', 'désigner une cible, puis la suivante (ou toucher, cliquer la bête) ; Maj+U la libère'], ['Y', 'lancer un lien d\'éclat sur la bête désignée'],
     ['V', 'vue 3D ou 1re personne'], ['J', 'le journal'], ['K', 'les compagnes'], ['I ou Tab', 'ouvrir ou fermer le sac'], ['B', 'ouvrir la fabrication'],
     ['1 à 9, 0', 'changer d\'onglet, sac ouvert'], ['Échap', 'fermer'],
-    ['Clic droit', 'en 1re personne, prendre ou rendre la caméra'], ['Clic gauche', 'attaquer, caméra prise']];
+    ['Clic droit', 'en 1re personne, prendre ou rendre la caméra'], ['Clic gauche', 'attaquer, caméra prise ; sinon désigner'], ['Clic molette', 'en 1re personne, désigner ce qui est au viseur']];
   return `<div class="sac-corps lignes">`
     + `<h3>Aide</h3>`
     + `<div class="obj"><div><div class="n">Un problème, une idée ?</div><div class="d">Un message part vers l'équipe, avec l'état du jeu pour reproduire.</div></div>`
@@ -9353,7 +9365,7 @@ function dessinerCompagnes() {
   rp.title = 'Un coup de sifflet : celles qui sont dehors accourent (H)';
   const ol = el.querySelector('ol');
   if (!P.compagnes.length) {
-    ol.innerHTML = `<li class="vide">Aucune compagne. Lancez un lien d'éclat (Y) sur une bête : chacune a sa façon de l'accepter${P.liens ? '' : ' — il s\'en fabrique à l\'établi'}.</li>`;
+    ol.innerHTML = `<li class="vide">Aucune compagne. Désignez une bête (touchez-la, ou U) et lancez-lui un lien d'éclat (LIER, ou Y) : chacune a sa façon de l'accepter${P.liens ? '' : ' — il s\'en fabrique à l\'établi'}.</li>`;
     return;
   }
   ol.innerHTML = P.compagnes.map(c => {
@@ -9476,14 +9488,15 @@ const TOUCHES = {
   KeyC:   () => { actQ = true; },                    // l'action du moment : récolter, nourrir, franchir…
   KeyX:   () => { agirQ = true; },                   // attaquer : frapper, bander l'arc
   KeyG:   () => { nourrir = true; },
-  KeyY:   () => { lancerLien(); },                     // (§145) lancer un lien d'éclat sur la bête visée
+  KeyY:   () => { lancerLien(); },                     // (§145) lancer un lien d'éclat sur la bête désignée (§151)
+  KeyU:   () => cibleSuivante(),                     // (§151) désigner une cible, puis la suivante ; Maj+U la libère
   KeyH:   () => { sifflerQ = true; },                // le sifflet : rappeler les compagnes
   KeyL:   () => { sortQ = true; },                   // lancer le sort en main (ou le grimoire équipé)
   KeyN:   () => boireNectar(),                       // un nectar d'oglodon
-  KeyQ:   () => { angT += Math.PI / 4; },
+  KeyQ:   () => { angT += Math.PI / 4; CIB.mainT = t; },
   Equal:  () => zoomer(1.15), NumpadAdd: () => zoomer(1.15),
   Minus:  () => zoomer(1 / 1.15), NumpadSubtract: () => zoomer(1 / 1.15),
-  KeyE:   () => { angT -= Math.PI / 4; },
+  KeyE:   () => { angT -= Math.PI / 4; CIB.mainT = t; },
   KeyR:   () => setElev(elevIdx + 1),
   KeyF:   () => setElev(elevIdx - 1),
   KeyV:   () => setMode(mode === 'iso' ? 'fps' : 'iso'),
@@ -9534,6 +9547,7 @@ function setMode(m) {
   say(m === 'fps' ? 'PREMIÈRE PERSONNE' : 'VUE 3D', 1.4);
 }
 function look(dx, dy) {
+  CIB.mainT = t;
   yaw += dx; pitch = Math.max(-1.15, Math.min(1.15, pitch - dy));
 }
 function setElev(i) { elevIdx = Math.max(0, Math.min(ELEVS.length - 1, i)); elevT = ELEVS[elevIdx].a; say('VUE ' + ELEVS[elevIdx].n, 1.2); }
@@ -9561,17 +9575,19 @@ document.getElementById('hudPli').onclick = e => { e.stopPropagation(); plierHud
 const camPrise = () => document.pointerLockElement === cv;
 addEventListener('mousemove', e => { if (camPrise()) look(e.movementX * .0027, e.movementY * .0027); });
 addEventListener('pointerlockchange', () => { if (!camPrise()) { agirQ = false; P.arc = null; } });
-{ // au doigt : on tourne en glissant sur la vue, hors des commandes
-  let id = null, lx = 0, ly = 0;
+{ // au doigt : on tourne en glissant sur la vue, hors des commandes ; un toucher bref désigne (§151)
+  let id = null, lx = 0, ly = 0, tap0 = null;
   cv.addEventListener('pointerdown', e => {
     if (mode !== 'fps') return;
     if (e.pointerType === 'mouse') {
       if (e.button === 2) {                          // droit : bascule d'un mode à l'autre
         if (camPrise()) document.exitPointerLock(); else if (!sacOuvert) cv.requestPointerLock();
       } else if (e.button === 0 && camPrise()) agirQ = true;   // gauche : attaquer, caméra prise
+      else if (e.button === 0) toucherCible(e.clientX, e.clientY, 22);   // (§151) gauche, caméra rendue : désigner
+      else if (e.button === 1) { e.preventDefault(); toucherCible(Wd / 2, Hd / 2, 60); }   // la molette : ce qui est au viseur
       return;
     }
-    id = e.pointerId; lx = e.clientX; ly = e.clientY;
+    id = e.pointerId; lx = e.clientX; ly = e.clientY; tap0 = [e.clientX, e.clientY, performance.now()];
   });
   cv.addEventListener('pointerup', e => { if (e.pointerType === 'mouse' && e.button === 0) lacheQ = true; });
   cv.addEventListener('contextmenu', e => e.preventDefault());
@@ -9579,7 +9595,11 @@ addEventListener('pointerlockchange', () => { if (!camPrise()) { agirQ = false; 
     if (e.pointerId !== id) return;
     look((e.clientX - lx) * .006, (e.clientY - ly) * .006); lx = e.clientX; ly = e.clientY;
   });
-  const end = e => { if (e.pointerId === id) id = null; };
+  const end = e => {
+    if (e.pointerId !== id) return; id = null;
+    if (e.type === 'pointerup' && tap0 && Math.hypot(e.clientX - tap0[0], e.clientY - tap0[1]) < 10 && performance.now() - tap0[2] < 350) toucherCible(e.clientX, e.clientY, 30);
+    tap0 = null;
+  };
   cv.addEventListener('pointerup', end); cv.addEventListener('pointercancel', end);
 }
 // En vue de dessus, on tourne la caméra en glissant sur la vue, au doigt ou à la souris : à
@@ -9589,7 +9609,7 @@ addEventListener('pointerlockchange', () => { if (!camPrise()) { agirQ = false; 
 // Deux doigts : on pince pour zoomer. La molette et les touches + et − font de même.
 const zoomer = k => { zoomT = Math.max(perspIso && isoGL && G3.ok && !G3.perdu ? ZOOM_MIN_3D : ZOOM_MIN, Math.min(ZOOM_MAX, zoomT * k)); };
 {
-  let id = null, lx = 0, ly = 0;
+  let id = null, lx = 0, ly = 0, tap0 = null, tapMv = 0;
   const doigts = new Map();                            // les pointeurs posés sur la vue
   const ecartDoigts = () => { const [a, b] = [...doigts.values()]; return Math.hypot(a[0] - b[0], a[1] - b[1]); };
   let ecart0 = 0;
@@ -9598,15 +9618,16 @@ const zoomer = k => { zoomT = Math.max(perspIso && isoGL && G3.ok && !G3.perdu ?
     if (mode === 'fps' || sacOuvert || (e.pointerType === 'mouse' && e.button > 2)) return;
     doigts.set(e.pointerId, [e.clientX, e.clientY]);
     if (doigts.size === 2) { id = null; ecart0 = ecartDoigts(); return; }   // le pincement prend la main
-    if (doigts.size === 1) { id = e.pointerId; lx = e.clientX; ly = e.clientY; }
+    if (doigts.size === 1) { id = e.pointerId; lx = e.clientX; ly = e.clientY; tapMv = 0; tap0 = e.pointerType === 'mouse' && e.button !== 0 ? null : [e.clientX, e.clientY, performance.now()]; }
+    else tap0 = null;
   });
   cv.addEventListener('pointermove', e => {
     if (mode === 'fps' || !doigts.has(e.pointerId)) return;
     doigts.set(e.pointerId, [e.clientX, e.clientY]);
     if (doigts.size === 2) { const d = ecartDoigts(); if (ecart0 > 10 && d > 10) zoomer(d / ecart0); ecart0 = d; return; }
     if (e.pointerId !== id) return;
-    const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY;
-    angT -= dx * .008; ang = angT;
+    const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY; tapMv += Math.abs(dx) + Math.abs(dy);
+    angT -= dx * .008; ang = angT; if (Math.abs(dx) > 1) CIB.mainT = t;
     elevT = Math.max(ELEVS[0].a, Math.min(ELEVS[ELEVS.length - 1].a, elevT + dy * .004));
   });
   cv.addEventListener('wheel', e => { if (mode === 'fps') return; e.preventDefault(); zoomer(Math.exp(-e.deltaY * .0015)); }, { passive: false });
@@ -9614,6 +9635,8 @@ const zoomer = k => { zoomT = Math.max(perspIso && isoGL && G3.ok && !G3.perdu ?
     doigts.delete(e.pointerId);
     if (e.pointerId !== id) return;
     id = null;
+    if (e.type === 'pointerup' && tap0 && tapMv < 10 && performance.now() - tap0[2] < 350) toucherCible(e.clientX, e.clientY, e.pointerType === 'mouse' ? 22 : 30);   // (§151)
+    tap0 = null;
     if (!libre()) angT = Math.round(angT / (Math.PI / 4)) * (Math.PI / 4);
     let k = 0; ELEVS.forEach((E, i) => { if (Math.abs(E.a - elevT) < Math.abs(ELEVS[k].a - elevT)) k = i; }); elevIdx = k;
   };
@@ -9622,6 +9645,10 @@ const zoomer = k => { zoomT = Math.max(perspIso && isoGL && G3.ok && !G3.perdu ?
 document.getElementById('bj').addEventListener('pointerdown', e => { e.preventDefault(); jumpQ = true; });
 document.getElementById('batt').addEventListener('pointerdown', e => { e.preventDefault(); agirQ = true; });
 document.getElementById('bact').addEventListener('pointerdown', e => { e.preventDefault(); actQ = true; actTenu = true; });
+document.getElementById('cible').addEventListener('pointerdown', e => {   // (§151) LIER, sous la fiche de la bête désignée
+  const b = e.target.closest && e.target.closest('[data-lier]'); if (!b || b.disabled) return;
+  e.preventDefault(); lancerLien(); cibleSig = ''; majCible();
+});
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
   document.getElementById('bact').addEventListener(ev, () => { actTenu = false; });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave'])
@@ -9697,9 +9724,10 @@ function update(dt) {
   majMurs(); majTours(); majToursRaid();             // les remparts de l'île ; les tours de son campement, celles du campement qu'on pille
   cuisineTic(dt);                                    // le plat servi refroidit, ceux du sac se gâtent (voir LA CUISINE)
   grilleCorps();                                     // où sont les corps, pour ce tour (voir LES CORPS)
+  suivreCible(dt);                                    // (§151) la caméra suiveuse, sur une cible désignée
   ang += (angT - ang) * Math.min(1, dt * 9);
   elev += (elevT - elev) * Math.min(1, dt * 7);
-  zoom += (zoomT - zoom) * Math.min(1, dt * 10);
+  zoom += (zoomCible(dt) - zoom) * Math.min(1, dt * 10);   // (§151) le zoom choisi, que la cible désignée fait reculer
   setProjection();
   if (msgT > 0) msgT -= dt;
   // Le retour se constate sur place : arrivé près de son feu, l'expédition se ferme et le
@@ -9955,8 +9983,9 @@ function update(dt) {
   if (P.pv < 1 && t - (P.dernierCoup ?? -99) > 8 - .8 * rangAlch('recup')) P.pv = Math.min(1, P.pv + dt * .015 * (1 + .2 * rangAlch('recup')));
 
   // --- caméra : elle suit en douceur ---
-  camX += (P.x - camX) * Math.min(1, dt * 4);
-  camY += (P.y - camY) * Math.min(1, dt * 4);
+  const [cX, cY] = cadreCible();                     // (§151) entre vous et la cible désignée
+  camX += (cX - camX) * Math.min(1, dt * 4);
+  camY += (cY - camY) * Math.min(1, dt * 4);
   camZ += (P.z + .5 - camZ) * Math.min(1, dt * 3);
   const sec = secousseCam();
   if (sec) { camX += (Math.random() - .5) * sec; camY += (Math.random() - .5) * sec; camZ += (Math.random() - .5) * sec; }
@@ -12180,7 +12209,8 @@ function pasVersBete(b, tx, ty, vit, dt) {
   // Une bête qui ne grimpe pas — automate, coursier — voit la paroi comme l'eau : elle la longe.
   // Et la falaise aussi : elle ne s'y jette pas, sauf le coursier, qui saute trois cubes en contrebas.
   const grimpe = (b.sp.grimpe || 0) > 0 && b.t >= (b.murPause || 0);
-  const libre = (ux, uy) => { const hn = hAt((b.x + ux * .8) | 0, (b.y + uy * .8) | 0); return hn > SEA && (grimpe || enjambe(b, h, hn)) || (!!b.sp.sauteur && !!sautPossible(b, ux, uy, h)); };
+  const libre = (ux, uy) => { if (MURS.length && murBetePas(b, b.x, b.y, b.x + ux * .8, b.y + uy * .8)) return false;   // (§150) le rempart : elle le longe
+    const hn = hAt((b.x + ux * .8) | 0, (b.y + uy * .8) | 0); return hn > SEA && (grimpe || enjambe(b, h, hn)) || (!!b.sp.sauteur && !!sautPossible(b, ux, uy, h)); };
   if (!libre(dx, dy)) {
     // Falaise ou eau : on longe. Le côté de l'esquive se tirait de la parité de la position —
     // il changeait tous les vingtièmes de case, si bien que la bête hésitait sur place au lieu
@@ -12472,7 +12502,8 @@ function toucheBete(b, x, y, z) {
 // la bête doit avoir la place de se cabrer. Une paroi qui descend se prend au bord même.
 // Une paroi abordée de biais, à moins de 20° de sa face, ne se grimpe pas : la bête la longe.
 function pasBete(b, nx, ny, grimpe, glisse) {
-  if (b.bondL) return 1;                                // (§147) en plein bond : c'est le bond qui le porte (voir chute)
+  if (b.bondL) return 1;
+  if (MURS.length && murBetePas(b, b.x, b.y, nx, ny)) return 0;   // (§150) le rempart d'un campement : refusé, comme l'eau                                // (§147) en plein bond : c'est le bond qui le porte (voir chute)
   if (!glisse && aCorps(b)) { const q = heurtCorps(b, nx, ny); if (!q) return 2; nx = q[0]; ny = q[1]; }   // les autres corps d'abord (voir LES CORPS)
   const x0 = b.x, y0 = b.y, sx = nx - x0, sy = ny - y0, ls = Math.hypot(sx, sy);
   if (ls < 1e-9) return 1;
@@ -14047,7 +14078,7 @@ function majRodeo(dt) {
   if (R.fougue <= 0) {                                  // dompté
     P.rodeo = false; Rodeo = null; b.ruade = 0; b.endu = .3; b.colere = 0; b.alarm = 0;   // (§145) dompté : il s'arrête, essoufflé ; dix secondes pour lui lancer le lien
     descendre(false); b.dompteT = t + 10; b.etourdi = 10;
-    say(nomBete(b) + ' est dompté · lancez-lui un lien (Y), il attend dix secondes' + lienApres(b), 3.2);
+    say(nomBete(b) + ' est dompté · désignez-le et lancez-lui un lien (LIER), il attend dix secondes' + lienApres(b), 3.2);
   }
   else if (P.endu <= 0 || R.lache > .5) descendre(true);
 }
@@ -14835,7 +14866,7 @@ function tirerNom() {
 const chanceLien = b => automate(b.sp) || coursier(b.sp) || b.sp.horreur ? 0 : Math.min(1, b.sp.lien + (1 - Math.max(0, b.pv)) * .8 + (b.conf || 0) * .5);
 // ============================================================
 //  LE LIEN D'ÉCLAT, LANCÉ (§145)
-//  Le lien se lance (Y, ou ACTION « LIER » quand une bête est visée) : il file en arc, l'enserre de fils de
+//  Le lien se lance sur une bête désignée (LIER sous sa fiche, ou Y — §151) : il file en arc, l'enserre de fils de
 //  lumière ; elle se débat une à trois fois, puis cède — ou le lien se brise, et il est perdu. Chaque créature a
 //  sa façon d'accepter le lien : la confiance (les offrandes), la faiblesse, la nuit, le sommeil, la surprise…
 //  Hors de sa façon, elle ne cède presque jamais. La fiche de la cible dit la chance, et ce qui est rempli.
@@ -14923,19 +14954,11 @@ function etatLien(b) {
   return { F, L, ch: Math.max(0, Math.min(F.max || .95, ch)) };
 }
 const lienDit = E => 'lien ' + Math.round(E.ch * 100) + ' %' + (E.L.length ? ' · ' + E.L.map(([d, o]) => d + (o ? ' ✓' : ' ✗')).join(' · ') : '');
-// La bête qu'on lierait : celle de la fiche de la cible si elle se lie, sinon la plus proche devant soi.
-function viseLienCone(R = LIEN_PORTEE) {
-  const a = P.faceS ?? P.face ?? 0, fx = Math.cos(a), fy = Math.sin(a); let best = null, bs = 1e9;
-  for (const o of beasts) { if (o.tame || o.dead || !(o.pv > 0) || o.cache || o.camo > .5 || !FACONS[o.sp.id] || Math.abs(o.z - P.z) > 6) continue;
-    const dx = o.x - P.x, dy = o.y - P.y, dd = Math.hypot(dx, dy) || .01; if (dd > R) continue;
-    const cos = (dx * fx + dy * fy) / dd; if (cos < .5 && dd > 2) continue;
-    const s = dd * (2 - cos); if (s < bs) { bs = s; best = o; } }
-  return best;
-}
+// La bête qu'on lierait : seulement celle qu'on a désignée (§151). Un lien ne part plus jamais sur une bête
+// que le jeu a choisie : il en partait sans le vouloir, quand ACTION devenait « LIER ».
 function viseLien() {
-  const o = cibleVue();
-  if (o && o.sp && etatLien(o) && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < LIEN_PORTEE * LIEN_PORTEE) return o;
-  const c = viseLienCone(); return c && etatLien(c) ? c : null;
+  const o = CIB.verrou ? CIB.o : null;
+  return o && o.sp && !o.loin && etatLien(o) && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < LIEN_PORTEE * LIEN_PORTEE ? o : null;
 }
 // --- le lancer, la prise ---
 const LIENS_VOL = [];
@@ -14943,7 +14966,8 @@ function lancerLien() {
   if (P.pv <= 0 || P.monture || P.rodeo || LIENS_VOL.length) return false;
   if (liensLibres() <= 0) { say(P.liens ? 'plus de lien d\'éclat · il s\'en fabrique à l\'établi du campement' : 'il faut un lien d\'éclat · à l\'établi du campement', 2.4); return false; }
   const b = viseLien();
-  if (!b) { const o = cibleVue(); say(o && o.sp && !o.tame && !o.sp.pnj ? o.sp.n + ' ne se lie pas' : 'aucune bête à lier devant vous', 1.8); return false; }
+  if (!b) { const o = CIB.verrou ? CIB.o : null;
+    say(!o ? 'désignez d\'abord la bête : touchez-la, cliquez-la, ou U' : o.sp && !o.tame && !o.sp.pnj && etatLien(o) ? nomEspeceDe(o) + ' est trop loin pour le lien' : (o.sp ? nomEspeceDe(o) : o.nom) + ' ne se lie pas', 2); return false; }
   const E = etatLien(b), oz = P.z + 1.2, d = Math.hypot(b.x - P.x, b.y - P.y);
   P.face = P.faceS = Math.atan2(b.y - P.y, b.x - P.x);
   LIENS_VOL.push({ b, x0: P.x + Math.cos(P.face) * .4, y0: P.y + Math.sin(P.face) * .4, z0: oz, u: 0, T: Math.max(.3, Math.min(.75, d / 12)), ch: E.ch, F: E.F, phase: 'vol' });
@@ -15010,11 +15034,11 @@ function rallumer(b) {
   if (b.tame) { say(b.comp.nom + ' est déjà à vous · il ne mange pas', 1.6); return false; }
   if (eveille(b)) { say(b.sp.n + ' est éveillé · attendez la nuit, quand il s\'éteint', 2.4); return false; }
   const ne = b.sp.eclats || 1;                        // l'élite en demande plus d'un
-  if ((b.eclatG || 0) >= ne) { say('l\'éclat est en place · lancez-lui un lien (Y)' + lienApres(b), 2.2); return false; }
+  if ((b.eclatG || 0) >= ne) { say('l\'éclat est en place · désignez-le et lancez-lui un lien (LIER)' + lienApres(b), 2.2); return false; }
   if (!essai && P.sac.eclat < ne) { say(ne > 1 ? 'il faut ' + ne + ' éclats à glisser dans sa poitrine' : 'il faut un éclat à glisser dans sa poitrine', 2.2); return false; }
   if (!essai) P.sac.eclat -= ne;
   b.eclatG = ne; b.colere = 0; burst(b.x, b.y, b.z + .8, 10, '#8fe4ec'); SON.jouer('tic', {}, b.x, b.y, b.z + .8);
-  say('éclat glissé dans sa poitrine · lancez-lui un lien (Y) avant qu\'il ne s\'éveille' + lienApres(b), 2.8);
+  say('éclat glissé dans sa poitrine · désignez-le et lancez-lui un lien (LIER) avant qu\'il ne s\'éveille' + lienApres(b), 2.8);
   return true;
 }
 function lier(b, voie) {
@@ -19161,6 +19185,8 @@ function anneauSort(x, y, z, col, r, n = 26) {
 }
 // La bête que vise un trait : celle qu'on vient de frapper, sinon la plus menaçante devant soi.
 function viseSort(R = 14) {
+  const vc = CIB.verrou ? CIB.o : null;               // (§151) la cible désignée d'abord
+  if (vc && (vc.sp ? !vc.loin && prenable(vc) : vc.pv > 0 && !allieSort(vc.u)) && (vc.x - P.x) ** 2 + (vc.y - P.y) ** 2 < R * R) return vc;
   const d = P.designe;
   if (d && d.o && !d.loin && prenable(d.o) && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < R * R) return d.o;
   if (d && d.o && d.loin && d.o.distant && d.o.pv > 0 && !allieSort(d.o.u) && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < R * R) return d.o;   // le joueur qu'on vient de frapper
@@ -20870,33 +20896,46 @@ function parLaPorte(c, x0, y0, x1, y1) {
 const allieDuCamp = c => c === P.camp || (!!c.autre && !!P.groupe && (P.groupe.membres || []).some(m => m.u === c.autre));
 let MURS = [], murDit = 0;                             // les campements de l'île qui ont un rempart, relevés à chaque image
 function majMurs() { MURS = campsIci().filter(c => defDuCamp(c).mur > 0); }
-// Le joueur : la barricade s'enjambe ; dès la palissade on n'entre que par la porte, et si l'on est
-// du camp. Sortir reste libre : on ne s'enferme jamais.
+// (§150) Le rempart arrête sur toute sa hauteur (de trois cubes sous le campement à MUR_HAUT au-dessus) :
+// on ne le saute pas, on ne le passe pas d'un replat voisin. Seul ce qui vole passe par-dessus.
+const MUR_HAUT = 30, MUR_MARGE = .3;
+const sousMur = (c, z) => z < c.z - 3 || z > c.z + MUR_HAUT;
+// Le joueur : la barricade s'enjambe ; dès la palissade, le bord du rond ne se franchit que par la porte, DANS
+// LES DEUX SENS — pour entrer, il faut être du camp ; pour sortir, la porte suffit. Le corps reste à distance
+// des pieux (MUR_MARGE) : on ne se colle plus dedans.
 function murJoueur(x0, y0, x1, y1) {
+  const dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, ex = x1 + dx / l * MUR_MARGE, ey = y1 + dy / l * MUR_MARGE;
   for (const c of MURS) {
-    if (c === Raid) {                                  // chez celui qu'on pille : tout rempart arrête, tant que sa porte tient
-      if (Math.abs(P.z - c.z) > 3 || dansRond(c, x0, y0) || !dansRond(c, x1, y1)) continue;
-      if (!(Raid.porte > 0) && parLaPorte(c, x0, y0, x1, y1)) continue;
-      if (t > murDit) { murDit = t + 3; say(Raid.porte > 0 ? MUR_LE[Raid.mur] + ' de ' + Raid.pseudo + ' vous arrête · forcez la porte' : 'on entre par la porte forcée', 2.2); }
+    if (sousMur(c, P.z)) continue;
+    const d0 = dansRond(c, x0, y0); if (dansRond(c, x1, y1) === d0 && dansRond(c, ex, ey) === d0) continue;   // on ne touche pas le bord
+    const porte = parLaPorte(c, x0, y0, ex, ey) || parLaPorte(c, x0, y0, x1, y1);
+    if (c === Raid) {                                  // chez celui qu'on pille : la porte, une fois forcée ; pour ressortir, toujours
+      if (porte && (!(Raid.porte > 0) || d0)) continue;
+      if (t > murDit) { murDit = t + 3; say(d0 ? 'on ressort par la porte' : Raid.porte > 0 ? MUR_LE[Raid.mur] + ' de ' + Raid.pseudo + ' vous arrête · forcez la porte' : 'on entre par la porte forcée', 2.2); }
       return c;
     }
-    if (defDuCamp(c).mur < 2 || Math.abs(P.z - c.z) > 3) continue;
-    if (dansRond(c, x0, y0) || !dansRond(c, x1, y1)) continue;
-    if (allieDuCamp(c) && parLaPorte(c, x0, y0, x1, y1)) continue;
-    if (t > murDit) { murDit = t + 3; say(allieDuCamp(c) ? 'la palissade · on entre par la porte' : 'la palissade vous arrête · ce campement n\'est pas le vôtre', 2); }
+    if (defDuCamp(c).mur < 2) continue;                // la barricade s'enjambe, dans les deux sens
+    if (porte && (d0 || allieDuCamp(c))) continue;     // la porte : on sort toujours ; on n'entre que du camp
+    if (t > murDit) { murDit = t + 3; say(d0 ? MUR_LE[defDuCamp(c).mur] + ' · on sort par la porte' : allieDuCamp(c) ? MUR_LE[defDuCamp(c).mur] + ' · on entre par la porte' : MUR_LE[defDuCamp(c).mur] + ' vous arrête · ce campement n\'est pas le vôtre', 2); }
     return c;
   }
   return null;
 }
-// Une bête : dès la barricade elle n'entre plus — sauf les compagnes, ce qui vole, les gens, les gardiennes.
-function murBete(b, x0, y0) {
-  if (b.gardeCamp || b.sp.volant || b.enVol || b.sp.pnj) return false;
+// Une bête : dès la barricade elle n'entre plus — sauf les compagnes, ce qui vole, les gens, les gardiennes —
+// et son corps reste à distance des pieux : elle ne s'y enfonce plus, et sa marche la fait longer le rempart au
+// lieu de s'y buter (voir pasBete et le choix du chemin). La monture qu'on chevauche suit la règle du joueur.
+function murBetePas(b, x0, y0, x1, y1) {
+  if (!MURS.length || b.gardeCamp || b.sp.volant || b.enVol || b.sp.pnj) return false;
+  if (b === P.monture) return !!murJoueur(x0, y0, x1, y1);
+  const m = MUR_MARGE + .25 * (b.sp.sz || 1), dx = x1 - x0, dy = y1 - y0, l = Math.hypot(dx, dy) || 1, ex = x1 + dx / l * m, ey = y1 + dy / l * m;
   for (const c of MURS) {
     if (b.tame && !(c === Raid && Raid.porte > 0)) continue;   // les compagnes passent — sauf la porte close du campement qu'on pille
-    if (Math.abs(b.z - c.z) < 3 && !dansRond(c, x0, y0) && dansRond(c, b.x, b.y)) return true;
+    if (sousMur(c, b.z) || dansRond(c, x0, y0)) continue;       // dedans, elle sort librement
+    if (dansRond(c, x1, y1) || dansRond(c, ex, ey)) return true;
   }
   return false;
 }
+function murBete(b, x0, y0) { return murBetePas(b, x0, y0, b.x, b.y); }
 // Un tir : le mur de pierre l'arrête à l'entrée du rond, s'il vole plus bas que ses créneaux.
 function murTir(x0, y0, x1, y1, z) {
   for (const c of MURS) if (defDuCamp(c).mur >= 3 && z < c.z + 1.5 && z > c.z - 2 && !dansRond(c, x0, y0) && dansRond(c, x1, y1)) return c;
@@ -22516,6 +22555,7 @@ function majEndu() {
 }
 function drawHud() {
   majBoussole();                                   // elle suit la caméra à chaque image
+  majMire();                                       // (§151) le chevron au-dessus de la cible, à chaque image aussi
   // Réécrire le HUD à chaque image force le navigateur à refaire la mise en page du texte
   // soixante fois par seconde. Dix fois suffisent à l'œil, et rien si rien n'a changé.
   if (t - hudT < .1 && t >= hudT) return;
@@ -22708,9 +22748,7 @@ function actionContexte() {
   const lta = lutrinAction(); if (lta) return lta;     // un lutrin de pierre : le Tome I d'une matière
   const cpa = campAction(); if (cpa) return cpa;       // au campement : la tente, un module, un emplacement libre
   const cha = champAction(); if (cha) return cha;      // (§119) à un carré de culture : semer, arroser, la pousse
-  const lv = liensLibres() > 0 && !LIENS_VOL.length ? viseLien() : null, lE = lv && etatLien(lv);   // (§145) le lien : LIER, si la chance est bonne, ou s'il n'y a rien d'autre à faire
-  const lier_ = lE ? { v: 'LIER', o: lv.sp.n.toLowerCase() + ' · ' + Math.round(lE.ch * 100) + ' %', f: lancerLien, r: rareBete(lv) } : null;
-  if (lier_ && lE.ch >= .5) return lier_;
+  // (§151) le lien ne passe plus par ACTION : il se lance sur une bête désignée, par LIER sous sa fiche (ou Y)
   // une bête au contact : la nourrir, ou rallumer un automate endormi
   let pr = null, dp = 1.8 * 1.8;
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.gardeCamp && !b.sp.pnj && !b.pnjSuit && !b.sp.achromie && (!b.sp.batiment || b.sp.plante) && !b.cache && Math.abs(b.z - P.z) < 2) {
@@ -22737,7 +22775,6 @@ function actionContexte() {
     if (nd.sp.res === 'eclat' && nivOutil() < 2) return { v: 'PIOCHE', o: 'il en faut une', f: recolter, vide: true };
     return { v: VERBE_RES[nd.sp.res] || 'RÉCOLTER', o: nom, f: recolter, r: (teinteNoeud(nd) || {}).r || 1 };
   }
-  if (lier_) return lier_;
   return { v: 'ACTION', o: '', f: () => say('rien à portée', 1), vide: true };
 }
 function faireAction() { actionContexte().f(); }
@@ -22755,6 +22792,9 @@ function majAction() {
 // Frapper au corps à corps : la bête la plus proche, ou un joueur d'en face, s'ils sont à portée.
 // L'appui lance le geste de l'arme ; le coup porte à l'impact, sur ce qui est alors à portée.
 function cibleContact(port) {
+  const cv_ = cibleVue();                             // (§151) la cible, désignée ou proposée, si elle est à portée
+  if (cv_ && cv_.sp && !cv_.tame && !cv_.loin && !cv_.sp.boss && cv_.sp.corps !== 'millegueule' && !cv_.sp.batiment && !cv_.cache
+    && Math.abs(cv_.z - P.z) < 2 && Math.hypot(cv_.x - P.x, cv_.y - P.y) <= port) return { b: cv_, x: cv_.x, y: cv_.y };
   let pr = null, dp = 1e9;
   // Une compagne marche dans vos pas : la plus proche, c'était souvent elle qu'on frappait.
   for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
@@ -23167,17 +23207,190 @@ function signalerIncident() {
   rpc('vp_signaler', { p_genre: 'incident', p_texte: String(Panne.dernier || 'incident').slice(0, 1500), p_contexte: contexteJeu() }).catch(() => {});
 }
 
-// ---------- la fiche de la cible ----------
-// Celle qu'on vient de frapper, tant qu'elle vit et reste en vue ; sinon la bête la plus proche.
-function cibleVue() {
-  const d = P.designe;
-  for (const b of beasts) if (b.sp.boss && !b.dead && b.pv > 0 && b.etat !== 'sommeil' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 3600) return b;   // la Tisseuse éveillée : sa barre en haut
-  if (d && d.o && !d.o.dead && d.o.pv > 0 && t - d.t < 10 && (d.o.x - P.x) ** 2 + (d.o.y - P.y) ** 2 < 400) return d.o;
-  if (liensLibres() > 0) { const v = viseLienCone(); if (v) return v; }   // (§145) un lien en poche : la bête qu'on lierait, devant soi
-  let pr = null, dp = 25;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && !(b.camo > .5) && !b.sp.illusion && (!b.sp.batiment || b.sp.plante) && !b.cache) { const q = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (q < dp) { dp = q; pr = b; } }   // un félin fondu dans le sol ne se désigne pas
-  return pr;
+// ============================================================
+//  LA CIBLE (§151)
+//  Une seule cible pour tout : la fiche, le coup, l'arc, les sorts, le lien.
+//  - Proposée : le jeu prend la plus probable — une bête qui vous attaque ou vous traque, celle que
+//    vous venez de frapper, la plus proche devant vous ; les compagnes et les villageois en dernier.
+//    Il n'en change que si une autre est nettement meilleure : la fiche ne clignote pas.
+//  - Désignée : un toucher ou un clic sur la créature (U au clavier, la molette au viseur) la
+//    verrouille. Elle tient tant qu'elle vit et reste à moins de 25 m ; toucher le vide ou la même
+//    la libère. La caméra la suit : elle pivote pour la garder devant vous et recule pour cadrer.
+//  - Le lien d'éclat ne part que sur une bête désignée (LIER sous sa fiche, ou Y).
+// ============================================================
+const CIB_PORTEE = 25, CIB_AUTO = 9, CIB_MENACE = 16, CIB_FRAPPEE = 20;
+const ETATS_MENACE = new Set(['traquer', 'attaque', 'charger', 'saisir', 'mord', 'combat', 'vise', 'viser', 'fendre', 'jaillir', 'menacer', 'cracher', 'descendre']);
+const menaceCible = o => o.sp ? !o.tame && !o.loin && !o.gardeCamp && (ETATS_MENACE.has(o.etat) || o.colere > 0) : Agresseurs.get(o.u) > t;
+const beteCiblable = o => !o.dead && !o.retire && o.pv > 0 && !o.cache && !(o.camo > .5) && !o.sp.illusion && (!o.sp.batiment || o.sp.plante);   // un félin fondu dans le sol ne se désigne pas
+const presCible = (o, R) => (o.x - P.x) ** 2 + (o.y - P.y) ** 2 <= R * R && Math.abs((o.z ?? P.z) - P.z) < 10;
+function joueurLa(o) { for (const j of Autres.values()) if (j === o) return true; return false; }
+function cibleValide(o, R = CIB_PORTEE) {
+  if (!o || !(o.pv > 0) || !presCible(o, R)) return false;
+  if (!o.sp) return joueurLa(o);
+  if (o.loin) return betesLoin.includes(o);
+  return beteCiblable(o) && beasts.includes(o);
 }
+function candidatsCible(R) {
+  const L = [];
+  for (const b of beasts) if (beteCiblable(b) && presCible(b, R)) L.push(b);
+  for (const j of Autres.values()) if (j.pv > 0 && presCible(j, R)) L.push(j);
+  for (const b of betesLoin) if (b.pv > 0 && presCible(b, R)) L.push(b);
+  return L;
+}
+const hauteurCible = o => !o.sp ? 1.9 : o.sp.dragon ? 1.3 : o.sp.boss ? 3 : .9 * (o.sp.sz || 1) + .15;
+const angCap = () => mode === 'fps' ? yaw : (P.faceS ?? P.face ?? 0);
+// Plus le score est bas, plus la cible est probable. 1e9 : hors de question.
+function scoreCible(o) {
+  const dx = o.x - P.x, dy = o.y - P.y, d = Math.hypot(dx, dy) || .01, a = angCap();
+  const cos = (dx * Math.cos(a) + dy * Math.sin(a)) / d, men = menaceCible(o), de = P.designe, frap = de && de.o === o && t - de.t < 10;
+  if (d > (frap ? CIB_FRAPPEE : men ? CIB_MENACE : CIB_AUTO)) return 1e9;
+  if (!o.sp && !men && !frap) return 1e9;              // un autre joueur : seulement s'il vous a frappé, ou vous lui
+  let s = d * (1.7 - .7 * cos);                         // devant soi, la distance ; derrière, plus du double
+  if (men) s *= .4;
+  if (frap) s *= .35;
+  if (o.sp && (o.tame || o.loin)) s += 6;               // une compagne : en dernier
+  if (o.sp && (o.sp.pnj || o.pnjSuit || o.sp.villageois)) s += 4;
+  if (o.sp && o.sp.plante && !(o.pl && o.pl.port === 'vive')) s += 2;
+  return s;
+}
+function cibleAuto() {
+  let best = null, bs = 1e9;
+  for (const o of candidatsCible(CIB_FRAPPEE)) { const s = scoreCible(o); if (s < bs) { bs = s; best = o; } }
+  const c = CIB.auto;
+  if (c && c !== best && cibleValide(c, CIB_FRAPPEE) && (menaceCible(c) || !menaceCible(best))) {   // on garde la précédente si l'écart est mince — sauf devant une bête qui attaque
+    const sc = scoreCible(c); if (sc < 1e9 && sc < bs * 1.4 + .6) return c; }
+  CIB.auto = best; return best;
+}
+// La cible de cette image : la désignée, sinon la Tisseuse éveillée (sa barre en haut), sinon la plus probable.
+function cibleVue() {
+  if (CIB.tc === t) return CIB.c;
+  if (CIB.verrou && !cibleValide(CIB.o)) lacherCible(true);
+  let c = CIB.verrou ? CIB.o : null;
+  if (!c) for (const b of beasts) if (b.sp.boss && !b.dead && b.pv > 0 && b.etat !== 'sommeil' && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 3600) { c = b; break; }
+  if (!c) c = cibleAuto();
+  CIB.tc = t; return CIB.c = c;
+}
+function verrouiller(o, tour) {
+  if (!tour) CIB.tour0 = o;                            // U fait le tour à partir d'elle
+  CIB.o = o; CIB.verrou = true; CIB.tc = -1; CIB.mainT = -99;
+  SON.jouer('clic', { vol: .7 });
+  if (typeof cibleSig !== 'undefined') cibleSig = '';
+}
+function lacherCible(perdue) {
+  if (!CIB.verrou) return;
+  CIB.o = null; CIB.verrou = false; CIB.tc = -1;
+  if (perdue) say('cible perdue', 1);
+  if (typeof cibleSig !== 'undefined') cibleSig = '';
+}
+// Un point du monde à l'écran, dans toutes les vues ; null s'il est derrière l'œil.
+function ecranMonde(x, y, z) {
+  if (mode !== 'fps') return versEcran(x, y, z);
+  const dx = x - FC.ex, dy = y - FC.ey, dz = z - FC.ez;
+  const p = dx * FC.cy * FC.cp + dy * FC.sy * FC.cp + dz * FC.sp; if (p < .3) return null;
+  if (G3.ok && !G3.perdu) return G3.ecran(x, y, z);
+  const r = -dx * FC.sy + dy * FC.cy, u = -dx * FC.cy * FC.sp - dy * FC.sy * FC.sp + dz * FC.cp;
+  return [Wd / 2 + r / p * FC.F, Hd / 2 - u / p * FC.F];
+}
+// La créature sous le doigt : la plus proche du segment pieds-tête à l'écran, dans une tolérance.
+function sousPoint(sx, sy, tol) {
+  let best = null, bq = 1;
+  for (const o of candidatsCible(CIB_PORTEE)) {
+    const a = ecranMonde(o.x, o.y, o.z), b = ecranMonde(o.x, o.y, o.z + hauteurCible(o)); if (!a || !b) continue;
+    const vx = b[0] - a[0], vy = b[1] - a[1], L2 = vx * vx + vy * vy || 1, k = Math.max(0, Math.min(1, ((sx - a[0]) * vx + (sy - a[1]) * vy) / L2));
+    const d = Math.hypot(sx - a[0] - vx * k, sy - a[1] - vy * k), r = tol + Math.min(30, Math.sqrt(L2) * .35);   // les grosses bêtes, plus larges
+    if (d < r && d / r < bq) { bq = d / r; best = o; }
+  }
+  return best;
+}
+function toucherCible(sx, sy, tol) {
+  if (sacOuvert || P.pv <= 0) return false;
+  const o = sousPoint(sx, sy, tol);
+  if (!o) { lacherCible(); return false; }               // le vide : on libère
+  if (CIB.verrou && o === CIB.o) { lacherCible(); return true; }
+  verrouiller(o); return true;
+}
+// U : désigner la cible proposée (en 1re personne, ce qui est au viseur), puis les autres, de la plus
+// proche à la plus lointaine ; revenu à la première, on libère. Maj+U libère tout de suite.
+function cibleSuivante() {
+  if (K.ShiftLeft || K.ShiftRight) { lacherCible(); return; }
+  if (!CIB.verrou) {
+    const o = (mode === 'fps' && sousPoint(Wd / 2, Hd / 2, 60)) || cibleVue();
+    if (o) verrouiller(o); else say('aucune cible en vue', 1.2);
+    return;
+  }
+  const L = candidatsCible(CIB_PORTEE).sort((a, b) => (a.x - P.x) ** 2 + (a.y - P.y) ** 2 - (b.x - P.x) ** 2 - (b.y - P.y) ** 2);
+  const i = L.indexOf(CIB.o), n = L[(i + 1) % L.length];
+  if (!n || n === CIB.o || n === CIB.tour0) lacherCible();
+  else verrouiller(n, true);
+}
+// La caméra suiveuse. Regarder à la main (glisser, la souris, Q et E) la suspend une seconde et demie.
+const ecartAng = (a, b) => { let d = (a - b) % 6.2832; if (d > Math.PI) d -= 6.2832; if (d < -Math.PI) d += 6.2832; return d; };
+function suivreCible(dt) {
+  const o = CIB.verrou ? CIB.o : null;
+  if (!o || P.pv <= 0 || sacOuvert || t - CIB.mainT < 1.5) return;
+  const dx = o.x - P.x, dy = o.y - P.y, d = Math.hypot(dx, dy); if (d < 1) return;
+  const th = Math.atan2(dy, dx);
+  if (mode === 'fps') {                                 // le regard se tourne vers elle, et se pose sur son corps
+    const da = ecartAng(th, yaw); if (Math.abs(da) > .05) yaw += da * Math.min(1, dt * 3.5);
+    const tp = Math.max(-.9, Math.min(.9, Math.atan2(o.z + hauteurCible(o) * .55 - (P.z + (P.selle || 0) + EYE), d)));
+    pitch += (tp - pitch) * Math.min(1, dt * 2);
+    return;
+  }
+  const da = ecartAng(-2.3562 - th, angT);              // l'angle de vue qui la met devant vous, en haut de l'écran
+  if (isoGL && G3.ok && !G3.perdu) { if (Math.abs(da) > .4) angT += (da - Math.sign(da) * .4) * Math.min(1, dt * 2.2); }
+  else if (Math.abs(da) > 1.15 && t - CIB.snapT > .6) { angT += Math.sign(da) * Math.PI / 4; CIB.snapT = t; }   // le dessin sans carte graphique : par huitièmes de tour
+}
+// Le point que suit la caméra : un peu vers la cible désignée, pour vous voir tous les deux.
+function cadreCible() {
+  const o = CIB.verrou ? CIB.o : null;
+  if (mode === 'fps' || !o) return [P.x, P.y];
+  const dx = o.x - P.x, dy = o.y - P.y, d = Math.hypot(dx, dy) || 1, s = Math.min(d * .5, 6);
+  return [P.x + dx / d * s, P.y + dy / d * s];
+}
+// Le recul qu'il faut pour la cadrer, réglé sur l'image même : on recule tant que la cible passe sous la
+// boussole ou la fiche, sort par un bord, ou que vous descendez sur les commandes ; on revient doucement
+// quand il y a de la marge. Le zoom choisi n'est pas touché : on y revient en la libérant.
+function zoomCible(dt) {
+  const o = CIB.verrou ? CIB.o : null;
+  if (mode === 'fps' || !o) { CIB.zf = Math.min(1, CIB.zf + dt * .6); return zoomT * CIB.zf; }
+  const pT = ecranMonde(o.x, o.y, o.z + hauteurCible(o) + .3), pP = ecranMonde(P.x, P.y, P.z), F = CIB.fiche;   // le chevron compris
+  const sous = F && pT && pT[0] > F[0] - 14 && pT[0] < F[1] + 14 ? F[2] + 26 : 70;   // le bas de ce qui couvre le haut de l'écran
+  const serre = !pT || !pP || pT[1] < sous || pT[0] < 24 || pT[0] > Wd - 24 || pP[1] > Hd * .8;
+  const zmin = (isoGL && G3.ok && !G3.perdu && perspIso ? ZOOM_MIN_3D : ZOOM_MIN) / zoomT;
+  if (serre) CIB.zf = Math.max(Math.min(1, zmin), CIB.zf - dt * .7);
+  else if (pT[1] > sous + 70 && pT[0] > 60 && pT[0] < Wd - 60 && pP[1] < Hd * .68) CIB.zf = Math.min(1, CIB.zf + dt * .25);
+  return zoomT * CIB.zf;
+}
+// Le chevron au-dessus de la cible : discret et doré quand le jeu la propose, rouge et cerné quand on l'a
+// désignée. Pas de chevron sur une compagne ou un villageois proposés : ils ne sont là que pour la fiche.
+function majMire() {
+  if (sacOuvert || P.pv <= 0) return;
+  const o = cibleVue(); if (!o) return;
+  const v = CIB.verrou && CIB.o === o;
+  if (!v && o.sp && (o.tame || o.loin || o.sp.pnj || o.pnjSuit || o.sp.villageois || (o.sp.plante && !(o.pl && o.pl.port === 'vive')))) return;
+  const h = hauteurCible(o), p = ecranMonde(o.x, o.y, o.z + h + .3); if (!p || p[0] < -20 || p[0] > Wd + 20 || p[1] < -20 || p[1] > Hd + 20) return;
+  const x = p[0], y = p[1] - 4 + Math.sin(t * 5) * (v ? 3 : 1.5), s = v ? 8 : 5.5;
+  g.save(); g.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g.lineJoin = 'round'; g.lineWidth = 1.6; g.strokeStyle = 'rgba(18,12,10,.85)';
+  g.beginPath(); g.moveTo(x - s, y - s * 1.15); g.lineTo(x, y); g.lineTo(x + s, y - s * 1.15); g.lineTo(x, y - s * .55); g.closePath();
+  g.fillStyle = v ? 'rgba(255,104,88,.95)' : 'rgba(255,214,138,.72)'; g.fill(); g.stroke();
+  if (v) {                                             // désignée : quatre coins autour d'elle
+    const a = ecranMonde(o.x, o.y, o.z), b = ecranMonde(o.x, o.y, o.z + h);
+    if (a && b) {
+      const cx = (a[0] + b[0]) / 2, cy = (a[1] + b[1]) / 2, hh = Math.max(12, Math.abs(a[1] - b[1]) / 2 + 6), w = Math.max(12, hh * .85), c = Math.min(8, w * .45);
+      g.strokeStyle = 'rgba(255,120,104,.9)'; g.lineWidth = 2;
+      g.beginPath();
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) {
+        const X = cx + sx * w, Y = cy + sy * hh;
+        g.moveTo(X - sx * c, Y); g.lineTo(X, Y); g.lineTo(X, Y - sy * c);
+      }
+      g.stroke();
+    }
+  }
+  g.restore();
+}
+
+// ---------- la fiche de la cible ----------
 let cibleSig = '';
 function majCible() {
   const el = document.getElementById('cible'); if (!el) return;
@@ -23207,13 +23420,19 @@ function majCible() {
     else { nom = nomEspeceDe(o);
       info = (tellurien(o.sp) ? 'tellurien · ' : '') + `${DITS_ETAT[o.etat] || o.etat} · faim ${Math.round(o.faim * 100)} % · confiance ${Math.round(o.conf * 100)} %`
 ; }
-    const E = o.sp && !o.tame && liensLibres() > 0 ? etatLien(o) : null;   // (§145) la chance du lien, et ce qui est rempli
+    const E = o.sp && !o.tame && !o.loin && liensLibres() > 0 ? etatLien(o) : null;   // (§145) la chance du lien, et ce qui est rempli
+    const vr = CIB.verrou && CIB.o === o, loinL = E && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 >= LIEN_PORTEE * LIEN_PORTEE;
     html = `<b class="${o.sp && !o.sp.pnj && !o.pnjSuit && !o.sp.villageois ? clRar(rareBete(o)) : ''}">${ESC(nom)}</b><div class="br"><i style="width:${Math.round(Math.max(0, o.pv) * 100)}%"></i></div><small>${ESC(info)}</small>`
-      + (E ? `<small class="lien">${ESC(lienDit(E))}</small>` : '');
+      + (E ? `<small class="lien">${ESC(lienDit(E))}</small>` : '')
+      // (§151) le lien ne part que sur une bête désignée, par ce bouton (ou Y) : loin du pouce qui tient ACTION
+      + (E && !vr ? `<small>désignez-la pour la lier : touchez-la, ou U</small>` : '')
+      + (E && vr ? `<button class="lier" data-lier${loinL || LIENS_VOL.length ? ' disabled' : ''}><kbd>Y</kbd>${loinL ? 'trop loin pour lier' : 'LIER · ' + Math.round(E.ch * 100) + ' %'}</button>` : '');
+    if (vr) cl += ' verrou';
   }
   const sig = cl + html;
   if (sig === cibleSig) return;
   cibleSig = sig; el.hidden = !o; el.className = cl; el.innerHTML = html;
+  if (o) { const r = el.getBoundingClientRect(); CIB.fiche = [r.left, r.right, r.bottom]; } else CIB.fiche = null;   // (§151) pour cadrer la cible hors de la fiche
   document.body.classList.toggle('avecCible', !!o);
 }
 
@@ -25449,7 +25668,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-116', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-118', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
