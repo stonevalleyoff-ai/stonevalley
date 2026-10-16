@@ -4130,3 +4130,304 @@ L'aide (Réglages) et les textes du lien sont mis à jour.
 - les gestes sur la vue (un toucher bref désigne), la touche U, le bouton LIER de `majCible`.
 
 **À déposer** : `index.html`, `donjon.js`, `sw.js` (qui passe en `stone-valley-118`), `LISEZ-MOI.md`.
+
+## 152. Alchimie : une potion ne commence pas sans tout ce qu'il faut
+
+**Avant** : on pouvait choisir une potion, mettre l'eau et verser, puis découvrir à la fin qu'il manquait de quoi la mettre en fiole, ou un ingrédient pour une étape.
+
+**Maintenant**, le jeu compte tout ce que la potion demandera, du début à la fin :
+
+- les éclats des étapes d'éclats, plus ceux de la fiole ;
+- ce que coûte la fiole (éclats, spores de Korlaz) ;
+- un ingrédient pour chaque étape, de la bonne famille et de la bonne rareté. Chaque ingrédient ne sert qu'une fois : le jeu vérifie qu'on peut en attribuer un à chaque étape à la fois.
+
+**S'il manque quelque chose** :
+
+- la tuile de la potion pâlit et affiche « manque » en rouge ; le détail est dans son info-bulle ;
+- on peut toujours la choisir pour lire la recette, mais un message dit ce qui manque, par exemple « il manque 5 éclats » ou « il manque viande, douceur (peu commune ou plus) » ;
+- la louche, le feu et les ingrédients restent bloqués, avec le même message sous le nom de la potion.
+
+**Une potion déjà commencée** (au moins un ingrédient versé) n'est plus vérifiée : on la mène au bout. La mise en fiole garde sa propre vérification.
+
+En mode essai, rien n'est compté.
+
+**Dans le code** : `manqueAlch` (l'appariement des étapes et des ingrédients), `commenceeAlch`, la vérification à la fin de `freinAlch`, le message au choix dans `alGeste`, la classe `.manque` des tuiles dans `rendreAlchimie`.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-119`), `LISEZ-MOI.md`.
+
+
+## 153. Les cent recettes
+
+En plus des plats qui se font d'eux-mêmes (ragoût, soupe, confiture…) et des neuf remarquables d'avant, il y a **cent recettes écrites à la main**, de commune à épique.
+
+**La règle** : chaque recette est un mariage **exact**. Il faut ces ingrédients-là dans la marmite, ni plus ni moins. Une place demande :
+
+- un ingrédient précis (« glands ») ;
+- ou une famille, d'une rareté au moins (« une racine légendaire ou plus »).
+
+**Ce que donne la rareté de la recette** :
+
+| Rareté | Nombre | Étoiles au moins | Niveau d'effet |
+|---|---|---|---|
+| commune | 24 | 3 | I |
+| peu commune | 24 | 3 | I |
+| rare | 20 | 4 | II |
+| exotique | 14 | 4 | II |
+| légendaire | 11 | 5 | III |
+| épique | 7 | 5 | IV |
+
+La rareté donne aussi un peu de vie en plus. Chaque recette a **son propre effet**, qui remplace ceux de ses ingrédients ; il dure deux fois plus longtemps que dans un plat ordinaire. Sa manière (eau, feu, remuage, temps) vient de son genre : grillé, sauté, au four, mijoté, bouilli, infusé, sucré, cru. Les légendaires et les épiques font une part de plus.
+
+**Les séries (« elles se complètent »)** : 36 recettes vont par douze séries de trois. La première étape a deux ingrédients ; la deuxième reprend les mêmes et en ajoute un ; la troisième en ajoute encore un. Chaque étape est d'une rareté au-dessus, et son effet change parfois. Une étape trouvée, le livre dit ce qui la complète.
+
+**Dix recettes se transmettent**, en clair : ingrédients au livre, il reste à trouver la manière.
+
+- **Cinq villageois**, selon leur métier : la cuisinière, le pêcheur, le chasseur, la cueilleuse, l'enfant. Un choix « Une recette de chez vous ? » apparaît dans la conversation.
+- **Cinq nomades**, selon leur rôle : le marchand, le dresseur, le conteur, l'herboriste, le devin. Un choix « Tu connais une recette de la route ? » apparaît à l'accueil.
+
+Chacun ne la confie qu'une fois, et pas si on la sait déjà.
+
+**Le livre de recettes** :
+
+- les recettes trouvées portent leur rareté, en couleur ;
+- une section « Recettes confiées · à cuisiner » donne les ingrédients et qui l'a confiée ;
+- une section « Elles se complètent » donne l'ingrédient qui manque à l'étape suivante ;
+- un compte des cent recettes, par rareté ;
+- les neuf remarquables d'avant gardent leurs indices.
+
+**Priorité** : les cent recettes sont reconnues avant les remarquables d'avant. J'ai vérifié que les remarquables donnent toujours leur plat. Chaque recette a été essayée avec 40 marmites tirées au hasard parmi les ingrédients qui conviennent : aucune n'est détournée vers une autre.
+
+**Dans le code** :
+
+- le bloc LES CENT RECETTES : `RECETTES`, `RECETTE`, `R_` et `S_`, `RECETTES_DITES`, `reqVa`, `apparie`, `recetteDuPot`, `ditReq`, `recetteSuivante`, `transmettreRecette`, `recetteNomade` ;
+- `preparer` (étoiles, effet, niveau, vie) ;
+- `GENRE_SORTE`, `PLAT_FORME` et `CONSERVE`, complétés en boucle ;
+- `livreCz` ;
+- `P.recTr` (les recettes confiées), gardé dans la sauvegarde ;
+- dans village.js, `vlNoeud` et `vlDit` ; dans nomades.js, `nmAller`.
+
+Les manières notées montent à 200 dans la sauvegarde, et le livre affiche jusqu'à 200 recettes.
+
+### La liste
+
+**Les séries** (chaque étape ajoute un ingrédient à la précédente) :
+
+- Bouillon du passeur (commune, grand souffle) : gardon de schiste, racine de roseau → Bouillon du passeur aux herbes (peu commune, grand souffle) : + une feuille → Grand bouillon du passeur (rare, second souffle) : + un poisson rare ou plus;
+- Galette de la bergère (commune, main douce) : graines d'herbe haute, baie → Galette de la bergère aux glands (peu commune, main douce) : + glands → Galette dorée de la bergère (rare, meute galvanisée) : + nectar d'oglodon;
+- Grillade du trappeur (commune, coups puissants) : une viande, pignons de pin → Grillade du trappeur au genévrier (peu commune, coups puissants) : + baies de genévrier → Festin du trappeur (rare, meute galvanisée) : + venaison de verre;
+- Poêlée des sous-bois (commune, pas feutrés) : champignon des bois, crosses de fougère → Poêlée des sous-bois à l'os-cep (peu commune, peau dure) : + os-cep → Poêlée des sous-bois luisante (rare, vision de nuit) : + clavaire lumineuse;
+- Compote du verger (commune, récolte abondante) : grappe de groseilles, mûres de ronce → Confiture du verger (peu commune, récolte abondante) : + goutte de sève → Confiture des sylves (rare, grand saut) : + mûres de sylve;
+- Soupe des marais (peu commune, antidote) : cuisses de crapaud-buffle, racine de massette → Soupe des marais à la sphaigne (rare, antidote) : + sphaigne rouge → Soupe des marais aux lueurs (exotique, vision de nuit) : + un champignon exotique ou plus;
+- Infusion des cimes (rare, grand souffle) : aiguilles de sapin, fleur d'edelweiss → Infusion des cimes au cœur de lanterne (exotique, chute de plume) : + cœur de lanterne → Élixir des cimes (légendaire, second souffle) : + une racine légendaire ou plus;
+- Grillade de braise (exotique, insensible aux braises) : chair de braise, baies de genévrier → Grillade de braise aux pétales (exotique, insensible aux braises) : + pétale de braise → Festin de braise du dragon (légendaire, coups puissants) : + filet de dragon;
+- Tartare des marées (commune, antidote) : sardine de nacre, feuilles de bouleau → Tartare des marées à la truite (peu commune, pas vif) : + truite d'ardoise → Plateau des marées (rare, second souffle) : + raie-horloge;
+- Salade du jardin (commune, invisible) : bleuets, crosses de fougère → Salade du jardin à la pivoine (peu commune, grand souffle) : + pétales de pivoine → Salade des cendres blanches (rare, chute de plume) : + pétales de cendrelys;
+- Pain de caravane (peu commune, pas vif) : cônes de cyprès, noix de palme → Pain du désert (rare, grand souffle) : + figue de cactus → Pain du Seuil (exotique, pas vif) : + un fruit exotique ou plus;
+- Rôti des rois (rare, peau dure) : venaison de verre, pousses de bambou → Rôti des rois au mycélium (exotique, peau dure) : + mycélium pâle → Rôti du roi des marées (légendaire, un cœur en plus) : + lune-de-fond.
+
+**Uniques, communes** (17) :
+
+- Tartine des champs : graines d'herbe haute, pétales de coquelicot · main douce;
+- Brochette du glaneur : filet de glaneur, baie · récolte abondante;
+- Potage de la forêt : pignons de pin, racine de massette, crosses de fougère · pas feutrés;
+- Gardon grillé aux ajoncs : gardon de schiste, fleurs d'ajonc · chute de plume;
+- Salade de bouleau : feuilles de bouleau, lichen · antidote;
+- Galette de glands : glands, glands · prédateurs à distance;
+- Compote de baies sauvages : baie, baie, mûres de ronce · grand souffle · confiée (v:enfant);
+- Ragoût du bosseu : bosse de bossu, racine de roseau, vesse-de-loup · épines;
+- Tisane de bleuet : bleuets, feuilles de bouleau · vision de nuit;
+- Poêlée de vesses-de-loup : vesse-de-loup, champignon des bois · prédateurs à distance;
+- Pot-au-feu du cotonnier : tendron de cotonnier, racine de massette, racine de roseau · vie en plus;
+- Pain d'herbe tressé : graines d'herbe haute, pignons de pin, glands · grand souffle;
+- Brochette du sentier : cuissot de brouteur, grappe de groseilles · coups puissants;
+- Infusion d'ajonc : fleurs d'ajonc, crosses de fougère, lichen · chute de plume;
+- Sardines au sel de roche : sardine de nacre, sardine de nacre · antidote;
+- Chaudrée du ruisseau : gardon de schiste, sardine de nacre, racine de massette · pas feutrés · confiée (v:pecheur);
+- Douceur des haies : baie, grappe de groseilles, mûres de ronce, pétales de coquelicot · main douce · confiée (v:cueilleuse).
+
+**Uniques, peu communes** (15) :
+
+- Truite au genévrier : truite d'ardoise, baies de genévrier · pas vif;
+- Carpe en croûte d'herbes : carpe des brumes, graines d'herbe haute, aiguilles de sapin · peau dure;
+- Ragoût du traqueur : chair de traqueur, cœur de chardon, os-cep · coups puissants;
+- Brochette de varan aux airelles : queue de varan, airelles · peau dure;
+- Sirop de sève à la pivoine : goutte de sève, pétales de pivoine · grand souffle;
+- Thé d'iris : iris d'eau, aiguilles de sapin · vision de nuit;
+- Pousses sautées au champignon géant : pousses de bambou, lamelles de champignon géant · grand saut;
+- Tourte du lentigrade : côte de lentigrade, cônes de cyprès, racine creuse · vie en plus;
+- Cerises à la sève : cerises, goutte de sève · pas vif;
+- Salade de koï : carpe koï, mousse-veine · main douce;
+- Brochette du carillonneur : gigot de carillonneur, noix de palme · prédateurs à distance;
+- Bouillon de sterne : blanc de sterne, sphaigne rouge, mousse-veine · chute de plume;
+- Galette de figue : figue de cactus, cônes de cyprès · grand souffle;
+- Fricassée du bramard : bosse de bramard, os-cep, pousses de bambou · vie en plus;
+- Nectar aux airelles : nectar d'oglodon, airelles · meute galvanisée.
+
+**Uniques, rares** (9) :
+
+- Anguille fumée au sapin : anguille-lanterne, aiguilles de sapin · vision de nuit;
+- Civet de cerf : venaison de verre, baies de deuil, racine creuse · peau dure · confiée (v:chasseur);
+- Tarte aux mûres de sylve : mûres de sylve, goutte de sève, cônes de cyprès · grand saut;
+- Brochette du félin : chair de félin de brume, fleur de Josué · coups puissants;
+- Rôti d'oglodon : chair d'oglodon, cœur de chardon, mousse céleste · peau dure;
+- Infusion de cendrelys : pétales de cendrelys, fleur d'edelweiss · chute de plume;
+- Soupe du spectre : chair pâle de spectre, clavaire lumineuse, mousse céleste · invisible;
+- Raie aux baies de deuil : raie-horloge, baies de deuil · second souffle;
+- Gelée de cerisier : fleurs de cerisier, goutte de sève · main douce.
+
+**Uniques, exotiques** (8) :
+
+- Salamandre en croûte : chair de braise, cônes de cyprès, glands · insensible aux braises;
+- Velouté de mycélium : mycélium pâle, racine de massette, lichen · vision de nuit;
+- Fruits de verre au nectar : fruit de verre, goutte de sève, nectar d'oglodon · pas vif;
+- Cœur de lanterne confit : cœur de lanterne, cerises · vision de nuit;
+- Grillade du coursier rouge : blanc de coursier rouge, cœur de chardon · épines;
+- Pétales de braise poêlés : pétale de braise, lamelles de champignon géant · insensible aux braises;
+- Bouillon d'anguille aux lueurs : anguille-lanterne, un champignon exotique ou plus · coups glacés;
+- Tourte du dragon : filet de dragon, graines d'herbe haute, pignons de pin · coups puissants.
+
+**Uniques, légendaires** (8) :
+
+- Soupe de lune pleine : lune-de-fond, cœur de lanterne, aiguilles de sapin · grand souffle · confiée (n:conteur);
+- Lune grillée aux étoiles : lune-de-fond, fleur de Josué · vision de nuit · confiée (n:devin);
+- Coursier d'argent rôti : blanc d'aurore, une racine rare ou plus · meute galvanisée;
+- Racines légendaires au four : une racine légendaire ou plus, une racine légendaire ou plus · peau dure;
+- Poêlée des profondeurs : un champignon légendaire ou plus, mycélium pâle · invisible;
+- Confit de dragon : filet de dragon, cœur de lanterne, goutte de sève · un cœur en plus;
+- Infusion des anciens : une racine légendaire ou plus, fleur d'edelweiss, pétales de cendrelys · second souffle;
+- Pain des légendes : une racine légendaire ou plus, une graine, un fruit exotique ou plus · un cœur en plus.
+
+**Uniques, épiques** (7) :
+
+- Banquet du Seuil : lune-de-fond, blanc d'aurore, une racine légendaire ou plus, un champignon légendaire ou plus · un cœur en plus;
+- Bouillon des mondes : lune-de-fond, une racine légendaire ou plus, mycélium pâle, cœur de lanterne · second souffle;
+- Dragon aux pétales de braise : filet de dragon, pétale de braise, un champignon légendaire ou plus · coups puissants;
+- Nectar d'éternité : cœur de lanterne, fruit de verre, nectar d'oglodon, une racine légendaire ou plus · vie en plus;
+- Couronne des cimes : fleur d'edelweiss, fleur de Josué, un champignon légendaire ou plus, lune-de-fond · chute de plume;
+- Festin du roi-coursier : blanc d'aurore, blanc de coursier rouge, filet de dragon, un fruit exotique ou plus · meute galvanisée;
+- Galette d'éclipse : un champignon légendaire ou plus, un champignon légendaire ou plus, mycélium pâle, cœur de lanterne · invisible.
+
+**À déposer** : `index.html`, `village.js`, `nomades.js`, `sw.js` (qui passe en `stone-valley-120`), `LISEZ-MOI.md`.
+
+## 154. Correctif : le jeu passait en affichage simplifié (canvas) sans raison
+
+**Ce que dit le journal** : en version 118, 80 erreurs et 6 incidents, tous identiques : « Cannot read properties of null (reading 'sp') at menaceCible ». C'était sur Android, en vue 3D, près du campement.
+
+**La cause** : le ciblage du §151. La cible proposée de l'image d'avant restait gardée tant qu'elle était à moins de 20 m. Quand aucune autre créature n'était assez proche pour être proposée, le jeu demandait si « rien » attaquait, et plantait. Le plantage avait lieu pendant le dessin. Or une seule image cassée suffisait à couper la carte graphique pour la session : d'où « AFFICHAGE SIMPLIFIÉ ».
+
+**Les corrections** :
+
+- `menaceCible` accepte « rien », et `cibleAuto` ne compare plus avec une cible absente ;
+- une panne du HUD (fiche, chevron, boussole, jauges) est notée mais ne coupe plus jamais la carte graphique : `drawHud` est protégée ;
+- le repli sur le canvas attend deux images cassées de suite, comme le disait déjà le commentaire du code. Une image qui passe remet le compte à zéro (`Panne.suite`).
+
+Le repli n'est pas gardé d'une session à l'autre : recharger la page suffisait déjà à retrouver la vue 3D.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-121`), `LISEZ-MOI.md`.
+
+## 155. Sauvegarde : plus de faux « conflit » quand Android coupe la page
+
+**Ce que dit le journal** : la dernière sauvegarde en ligne date du 15/10 à 21:28:22 (révision 1039). Les sessions suivantes étaient en « conflit » : la sauvegarde y était figée, et la partie n'existait plus que sur le téléphone.
+
+**La cause** : quand le jeu passe en arrière-plan, il écrit la copie locale, puis envoie la sauvegarde. Si Android coupe la page avant la réponse, le serveur a bien enregistré la nouvelle révision, mais la copie locale garde l'ancienne et se croit « pas envoyée ». À la réouverture, le jeu voit une version en ligne plus récente que la sienne, avec des changements locaux, et conclut qu'un autre appareil a joué : « ce personnage a avancé ailleurs ».
+
+**La correction** :
+
+- chaque envoi porte un **jeton** (dans `donnees.jeton`) ;
+- ce jeton est noté dans la copie locale **avant** l'envoi (les huit derniers, `Sauve.envois`) ;
+- à la réouverture, une version en ligne qui porte l'un de nos jetons est reconnue comme la nôtre : le jeu reprend sa révision et renvoie ses changements, sans conflit ;
+- en cours de partie, une réponse perdue se rattrape de même, une fois, au prochain envoi.
+
+**Ce qui reste un vrai conflit** : une version en ligne qui ne porte aucun de nos jetons, c'est-à-dire jouée sur un autre appareil. Le panneau du sac (« Prendre en ligne » / « Garder ici ») sert toujours.
+
+**Vérifié contre un serveur simulé**, qui suit la règle de `vp_sauver_compte` :
+
+- un envoi normal passe ;
+- page coupée en route, puis réouverture : aucun conflit ;
+- un vrai autre appareil : conflit ;
+- « Garder ici » force la sauvegarde ;
+- une réponse perdue en pleine partie se rattrape.
+
+Rien ne change côté base. La sauvegarde pèse 7,7 Ko stockés, pour une limite de 32 Ko.
+
+**Le conflit en cours sur ton téléphone** date d'avant ce correctif : sa version en ligne n'a pas de jeton. Il faut le lever une dernière fois à la main, dans le sac, avec « Garder ici ».
+
+**Dans le code** : `Sauve.envois`, `sienne`, `envoyer` (le jeton, la copie locale avant l'envoi, le rattrapage), `synchroniser`, `ecrireLocal` et `demarrerSauvegarde` (les jetons gardés dans la copie locale).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-122`), `LISEZ-MOI.md`.
+
+## 156. Le satellite : un petit automate volant qui vous suit
+
+Un compagnon mécanique à la façon de Phantasy Star Online : une boule de métal grosse comme une tête, coque claire, un œil lumineux, deux ailerons dorés qui battent, une antenne. Il flotte à votre épaule, un peu en arrière.
+
+**Le fabriquer** : à l'établi, niveau 2, filière Compagnes. Il coûte 18 ferrailles, 12 éclats, 10 pierres et 8 fibres. Fabriqué, il s'allume aussitôt. Depuis une case du bord, ou « équiper » dans le sac, on le fait venir ou on le range. Il porte un nom à lui, toujours le même pour un compte : Pip, Lumo, Tic, Orbi, Brin, Nox, Mica, Volt, Kiki, Zéphyr, Plume ou Bobine.
+
+**Son intelligence, pour l'instant : suivre, avec tête** :
+
+- **il anticipe** : il vise où vous allez, pas où vous êtes ; quand vous courez, il se range derrière vous, dans votre sillage ;
+- **il vole proprement** : son vol est un ressort amorti, qui arrive vite sans osciller, à vitesse bornée. Il passe par-dessus le relief et reste sous une dalle si vous êtes dessous. Il n'entre jamais dans votre corps ; en 1re personne, il ne se colle jamais à l'œil et se tient sur le côté ;
+- **il flâne** : quand vous ne bougez plus depuis quelques secondes, il tourne lentement autour de vous. Parfois il va regarder de près une bête ou une baie mûre, l'œil vert ;
+- **il garde** : une bête qui vous attaque ou vous traque, et il se place entre elle et vous, l'œil orange, avec un bip ;
+- **il ne se perd pas** : semé (à plus de 12 m, ou coincé depuis deux secondes), il saute à vos côtés dans un éclair. Il en fait autant après un portail ou la pierre de foyer.
+
+**Son corps vit** : il se penche dans le mouvement, ses ailerons battent, son œil suit ce qui l'intéresse (la bête qui menace, la cible, ce qu'il examine, sinon droit devant vous). Une petite flamme de la couleur de son œil sort de sa tuyère, et il a son ombre.
+
+**Ce qu'il ne fait pas encore** : rien d'autre que suivre. Les autres joueurs ne le voient pas.
+
+**Dans le code** : le bloc LE SATELLITE (`SAT`, `majSatellite`, `osSatellite`, `emitSatellite`, `basculerSatellite`, `solSat`, `nomSatellite`) ; l'objet `satellite` (emplacement `satellite`, `P.equip.satellite` : sorti ou rangé) et sa vignette. Il est dessiné dans les trois tracés : le canvas de dessus, celui de la 1re personne, et la carte graphique, avec une ombre.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-123`), `LISEZ-MOI.md`.
+
+## 157. Le cerveau du satellite : un réseau de neurones qui apprend de vous
+
+Le satellite a maintenant un vrai petit réseau de neurones, écrit dans le jeu, sans bibliothèque. Il tourne entièrement dans le téléphone, sans serveur ni coût. Il apprend pendant que vous jouez, et seulement quand il est sorti : c'est en vous accompagnant qu'il vous connaît.
+
+**Ce qu'il perçoit**, toutes les demi-secondes : 18 nombres.
+
+- la menace la plus proche et sa distance ;
+- la bête sauvage la plus proche ; le nombre de bêtes autour ;
+- votre vie, votre souffle ;
+- l'heure (en sinus et cosinus) ;
+- la distance au campement ;
+- un pied mûr tout près ;
+- votre vitesse ;
+- une arme en main ou non ;
+- la charge du sac ;
+- ce que vous faisiez juste avant.
+
+**Ce qu'il devine** : ce que vous allez faire dans les trois secondes. Récolter, vous battre, fuir, explorer, ou souffler.
+
+**Comment il apprend** : trois secondes plus tard, il voit ce que vous avez fait. Vous avez frappé, tiré ou lancé un sort ? Vous vous êtes battu. Récolté ? Récolte. Éloigné d'une menace ? Fuite. Beaucoup marché ? Exploration. Sinon, repos.
+
+C'est sa leçon. Il compare à ce qu'il avait deviné, corrige ses poids (rétropropagation de l'entropie croisée), puis repasse trois souvenirs pris au hasard parmi les 400 qu'il garde, pour ne pas oublier les anciennes habitudes. Il retient aussi la sorte de ressource que vous récoltez le plus ces temps-ci.
+
+**Le réseau** : 18 entrées, 16 neurones (tangente hyperbolique), 5 sorties (softmax), soit 389 poids. Il ne se fie à ce qu'il devine qu'après 40 leçons (une vingtaine de secondes) et à partir de 50 % de confiance.
+
+**Ce que ça change** : il devance votre geste.
+
+| Ce qu'il devine | Ce qu'il fait | Son œil |
+|---|---|---|
+| récolter | il file au-dessus du prochain pied mûr, de la sorte que vous préférez, devant vous | vert |
+| vous battre | il se met en garde devant vous, face à la cible | ambre |
+| fuir | il vous montre la sortie : vers le campement, ou à l'opposé de la menace | violet |
+| explorer | il part en éclaireur, devant, plus haut | doré pâle |
+| souffler | il reste à votre épaule, et flâne | cyan |
+
+Une bête qui attaque reste prioritaire : il se place entre elle et vous. Quand il a vu juste, une petite étincelle verte sort de son antenne.
+
+**Ce qu'il en dit** :
+
+- dans le sac, sa fiche donne combien de moments il a observés, combien de fois il devine juste, et ce qu'il pense en ce moment, par exemple « récolter 62 %, explorer 21 % » ;
+- trois paliers s'annoncent : « vous observe » (40 leçons), « vous comprend de mieux en mieux » (300), « vous connaît bien » (1 200).
+
+**Son savoir voyage avec le personnage** : ses poids passent dans la sauvegarde, en entiers de 16 bits encodés en base 64 (1 040 caractères), avec le nombre de leçons, sa justesse et vos goûts de récolte. Un cerveau illisible repart de zéro.
+
+**Vérifié** :
+
+- sur un joueur imaginaire aux habitudes fixes, le réseau passe de 21 % juste (le hasard : 20 %) à 53 % après 200 leçons, 88 % après 800, 94 % après 2 400 ;
+- la boucle réelle (percevoir, attendre, apprendre) tourne sans erreur ;
+- relu depuis la sauvegarde, il garde la même pensée (écart nul).
+
+**Dans le code** : le bloc LE CERVEAU DU SATELLITE (`IA`, `reseauNeuf`, `propager`, `apprendre`, `iaPercevoir`, `majCerveau`, `lecon`, `ancrePensee`, `piedProche`, `betesAutour`, `descSatellite`, `iaPhoto`, `iaLire`). Il observe par `iaNote`, appelé dans `recolter`, `lancerAttaque`, `tirerFleche` et `lancerSort`. `majSatellite` lui laisse la place après la menace, et la fiche du sac lit `descSatellite`.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-124`), `LISEZ-MOI.md`.

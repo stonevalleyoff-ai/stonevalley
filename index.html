@@ -2606,7 +2606,7 @@ P.sac = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, spore: 0 
 // Les baies sont une matière du sac comme les autres ; P.baies n'en est plus qu'un raccourci.
 P.sac.baies = P.baies | 0; delete P.baies;
 Object.defineProperty(P, 'baies', { get: () => P.sac.baies || 0, set: v => { P.sac.baies = Math.max(0, v | 0); }, configurable: true });
-P.equip = { arme: null, outil: null, armure: null, grimoire: null, accessoire: null, lumiere: null, breloque: null, breloque2: null };   // (breloques : les curiosités, §109)
+P.equip = { arme: null, outil: null, armure: null, grimoire: null, accessoire: null, lumiere: null, breloque: null, breloque2: null, satellite: null };   // (satellite : il vole, ou il est rangé — §156)   // (breloques : les curiosités, §109)
 P.endu = 1; P.epuise = false; P.courseT = -9;   // l'endurance, de 0 à 1
 P.raccourcis = Array(15).fill(null);               // les cases du bord droit : trois barres de cinq, ouvertes par la ceinture
 P.ceinture = 0; P.barre = 0;                       // le niveau de la ceinture (0 : pas de barre), et la barre affichée
@@ -2617,7 +2617,7 @@ P.ogConf = [];                                   // la confiance des colonies d'
 P.poissons = {}; P.carnetPeche = {};             // les poissons du sac, et le carnet de pêche : { id: { n, rec } }
 P.peche = null;                                  // la canne en main (voir LA PÊCHE)
 P.denrees = {}; P.cellier = {}; P.bossVaincus = []; P.plats = []; P.recettes = {};   // la cuisine : viandes et produits de la flore, les plats, le carnet
-P.marmite = null; P.effets = {}; P.pot = null; P.manieres = {}; P.ratees = [];                 // la marmite posée { g, x, y, z }, et les effets des plats : { effet: fin }
+P.marmite = null; P.effets = {}; P.pot = null; P.manieres = {}; P.ratees = []; P.recTr = {};                 // la marmite posée { g, x, y, z }, et les effets des plats : { effet: fin }
 P.objets = {};                                   // ce qui a déjà été fabriqué
 P.mana = 100; P.recolte = 0; P.frappe = 0; P.fleches = 0; P.baumes = 0; P.encre = 0; P.arc = null;
 P.soins = {};                                         // les soins préparés : { id: nombre }
@@ -2736,6 +2736,9 @@ const OBJETS = [
   // accessoire : il ne prend plus la place d'un grimoire, et se joue sur sa propre touche
   { id:'sifflet', et:1, n:"Sifflet d'os",        emp:'accessoire', fil:'compagnes', cout:{os:4,fibre:12},
     d:'rappelle vos compagnes, où qu\'elles soient sur l\'île · touche H' },
+  // (§156) le satellite : un petit automate volant qui se tient à votre épaule ; une case le fait venir ou le range
+  { id:'satellite', et:2, n:'Satellite', emp:'satellite', fil:'compagnes', cout:{ferraille:18,eclat:12,pierre:10,fibre:8},
+    get d() { try { return descSatellite(); } catch (e) { return 'un petit automate volant qui vous suit partout, à l\'épaule'; } } },   // (§157) ce qu'il a appris
   // lumière : sa propre place. La nuit est noire ; la lanterne en repousse le bord bien plus loin.
   { id:'lanterne', et:1, n:'Lanterne', emp:'lumiere', fil:'outil', lum:1, cout:{bois:14,fibre:10,eclat:3},
     d:'la nuit, éclaire sept pas autour de vous au lieu de quatre · les autres joueurs la voient' },
@@ -3189,6 +3192,7 @@ function recolter() {
   P.vx = P.vy = 0;
   P.garde = -99;                                     // l'arme se range : on prend l'outil
   P.anim = { k: 'recolte', g: gesteDe(nd.sp), t0: t, dur: G.dur, coup: G.coup, nd, fait: false, w0: poidsGeste(P), outil: P.equip.outil || null };
+  iaNote('recolte', nd.sp.res);                      // (§157) le satellite l'a vu
   annoncer(P.anim.g, G.dur, P.equip.outil);
   P.recolte = G.dur * .9;
 }
@@ -3994,7 +3998,7 @@ function viser(d, dz, v) {
 
 function tirerFleche(p) {
   if (!essai && P.fleches <= 0) { say('plus de flèches', 1.4); return; }
-  P.agiteT = t;
+  P.agiteT = t; iaNote('coup');                         // (§157)
   if (!essai) P.fleches--;
   const v0 = ARC_VMIN + (ARC_VMAX - ARC_VMIN) * p;
   let dx, dy, dz;
@@ -6329,7 +6333,7 @@ function lancerSort() {
   if (!gr) { say('aucun grimoire équipé', 1.4); return; }
   const cs = coutSort(gr);
   if (manaDispo() < cs) { say('pas assez de mana : il faut ' + eclats(cs) + ' dans le sac', 1.8); return; }
-  let ok = true;
+  let ok = true; iaNote('coup');                          // (§157)
   if (gr.id === 'souffle') {
     let n = 0;
     for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
@@ -6484,6 +6488,7 @@ function equiper(id) {
   const o = objet(id); if (!P.objets[id]) return;
   if (id === 'canne') { prendreCanne(); majSac(); return; }
   if (id === 'marmite') { poserMarmite(); majSac(); return; }
+  if (id === 'satellite') { basculerSatellite(); majSac(); return; }   // (§156)
   if (o.cur) { porterCurio(id); majSac(); return; }      // une curiosité : une breloque, ou l'accessoire libre (§109)
   P.equip[o.emp] = P.equip[o.emp] === id ? null : id; majSac();
 }
@@ -9724,6 +9729,7 @@ function update(dt) {
   majMurs(); majTours(); majToursRaid();             // les remparts de l'île ; les tours de son campement, celles du campement qu'on pille
   cuisineTic(dt);                                    // le plat servi refroidit, ceux du sac se gâtent (voir LA CUISINE)
   grilleCorps();                                     // où sont les corps, pour ce tour (voir LES CORPS)
+  majSatellite(dt);                                  // (§156) le petit automate volant, à l'épaule
   suivreCible(dt);                                    // (§151) la caméra suiveuse, sur une cible désignée
   ang += (angT - ang) * Math.min(1, dt * 9);
   elev += (elevT - elev) * Math.min(1, dt * 7);
@@ -17780,14 +17786,197 @@ const REMARQUABLES = [
   { id: 'hanami', n: 'Panier d\'hanami', indice: 'sous les cerisiers : leurs fleurs, leurs fruits, et une poignée de graines', ok: (ids, F) => ids.includes('p_sakura') && ids.includes('p_griottier') && F.has('graine') },
   { id: 'printemps', n: 'Thé du printemps', indice: 'des fleurs de cerisier, une feuille, et rien d\'autre', ok: (ids, F) => ids.includes('p_sakura') && F.has('feuille') && [...F].every(f => f === 'fleur' || f === 'feuille') },
 ];
+// ============================================================
+//  LES CENT RECETTES (§153)
+//  En plus des plats qui se font d'eux-mêmes (les sortes) et des remarquables d'avant, cent recettes
+//  écrites à la main, de commune à épique. Chacune est un mariage exact : tels ingrédients, ni plus ni
+//  moins (un ingrédient nommé, ou une famille d'une rareté au moins : « racine3 », une racine rare ou
+//  plus ; « * », n'importe quoi). Chacune a son effet, sa manière (le genre), sa vignette (la forme).
+//  Trente-six vont par séries de trois : une recette de deux ingrédients se complète d'un troisième, puis
+//  d'un quatrième, et chaque étape donne un plat meilleur. Le livre le dit, une fois l'étape trouvée.
+//  Dix se transmettent : cinq villageois (selon leur métier) et cinq nomades (selon leur rôle) en
+//  confient une, en clair ; il reste à trouver la manière.
+//  La rareté d'une recette fait ses étoiles, la force et la durée de son effet, un peu de vie en plus.
+// ============================================================
+const RECETTES = [], RECETTE = {};
+function R_(id, n, r, g, f, fx, req, s, e) { const o = { id, n, r, g, f, fx, req: req.split(' '), ...(s ? { s, e } : {}) }; RECETTES.push(o); RECETTE[id] = o; return o; }
+// une série : chaque étape reprend les ingrédients de la précédente, et en ajoute un (« +racine »)
+function S_(g, f, L) { let req = []; L.forEach(([id, n, r, fx, tok, fo], e) => { req = e ? [...req, tok.slice(1)] : tok.split(' '); R_(id, n, r, g, fo || f, fx, req.join(' '), L[0][0], e); }); }
+
+// --- les séries : douze, de trois étapes ---
+S_('bouillon', 'bol', [['passeur', 'Bouillon du passeur', 1, 'souffle', 'gardon p_roseau'],
+  ['passeurherbes', 'Bouillon du passeur aux herbes', 2, 'souffle', '+feuille'],
+  ['passeurgrand', 'Grand bouillon du passeur', 3, 'second', '+poisson3']]);
+S_('four', 'pain', [['bergere', 'Galette de la bergère', 1, 'apprivoiseur', 'p_herbe baie'],
+  ['bergereglands', 'Galette de la bergère aux glands', 2, 'apprivoiseur', '+p_chene'],
+  ['bergeredoree', 'Galette dorée de la bergère', 3, 'meute', '+nectar']]);
+S_('grille', 'broche', [['trappeur', 'Grillade du trappeur', 1, 'fort', 'viande p_pin'],
+  ['trappeurgenievre', 'Grillade du trappeur au genévrier', 2, 'fort', '+p_genevrier'],
+  ['trappeurfestin', 'Festin du trappeur', 3, 'meute', '+v_cerf', 'festin']]);
+S_('saute', 'poele', [['sousbois', 'Poêlée des sous-bois', 1, 'silence', 'p_champi p_fougere'],
+  ['sousboiscepe', 'Poêlée des sous-bois à l\'os-cep', 2, 'robuste', '+p_oscep'],
+  ['sousboisluisant', 'Poêlée des sous-bois luisante', 3, 'nuit', '+p_clavaire']]);
+S_('sucre', 'pot', [['verger', 'Compote du verger', 1, 'cueilleur', 'p_groseillier p_ronce'],
+  ['vergerconfit', 'Confiture du verger', 2, 'cueilleur', '+p_seve'],
+  ['vergersylve', 'Confiture des sylves', 3, 'saut', '+p_murier']]);
+S_('bouillon', 'bol', [['marais', 'Soupe des marais', 2, 'antidote', 'v_crapaud p_massette'],
+  ['maraissphaigne', 'Soupe des marais à la sphaigne', 3, 'antidote', '+p_sphaigne'],
+  ['maraislueurs', 'Soupe des marais aux lueurs', 4, 'nuit', '+champignon4']]);
+S_('infuse', 'tasse', [['cimes', 'Infusion des cimes', 3, 'souffle', 'p_sapin p_edelweiss'],
+  ['cimeslanterne', 'Infusion des cimes au cœur de lanterne', 4, 'plume', '+p_lanterneau'],
+  ['cimeselixir', 'Élixir des cimes', 5, 'second', '+racine5', 'flacon']]);
+S_('grille', 'broche', [['grilbraise', 'Grillade de braise', 4, 'braise', 'v_salamandre p_genevrier'],
+  ['grilbraisefleur', 'Grillade de braise aux pétales', 4, 'braise', '+p_fleurbraise'],
+  ['grilbraisedragon', 'Festin de braise du dragon', 5, 'fort', '+v_dragon', 'festin']]);
+S_('cru', 'salade', [['marees', 'Tartare des marées', 1, 'antidote', 'sardine p_bouleau'],
+  ['mareestruite', 'Tartare des marées à la truite', 2, 'vif', '+truite'],
+  ['mareesplateau', 'Plateau des marées', 3, 'second', '+raie', 'festin']]);
+S_('cru', 'salade', [['jardin', 'Salade du jardin', 1, 'invisible', 'p_bleuet p_fougere'],
+  ['jardinpivoine', 'Salade du jardin à la pivoine', 2, 'souffle', '+p_pivoine'],
+  ['jardincendres', 'Salade des cendres blanches', 3, 'plume', '+p_cendrelys']]);
+S_('four', 'pain', [['caravane', 'Pain de caravane', 2, 'vif', 'p_cypres p_palmier'],
+  ['caravanedesert', 'Pain du désert', 3, 'souffle', '+p_cactus'],
+  ['caravaneseuil', 'Pain du Seuil', 4, 'vif', '+fruit4']]);
+S_('four', 'poele', [['rois', 'Rôti des rois', 3, 'robuste', 'v_cerf p_bambou'],
+  ['roispales', 'Rôti des rois au mycélium', 4, 'robuste', '+p_mycelium'],
+  ['roislune', 'Rôti du roi des marées', 5, 'coeur', '+lune', 'festin']]);
+
+// --- les recettes uniques ---
+// communes
+R_('champs', 'Tartine des champs', 1, 'four', 'pain', 'apprivoiseur', 'p_herbe p_coquelicot');
+R_('glaneur', 'Brochette du glaneur', 1, 'grille', 'broche', 'cueilleur', 'v_glaneur baie');
+R_('foret', 'Potage de la forêt', 1, 'bouillon', 'bol', 'silence', 'p_pin p_massette p_fougere');
+R_('gardonajonc', 'Gardon grillé aux ajoncs', 1, 'grille', 'broche', 'plume', 'gardon p_ajonc');
+R_('bouleau', 'Salade de bouleau', 1, 'cru', 'salade', 'antidote', 'p_bouleau p_lichen');
+R_('glands', 'Galette de glands', 1, 'four', 'pain', 'repousse', 'p_chene p_chene');
+R_('compotebaies', 'Compote de baies sauvages', 1, 'sucre', 'pot', 'souffle', 'baie baie p_ronce');
+R_('ragoutbosseu', 'Ragoût du bosseu', 1, 'mijote', 'bol', 'epines', 'v_bosseu p_roseau p_vesse');
+R_('tisanebleuet', 'Tisane de bleuet', 1, 'infuse', 'tasse', 'nuit', 'p_bleuet p_bouleau');
+R_('poeleevesses', 'Poêlée de vesses-de-loup', 1, 'saute', 'poele', 'repousse', 'p_vesse p_champi');
+R_('potaufeu', 'Pot-au-feu du cotonnier', 1, 'mijote', 'bol', 'surplus', 'v_cotonnier p_massette p_roseau');
+R_('paintresse', 'Pain d\'herbe tressé', 1, 'four', 'pain', 'souffle', 'p_herbe p_pin p_chene');
+R_('sentier', 'Brochette du sentier', 1, 'grille', 'broche', 'fort', 'v_brouteur p_groseillier');
+R_('infusionajonc', 'Infusion d\'ajonc', 1, 'infuse', 'tasse', 'plume', 'p_ajonc p_fougere p_lichen');
+R_('sardines', 'Sardines au sel de roche', 1, 'grille', 'broche', 'antidote', 'sardine sardine');
+R_('chaudree', 'Chaudrée du ruisseau', 1, 'bouillon', 'bol', 'silence', 'gardon sardine p_massette');
+R_('haies', 'Douceur des haies', 1, 'sucre', 'pot', 'apprivoiseur', 'baie p_groseillier p_ronce p_coquelicot');
+// peu communes
+R_('truitegenievre', 'Truite au genévrier', 2, 'grille', 'broche', 'vif', 'truite p_genevrier');
+R_('carpecroute', 'Carpe en croûte d\'herbes', 2, 'four', 'tourte', 'robuste', 'carpe p_herbe p_sapin');
+R_('ragouttraqueur', 'Ragoût du traqueur', 2, 'mijote', 'bol', 'fort', 'v_traqueur p_chardon p_oscep');
+R_('varan', 'Brochette de varan aux airelles', 2, 'grille', 'broche', 'robuste', 'v_varan p_airelle');
+R_('siropseve', 'Sirop de sève à la pivoine', 2, 'sucre', 'flacon', 'souffle', 'p_seve p_pivoine');
+R_('theiris', 'Thé d\'iris', 2, 'infuse', 'tasse', 'nuit', 'p_iris p_sapin');
+R_('pousses', 'Pousses sautées au champignon géant', 2, 'saute', 'poele', 'saut', 'p_bambou p_geant');
+R_('lentigrade', 'Tourte du lentigrade', 2, 'four', 'tourte', 'surplus', 'v_lentigrade p_cypres p_racinoir');
+R_('cerises', 'Cerises à la sève', 2, 'sucre', 'pot', 'vif', 'p_griottier p_seve');
+R_('saladekoi', 'Salade de koï', 2, 'cru', 'salade', 'apprivoiseur', 'koi p_veinee');
+R_('carillon', 'Brochette du carillonneur', 2, 'grille', 'broche', 'repousse', 'v_carillonneur p_palmier');
+R_('bouillonsterne', 'Bouillon de sterne', 2, 'bouillon', 'bol', 'plume', 'v_sterne p_sphaigne p_veinee');
+R_('galettecactus', 'Galette de figue', 2, 'four', 'pain', 'souffle', 'p_cactus p_cypres');
+R_('bramard', 'Fricassée du bramard', 2, 'saute', 'poele', 'surplus', 'v_bramard p_oscep p_bambou');
+R_('nectarglace', 'Nectar aux airelles', 2, 'sucre', 'flacon', 'meute', 'nectar p_airelle');
+// rares
+R_('anguillefumee', 'Anguille fumée au sapin', 3, 'grille', 'broche', 'nuit', 'anguille p_sapin');
+R_('civetcerf', 'Civet de cerf', 3, 'mijote', 'bol', 'robuste', 'v_cerf p_deuil p_racinoir');
+R_('tartemures', 'Tarte aux mûres de sylve', 3, 'four', 'tourte', 'saut', 'p_murier p_seve p_cypres');
+R_('felin', 'Brochette du félin', 3, 'grille', 'broche', 'fort', 'v_felin p_josue');
+R_('rotioglodon', 'Rôti d\'oglodon', 3, 'four', 'poele', 'robuste', 'v_oglodon p_chardon p_mousse');
+R_('cendrelys', 'Infusion de cendrelys', 3, 'infuse', 'tasse', 'plume', 'p_cendrelys p_edelweiss');
+R_('spectre', 'Soupe du spectre', 3, 'bouillon', 'bol', 'invisible', 'v_spectre p_clavaire p_mousse');
+R_('raiebeurre', 'Raie aux baies de deuil', 3, 'saute', 'poele', 'second', 'raie p_deuil');
+R_('geleesakura', 'Gelée de cerisier', 3, 'sucre', 'pot', 'apprivoiseur', 'p_sakura p_seve');
+// exotiques
+R_('salamandresel', 'Salamandre en croûte', 4, 'four', 'tourte', 'braise', 'v_salamandre p_cypres p_chene');
+R_('veloute', 'Velouté de mycélium', 4, 'bouillon', 'bol', 'nuit', 'p_mycelium p_massette p_lichen');
+R_('fruitsverre', 'Fruits de verre au nectar', 4, 'sucre', 'pot', 'vif', 'p_verre p_seve nectar');
+R_('coeurlanterne', 'Cœur de lanterne confit', 4, 'sucre', 'pot', 'nuit', 'p_lanterneau p_griottier');
+R_('coursierrouge', 'Grillade du coursier rouge', 4, 'grille', 'broche', 'epines', 'v_coursier_r p_chardon');
+R_('petalesbraise', 'Pétales de braise poêlés', 4, 'saute', 'poele', 'braise', 'p_fleurbraise p_geant');
+R_('anguillelueurs', 'Bouillon d\'anguille aux lueurs', 4, 'bouillon', 'bol', 'gel', 'anguille champignon4');
+R_('tourtedragon', 'Tourte du dragon', 4, 'four', 'tourte', 'fort', 'v_dragon p_herbe p_pin');
+// légendaires
+R_('lunepleine', 'Soupe de lune pleine', 5, 'bouillon', 'bol', 'souffle', 'lune p_lanterneau p_sapin');
+R_('lunegrillee', 'Lune grillée aux étoiles', 5, 'grille', 'broche', 'nuit', 'lune p_josue');
+R_('coursierargent', 'Coursier d\'argent rôti', 5, 'four', 'poele', 'meute', 'v_coursier_a racine3');
+R_('racinesfour', 'Racines légendaires au four', 5, 'four', 'poele', 'robuste', 'racine5 racine5');
+R_('profondeurs', 'Poêlée des profondeurs', 5, 'saute', 'poele', 'invisible', 'champignon5 p_mycelium');
+R_('confitdragon', 'Confit de dragon', 5, 'mijote', 'bol', 'coeur', 'v_dragon p_lanterneau p_seve');
+R_('anciens', 'Infusion des anciens', 5, 'infuse', 'tasse', 'second', 'racine5 p_edelweiss p_cendrelys');
+R_('painlegendes', 'Pain des légendes', 5, 'four', 'pain', 'coeur', 'racine5 graine fruit4');
+// épiques
+R_('banquet', 'Banquet du Seuil', 6, 'mijote', 'festin', 'coeur', 'lune v_coursier_a racine5 champignon5');
+R_('mondes', 'Bouillon des mondes', 6, 'bouillon', 'bol', 'second', 'lune racine5 p_mycelium p_lanterneau');
+R_('dragonbraise', 'Dragon aux pétales de braise', 6, 'grille', 'festin', 'fort', 'v_dragon p_fleurbraise champignon5');
+R_('eternite', 'Nectar d\'éternité', 6, 'sucre', 'flacon', 'surplus', 'p_lanterneau p_verre nectar racine5');
+R_('couronne', 'Couronne des cimes', 6, 'infuse', 'festin', 'plume', 'p_edelweiss p_josue champignon5 lune');
+R_('roicoursier', 'Festin du roi-coursier', 6, 'grille', 'festin', 'meute', 'v_coursier_a v_coursier_r v_dragon fruit4');
+R_('eclipse', 'Galette d\'éclipse', 6, 'four', 'pain', 'invisible', 'champignon5 champignon5 p_mycelium p_lanterneau');
+
+// --- les dix qui se transmettent : v: un métier du village, n: un rôle de nomade ---
+const RECETTES_DITES = {
+  passeur: ['v:cuisiniere', 'Chez nous, on fait le bouillon du passeur : un gardon, une racine de roseau, et de l\'eau qui frémit. Ma mère disait qu\'il se complète, quand on a le nez.'],
+  chaudree: ['v:pecheur', 'La chaudrée du ruisseau : un gardon, une sardine, une racine de massette. Rien de rare, et ça tient au corps toute la journée.'],
+  civetcerf: ['v:chasseur', 'Le civet de cerf. Du cerf, des baies de deuil, une racine creuse. Laisse mijoter, et n\'y touche pas trop.'],
+  haies: ['v:cueilleuse', 'La douceur des haies : une baie, des groseilles, des mûres et un coquelicot. Les enfants la sentent avant qu\'elle soit prête.'],
+  compotebaies: ['v:enfant', 'Moi je sais faire la compote ! Deux baies et des mûres de ronce. C\'est tout. C\'est un secret, hein.'],
+  caravane: ['n:marchand', 'Le pain de caravane : des cônes de cyprès, des noix de palme. Il voyage mieux que nous. Et on dit qu\'il se complète, au désert.'],
+  bergere: ['n:dresseur', 'La galette de la bergère : des graines d\'herbe haute et une baie. Les bêtes la sentent de loin, et viennent d\'elles-mêmes.'],
+  lunepleine: ['n:conteur', 'On raconte qu\'une soupe de lune pleine — le poisson des orages, un cœur de lanterne, des aiguilles de sapin — rend le souffle aux noyés.'],
+  cimes: ['n:herboriste', 'Là-haut, sur les cimes, on boit une infusion d\'aiguilles de sapin et d\'edelweiss. Les vieux y ajoutaient autre chose… je n\'ai jamais su quoi.'],
+  lunegrillee: ['n:devin', 'Je vois une lune sur la braise… le poisson des orages, et une fleur de Josué. Grillés ensemble. Fais-en bon usage.'],
+};
+for (const [id, [tr, dit]] of Object.entries(RECETTES_DITES)) Object.assign(RECETTE[id], { tr, dit });
+
+// --- le mariage : chaque ingrédient de la marmite tient une place de la recette, et il n'en reste aucun ---
+const reqVa = (tok, id) => { const i = INGR[id]; if (!i) return false; if (INGR[tok]) return tok === id;
+  const m = /^(\*|[a-z]+)(\d?)$/.exec(tok); return !!m && (m[1] === '*' || i.fam === m[1]) && i.r >= (+m[2] || 1); };
+function apparie(req, ids) {
+  if (req.length !== ids.length) return false;
+  const pris = new Array(ids.length).fill(false);
+  const va = k => { if (k === req.length) return true;
+    for (let j = 0; j < ids.length; j++) if (!pris[j] && reqVa(req[k], ids[j])) { pris[j] = true; if (va(k + 1)) return true; pris[j] = false; }
+    return false; };
+  return va(0);
+}
+// les plus précises d'abord : les ingrédients nommés, puis les raretés demandées
+const precision = R => R.req.reduce((s, t) => s + (INGR[t] ? 10 : t === '*' ? 0 : 1 + (+t.slice(-1) || 1) * .1), 0);
+const RECETTES_TRI = RECETTES.slice().sort((a, b) => precision(b) - precision(a));
+const recetteDuPot = ids => RECETTES_TRI.find(R => apparie(R.req, ids)) || null;
+// ce que demande une place, en clair
+const UN_FAM = { viande: 'une viande', poisson: 'un poisson', fruit: 'un fruit', racine: 'une racine', graine: 'une graine', fleur: 'une fleur', feuille: 'une feuille', champignon: 'un champignon', douceur: 'une douceur', '*': 'un ingrédient' };
+const RARETES_M = ['commun', 'peu commun', 'rare', 'exotique', 'légendaire', 'épique'];
+function ditReq(tok) {
+  if (INGR[tok]) { const n = INGR[tok].n; return n[0].toLowerCase() + n.slice(1); }
+  const m = /^(\*|[a-z]+)(\d?)$/.exec(tok), r = +m[2] || 1, masc = /^un /.test(UN_FAM[m[1]]);
+  return UN_FAM[m[1]] + (r > 1 ? ' ' + (masc ? RARETES_M : RARETES)[r - 1] + ' ou plus' : '');
+}
+const ditReqs = R => R.req.map(ditReq).join(', ');
+// la suivante d'une série, si elle existe
+const recetteSuivante = R => R.s ? RECETTES.find(o => o.s === R.s && o.e === R.e + 1) || null : null;
+// Une recette confiée : au livre, en clair. Une fois, et pas si on la sait déjà.
+function transmettreRecette(id, qui) {
+  const R = RECETTE[id]; if (!R || P.recTr[id] || P.recettes['r:' + id]) return false;
+  P.recTr[id] = String(qui).slice(0, 60);
+  say('recette notée au livre · ' + R.n + ' · ' + ditReqs(R), 4.5);
+  if (typeof jnl === 'function') jnl('recette', { id, de: R.tr });
+  return true;
+}
+const recetteA = cle => RECETTES.find(R => R.tr === cle) || null;
+// le nomade : un choix de plus à l'accueil, tant qu'il a une recette à confier (nomades.js)
+function recetteNomade(b) {
+  const R = recetteA('n:' + b.nm.role); if (!R || P.recTr[R.id] || P.recettes['r:' + R.id]) return null;
+  return { t: 'Tu connais une recette de la route ?', va: 'accueil', fait: () => { transmettreRecette(R.id, b.nm.nom + ', ' + (typeof nmRole === 'function' ? nmRole(b.nm) : b.nm.role)); return R.dit; } };
+}
 function preparer(ids) {
   const L = ids.map(id => INGR[id]).filter(Boolean);
   if (!L.length) return null;
   const F = new Set(L.map(i => i.fam)), has = f => F.has(f), seul = (...fs) => [...F].every(f => fs.includes(f));
   const pire = fs => L.filter(i => fs.includes(i.fam)).sort((a, b) => b.r - a.r)[0];   // le plus précieux d'une famille
-  const R = REMARQUABLES.find(r => r.ok(ids, F));
+  const Rn = recetteDuPot(ids), R = Rn ? null : REMARQUABLES.find(r => r.ok(ids, F));   // (§153) les cent recettes d'abord : des mariages exacts
   let cle, n;
-  if (R) { cle = 'r:' + R.id; n = R.n; }
+  if (Rn) { cle = 'r:' + Rn.id; n = Rn.n; }
+  else if (R) { cle = 'r:' + R.id; n = R.n; }
   else {
     const prot = pire(['viande', 'poisson']), cat = (k, nom, main) => { cle = k + ':' + (main ? main.id : ''); n = nom; };
     if (has('viande') && has('poisson')) cat('mt', 'Terre et mer : ' + pire(['viande']).court + ' et ' + pire(['poisson']).court, null);
@@ -17810,17 +17999,18 @@ function preparer(ids) {
     else cat('voyageur', 'Plat du voyageur', null);
   }
   // les étoiles : la rareté, la variété, un plat qui tient debout, un mariage remarquable
-  const score = L.reduce((s, i) => s + i.r, 0) + (F.size - 1) * 1.2 + (cle.startsWith('voyageur') ? 0 : 1) + (R ? 3 : 0);
-  const q = Math.max(R ? 4 : 1, Math.min(5, Math.round(score / 2.6)));
-  const soin = Math.min(1, L.reduce((s, i) => s + i.soin, 0) * (.8 + .15 * q) + (R && R.id === 'lune' ? 1 : 0));
+  const score = L.reduce((s, i) => s + i.r, 0) + (F.size - 1) * 1.2 + (cle.startsWith('voyageur') ? 0 : 1) + (R || Rn ? 3 : 0);
+  const q = Math.max(Rn ? [3, 3, 4, 4, 5, 5][Rn.r - 1] : R ? 4 : 1, Math.min(5, Math.round(score / 2.6)));   // (§153) la rareté de la recette fait ses étoiles
+  const soin = Math.min(1, L.reduce((s, i) => s + i.soin, 0) * (.8 + .15 * q) + (R && R.id === 'lune' ? 1 : 0) + (Rn ? .04 * Rn.r : 0));
   // l'effet : celui qui revient le plus ; deux effets à égalité se contrarient
   // la flore de flore.js (§117) : commune et peu commune comme un ingrédient ordinaire (1), rare et exotique 2, légendaire 3, épique 4
   const rang = i => i.id && i.id.startsWith('p_fl') ? (i.r >= 6 ? 4 : i.r >= 5 ? 3 : i.r >= 3 ? 2 : 1) : 1;
-  const pu = Math.max(...L.map(rang));
+  const pu = Math.max(...L.map(rang), Rn ? [1, 1, 2, 2, 3, 4][Rn.r - 1] : 1);   // (§153) une recette légendaire porte loin son effet
   const cpt = {}; for (const i of L) if (i.tag) cpt[i.tag] = (cpt[i.tag] || 0) + rang(i);
+  if (Rn) { const v = (cpt[Rn.fx] || 0) + 1 + Rn.r; for (const x in cpt) delete cpt[x]; cpt[Rn.fx] = v; }   // (§153) son effet à elle, seul
   const tri = Object.entries(cpt).sort((a, b) => b[1] - a[1]);
   const tag = tri.length && (tri.length === 1 || tri[0][1] > tri[1][1]) ? tri[0][0] : null;
-  const d = tag ? Math.round(Math.min(pu >= 3 ? 1200 : 600, 45 * cpt[tag] * (1 + .3 * (q - 1)) * (R ? 2 : 1) * (pu >= 2 ? 1.5 : 1))) : 0;
+  const d = tag ? Math.round(Math.min(pu >= 3 ? 1200 : 600, 45 * cpt[tag] * (1 + .3 * (q - 1)) * (R || Rn ? 2 : 1) * (pu >= 2 ? 1.5 : 1))) : 0;
   const souffle = has('fruit') || has('douceur') || has('fleur') ? 1 : 0;
   const main = L.slice().sort((a, b) => b.r - a.r)[0];
   const soinF = pu >= 4 ? 1 : Math.min(1, soin + (pu >= 3 ? .3 : pu >= 2 ? .1 : 0));
@@ -17839,6 +18029,9 @@ const GARDE_MOMENT = 20 * 60, GARDE_CHAUD = 10 * 60;
 const CONSERVE = { ragout: [3, 0], soupe: [3, 0], bois: [3, 0], mt: [2, 0], tourte: [2, 1], confiture: [2, 1], sirop: [2, 1],
   caramel: [1, 1], pain: [2, 1], galette: [2, 1], 'r:lune': [3, 0], 'r:ambre': [4, 1], 'r:horlogers': [4, 0],
   'r:lanterne': [2, 1], 'r:braise': [3, 0], 'r:premiers': [3, 1], 'r:hanami': [4, 1], 'r:printemps': [2, 1] };
+// (§153) les cent recettes : la conservation suit leur manière ; les légendaires et les épiques font une part de plus
+{ const CG = { mijote: [3, 0], bouillon: [3, 0], four: [2, 1], sucre: [2, 1], infuse: [2, 1], cru: [2, 0] };
+  for (const R of RECETTES) { const k = CG[R.g]; if (k) CONSERVE['r:' + R.id] = [k[0] + (R.r >= 5 ? 1 : 0), k[1]]; else if (R.r >= 5) CONSERVE['r:' + R.id] = [2, 0]; } }
 const conserve = c => CONSERVE[c.startsWith('r:') ? c : c.split(':')[0]] || null;   // [parts, longue] ; null : un plat chaud
 const dureeTxt = s => { const m = Math.ceil(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') : m + ' min'; };
 const gardeTxt = p => ((p.parts || 1) > 1 ? p.parts + ' parts · ' : '') + (p.g === undefined ? 'longue conservation' : 'se garde encore ' + dureeTxt(p.g));
@@ -18052,6 +18245,12 @@ DESSINS.seau = d => {                               // (§119) un seau de bois c
 DESSINS.marmite = d => { d.rect(3, 6, 12, 12, [80, 76, 74]); d.rect(2, 5, 13, 6, [110, 104, 100]); d.rect(4, 7, 11, 7, [120, 170, 100]); d.ligne(1, 5, 1, 8, [110, 104, 100]); d.ligne(14, 5, 14, 8, [110, 104, 100]);
   d.rect(4, 13, 11, 14, [246, 150, 52]); d.net(6, 15, [255, 210, 110]); d.net(9, 15, [255, 210, 110]); d.ligne(6, 3, 7, 1, [236, 236, 236]); d.ligne(9, 3, 10, 1, [236, 236, 236]); };
 DESSINS.ongletCuisine = DESSINS.marmite;
+DESSINS.satellite = d => {   // (§156) une boule de métal, sa coque claire, son œil, deux ailerons, l'antenne
+  d.ligne(3, 8, 1, 5, PIX.or); d.ligne(13, 8, 15, 5, PIX.or);
+  d.disque(8, 9, 4.6, [72, 80, 98]); d.disque(7.5, 7.8, 3.3, [190, 200, 216]);
+  d.disque(10.4, 9.2, 1.7, PIX.eclatC); d.ligne(7, 4, 6, 1, [150, 160, 178]); d.disque(6, 1, .8, PIX.eclat);
+  d.ligne(7, 14, 9, 14, PIX.eclat);
+};
 DESSINS.bandage = d => { d.rect(3, 6, 12, 11, PIX.osC); d.rect(3, 6, 12, 6, PIX.os); d.rect(3, 11, 12, 11, PIX.os); d.rect(11, 7, 12, 10, PIX.os); d.rect(5, 8, 7, 9, PIX.rougeC); d.ligne(12, 11, 14, 13, PIX.osC); };
 DESSINS.cataplasme = d => { d.disque(8, 8.5, 5.2, PIX.vert); d.disque(8, 8.5, 3.6, PIX.vertC); d.rect(7, 6, 8, 11, PIX.papier); d.rect(5, 8, 10, 9, PIX.papier); };
 DESSINS.elixir = d => { d.rect(7, 2, 8, 4, PIX.cuir); d.rect(6, 5, 9, 5, PIX.bleuC); d.rect(5, 6, 10, 13, PIX.bleuC); d.rect(6, 8, 9, 12, PIX.rouge); d.rect(6, 8, 9, 8, PIX.rougeC); d.net(7, 10, PIX.papier); };
@@ -18188,6 +18387,31 @@ function potionDe(k) {
 }
 const recetteAlch = q => (q.motif || ALCH_MOTIF[q.rg + q.dec]).map(([f, r]) => f === 'E' ? { fam: 'eclat', r: 1, n: r } : { fam: f === '*' ? '*' : q.fam['ABC'.indexOf(f)], r });
 const coutAlch = q => q.cout || ALCH_COUT[q.rg + q.dec];
+// (§152) Ce qui manque pour mener la potion au bout : les éclats des étapes et ceux de la fiole, ce que coûte
+// la fiole, et un ingrédient pour chaque étape — chacun ne sert qu'une fois (un appariement, étape par étape).
+// Une liste vide : tout y est.
+function manqueAlch(q) {
+  if (essai || !q) return [];
+  const R = recetteAlch(q), cout = { ...(coutAlch(q) || {}) }, L = [];
+  for (const e of R) if (e.fam === 'eclat') cout.eclat = (cout.eclat || 0) + e.n;
+  for (const [r, n] of Object.entries(cout)) { const m = n - dispo(r); if (m > 0) L.push(enMilliers(m) + ' ' + (m > 1 ? PLURIEL[r] || RES[r] || r : RES[r] || r)); }
+  const E = R.filter(e => e.fam !== 'eclat'), stock = {};
+  for (const id in INGR) { const n = qteIngr(id); if (n > 0) stock[id] = n; }
+  const cands = E.map(e => Object.keys(stock).filter(id => etapeVa(e, id))), pris = {};
+  const placer = (i, vu) => {
+    for (const id of cands[i]) { if (vu.has(id)) continue; vu.add(id);
+      const T = pris[id] || (pris[id] = []);
+      if (T.length < stock[id]) { T.push(i); return true; }
+      for (let j = 0; j < T.length; j++) if (placer(T[j], vu)) { T[j] = i; return true; } }
+    return false;
+  };
+  const sans = new Map();
+  E.forEach((e, i) => { if (!placer(i, new Set())) { const c = NOM_ETAPE[e.fam].toLowerCase() + (e.r > 1 ? ' (' + RARETES[e.r - 1] + ' ou plus)' : ''); sans.set(c, (sans.get(c) || 0) + 1); } });
+  for (const [c, n] of sans) L.push((n > 1 ? n + ' × ' : '') + c);
+  return L;
+}
+// Le chaudron de cette potion a-t-il déjà reçu quelque chose ? Une fois commencée, on la mène au bout.
+const commenceeAlch = q => !!P.chaudron && P.chaudron.c === q.k && P.chaudron.e.some(Boolean);
 const etapeVa = (e, id) => { if (id === 'eclat' || e.fam === 'eclat') return id === 'eclat' && e.fam === 'eclat'; const i = INGR[id]; return !!i && (e.fam === '*' || i.fam === e.fam) && i.r >= e.r; };
 const ditEtape = e => e.fam === 'eclat' ? 'Éclats · ' + e.n : NOM_ETAPE[e.fam] + ' · ' + (e.r <= 1 ? 'toute rareté' : RARETES[e.r - 1] + ' ou plus');
 const nomPotion = q => q.g === 'encre' ? 'éclat d\'encre' : q.g === 'comp' ? 'potion d\'éveil (' + q.n.toLowerCase() + ')' : 'potion de ' + q.n.toLowerCase();
@@ -18251,6 +18475,7 @@ function freinAlch(q) {
   const nv = q.niv || ALCH_NIV[q.rg + q.dec]; if (niv < nv) return 'cette potion demande la table d\'alchimie au niveau ' + nv;
   if (!alchimieIci()) return 'il faut être à la table d\'alchimie, au campement';
   if (q.c && q.c.ko) return q.c.nom + ' est à terre : relevez-la d\'abord';
+  if (!commenceeAlch(q)) { const m = manqueAlch(q); if (m.length) return 'il manque ' + m.join(', '); }   // (§152) rien ne commence sans tout ce qu'il faut
   return '';
 }
 // Le chaudron : la potion visée (c), l'ingrédient de chaque étape (e) et ce qu'il a trouvé en tombant (s : le cran
@@ -18629,6 +18854,7 @@ function alStyle() {
     + '.al-carnet{display:flex;flex-direction:column;gap:4px;}.al-carnet>div{padding:6px 8px;border-radius:8px;background:rgba(255,255,255,.03);}.al-carnet b{display:block;font-size:12.5px;}.al-carnet em{font-style:normal;color:#ffd27d;}.al-carnet small{display:block;color:#8d9ab4;font-size:10.5px;}'
     + '.al-t i{font-style:normal;font-size:8px;letter-spacing:1px;color:#ffd27d;}.al-t i u{text-decoration:none;color:rgba(255,255,255,.2);}'
     + '.al-t.on{border-color:#ffd27d;background:rgba(255,210,125,.13);box-shadow:inset 0 0 0 1px #ffd27d;}.al-t.max b{color:#ffd27d;}.al-t:disabled{opacity:.35;cursor:default;}'
+    + '.al-t.manque{opacity:.62;}.al-t.manque s{color:#e07a6a;}.al-t.manque.on{opacity:1;}'
     + '.al-m{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px;margin:0 auto;}'
     + '.al-m canvas{position:static;inset:auto;width:336px;height:288px;image-rendering:pixelated;border-radius:10px;background:#141822;box-shadow:inset 0 0 0 1px rgba(190,205,230,.15);}'
     + '.al-etat{font-size:11.5px;color:#aab6cc;min-height:1.3em;text-align:center;}'
@@ -18718,7 +18944,9 @@ function alGeste(g) {
       if (!q || q.rg >= q.max) { dire(q ? q.n.toLowerCase() + ' · au plus haut' : 'rien à préparer', 2); return rendreAlchimie(); }
       const n = chaudronNeuf(id); ch.c = id; ch.e = n.e; ch.s = n.s;   // de l'eau seule, sur le feu : elle sert à la suivante
     }
-    alchChoix = id; AL.vid = 0; AL.der = null; AL.vue = null; return rendreAlchimie();
+    alchChoix = id; AL.vid = 0; AL.der = null; AL.vue = null;
+    if (q && q.rg < q.max && !commenceeAlch(q)) { const m = manqueAlch(q); if (m.length) dire('il manque ' + m.join(', ') + ' · ' + nomPotion(q) + ' ne peut pas commencer', 2.8); }   // (§152)
+    return rendreAlchimie();
   }
   if (g === 'eau') loucheAlch();
   else if (g === 'feu+') feuAlch(1);
@@ -18742,7 +18970,8 @@ function rendreAlchimie() {
   pose('.al-res', `<span>${img('eclat')}${dispo('eclat')}</span><span>${img('spore')}${dispo('spore')}</span>`);
   // à gauche : les potions, les vôtres puis celles des compagnes
   const tuile = (id, nom, r, max, ic, val) => { const on = id === k;   // (§140) la valeur d'aujourd'hui, sous le nom : la fiche du personnage
-    return `<button class="al-t${on ? ' on' : ''}${max && r >= max ? ' max' : ''}" data-al="p:${id}"${verse && !on ? ' disabled' : ''} aria-pressed="${on}" title="${ESC(nom + ' · ' + val + (max ? ' · rang ' + r + ' sur ' + max : ''))}">${img(ic)}<span><b>${ESC(nom)}</b><s>${ESC(val)}</s>${max ? `<i>${'●'.repeat(r)}<u>${'●'.repeat(max - r)}</u></i>` : ''}</span></button>`; };
+    const pq = !(max && r >= max) && !(on && verse) ? potionDe(id) : null, mq = pq ? manqueAlch(pq) : [];   // (§152) ce qui manque pour la faire
+    return `<button class="al-t${on ? ' on' : ''}${max && r >= max ? ' max' : ''}${mq.length ? ' manque' : ''}" data-al="p:${id}"${verse && !on ? ' disabled' : ''} aria-pressed="${on}" title="${ESC(nom + ' · ' + val + (max ? ' · rang ' + r + ' sur ' + max : '') + (mq.length ? ' · il manque ' + mq.join(', ') : ''))}">${img(ic)}<span><b>${ESC(nom)}</b><s>${ESC(mq.length ? 'manque' : val)}</s>${max ? `<i>${'●'.repeat(r)}<u>${'●'.repeat(max - r)}</u></i>` : ''}</span></button>`; };
   let g = `<div class="al-h">Vous</div><div class="al-tuiles">` + ALCH.map(a => tuile(a.id, a.n, rangAlch(a.id), ALCH_MAX, 'fiole_' + a.id, a.v(rangAlch(a.id)))).join('') + `</div>`
     + `<div class="al-h">Le grimoire</div><div class="al-tuiles">` + tuile('encre', 'Encre', 0, 0, 'encre', (P.encre | 0) + ' éclat' + (P.encre > 1 ? 's' : '')) + `</div>`;   // (§142)
   for (const c of P.compagnes) { const f = compDe(c), id = 'c' + c.id + ':';
@@ -19308,6 +19537,309 @@ function murSort(x0, y0, x1, y1, z, moi) {                 // moi : le pas du jo
     if (distSeg(ix, iy, w) < .05) return w;
   }
   return null;
+}
+// ============================================================
+//  LE SATELLITE (§156)
+//  Un petit automate volant, à la façon des compagnons de Phantasy Star Online : il se tient à votre
+//  épaule, un peu en arrière, et vous suit partout. Il se fabrique à l'établi (niveau 2) ; une case du
+//  bord le fait venir ou le range. Pour l'instant, il ne fait que suivre — mais il suit avec tête :
+//  - il anticipe : il vise où vous allez, pas où vous êtes, et se range derrière vous quand vous courez ;
+//  - il vole par-dessus le relief, sous les dalles, jamais dans votre corps ni devant l'œil ;
+//  - immobile, vous : il flâne autour de vous, et s'en va regarder de près une bête ou une baie ;
+//  - une bête qui menace : il se place entre elle et vous, l'œil orange, et bipe une fois ;
+//  - semé (trop loin, ou coincé) : il saute à vos côtés dans un éclair.
+//  Son corps se penche dans le mouvement, ses ailerons battent, son œil suit ce qui l'intéresse.
+// ============================================================
+const SAT = { on: false, vu: false, x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, cap: 0, inc: 0, oeil: [0, 0, 0], humeur: 'calme',
+  pvx: 0, pvy: 0, px: 0, py: 0, immobile: 0, orbite: 0, curio: null, curioT: 0, curioQ: 0, bloque: 0, dPrec: 0, alerte: null, bipT: -99, feuT: 0 };
+const SAT_NOMS = ['Pip', 'Lumo', 'Tic', 'Orbi', 'Brin', 'Nox', 'Mica', 'Volt', 'Kiki', 'Zéphyr', 'Plume', 'Bobine'];
+function nomSatellite() { let h = 7; for (const c of String(Compte.uid || SEED)) h = (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0; return SAT_NOMS[h % SAT_NOMS.length]; }
+const satActif = () => !!(P.objets.satellite && P.equip.satellite);
+const SAT_OEIL = { calme: [120, 232, 255], curieux: [170, 255, 160], alerte: [255, 150, 60], saut: [255, 255, 255],
+  p_recolter: [150, 255, 130], p_combattre: [255, 196, 80], p_fuir: [200, 170, 255], p_explorer: [255, 236, 170] };   // (§157) la couleur de sa pensée
+// le sol sous lui : le relief, ou la dalle sur laquelle on se tient
+function solSat(x, y, z) { const i = x | 0, j = y | 0, h = hAt(i, j), t = plaT(i, j); return t && t <= z + .4 ? Math.max(h, t) : h; }
+function basculerSatellite() {
+  if (!P.objets.satellite) return;
+  P.equip.satellite = P.equip.satellite ? null : 'satellite';
+  if (!P.equip.satellite) say(nomSatellite() + ' se replie dans votre sac', 1.6);
+}
+function sautSat(x, y, z) {                                  // un éclair : il disparaît là, reparaît ici
+  if (SAT.vu) burst(SAT.x, SAT.y, SAT.z, 8, '#8fe8ff');
+  SAT.x = x; SAT.y = y; SAT.z = z; SAT.vx = SAT.vy = SAT.vz = 0; SAT.bloque = 0;
+  burst(x, y, z, 10, '#d8fbff'); SAT.humeur = 'saut'; SAT.bipT = t;
+}
+function majSatellite(dt) {
+  const actif = satActif() && P.pv > 0;
+  if (!actif) { if (SAT.on) { burst(SAT.x, SAT.y, SAT.z, 10, '#8fe8ff'); SAT.on = false; } SAT.vu = false; return; }
+  if (!SAT.on) {                                             // il s'allume, et vient se placer
+    SAT.on = true; SAT.px = P.x; SAT.py = P.y;
+    sautSat(P.x, P.y, P.z + 1.1);
+    say(nomSatellite() + ' s\'allume et vient se placer à votre épaule', 2.2); SON.jouer('tic', {}, P.x, P.y, P.z + 1);
+  }
+  SAT.vu = true;
+  if (!(dt > 0)) return;
+  // --- ce que fait le joueur : sa vitesse (lissée), depuis combien de temps il ne bouge plus ---
+  const ivx = (P.x - SAT.px) / dt, ivy = (P.y - SAT.py) / dt; SAT.px = P.x; SAT.py = P.y;
+  if (Math.hypot(ivx, ivy) > 30) { SAT.pvx = SAT.pvy = 0; } else { const k = Math.min(1, dt * 6); SAT.pvx += (ivx - SAT.pvx) * k; SAT.pvy += (ivy - SAT.pvy) * k; }
+  const vit = Math.hypot(SAT.pvx, SAT.pvy);
+  SAT.immobile = vit < .4 ? SAT.immobile + dt : 0;
+  majCerveau(dt);                                            // (§157) il perçoit, devine, apprend
+  const fps = mode === 'fps', cap = fps ? yaw : (P.faceS ?? P.face ?? 0), hautJ = P.z + (P.selle || 0);
+  // --- ce qui l'inquiète : la cible, si elle menace et qu'elle est proche ---
+  const cv = typeof cibleVue === 'function' ? cibleVue() : null;
+  const men = cv && cv.sp && menaceCible(cv) && (cv.x - P.x) ** 2 + (cv.y - P.y) ** 2 < 100 ? cv : null;
+  if (men && SAT.alerte !== men) { SAT.alerte = men; if (t - SAT.bipT > 1.5) { SAT.bipT = t; SON.jouer('tic', {}, SAT.x, SAT.y, SAT.z); } }
+  if (!men) SAT.alerte = null;
+  // --- ce qui l'intéresse, quand vous ne bougez plus : une bête, une baie mûre, pas loin ---
+  SAT.curioT -= dt;
+  if (SAT.curio && (SAT.curioT <= 0 || SAT.immobile < 1 || men)) SAT.curio = null;
+  if (!SAT.curio && !men && SAT.immobile > 4 && t > SAT.curioQ) {
+    SAT.curioQ = t + 5 + Math.random() * 4;
+    const C = [];
+    for (const b of beasts) if (!b.dead && b.pv > 0 && !b.cache && !(b.camo > .5) && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 49) C.push([b.x, b.y, b.z + .4 * (b.sp.sz || 1)]);
+    for (const br of berries) if (baieMure(br) && (br.x - P.x) ** 2 + (br.y - P.y) ** 2 < 36) C.push([br.x, br.y, br.z + br.e.h * .7]);
+    if (C.length && Math.random() < .7) { SAT.curio = C[Math.random() * C.length | 0]; SAT.curioT = 3 + Math.random() * 2; }
+  }
+  // --- où il veut être ---
+  let ax, ay, az, anc = null;
+  if (men) {                                                 // entre vous et la bête
+    const a = Math.atan2(men.y - P.y, men.x - P.x); ax = P.x + Math.cos(a) * .75; ay = P.y + Math.sin(a) * .75; az = hautJ + .7;
+  } else if (IA.pense && (anc = ancrePensee(IA.pense, cap, hautJ))) {   // (§157) ce qu'il a appris de vous : il devance votre geste
+    [ax, ay, az] = anc;
+  } else if (SAT.curio) {                                    // de près, ce qui l'intéresse
+    const [cx, cy, cz] = SAT.curio, a = Math.atan2(P.y - cy, P.x - cx); ax = cx + Math.cos(a) * .55; ay = cy + Math.sin(a) * .55; az = cz + .45;
+  } else if (SAT.immobile > 6) {                             // il flâne autour de vous
+    SAT.orbite += dt * .45; ax = P.x + Math.cos(SAT.orbite) * 1.05; ay = P.y + Math.sin(SAT.orbite) * 1.05; az = hautJ + .95 + .12 * Math.sin(t * .8);
+  } else {                                                   // à l'épaule droite, un peu derrière ; derrière vous quand vous courez
+    const a = vit > .6 ? Math.atan2(SAT.pvy, SAT.pvx) + Math.PI - .55 : cap - (fps ? 1.9 : 2.3), r = vit > .6 ? .7 : fps ? .9 : .62;
+    const lead = Math.min(1.2, vit * .3);                    // il vise où vous allez
+    ax = P.x + Math.cos(a) * r + (vit > .1 ? SAT.pvx / vit * lead : 0); ay = P.y + Math.sin(a) * r + (vit > .1 ? SAT.pvy / vit * lead : 0); az = hautJ + (fps ? .5 : .95);
+    if (!SAT.immobile) SAT.orbite = Math.atan2(ay - P.y, ax - P.x);   // la flânerie repartira d'ici
+  }
+  az += .05 * Math.sin(t * 2.2);                             // il flotte
+  az = Math.max(az, solSat(ax, ay, az) + .35);
+  // --- semé : trop loin, ou coincé depuis deux secondes ---
+  const dx = ax - SAT.x, dy = ay - SAT.y, dz = az - SAT.z, d = Math.hypot(dx, dy, dz);
+  SAT.bloque = d > 2.5 && SAT.dPrec - d < dt * .5 ? SAT.bloque + dt : Math.max(0, SAT.bloque - dt);   // loin, et il ne se rapproche plus
+  SAT.dPrec = d;
+  if (d > 12 || SAT.bloque > 2) { sautSat(ax, ay, az); return; }
+  // --- le vol : un ressort amorti (il arrive vite, sans osciller), une vitesse bornée ---
+  const k = SAT.curio ? 10 : men ? 22 : 16, c = 2 * Math.sqrt(k);
+  SAT.vx += (k * dx - c * SAT.vx) * dt; SAT.vy += (k * dy - c * SAT.vy) * dt; SAT.vz += (k * dz - c * SAT.vz) * dt;
+  const v = Math.hypot(SAT.vx, SAT.vy, SAT.vz), vmax = Math.max(3, Math.min(14, d * 3.5));
+  if (v > vmax) { SAT.vx *= vmax / v; SAT.vy *= vmax / v; SAT.vz *= vmax / v; }
+  SAT.x += SAT.vx * dt; SAT.y += SAT.vy * dt; SAT.z += SAT.vz * dt;
+  // --- le relief : il passe par-dessus, ou sous la dalle si vous êtes dessous ---
+  const g = solSat(SAT.x, SAT.y, SAT.z);
+  if (SAT.z < g + .3) { SAT.z = g + .3; if (SAT.vz < 0) SAT.vz = 0; }
+  const pt = plaT(SAT.x | 0, SAT.y | 0), pb = plaB(SAT.x | 0, SAT.y | 0);
+  if (pt && SAT.z > pb - .2 && SAT.z < pt + .3) { if (hautJ < pb) { SAT.z = pb - .2; SAT.vz = Math.min(0, SAT.vz); } else { SAT.z = pt + .3; SAT.vz = Math.max(0, SAT.vz); } }
+  // --- jamais dans votre corps ; en 1re personne, jamais collé à l'œil ---
+  { const ex = SAT.x - P.x, ey = SAT.y - P.y, h = Math.hypot(ex, ey) || .01;
+    if (h < .4 && SAT.z < hautJ + PH + .15) { SAT.x = P.x + ex / h * .4; SAT.y = P.y + ey / h * .4; }
+    if (fps) { const oz = hautJ + EYE, dd = Math.hypot(ex, ey, SAT.z - oz); if (dd < .55) { const s = .55 / (dd || .01); SAT.x = P.x + ex * s; SAT.y = P.y + ey * s; SAT.z = oz + (SAT.z - oz) * s; } } }
+  // --- l'humeur, l'œil, le corps ---
+  SAT.humeur = SAT.humeur === 'saut' && t - SAT.bipT < .4 ? 'saut' : men ? 'alerte' : anc ? 'p_' + IA.pense : SAT.curio ? 'curieux' : 'calme';
+  const reg = men ? [men.x, men.y, men.z + .4 * (men.sp.sz || 1)] : anc && IA.pense === 'recolter' ? [anc[0], anc[1], anc[2] - 1.05] : SAT.curio ? SAT.curio
+    : cv && (cv.x - P.x) ** 2 + (cv.y - P.y) ** 2 < 64 ? [cv.x, cv.y, cv.z + .4] : [P.x + Math.cos(cap) * 4, P.y + Math.sin(cap) * 4, hautJ + .4];
+  for (let i = 0; i < 3; i++) SAT.oeil[i] += (reg[i] - SAT.oeil[i]) * Math.min(1, dt * 5);
+  const capV = Math.atan2(SAT.oeil[1] - SAT.y, SAT.oeil[0] - SAT.x);
+  SAT.cap += ecartAng(capV, SAT.cap) * Math.min(1, dt * 6);
+  const vh = Math.hypot(SAT.vx, SAT.vy), avance = vh > .2 ? (SAT.vx * Math.cos(SAT.cap) + SAT.vy * Math.sin(SAT.cap)) / vh : 0;
+  SAT.inc += (Math.max(-.5, Math.min(.5, avance * vh * .08)) - SAT.inc) * Math.min(1, dt * 5);   // il se penche dans le mouvement
+  // la petite flamme sous lui
+  SAT.feuT -= dt;
+  if (SAT.feuT <= 0) { SAT.feuT = vh > 2 ? .04 : .12; const o = SAT_OEIL[SAT.humeur];
+    parts.push({ x: SAT.x + (Math.random() - .5) * .04, y: SAT.y + (Math.random() - .5) * .04, z: SAT.z - .08, vx: -SAT.vx * .1, vy: -SAT.vy * .1, vz: -.35, g: 0, life: .3, age: 0,
+      col: '#' + o.map(x => (x | 0).toString(16).padStart(2, '0')).join(''), luit: 1, tl: .035 }); }
+}
+// Son corps, en quelques boîtes : [A, B, largeur, hauteur, couleur, lumineux]
+function osSatellite() {
+  const S = SAT, ca = Math.cos(S.cap), sa = Math.sin(S.cap), ci = Math.cos(S.inc), si = Math.sin(S.inc);
+  const f = [ca * ci, sa * ci, -si], r = [-sa, ca, 0], u = [ca * si, sa * si, ci], oe = SAT_OEIL[S.humeur] || SAT_OEIL.calme;
+  const at = (a, b, c) => [S.x + f[0] * a + r[0] * b + u[0] * c, S.y + f[1] * a + r[1] * b + u[1] * c, S.z + f[2] * a + r[2] * b + u[2] * c];
+  const bat = Math.sin(t * 9) * .025;                        // les ailerons battent
+  const L = [
+    [at(-.085, 0, 0), at(.085, 0, 0), .15, .13, [72, 80, 98], 0],          // le corps
+    [at(-.06, 0, .045), at(.07, 0, .045), .12, .075, [190, 200, 216], 0],   // la coque claire
+    [at(.08, 0, .008), at(.112, 0, .008), .066, .056, oe, 1],                // l'œil
+    [at(-.075, 0, -.05), at(-.03, 0, -.068), .07, .03, [58, 64, 80], 0],     // le ventre, et sa tuyère
+  ];
+  for (const s of [-1, 1]) L.push([at(-.01, s * .075, .02), at(-.06, s * .17, .06 + bat * s), .02, .075, [214, 170, 80], 0]);   // les ailerons
+  L.push([at(-.03, 0, .07), at(-.05, 0, .15), .016, .016, [150, 160, 178], 0]);   // l'antenne
+  L.push([at(-.05, 0, .148), at(-.05, 0, .176), .034, .034, oe, 1]);               // et sa lueur
+  return L;
+}
+function emitSatellite(view, out) {
+  if (!SAT.vu) return;
+  const cle = view.kEnt && view.kEnt(SAT.x, SAT.y), rang = rangSol(SAT.z, false);
+  for (const [A, B, w, h, c, lum] of osSatellite()) emitLimb(A, B, w, h, c, view, out, cle, rang, lum ? 1 : 0);
+}
+// ============================================================
+//  LE CERVEAU DU SATELLITE (§157)
+//  Un vrai petit réseau de neurones, écrit ici même, qui apprend de vous pendant que vous jouez.
+//  - Il perçoit (toutes les demi-secondes) : les bêtes autour, une menace, votre vie, votre souffle,
+//    l'heure, la distance au campement, un pied mûr tout près, votre vitesse, l'arme, la charge du sac,
+//    et ce que vous faisiez juste avant — dix-huit nombres.
+//  - Il devine ce que vous allez faire dans les trois secondes : récolter, vous battre, fuir, explorer,
+//    ou souffler. Trois secondes plus tard, il voit ce que vous avez fait : c'est sa leçon. Il compare,
+//    corrige ses poids (rétropropagation), et repasse quelques souvenirs pour ne pas oublier les anciens.
+//  - Ce qu'il devine change ce qu'il fait : il file au-dessus du prochain pied que vous allez récolter
+//    (de la sorte que vous récoltez le plus), se met en garde avant le combat, vous montre la sortie
+//    quand vous allez fuir, part en éclaireur quand vous explorez. Son œil prend la couleur de sa pensée.
+//  - Il n'apprend que lorsqu'il est sorti : c'est en vous accompagnant qu'il vous connaît. Son savoir
+//    voyage avec le personnage, dans la sauvegarde (quelques centaines de poids, en entiers de 16 bits).
+//  Réseau : 18 entrées → 16 neurones (tangente hyperbolique) → 5 sorties (softmax), entropie croisée.
+// ============================================================
+const IA_ENT = 18, IA_CACH = 16, IA_SORT = 5, IA_PAS = .5, IA_HORIZON = 3, IA_CONFIANCE = .5, IA_ECOLE = 40;
+const IA_INTENTIONS = ['recolter', 'combattre', 'fuir', 'explorer', 'repos'];
+const IA_DITS = { recolter: 'récolter', combattre: 'vous battre', fuir: 'fuir', explorer: 'explorer', repos: 'souffler' };
+const IA = { R: null, n: 0, juste: .2, attente: [], memoire: [], pasT: 0, avant: 4, p: null, pense: null, gout: {}, palier: 0, appriT: -99 };
+// --- le réseau ---
+function reseauNeuf() {
+  const R = { W1: new Float32Array(IA_CACH * IA_ENT), b1: new Float32Array(IA_CACH), W2: new Float32Array(IA_SORT * IA_CACH), b2: new Float32Array(IA_SORT) };
+  const s1 = Math.sqrt(1 / IA_ENT), s2 = Math.sqrt(1 / IA_CACH);           // de petits poids au hasard, à l'échelle de chaque couche
+  for (let i = 0; i < R.W1.length; i++) R.W1[i] = (Math.random() * 2 - 1) * s1;
+  for (let i = 0; i < R.W2.length; i++) R.W2[i] = (Math.random() * 2 - 1) * s2;
+  return R;
+}
+function propager(R, x) {
+  const h = new Float32Array(IA_CACH), p = new Float32Array(IA_SORT);
+  for (let j = 0; j < IA_CACH; j++) { let s = R.b1[j]; for (let i = 0; i < IA_ENT; i++) s += R.W1[j * IA_ENT + i] * x[i]; h[j] = Math.tanh(s); }
+  let m = -1e9;
+  for (let k = 0; k < IA_SORT; k++) { let s = R.b2[k]; for (let j = 0; j < IA_CACH; j++) s += R.W2[k * IA_CACH + j] * h[j]; p[k] = s; if (s > m) m = s; }
+  let z = 0; for (let k = 0; k < IA_SORT; k++) { p[k] = Math.exp(p[k] - m); z += p[k]; }
+  for (let k = 0; k < IA_SORT; k++) p[k] /= z;
+  return { h, p };
+}
+// une leçon : la descente du gradient de l'entropie croisée, couche par couche
+function apprendre(R, x, y, lr = .04) {
+  const { h, p } = propager(R, x), dh = new Float32Array(IA_CACH);
+  for (let k = 0; k < IA_SORT; k++) {
+    const dz = p[k] - (k === y ? 1 : 0);
+    for (let j = 0; j < IA_CACH; j++) { dh[j] += R.W2[k * IA_CACH + j] * dz; R.W2[k * IA_CACH + j] -= lr * (dz * h[j] + 1e-4 * R.W2[k * IA_CACH + j]); }
+    R.b2[k] -= lr * dz;
+  }
+  for (let j = 0; j < IA_CACH; j++) {
+    const g = dh[j] * (1 - h[j] * h[j]);
+    for (let i = 0; i < IA_ENT; i++) R.W1[j * IA_ENT + i] -= lr * (g * x[i] + 1e-4 * R.W1[j * IA_ENT + i]);
+    R.b1[j] -= lr * g;
+  }
+}
+const argmax = p => { let k = 0; for (let i = 1; i < p.length; i++) if (p[i] > p[k]) k = i; return k; };
+// --- ce qu'il perçoit ---
+const IA_CPT = { recolte: 0, coups: 0 };
+function iaNote(quoi, res) {                                 // (appelé par la récolte, les coups, les tirs, les sorts)
+  if (quoi === 'coup') IA_CPT.coups++;
+  else { IA_CPT.recolte++; if (res) { for (const k in IA.gout) IA.gout[k] *= .97; IA.gout[res] = (IA.gout[res] || 0) + 1; } }   // ce que vous récoltez le plus, ces temps-ci
+}
+function betesAutour() {
+  let men = null, dMen = 99, dSauv = 99, nb = 0;
+  for (const b of beasts) {
+    if (b.dead || !(b.pv > 0) || b.cache || b.tame || b.sp.pnj || b.sp.villageois || b.sp.plante || b.sp.batiment || Math.abs(b.z - P.z) > 6) continue;
+    const d = Math.hypot(b.x - P.x, b.y - P.y); if (d > 15) continue;
+    if (d < 10) nb++; if (d < dSauv) dSauv = d;
+    if (d < 12 && d < dMen && menaceCible(b)) { men = b; dMen = d; }
+  }
+  return { men, dMen, dSauv, nb };
+}
+// le pied mûr le plus proche (dans `r` mètres), de la sorte que vous préférez ; devant vous de préférence
+function piedProche(r, cap) {
+  const cx = P.x | 0, cy = P.y | 0, fx = Math.cos(cap), fy = Math.sin(cap), R = Math.ceil(r);
+  let best = null, sb = 1e9; const top = Object.entries(IA.gout).sort((a, b) => b[1] - a[1])[0];
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+    const x = cx + dx, y = cy + dy, ty = typeFlore(x, y); if (!ty) continue;
+    const sp = FLORE[ty], i = y * WS + x; if (maturite(i, sp) < .35) continue;
+    const z = solFlore(x, y); if (Math.abs(z - P.z) > 3) continue;
+    const ux = x + .5 - P.x, uy = y + .5 - P.y, d = Math.hypot(ux, uy); if (d > r || d < .6) continue;
+    const s = d * (1.3 - .5 * Math.max(0, (ux * fx + uy * fy) / d)) * (top && sp.res === top[0] ? .6 : 1);
+    if (s < sb) { sb = s; best = { x: x + .5, y: y + .5, z, d }; }
+  }
+  return best;
+}
+function iaPercevoir(A) {
+  const x = new Float32Array(IA_ENT), cap = mode === 'fps' ? yaw : (P.faceS ?? P.face ?? 0), pied = piedProche(4, cap);
+  x[0] = A.men ? 1 : 0; x[1] = A.men ? 1 - A.dMen / 12 : 0; x[2] = A.dSauv < 15 ? 1 - A.dSauv / 15 : 0; x[3] = Math.min(A.nb, 6) / 6;
+  x[4] = P.pv; x[5] = P.endu ?? 1; x[6] = Math.sin(horloge * 6.2832); x[7] = Math.cos(horloge * 6.2832);
+  x[8] = P.camp && campIci() ? Math.min(1, Math.hypot(P.camp.x - P.x, P.camp.y - P.y) / 80) : 1;
+  x[9] = pied ? 1 - pied.d / 4 : 0; x[10] = Math.min(1, Math.hypot(SAT.pvx, SAT.pvy) / 6); x[11] = P.equip.arme ? 1 : 0;
+  x[12] = Math.min(1, Object.values(P.sac).reduce((s, n) => s + (n | 0), 0) / 600);
+  x[13 + IA.avant] = 1;                                    // ce que vous faisiez juste avant
+  return x;
+}
+// --- la boucle : percevoir, deviner, attendre, apprendre ---
+function majCerveau(dt) {
+  if (!SAT.on || !SAT.vu) return;
+  if (!IA.R) IA.R = reseauNeuf();
+  if ((IA.pasT -= dt) > 0) return;
+  IA.pasT = IA_PAS;
+  const A = betesAutour(), x = iaPercevoir(A);
+  // ce qu'il devine, maintenant
+  IA.p = propager(IA.R, x).p;
+  const k = argmax(IA.p);
+  IA.pense = IA.n >= IA_ECOLE && IA.p[k] >= IA_CONFIANCE ? IA_INTENTIONS[k] : null;
+  // ce moment-ci attendra trois secondes sa leçon
+  IA.attente.push({ x, t0: t, rec: IA_CPT.recolte, coups: IA_CPT.coups, px: P.x, py: P.y, men: A.men ? [A.men.x, A.men.y] : null, dMen: A.dMen });
+  while (IA.attente.length && t - IA.attente[0].t0 >= IA_HORIZON) lecon(IA.attente.shift());
+  if (IA.attente.length > 12) IA.attente.splice(0, IA.attente.length - 12);   // un saut dans le temps (pause, portail) : on oublie ce qui traîne
+}
+function lecon(w) {
+  const dep = Math.hypot(P.x - w.px, P.y - w.py);
+  const fuite = w.men && Math.hypot(P.x - w.men[0], P.y - w.men[1]) - w.dMen > 2.5 && dep > 2;
+  const y = IA_CPT.coups > w.coups ? 1 : IA_CPT.recolte > w.rec ? 0 : fuite ? 2 : dep > 3 ? 3 : 4;
+  const devine = argmax(propager(IA.R, w.x).p);              // avant la leçon : avait-il vu juste ?
+  IA.juste += ((devine === y ? 1 : 0) - IA.juste) * .02;
+  if (devine === y && IA.n >= IA_ECOLE && SAT.vu) burst(SAT.x, SAT.y, SAT.z + .18, 2, '#c8ffb8');   // vu juste : une petite étincelle à l'antenne
+  apprendre(IA.R, w.x, y);
+  for (let r = 0; r < 3 && IA.memoire.length; r++) { const m = IA.memoire[Math.random() * IA.memoire.length | 0]; apprendre(IA.R, m.x, m.y, .02); }   // il repasse ses souvenirs
+  if (IA.memoire.length < 400) IA.memoire.push({ x: w.x, y }); else IA.memoire[Math.random() * 400 | 0] = { x: w.x, y };
+  IA.avant = y; IA.n++;
+  if (IA.n % 120 === 0) Sauve.sale = true;                   // son savoir part avec la prochaine sauvegarde
+  const P_ = [[IA_ECOLE, 'vous observe : il commence à deviner ce que vous allez faire'], [300, 'vous comprend de mieux en mieux'], [1200, 'vous connaît bien']];
+  if (IA.palier < P_.length && IA.n >= P_[IA.palier][0]) { say(nomSatellite() + ' ' + P_[IA.palier][1] + ' · juste ' + Math.round(IA.juste * 100) + ' %', 3); IA.palier++; }
+}
+// --- ce qu'il fait de ce qu'il devine : où se placer ---
+function ancrePensee(k, cap, hautJ) {
+  const vit = Math.hypot(SAT.pvx, SAT.pvy);
+  if (k === 'recolter') { if (t - (IA.piedT ?? -9) > .5) { IA.pied = piedProche(7, cap); IA.piedT = t; }   // au-dessus du prochain pied (cherché deux fois par seconde)
+    const p = IA.pied; return p ? [p.x, p.y, p.z + 1.05] : null; }
+  if (k === 'combattre') { const c = cibleVue(); if (!c || !c.sp || c.tame || (c.x - P.x) ** 2 + (c.y - P.y) ** 2 > 144) return null;
+    const a = Math.atan2(c.y - P.y, c.x - P.x); return [P.x + Math.cos(a) * .85, P.y + Math.sin(a) * .85, hautJ + .75]; }   // en garde, devant vous
+  if (k === 'fuir') { const A = betesAutour(); let a;
+    if (P.camp && campIci() && Math.hypot(P.camp.x - P.x, P.camp.y - P.y) > 6) a = Math.atan2(P.camp.y - P.y, P.camp.x - P.x);   // vers le campement
+    else if (A.men) a = Math.atan2(P.y - A.men.y, P.x - A.men.x); else return null;
+    return [P.x + Math.cos(a) * 1.7, P.y + Math.sin(a) * 1.7, hautJ + .85]; }                               // il montre la sortie
+  if (k === 'explorer' && vit > .8) return [P.x + SAT.pvx / vit * 1.9, P.y + SAT.pvy / vit * 1.9, hautJ + 1.35];   // en éclaireur
+  return null;
+}
+// --- ce qu'en dit le sac ---
+function descSatellite() {
+  const nom = nomSatellite(), base = 'un petit automate volant qui vous suit partout, à l\'épaule, et apprend de vous';
+  if (!IA.n) return base + ' · depuis une case : le faire venir, ou le ranger';
+  if (IA.n < IA_ECOLE) return base + ' · ' + nom + ' vous observe : encore ' + (IA_ECOLE - IA.n) + ' moments avant de deviner';
+  const L = IA.p ? IA_INTENTIONS.map((k, i) => [k, IA.p[i]]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => IA_DITS[k] + ' ' + Math.round(v * 100) + ' %').join(', ') : '';
+  return base + ' · ' + nom + ' a appris de ' + IA.n + ' moments et devine juste ' + Math.round(IA.juste * 100) + ' % du temps' + (L ? ' · il pense que vous allez ' + L : '');
+}
+// --- la sauvegarde : les poids en entiers de 16 bits, en base 64 ---
+function iaPhoto() {
+  if (!IA.R) return null;
+  const all = [IA.R.W1, IA.R.b1, IA.R.W2, IA.R.b2], n = all.reduce((s, a) => s + a.length, 0), q = new Int16Array(n); let o = 0;
+  for (const a of all) for (const v of a) q[o++] = Math.max(-32767, Math.min(32767, Math.round(v * 4096)));
+  let s = ''; const u = new Uint8Array(q.buffer); for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]);
+  return { w: btoa(s), n: IA.n, j: Math.round(IA.juste * 1000) / 1000, g: Object.fromEntries(Object.entries(IA.gout).map(([k, v]) => [k, Math.round(v * 100) / 100]).slice(0, 12)), pa: IA.palier };
+}
+function iaLire(d) {
+  IA.R = null; IA.n = 0; IA.juste = .2; IA.gout = {}; IA.palier = 0; IA.memoire = []; IA.attente = []; IA.p = null; IA.pense = null;
+  if (!d || typeof d.w !== 'string') return;
+  try {
+    const s = atob(d.w), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+    const q = new Int16Array(u.buffer), R = reseauNeuf(); let o = 0;
+    if (q.length !== R.W1.length + R.b1.length + R.W2.length + R.b2.length) return;   // un cerveau d'une autre forme : on repart de zéro
+    for (const a of [R.W1, R.b1, R.W2, R.b2]) for (let i = 0; i < a.length; i++) a[i] = q[o++] / 4096;
+    IA.R = R; IA.n = Math.max(0, d.n | 0); IA.juste = Math.max(0, Math.min(1, +d.j || .2)); IA.palier = Math.max(0, Math.min(3, d.pa | 0));
+    if (d.g && typeof d.g === 'object') for (const [k, v] of Object.entries(d.g)) if (RES[k] && Number.isFinite(+v)) IA.gout[k] = +v;
+  } catch (e) { IA.R = null; }
 }
 function majSorts(dt) {
   majLiens(dt);                                          // (§145) les liens lancés
@@ -20040,6 +20572,7 @@ const PLAT_FORME = { ragout: 'bol', soupe: 'bol', bois: 'bol', voyageur: 'bol', 
   grillade: 'broche', brochette: 'broche', sucre: 'broche', fleurs: 'broche', mt: 'broche', tourte: 'tourte', 'r:ambre': 'tourte',
   confiture: 'pot', compote: 'pot', caramel: 'pot', 'r:lanterne': 'pot', sirop: 'flacon', infusion: 'tasse',
   pain: 'pain', galette: 'pain', 'r:premiers': 'pain', poelee: 'poele', roti: 'poele', salade: 'salade', 'r:horlogers': 'festin', 'r:serum': 'fiole', 'r:hanami': 'festin', 'r:printemps': 'tasse' };
+for (const R of RECETTES) PLAT_FORME['r:' + R.id] = R.f;     // (§153)
 const EFFET_COUL = { nuit: [120, 140, 255], braise: [255, 120, 50], vif: [255, 220, 80], fort: [230, 60, 60], robuste: [150, 150, 160], souffle: [120, 220, 255],
   surplus: [255, 110, 140], coeur: [255, 60, 90], second: [170, 240, 255], repousse: [190, 120, 60], invisible: [220, 220, 245], cueilleur: [120, 200, 90],
   saut: [255, 170, 220], plume: [245, 245, 245], silence: [100, 110, 130], epines: [90, 150, 60], vampire: [150, 30, 60], apprivoiseur: [255, 190, 120],
@@ -20143,6 +20676,7 @@ const GENRE_SORTE = { grillade: 'grille', brochette: 'grille', sucre: 'grille', 
   ragout: 'mijote', mt: 'mijote', soupe: 'bouillon', bois: 'bouillon', infusion: 'infuse', sirop: 'sucre', confiture: 'sucre', compote: 'sucre', caramel: 'sucre', salade: 'cru',
   'r:lune': 'bouillon', 'r:ambre': 'four', 'r:horlogers': 'mijote', 'r:lanterne': 'sucre', 'r:braise': 'bouillon', 'r:premiers': 'four', 'r:hanami': 'four', 'r:printemps': 'infuse', 'r:serum': 'infuse' };
 // Les mariages qui ne se font pas (hors plats remarquables) ; et tout ce qui n'entre dans aucune sorte.
+for (const R of RECETTES) GENRE_SORTE['r:' + R.id] = R.g;   // (§153)
 const MARIAGES_RATES = [['poisson', 'douceur'], ['poisson', 'fleur'], ['champignon', 'fruit'], ['champignon', 'douceur']];
 const CUI_PEN = { eau: 7, feu: 10, feu2: 20, tot: 18, tard: 12, brule: 10, defait: 12 }, EAU_MAX = 6;
 const PALIERS = ['raté', 'correct', 'réussi', 'parfait'], RM_DIT = ['ne pas remuer', 'remuer de temps en temps', 'remuer souvent'];
@@ -20291,7 +20825,8 @@ function bilanPlat(plat, nom, b, V, neuf) {
 }
 // Ce que la sauvegarde dit de la marmite en cours, des manières notées, des mariages ratés.
 function cuisineLue(d) {
-  P.pot = null; P.manieres = {}; P.ratees = [];
+  P.pot = null; P.manieres = {}; P.ratees = []; P.recTr = {};
+  if (d && d.recTr && typeof d.recTr === 'object') for (const [k, v] of Object.entries(d.recTr).slice(0, 60)) if (RECETTE[k] && typeof v === 'string') P.recTr[k] = v.slice(0, 60);   // (§153) les recettes confiées
   const nb = (v, a, b, def) => Number.isFinite(+v) && v !== null ? Math.max(a, Math.min(b, +v)) : def;
   const o = d && d.pot;
   if (o && typeof o === 'object' && Array.isArray(o.e)) {
@@ -20300,7 +20835,7 @@ function cuisineLue(d) {
     p.br = nb(o.br, 0, 1, 0); p.brT = nb(o.brT, 0, 9999, 0); p.rm = nb(o.rm, 0, 999, 0) | 0;
     if (p.e.length || p.eau || p.fc) P.pot = p;
   }
-  if (d && d.manieres && typeof d.manieres === 'object') for (const [k, v] of Object.entries(d.manieres).slice(0, 80))
+  if (d && d.manieres && typeof d.manieres === 'object') for (const [k, v] of Object.entries(d.manieres).slice(0, 200))
     if (/^(r:)?[a-z]{2,16}$/.test(k) && v && typeof v === 'object') { const n = {}; for (const g of ['eau', 'feu', 'rm', 't']) if (v[g]) n[g] = 1; P.manieres[k] = n; }
   if (d && Array.isArray(d.ratees)) for (const s of d.ratees.slice(0, 60)) if (typeof s === 'string' && /^[a-z]{3,12}(\+[a-z]{3,12}){0,8}$/.test(s) && !P.ratees.includes(s)) P.ratees.push(s);
   for (const k of Object.keys(P.recettes)) if (k.startsWith('voyageur')) delete P.recettes[k];   // le plat du voyageur n'est plus : une mixture
@@ -20455,14 +20990,24 @@ function czRendre() {
 // Le livre : chaque recette, sa manière telle qu'on la connaît, ses ingrédients ; les mariages ratés ; les remarquables.
 function livreCz() {
   const L = Object.entries(P.recettes).filter(([k]) => !k.startsWith('voyageur')).sort((a, b) => (b[1].e ? 1 : 0) - (a[1].e ? 1 : 0) || b[1].f - a[1].f);
-  const sortes = new Set(L.map(([k]) => sorteDe(k))), NS = Object.keys(GENRE_SORTE).filter(k => !k.startsWith('r:')).length + REMARQUABLES.length;
+  const sortes = new Set(L.map(([k]) => sorteDe(k))), NS = Object.keys(GENRE_SORTE).filter(k => !k.startsWith('r:')).length + REMARQUABLES.length + RECETTES.length;
   let h = `<div class="cu-nom">${img('livre')}<div><b>Le livre de recettes</b><small>${L.length} recette${L.length > 1 ? 's' : ''} · ${sortes.size} sortes de plats sur ${NS} · ${P.ratees.length} mariage${P.ratees.length > 1 ? 's' : ''} raté${P.ratees.length > 1 ? 's' : ''}</small></div></div>`;
   if (!L.length) h += `<div class="cu-note">Rien encore. Mélangez, au hasard s'il le faut : ce qui se marie s'y note, avec ses ingrédients ; les gestes justes s'y ajoutent au fil des essais.</div>`;
-  for (const [cle, r] of L.slice(0, 80)) { const s = sorteDe(cle), man = ['eau', 'feu', 'rm', 't'].map(g2 => { const x = ditManiere(s, g2); return x.note ? ESC(x.t) : x.t === '?' ? '?' : ESC(x.t) + ' ?'; }).join(' · ');
+  for (const [cle, r] of L.slice(0, 200)) { const Rn = cle.startsWith('r:') ? RECETTE[cle.slice(2)] : null; const s = sorteDe(cle), man = ['eau', 'feu', 'rm', 't'].map(g2 => { const x = ditManiere(s, g2); return x.note ? ESC(x.t) : x.t === '?' ? '?' : ESC(x.t) + ' ?'; }).join(' · ');
     h += `<div class="cz-r${r.e ? ' epi' : ''}">${img(icPlat('plat:' + cle + '~~0'))}<div class="t"><b>${ESC(r.n)} <em>${etoiles(r.q)}</em>${r.pa === 3 ? ' <em>· ★ parfait</em>' : ''}</b>`
-      + `<small>${conserveTxt(cle)} · préparé ${r.f} fois${cle.startsWith('r:') ? ' · remarquable' : ''}</small><small>${man}</small>`
+      + `<small>${conserveTxt(cle)} · préparé ${r.f} fois${Rn ? ` · <span class="${clRar(Rn.r)}">recette ${RARETES[Rn.r - 1]}</span>` : cle.startsWith('r:') ? ' · remarquable' : ''}</small><small>${man}</small>`
       + (r.i ? `<small class="ingr">${ingrTxt(r.i)}</small><div class="cz-bs"><button class="al-bc" data-cz="refaire:${ESC(cle)}">Refaire</button><button class="al-bc${r.e ? ' on' : ''}" data-cz="epi:${ESC(cle)}" aria-pressed="${!!r.e}">${r.e ? 'Épinglée' : 'Épingler'}</button></div>` : '') + `</div></div>`; }
   if (P.ratees.length) h += `<div class="al-h">Ne se marient pas</div><div class="al-carnet">` + P.ratees.map(s => `<div><b>${ESC(ditMariage(s))}</b><small>une mixture</small></div>`).join('') + `</div>`;
+  // (§153) les recettes confiées, pas encore cuisinées ; celles qui se complètent ; le compte, par rareté
+  const tr = Object.entries(P.recTr).filter(([id]) => RECETTE[id] && !P.recettes['r:' + id]);
+  if (tr.length) h += `<div class="al-h">Recettes confiées · à cuisiner</div><div class="al-carnet">` + tr.map(([id, qui]) => { const R = RECETTE[id];
+    return `<div><b class="${clRar(R.r)}">${ESC(R.n)}</b><small>${ESC(ditReqs(R))}</small><small>recette ${RARETES[R.r - 1]} · confiée par ${ESC(qui)}</small></div>`; }).join('') + `</div>`;
+  const cpl = RECETTES.filter(R => { const S = recetteSuivante(R); return S && P.recettes['r:' + R.id] && !P.recettes['r:' + S.id]; });
+  if (cpl.length) h += `<div class="al-h">Elles se complètent</div><div class="al-carnet">` + cpl.map(R => { const S = recetteSuivante(R);
+    return `<div><b>${ESC(R.n)}</b><small>se complète : les mêmes ingrédients, et ${ESC(ditReq(S.req[S.req.length - 1]))}</small></div>`; }).join('') + `</div>`;
+  h += `<div class="al-h">Les cent recettes</div><div class="cu-note">` + [1, 2, 3, 4, 5, 6].map(r => { const T = RECETTES.filter(R => R.r === r);
+    return `<span class="${clRar(r)}">${RARETES[r - 1]} ${T.filter(R => P.recettes['r:' + R.id]).length}/${T.length}</span>`; }).join(' · ')
+    + `. Des mariages exacts : tels ingrédients, ni plus ni moins. Certaines se complètent d'un ingrédient, puis d'un autre ; villageois et nomades en confient quelques-unes.</div>`;
   const rem = REMARQUABLES.filter(R => !P.recettes['r:' + R.id]);
   if (rem.length) h += `<div class="al-h">Plats remarquables · ${rem.length} à trouver</div><div class="al-carnet">` + rem.map(R => `<div><b>? ? ?</b><small>${ESC(R.indice)}</small></div>`).join('') + `</div>`;
   return h;
@@ -22528,7 +23073,7 @@ function draw() {
       g.globalAlpha = Math.max(0, a2); g.fillStyle = pa.col;
       g.fillRect(p[0] - 2.5, p[1] - 2.5, 5, 5); g.globalAlpha = 1; } });
   }
-  emitFleches(VIEW_ISO, items); emitTirs(VIEW_ISO, items);
+  emitFleches(VIEW_ISO, items); emitTirs(VIEW_ISO, items); emitSatellite(VIEW_ISO, items);
   paint(items);
   dessinerGouttes(VIEW_ISO);
 
@@ -22553,7 +23098,8 @@ function majEndu() {
   if (vu !== enduEl.vu) { enduEl.vu = vu; enduEl.b.style.opacity = vu ? '1' : '.45'; }
   majBarrePlus(enduEl, plus);                          // le second souffle : la barre bleue, par-dessus
 }
-function drawHud() {
+function drawHud() { try { drawHud0(); } catch (e) { rattraper(e, 'hud'); } }   // (§154) une panne du HUD n'est pas une panne de la carte graphique
+function drawHud0() {
   majBoussole();                                   // elle suit la caméra à chaque image
   majMire();                                       // (§151) le chevron au-dessus de la cible, à chaque image aussi
   // Réécrire le HUD à chaque image force le navigateur à refaire la mise en page du texte
@@ -22827,6 +23373,7 @@ function attaquer(a, c) {
 }
 function lancerAttaque(a, c) {
   if (P.effroi > t) return;                              // saisi d'effroi
+  iaNote('coup');                                        // (§157)
   P.agiteT = t;                                         // un coup, même dans le vide, effraie les proies
   c = c || cibleContact(a.port + 1);
   if (c) P.face = Math.atan2(c.y - P.y, c.x - P.x);   // face à ce qu'on vise
@@ -22975,6 +23522,7 @@ function utiliser(i) {
   else if (o.emp === 'lumiere') { P.equip.lumiere = P.equip.lumiere === id ? null : id; say(o.n + (P.equip.lumiere ? ' allumée' : ' éteinte'), 1.2); }
   else if (o.id === 'canne') prendreCanne();
   else if (o.id === 'marmite') poserMarmite();
+  else if (o.id === 'satellite') basculerSatellite();   // (§156)
   else if (o.id === 'foyer') rentrerAuCampement();
   else if (o.id === 'campement') { if (!P.camp) poserCampement(); else { voletCamp = 'camp'; choixCamp = choixVolet.camp; ouvrirSac(true, 'camp'); } }
   else { P.equip[o.emp] = id; say(o.n + (o.emp === 'armure' ? ' portée' : ' en main'), 1.2); }
@@ -23220,7 +23768,7 @@ function signalerIncident() {
 // ============================================================
 const CIB_PORTEE = 25, CIB_AUTO = 9, CIB_MENACE = 16, CIB_FRAPPEE = 20;
 const ETATS_MENACE = new Set(['traquer', 'attaque', 'charger', 'saisir', 'mord', 'combat', 'vise', 'viser', 'fendre', 'jaillir', 'menacer', 'cracher', 'descendre']);
-const menaceCible = o => o.sp ? !o.tame && !o.loin && !o.gardeCamp && (ETATS_MENACE.has(o.etat) || o.colere > 0) : Agresseurs.get(o.u) > t;
+const menaceCible = o => !o ? false : o.sp ? !o.tame && !o.loin && !o.gardeCamp && (ETATS_MENACE.has(o.etat) || o.colere > 0) : Agresseurs.get(o.u) > t;
 const beteCiblable = o => !o.dead && !o.retire && o.pv > 0 && !o.cache && !(o.camo > .5) && !o.sp.illusion && (!o.sp.batiment || o.sp.plante);   // un félin fondu dans le sol ne se désigne pas
 const presCible = (o, R) => (o.x - P.x) ** 2 + (o.y - P.y) ** 2 <= R * R && Math.abs((o.z ?? P.z) - P.z) < 10;
 function joueurLa(o) { for (const j of Autres.values()) if (j === o) return true; return false; }
@@ -23257,7 +23805,7 @@ function cibleAuto() {
   let best = null, bs = 1e9;
   for (const o of candidatsCible(CIB_FRAPPEE)) { const s = scoreCible(o); if (s < bs) { bs = s; best = o; } }
   const c = CIB.auto;
-  if (c && c !== best && cibleValide(c, CIB_FRAPPEE) && (menaceCible(c) || !menaceCible(best))) {   // on garde la précédente si l'écart est mince — sauf devant une bête qui attaque
+  if (c && c !== best && cibleValide(c, CIB_FRAPPEE) && (menaceCible(c) || !best || !menaceCible(best))) {   // on garde la précédente si l'écart est mince — sauf devant une bête qui attaque
     const sc = scoreCible(c); if (sc < 1e9 && sc < bs * 1.4 + .6) return c; }
   CIB.auto = best; return best;
 }
@@ -23669,7 +24217,7 @@ function drawFPS() {
   for (const p of parts) bill(p.x, p.y, p.z, .07, [220, 220, 230], false);
 
   emitCamp(VIEW_FPS, items); emitPortailIle(VIEW_FPS, items);
-  emitFleches(VIEW_FPS, items); emitTirs(VIEW_FPS, items);
+  emitFleches(VIEW_FPS, items); emitTirs(VIEW_FPS, items); emitSatellite(VIEW_FPS, items);
   items.sort((a, b) => (b.d - a.d) || ((b.d2 || 0) - (a.d2 || 0)) || ((b.d3 || 0) - (a.d3 || 0)));
   facesDern = items.length;
   for (const it of items) {
@@ -24721,6 +25269,7 @@ void main() { o = uC; }`;
       boite(TD, arr, av, .055, .055, [126, 96, 66], 0, 0, L_FIXE, 0, 0, 0);
       boite(TD, [f.x - v[0] * .06, f.y - v[1] * .06, f.z - v[2] * .06], av, .1, .1, [202, 210, 226], 0, 0, L_FIXE, 0, 0, 0);
     }
+    if (SAT.vu) for (const [A, B, w, h, c, lum] of osSatellite()) boite(TD, A, B, w, h, c, lum ? 1 : 0, 0, L_FIXE, 0, 0, 0);   // (§156)
     if (TD.ni) {
       gl.bindVertexArray(dyn.va);
       gl.bindBuffer(gl.ARRAY_BUFFER, dyn.vb); gl.bufferData(gl.ARRAY_BUFFER, TD.f.subarray(0, TD.nv * PV), gl.STREAM_DRAW);
@@ -24734,6 +25283,7 @@ void main() { o = uC; }`;
     gl.disable(gl.CULL_FACE); gl.depthMask(false);
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     if (iso || tierce) ombre(P.x, P.y, P.z, 1);
+    if ((iso || tierce) && SAT.vu) ombre(SAT.x, SAT.y, SAT.z, .3, .8);   // (§156) l'ombre du satellite
     for (const br of berries) if ((br.x - ex) ** 2 + (br.y - ey) ** 2 < r2 && baieMure(br)) {
       const z = br.z + br.e.h * .7, c = br.e.baie;
       panneau(br.x, br.y, z, .2 * 2.6, .2 * 2.6, c[0] / 255, c[1] / 255, c[2] / 255, 1, 1);
@@ -24954,7 +25504,11 @@ const Sauve = {
   tTick: -9, tChange: 0, tEssai: -99,
   tPremier: null,     // premier changement pas encore envoyé
   avantEssai: null,   // le vrai personnage, mis de côté pendant le mode essai
+  envois: [],         // (§155) les jetons des derniers envois : une version en ligne qui en porte un vient d'ici
 };
+// (§155) Une version en ligne qui porte l'un de nos jetons est notre propre envoi : il est arrivé, mais la
+// page s'est fermée (Android la coupe en arrière-plan) avant d'en recevoir la réponse. Ce n'est pas un conflit.
+const sienne = r => !!(r && r.donnees && typeof r.donnees.jeton === 'string' && Sauve.envois.includes(r.donnees.jeton));
 const maintenant = () => performance.now() / 1000;   // le jeu s'arrête sac ouvert, pas la sauvegarde
 
 // ---------- ce qu'on garde ----------
@@ -24967,7 +25521,7 @@ function photo() {
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
-    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), achromies: (P.achromies || []).slice(-300), grisProg: P.grisProg || null, pigments: Object.assign({}, P.pigments || {}), brumeTomes: (P.brumeTomes || []).slice(-600), rumeurs: (P.rumeurs || []).slice(0, 40), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite, pot: P.pot && (P.pot.e.length || P.pot.eau || P.pot.fc) ? { e: P.pot.e.slice(), eau: Math.round(P.pot.eau * 100) / 100, fa: Math.round(P.pot.fa * 100) / 100, fc: P.pot.fc, t: Math.round(P.pot.t * 10) / 10, fs: Math.round(P.pot.fs), ft: Math.round(P.pot.ft * 10) / 10, br: Math.round(P.pot.br * 100) / 100, brT: Math.round(P.pot.brT * 10) / 10, rm: P.pot.rm } : null, manieres: P.manieres, ratees: P.ratees.slice(0, 60),
+    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), achromies: (P.achromies || []).slice(-300), grisProg: P.grisProg || null, pigments: Object.assign({}, P.pigments || {}), brumeTomes: (P.brumeTomes || []).slice(-600), rumeurs: (P.rumeurs || []).slice(0, 40), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite, pot: P.pot && (P.pot.e.length || P.pot.eau || P.pot.fc) ? { e: P.pot.e.slice(), eau: Math.round(P.pot.eau * 100) / 100, fa: Math.round(P.pot.fa * 100) / 100, fc: P.pot.fc, t: Math.round(P.pot.t * 10) / 10, fs: Math.round(P.pot.fs), ft: Math.round(P.pot.ft * 10) / 10, br: Math.round(P.pot.br * 100) / 100, brT: Math.round(P.pot.brT * 10) / 10, rm: P.pot.rm } : null, manieres: P.manieres, ratees: P.ratees.slice(0, 60), recTr: Object.assign({}, P.recTr), satIA: iaPhoto(),
     fleches: P.fleches, baumes: P.baumes, encre: P.encre | 0, soins: Object.assign({}, P.soins), defense: { mur: P.defense.mur | 0, tours: P.defense.tours | 0 }, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -25007,7 +25561,7 @@ function photo() {
 }
 // Ce qui, s'il change, mérite un envoi. La position et le mana bougent sans cesse : ils
 // voyagent avec le reste, mais ne déclenchent rien à eux seuls.
-const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.cellier, P.plats.map(p => p.parts).join(), P.recettes, P.marmite, P.manieres, P.ratees.length, P.objets, P.ceinture, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.encre, P.baies, lives, Math.round(P.pv * 10),
+const signature = () => JSON.stringify([P.sac, P.poissons, P.carnetPeche, P.denrees, P.cellier, P.plats.map(p => p.parts).join(), P.recettes, P.marmite, P.manieres, P.ratees.length, P.recTr, P.objets, P.ceinture, P.equip, P.raccourcis, P.guide, P.biomes, P.variantes.length, P.fleches, P.baumes, P.encre, P.baies, lives, Math.round(P.pv * 10),
   P.coffre, P.pillages.length, djIci() ? [DJ.e, DJ.etat.ouverts.length, DJ.etat.vaincus.length] : 0, raidIci() ? [Raid.fini, Raid.ko.length, Math.round(Raid.part * 100)] : 0, P.exp.niveau, P.exp.coeurs, P.exp.sortie, P.camp ? P.camp.expl : 0, P.pseudo,
   P.camp ? [P.camp.graine, P.camp.x, P.camp.y] : 0, P.campNiv, P.modules, P.defense, P.soins, P.portailT, P.portailR, P.portailVoeu,
   (P.journal.gardees || []).map(v => v.g), (P.journal.visites || []).length,
@@ -25039,6 +25593,7 @@ function appliquer(d, vivantes) {
   // les cinq cases : ce qu'on possède, une fois chacun ; une sauvegarde d'avant les cases les garnit
   const rc = Array.isArray(d.raccourcis) ? d.raccourcis : null;
   magieLue(d);
+  iaLire(d.satIA);                                     // (§157) le cerveau du satellite
   P.raccourcis = Array(CASES * CEINTURE_MAX).fill(null);
   // on garde la première barre même sans ceinture (elle reparaîtra avec elle) ; au-delà, seulement les barres ouvertes
   if (rc) for (let k = 0; k < Math.max(CASES, casesOuvertes()); k++) { const id = rc[k], o = typeof id === 'string' && objet(id);
@@ -25243,7 +25798,7 @@ function ecrireLocal(donnees) {
   // île en cours de changement, ou bac à sable du mode essai : on ne touche plus à rien
   if (!donnees && (!Sauve.pret || essai)) return false;
   const s = JSON.stringify({ v: 2, uid: Compte.uid, rev: Sauve.rev,
-    sale: Sauve.sale, quand: Sauve.quand, donnees: donnees || photo() });
+    sale: Sauve.sale, quand: Sauve.quand, envois: Sauve.envois, donnees: donnees || photo() });
   if (s === Sauve.local) return true;
   // une copie de voyage : aussi dans l'onglet, le temps du rechargement
   if (donnees) try { sessionStorage.setItem(STOCKAGE, s); } catch (e) { /* tant pis : la copie locale suffit */ }
@@ -25275,23 +25830,32 @@ function hors(e) {
   Sauve.etat = 'horsligne';
   Sauve.erreur = String((e && e.message) || e || '');
 }
-async function envoyer(forcer, garder) {
+async function envoyer(forcer, garder, reprise) {
   if (!Sauve.pret || essai || !Compte.jeton || Sauve.etat === 'envoi') return;
   if (Sauve.etat === 'conflit' && !forcer) return;
   const donnees = photo(), sig = signature();
+  // (§155) chaque envoi porte un jeton, noté dans la copie locale AVANT de partir : si la page meurt en route,
+  // la prochaine ouverture reconnaîtra la version en ligne comme la sienne
+  donnees.jeton = Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+  Sauve.envois = [...Sauve.envois, donnees.jeton].slice(-8);
+  ecrireLocal();
   Sauve.etat = 'envoi'; Sauve.tEssai = maintenant();
+  let encore = false;
   try {
     const r = await rpc('vp_sauver_compte', { p_donnees: donnees, p_rev: forcer ? null : Sauve.rev }, garder);
     if (r && r.ok) {
       Sauve.rev = r.rev; Sauve.quand = Date.now(); Sauve.etat = 'enligne'; Sauve.erreur = ''; Sauve.conflit = null;
       if (signature() === sig) Sauve.sale = false;      // rien n'a bougé pendant l'envoi
       Sauve.pos = [donnees.pos[0], donnees.pos[1]];
+    } else if (r && r.conflit && sienne(r) && !reprise) {   // (§155) notre envoi d'avant, arrivé sans réponse : on reprend sa révision, et on renvoie
+      Sauve.rev = r.rev; Sauve.etat = 'enligne'; encore = true;
     } else if (r && r.conflit) {
       Sauve.etat = 'conflit'; Sauve.conflit = r;
       say('ce personnage a avancé ailleurs — voir le sac', 4);
     } else hors('réponse inattendue');
   } catch (e) { hors(e); }
   ecrireLocal();
+  if (encore) return envoyer(forcer, garder, true);
   if (sacOuvert) majSac();
 }
 // On reprend la version en ligne. Sur une autre île, il faut la reconstruire : on recharge la
@@ -25328,7 +25892,9 @@ async function synchroniser() {
     const r = await rpc('vp_charger_compte', {});
     Sauve.etat = 'enligne';
     if (!r) { await envoyer(); return; }                 // première fois : on crée la fiche
-    if (r.rev > Sauve.rev) {
+    if (r.rev > Sauve.rev && sienne(r)) {                 // (§155) notre dernier envoi est arrivé, la page n'a pas su la réponse
+      Sauve.rev = r.rev; if (Sauve.sale) await envoyer();
+    } else if (r.rev > Sauve.rev) {
       if (Sauve.sale) { Sauve.etat = 'conflit'; Sauve.conflit = r; say('ce personnage a avancé ailleurs — voir le sac', 4); }
       else adopter(r);
     } else if (Sauve.sale) await envoyer();
@@ -25360,6 +25926,7 @@ function demarrerSauvegarde() {
   const l = lireLocal();
   if (l && l.uid === Compte.uid) {
     Sauve.rev = l.rev | 0; Sauve.sale = !!l.sale; Sauve.quand = l.quand || 0;
+    Sauve.envois = Array.isArray(l.envois) ? l.envois.filter(x => typeof x === 'string' && x.length < 40).slice(-8) : [];   // (§155)
     if (l.donnees && l.donnees.graine === SEED) appliquer(l.donnees);
   } else Sauve.sale = true;                              // première partie de ce compte ici
   if (P.camp) noterVisite();                             // l'arrivée s'inscrit au journal
@@ -25668,7 +26235,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-118', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-124', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
@@ -25808,8 +26375,9 @@ function rattraper(e, ou) {
   Panne.dernier = ou + ' · ' + ((e && e.message) || e) + ((e && e.stack) ? ' · ' + String(e.stack).split('\n')[1] : '');
   if (Panne.n === 1) console.error('Stone Valley', Panne.dernier, e);
   signalerIncident();
-  // deux images cassées de suite pendant le dessin : on coupe la carte graphique
-  if (ou === 'dessin' && !Panne.repli) {
+  // deux images cassées de suite pendant le dessin : on coupe la carte graphique (§154 : il en fallait une seule)
+  if (ou === 'dessin') Panne.suite = (Panne.suite || 0) + 1;
+  if (ou === 'dessin' && !Panne.repli && Panne.suite >= 2) {
     Panne.repli = true; G3.perdu = true; isoGL = false;
     try { cv3.style.display = 'none'; cv3.__vu = false; } catch (_) {}
     try { say('AFFICHAGE SIMPLIFIÉ', 4); } catch (_) {}
@@ -25820,7 +26388,7 @@ function frame(now) {
   try { update(dt); } catch (e) { rattraper(e, 'monde'); }
   SON.maj(dt);
   const t0 = performance.now();
-  try { draw(); } catch (e) { rattraper(e, 'dessin'); }
+  try { draw(); Panne.suite = 0; } catch (e) { rattraper(e, 'dessin'); }
   const t1 = performance.now();
   msDessin += (t1 - t0 - msDessin) * .06;               // moyenne glissante, sinon ça saute
   accSec += dt; accImg++;
