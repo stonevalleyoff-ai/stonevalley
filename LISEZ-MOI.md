@@ -4431,3 +4431,138 @@ Une bête qui attaque reste prioritaire : il se place entre elle et vous. Quand 
 **Dans le code** : le bloc LE CERVEAU DU SATELLITE (`IA`, `reseauNeuf`, `propager`, `apprendre`, `iaPercevoir`, `majCerveau`, `lecon`, `ancrePensee`, `piedProche`, `betesAutour`, `descSatellite`, `iaPhoto`, `iaLire`). Il observe par `iaNote`, appelé dans `recolter`, `lancerAttaque`, `tirerFleche` et `lancerSort`. `majSatellite` lui laisse la place après la menace, et la fiche du sac lit `descSatellite`.
 
 **À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-124`), `LISEZ-MOI.md`.
+
+## 158. Le caractère du satellite : il devient comme vous
+
+Ce que le cerveau apprend de vous (§157) forge au satellite un **caractère**, propre à chaque joueur. Il se voit à ce qu'il fait, à la couleur de ses ailerons et à ce qu'il dit.
+
+**Comment il se forge** :
+
+- **la bravoure** : face à une menace, vous battez-vous ou fuyez-vous ? C'est une moyenne lente, sur chaque leçon où une bête menaçait ;
+- **les penchants** : ce que vous faites plus qu'un joueur moyen. Le jeu suppose qu'un joueur moyen récolte 20 % du temps, se bat 10 %, fuit 5 %, explore 35 % et souffle 30 %.
+- Avant 150 leçons, il est **Naïf**. Ensuite :
+  - après au moins 6 menaces, une bravoure au-dessus de 66 % le rend **Fonceur**, en dessous de 34 % **Prudent** ;
+  - sinon, c'est ce que vous faites le plus au-dessus de la moyenne qui décide : **Glaneur**, **Éclaireur** ou **Rêveur**.
+- Il fait le point toutes les 30 leçons, ne change qu'après deux constats de suite, et le dit.
+
+**Ce que chaque caractère change** :
+
+| Caractère | Face à une menace | Au quotidien | Ailerons |
+|---|---|---|---|
+| Naïf | entre vous et la bête | comme avant | dorés |
+| Fonceur | il fonce sur la bête et tourne autour d'elle ; avant un combat, il y va le premier | — | rouges |
+| Prudent | caché derrière vous, plus haut, il tremble ; quand vous fuyez, il est déjà loin devant | il ne se met pas en garde | bleu pâle |
+| Glaneur | entre vous et la bête | il pense plus tôt à la récolte (dès 38 % de confiance) et cherche les pieds plus loin (9 m) | verts |
+| Éclaireur | entre vous et la bête | il vise plus loin devant vous, tourne plus large, part plus loin en éclaireur | or vif |
+| Rêveur | entre vous et la bête | il flotte plus haut et plus lentement, et tourne doucement | violets |
+
+**Ce qu'il dit** : une bulle au-dessus de lui, à son nom et à son caractère. Quand il est hors de vue, elle s'affiche au bas de l'écran.
+
+- **Treize moments** : quand il s'allume, une menace, une victoire, une fuite, une série de récoltes (4 en 30 s), la nuit qui tombe, le retour au campement, quand vous êtes blessé, quand vous revenez après un cœur perdu, une longue pause, une île nouvelle, quand il a deviné juste (parfois), et quand son caractère change.
+- **Deux répliques** par moment et par caractère, soit plus de 150. Elles mentionnent la bête (« Brouteur en vue ! On fonce ! ») ou la ressource (« Encore du bois ? »).
+- **Pas trop bavard** : une réplique toutes les 14 secondes au plus, pas deux fois le même moment en moins de 50 secondes, et jamais la même réplique deux fois de suite.
+
+**Dans le sac**, sa fiche dit son caractère et sa bravoure, par exemple « caractère : Fonceur, il fonce dans le tas (bravoure 82 %) ».
+
+**Vérifié** sur cinq joueurs simulés :
+
+- celui qui se bat le rend Fonceur, qui va tourner à 0,5 m de la bête ;
+- celui qui fuit le rend Prudent, caché du côté opposé à la bête ;
+- ceux qui récoltent, explorent ou flânent le rendent Glaneur, Éclaireur ou Rêveur ;
+- le caractère se relit depuis la sauvegarde.
+
+**Dans le code** : le bloc LE CARACTÈRE DU SATELLITE (`PERSO`, `caractere`, `majCaractere`, `persoLecon`, `SAT_DIT`, `parler`, `satEvent`, `majPerso`, `bulle`, `majBulle`, `SAT_TEINTE`) ; ses effets dans `majSatellite`, `ancrePensee` et `majCerveau`. Le jeu le prévient par `butin` (une victoire), `perdreCoeur` et `iaNote` (une récolte). Il est sauvegardé avec le cerveau (`satIA.pe`).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-125`), `LISEZ-MOI.md`.
+
+## 159. Le satellite évolue avec son caractère, et a son arbre de compétences
+
+### Sa forme
+
+La forme de son caractère (§158) **pousse à mesure qu'il vous connaît**. Elle commence à 150 leçons et a fini de pousser à 2 400, soit une vingtaine de minutes sorti.
+
+| Caractère | Ce qui pousse |
+|---|---|
+| Naïf | la forme de départ : corps gris-bleu, ailerons dorés |
+| Fonceur | corps rouge sombre, deux cornes, l'œil en visière, de grands ailerons en lames rabattues, un corps plus massif |
+| Prudent | une coque haute, deux boucliers sur les flancs, de petits ailerons repliés, gris pâle |
+| Glaneur | corps vert, deux petits bras sous lui, une pousse à deux feuilles sur l'antenne |
+| Éclaireur | corps bleu allongé, l'œil au bout d'une lunette, de longues ailes, une dérive à l'arrière |
+| Rêveur | corps violet, un anneau de huit lueurs qui tourne autour de lui, une étoile au bout d'une antenne plus haute, des battements lents |
+
+- **Deux stades s'annoncent** : la forme II à 40 % de croissance, la forme III à 95 %, avec un éclat blanc et une réplique (« Je me sens plus fort. Regarde mes cornes ! »).
+- **Une métamorphose** quand son caractère change : l'ancienne forme se résorbe en quatre secondes, puis la nouvelle pousse, avec une gerbe à la couleur du nouveau caractère.
+- Au chargement, sa forme reprend directement là où elle en était.
+
+### Son arbre de compétences, qui se débloque seul
+
+Une **branche par comportement**, avec pour l'instant un nœud chacune ; les deux suivants sont marqués « ? à venir ». Chaque leçon (§157) nourrit la branche de ce que vous avez fait, et **deux fois plus vite** celle de son caractère. Au seuil, il apprend la compétence tout seul, le dit (message et réplique) et lâche une gerbe dorée.
+
+| Branche | Nourrie par | Compétence | Seuil | Ce qu'elle fait |
+|---|---|---|---|---|
+| Fonceur | vos combats | **Décharge** | 60 | vous vous battez (un coup, un tir, un sort dans les 3 s) : il foudroie votre cible toutes les 4 s (3 s s'il est Fonceur), à 9 m au plus. Un trait rouge, et les dégâts comptent comme les vôtres, butin compris |
+| Prudent | vos fuites | **Bouclier** | 30 | une bête menace et vous êtes sous la moitié de votre vie : il vous couvre d'un bouclier (20 % de vie en plus, 30 % s'il est Prudent), une fois par minute (45 s s'il est Prudent) |
+| Glaneur | vos récoltes | **Glanage** | 150 | près d'un pied mûr (4 m), il en glane de lui-même 1 unité toutes les 25 s (2 s'il est Glaneur). Les éclats et la ferraille demandent une pioche |
+| Éclaireur | vos explorations | **Repérage** | 250 | toutes les 20 s, il cherche à 40 m la bête ou la plante la plus rare (rare ou plus) et la marque à la boussole d'une étoile à sa couleur, pendant 45 s, en le disant (« Repéré : spectre, à 20 m ! ») |
+| Rêveur | vos pauses | **Apaisement** | 250 | quand vous restez immobile plus de 3 s, sa lueur vous soigne de 1 % par seconde (1,5 % s'il est Rêveur) |
+
+**Dans le sac**, la fiche du satellite montre son arbre : chaque branche à sa couleur (soulignée pour la sienne), le nœud appris en clair avec ce qu'il fait, les autres avec une barre de progression, et sa forme (« forme fonceur II »).
+
+**Vérifié** :
+
+- les cinq compétences se débloquent à leur seuil ;
+- la Décharge fait passer une bête de 100 à 90 % ;
+- le Bouclier donne +20 % de vie ;
+- l'Apaisement soigne 5 % en 5 s ;
+- le Repérage marque un spectre à 20 m ;
+- le Glanage ajoute 1 bois près d'un arbre ;
+- l'arbre se relit depuis la sauvegarde ;
+- les six formes ont été dessinées (images de contrôle) ;
+- la fiche s'affiche sur un écran de téléphone.
+
+**Dans le code** : le bloc L'ÉVOLUTION ET L'ARBRE DU SATELLITE (`SAT_FORME`, `majForme`, `SAT_ARBRE`, `SAT_XP`, `SAT_COMP`, `xpComp`, `majCompSat`, `SC`, `rayon`, `satRepere`, `arbreSatHTML`) et `osSatellite` réécrite. Autres changements :
+
+- `SAT_DIT` reçoit trois moments de plus : appris, repéré, évolue ;
+- `parler` met une majuscule à toute variable ;
+- la boussole reçoit le repère `sat` ;
+- la fiche du sac montre l'arbre ;
+- la sauvegarde garde l'arbre (`satIA.sk`).
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-126`), `LISEZ-MOI.md`.
+
+## 160. Les formes du satellite : des évolutions à la manière de Phantasy Star Online
+
+La croissance progressive du §159 est remplacée par de **vraies évolutions**, dans l'esprit des compagnons de Phantasy Star Online :
+
+- il ne grandit plus peu à peu ; il **évolue d'un coup**, à des paliers ;
+- chaque forme a un **nom** ;
+- chaque forme a un **cœur lumineux** et des **pièces qui flottent détachées** du corps ;
+- **la silhouette grandit** à chaque stade.
+
+Les formes et les noms sont originaux, pas ceux du jeu.
+
+**Trois stades** :
+
+- **Noyau** : la forme de départ. Ses ailerons prennent déjà la teinte de son caractère.
+- **Première évolution** à 600 leçons, environ 5 minutes sorti. Taille ×1,18.
+- **Seconde évolution** à 2 400 leçons, environ 20 minutes sorti. Taille ×1,35.
+
+**Les dix formes** portent chacune un nom d'étoile accordé à leur couleur et à leur rôle :
+
+| Caractère | Première évolution | Seconde évolution |
+|---|---|---|
+| Fonceur | **Antarès** : une pointe de lance rouge, une crête d'or, une visière, deux lames détachées | **Bételgeuse** : lames dessus et dessous, deux cornes d'ivoire, une couronne d'or |
+| Prudent | **Alcor** : deux coques autour d'un cœur bleu pâle, deux boucliers qui tournent autour de lui | **Polaris** : une cage de quatre boucliers qui tourne, et l'étoile fixe dressée au-dessus |
+| Glaneur | **Spica** (l'épi) : un corps en épi vert, six grains d'or, deux feuilles | **Vindemiatrix** (la vendangeuse) : une corolle de six pétales vert et or qui tourne, un cœur doré, deux petits bras |
+| Éclaireur | **Altaïr** (l'aigle) : un corps fin, de longues ailes d'or, une traîne, l'œil-lunette | **Canopus** (l'étoile des navigateurs) : trois rémiges par aile, de l'or au bleu, une traîne en éventail, une crête |
+| Rêveur | **Véga** (la lyre) : un croissant de lune autour d'un cœur violet, trois étoiles qui tournent | **Pléiades** (l'amas) : deux croissants, sept étoiles en anneau incliné |
+
+**L'évolution** : un tourbillon d'une seconde et demie. La forme d'avant rapetisse en tournoyant ; à mi-course, un éclair blanc et une gerbe à la couleur du cœur ; puis la nouvelle forme éclôt. Il l'annonce (« Volt évolue : Spica ! ») et le dit à sa façon (« Je deviens Spica ! De quoi cueillir mieux encore. »). Un changement de caractère fait évoluer de même vers la forme du nouveau caractère, au même stade. Au chargement, il reprend sa forme sans tourbillon.
+
+**Dans le sac**, la fiche donne sa forme et la suivante, par exemple « Forme : Spica · vers Vindemiatrix : 42 % ».
+
+**Vérifié** : la première évolution à 600 leçons (Noyau → Spica), la seconde à 2 400 (Vindemiatrix), le changement de caractère (→ Bételgeuse) et la relecture de la sauvegarde. Les onze formes ont été dessinées sur une planche de contrôle.
+
+**Dans le code** : le bloc LES FORMES DU SATELLITE (`SAT_NOMS_FORME`, `SAT_COEUR`, `SAT_PALIERS`, `nomForme`, `stadeVise`, `majForme`, `formeSat`, `osSatellite`). `SAT_FORME` vaut désormais `{ type, stade, anim, de }`. L'ancienne croissance continue du §159 (`SAT_FORME.p`, `maturiteSat`, `stadeDe`) est retirée.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-127`), `LISEZ-MOI.md`.

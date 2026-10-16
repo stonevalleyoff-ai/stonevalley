@@ -3940,6 +3940,7 @@ function formeFlore(sp, cx, cy, z, hh, w, ha, pen, det, A, B, pose) {
 // les os — donc toute la branche des armes — resteraient hors d'atteinte tant qu'on
 // n'aurait pas d'arme, et rien ne permettait d'en fabriquer une.
 function butin(b) {
+  if (typeof satEvent === 'function') satEvent('victoire', b);   // (§158)
   if (curioFx('eclat') && !b.tame) { P.sac.eclat = (P.sac.eclat || 0) + curioFx('eclat'); }   // la bourse du Seuil, la couronne (§109)
   if (typeof nmPrime === 'function' && !b.tame) nmPrime(b);   // (§122) la prime du chasseur
   if (b.sp.brume) { if (typeof butinBrume === 'function') butinBrume(b); return; }   // un mage, un rôdeur, le démon (brume.js)
@@ -7252,7 +7253,7 @@ function ficheSac() {
       + `<div class="gestes">${P.camp || o.id === 'campement' ? g : ''}</div>${gestesCases(o)}</div></div>`;
   }
   return `<div class="fiche" id="sac-fiche">${caseObjet(o.id, { taille: 'grande', porte: porte_, inerte: true })}`
-    + `<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}</p>${caracteristiques(o)}`
+    + `<div class="fiche-texte"><h4>${ESC(o.n)}</h4><p>${ESC(o.d)}</p>${caracteristiques(o)}${o.id === 'satellite' ? arbreSatHTML() : ''}`
     + `<div class="gestes"><button class="btn${porte_ ? '' : ' principal'}" data-eq="${o.id}">${porte_ ? 'Retirer' : 'Porter'}</button>`
     + (autre ? `<span class="note">à la place de ${ESC(autre.n)}</span>` : '')
     + `</div>${gestesCases(o)}</div></div>`;
@@ -9120,6 +9121,7 @@ function lieuSur() {
 // Un cœur de moins — la chute et la mort ont le même prix. Rend true quand les trois y sont passés et
 // que le jeu vous a emmené ailleurs (le campement, l'exploration 1, l'île remise à zéro).
 function perdreCoeur() {
+  if (typeof satEvent === 'function') satEvent('mort');           // (§158) il le dira au retour
   lives--;
   // Un cœur ne coûte le butin que s'il tombe loin de chez soi : mourir sur son île n'ampute rien.
   if (P.exp && !campIci()) P.exp.coeurs = Math.min(3, (P.exp.coeurs || 0) + 1);
@@ -19575,7 +19577,7 @@ function majSatellite(dt) {
   if (!SAT.on) {                                             // il s'allume, et vient se placer
     SAT.on = true; SAT.px = P.x; SAT.py = P.y;
     sautSat(P.x, P.y, P.z + 1.1);
-    say(nomSatellite() + ' s\'allume et vient se placer à votre épaule', 2.2); SON.jouer('tic', {}, P.x, P.y, P.z + 1);
+    PERSO.aDire = 'arrive'; SON.jouer('tic', {}, P.x, P.y, P.z + 1);   // (§158) il le dit lui-même, à sa façon
   }
   SAT.vu = true;
   if (!(dt > 0)) return;
@@ -19585,11 +19587,12 @@ function majSatellite(dt) {
   const vit = Math.hypot(SAT.pvx, SAT.pvy);
   SAT.immobile = vit < .4 ? SAT.immobile + dt : 0;
   majCerveau(dt);                                            // (§157) il perçoit, devine, apprend
+  majForme(dt); majCompSat(dt);                              // (§159) sa forme pousse ; ses compétences agissent
   const fps = mode === 'fps', cap = fps ? yaw : (P.faceS ?? P.face ?? 0), hautJ = P.z + (P.selle || 0);
   // --- ce qui l'inquiète : la cible, si elle menace et qu'elle est proche ---
   const cv = typeof cibleVue === 'function' ? cibleVue() : null;
   const men = cv && cv.sp && menaceCible(cv) && (cv.x - P.x) ** 2 + (cv.y - P.y) ** 2 < 100 ? cv : null;
-  if (men && SAT.alerte !== men) { SAT.alerte = men; if (t - SAT.bipT > 1.5) { SAT.bipT = t; SON.jouer('tic', {}, SAT.x, SAT.y, SAT.z); } }
+  if (men && SAT.alerte !== men) { SAT.alerte = men; if (t - SAT.bipT > 1.5) { SAT.bipT = t; SON.jouer('tic', {}, SAT.x, SAT.y, SAT.z); } parler('menace', { bete: men.sp.n.toLowerCase() }); }
   if (!men) SAT.alerte = null;
   // --- ce qui l'intéresse, quand vous ne bougez plus : une bête, une baie mûre, pas loin ---
   SAT.curioT -= dt;
@@ -19603,18 +19606,22 @@ function majSatellite(dt) {
   }
   // --- où il veut être ---
   let ax, ay, az, anc = null;
-  if (men) {                                                 // entre vous et la bête
-    const a = Math.atan2(men.y - P.y, men.x - P.x); ax = P.x + Math.cos(a) * .75; ay = P.y + Math.sin(a) * .75; az = hautJ + .7;
+  const ty = PERSO.type;                                     // (§158) son caractère
+  if (men) { const a = Math.atan2(men.y - P.y, men.x - P.x);
+    if (ty === 'fonceur') { const o = t * 3.2; ax = men.x + Math.cos(o) * .7; ay = men.y + Math.sin(o) * .7; az = men.z + .45 * (men.sp.sz || 1) + .35; }   // il fonce dans le tas, et tourne autour de la bête
+    else if (ty === 'prudent') { ax = P.x - Math.cos(a) * .7; ay = P.y - Math.sin(a) * .7; az = hautJ + 1.15 + Math.sin(t * 40) * .025; }   // caché derrière vous, il tremble
+    else { ax = P.x + Math.cos(a) * .75; ay = P.y + Math.sin(a) * .75; az = hautJ + .7; }   // entre vous et la bête
   } else if (IA.pense && (anc = ancrePensee(IA.pense, cap, hautJ))) {   // (§157) ce qu'il a appris de vous : il devance votre geste
     [ax, ay, az] = anc;
   } else if (SAT.curio) {                                    // de près, ce qui l'intéresse
     const [cx, cy, cz] = SAT.curio, a = Math.atan2(P.y - cy, P.x - cx); ax = cx + Math.cos(a) * .55; ay = cy + Math.sin(a) * .55; az = cz + .45;
   } else if (SAT.immobile > 6) {                             // il flâne autour de vous
-    SAT.orbite += dt * .45; ax = P.x + Math.cos(SAT.orbite) * 1.05; ay = P.y + Math.sin(SAT.orbite) * 1.05; az = hautJ + .95 + .12 * Math.sin(t * .8);
+    const rf = ty === 'eclaireur' ? 1.7 : ty === 'prudent' ? .8 : 1.05;   // l'éclaireur tourne large, le prudent tout près
+    SAT.orbite += dt * (ty === 'reveur' ? .25 : .45); ax = P.x + Math.cos(SAT.orbite) * rf; ay = P.y + Math.sin(SAT.orbite) * rf; az = hautJ + .95 + (ty === 'reveur' ? .3 : 0) + .12 * Math.sin(t * .8);
   } else {                                                   // à l'épaule droite, un peu derrière ; derrière vous quand vous courez
     const a = vit > .6 ? Math.atan2(SAT.pvy, SAT.pvx) + Math.PI - .55 : cap - (fps ? 1.9 : 2.3), r = vit > .6 ? .7 : fps ? .9 : .62;
-    const lead = Math.min(1.2, vit * .3);                    // il vise où vous allez
-    ax = P.x + Math.cos(a) * r + (vit > .1 ? SAT.pvx / vit * lead : 0); ay = P.y + Math.sin(a) * r + (vit > .1 ? SAT.pvy / vit * lead : 0); az = hautJ + (fps ? .5 : .95);
+    const lead = ty === 'eclaireur' ? Math.min(2.4, vit * .6) : Math.min(1.2, vit * .3);   // il vise où vous allez (l'éclaireur, plus loin)
+    ax = P.x + Math.cos(a) * r + (vit > .1 ? SAT.pvx / vit * lead : 0); ay = P.y + Math.sin(a) * r + (vit > .1 ? SAT.pvy / vit * lead : 0); az = hautJ + (fps ? .5 : .95) + (ty === 'reveur' ? .25 : 0);
     if (!SAT.immobile) SAT.orbite = Math.atan2(ay - P.y, ax - P.x);   // la flânerie repartira d'ici
   }
   az += .05 * Math.sin(t * 2.2);                             // il flotte
@@ -19625,7 +19632,7 @@ function majSatellite(dt) {
   SAT.dPrec = d;
   if (d > 12 || SAT.bloque > 2) { sautSat(ax, ay, az); return; }
   // --- le vol : un ressort amorti (il arrive vite, sans osciller), une vitesse bornée ---
-  const k = SAT.curio ? 10 : men ? 22 : 16, c = 2 * Math.sqrt(k);
+  const k = (SAT.curio ? 10 : men ? (ty === 'fonceur' ? 30 : 22) : 16) * (ty === 'reveur' && !men ? .6 : 1), c = 2 * Math.sqrt(k);   // le rêveur flotte lentement
   SAT.vx += (k * dx - c * SAT.vx) * dt; SAT.vy += (k * dy - c * SAT.vy) * dt; SAT.vz += (k * dz - c * SAT.vz) * dt;
   const v = Math.hypot(SAT.vx, SAT.vy, SAT.vz), vmax = Math.max(3, Math.min(14, d * 3.5));
   if (v > vmax) { SAT.vx *= vmax / v; SAT.vy *= vmax / v; SAT.vz *= vmax / v; }
@@ -19653,23 +19660,6 @@ function majSatellite(dt) {
   if (SAT.feuT <= 0) { SAT.feuT = vh > 2 ? .04 : .12; const o = SAT_OEIL[SAT.humeur];
     parts.push({ x: SAT.x + (Math.random() - .5) * .04, y: SAT.y + (Math.random() - .5) * .04, z: SAT.z - .08, vx: -SAT.vx * .1, vy: -SAT.vy * .1, vz: -.35, g: 0, life: .3, age: 0,
       col: '#' + o.map(x => (x | 0).toString(16).padStart(2, '0')).join(''), luit: 1, tl: .035 }); }
-}
-// Son corps, en quelques boîtes : [A, B, largeur, hauteur, couleur, lumineux]
-function osSatellite() {
-  const S = SAT, ca = Math.cos(S.cap), sa = Math.sin(S.cap), ci = Math.cos(S.inc), si = Math.sin(S.inc);
-  const f = [ca * ci, sa * ci, -si], r = [-sa, ca, 0], u = [ca * si, sa * si, ci], oe = SAT_OEIL[S.humeur] || SAT_OEIL.calme;
-  const at = (a, b, c) => [S.x + f[0] * a + r[0] * b + u[0] * c, S.y + f[1] * a + r[1] * b + u[1] * c, S.z + f[2] * a + r[2] * b + u[2] * c];
-  const bat = Math.sin(t * 9) * .025;                        // les ailerons battent
-  const L = [
-    [at(-.085, 0, 0), at(.085, 0, 0), .15, .13, [72, 80, 98], 0],          // le corps
-    [at(-.06, 0, .045), at(.07, 0, .045), .12, .075, [190, 200, 216], 0],   // la coque claire
-    [at(.08, 0, .008), at(.112, 0, .008), .066, .056, oe, 1],                // l'œil
-    [at(-.075, 0, -.05), at(-.03, 0, -.068), .07, .03, [58, 64, 80], 0],     // le ventre, et sa tuyère
-  ];
-  for (const s of [-1, 1]) L.push([at(-.01, s * .075, .02), at(-.06, s * .17, .06 + bat * s), .02, .075, [214, 170, 80], 0]);   // les ailerons
-  L.push([at(-.03, 0, .07), at(-.05, 0, .15), .016, .016, [150, 160, 178], 0]);   // l'antenne
-  L.push([at(-.05, 0, .148), at(-.05, 0, .176), .034, .034, oe, 1]);               // et sa lueur
-  return L;
 }
 function emitSatellite(view, out) {
   if (!SAT.vu) return;
@@ -19731,8 +19721,8 @@ const argmax = p => { let k = 0; for (let i = 1; i < p.length; i++) if (p[i] > p
 // --- ce qu'il perçoit ---
 const IA_CPT = { recolte: 0, coups: 0 };
 function iaNote(quoi, res) {                                 // (appelé par la récolte, les coups, les tirs, les sorts)
-  if (quoi === 'coup') IA_CPT.coups++;
-  else { IA_CPT.recolte++; if (res) { for (const k in IA.gout) IA.gout[k] *= .97; IA.gout[res] = (IA.gout[res] || 0) + 1; } }   // ce que vous récoltez le plus, ces temps-ci
+  if (quoi === 'coup') { IA_CPT.coups++; SAT.coupT = t; }
+  else { IA_CPT.recolte++; satEvent('recolte', res); if (res) { for (const k in IA.gout) IA.gout[k] *= .97; IA.gout[res] = (IA.gout[res] || 0) + 1; } }   // ce que vous récoltez le plus, ces temps-ci
 }
 function betesAutour() {
   let men = null, dMen = 99, dSauv = 99, nb = 0;
@@ -19774,11 +19764,12 @@ function majCerveau(dt) {
   if (!IA.R) IA.R = reseauNeuf();
   if ((IA.pasT -= dt) > 0) return;
   IA.pasT = IA_PAS;
+  majPerso();                                                // (§158) ce qu'il remarque, et qu'il dit
   const A = betesAutour(), x = iaPercevoir(A);
   // ce qu'il devine, maintenant
   IA.p = propager(IA.R, x).p;
   const k = argmax(IA.p);
-  IA.pense = IA.n >= IA_ECOLE && IA.p[k] >= IA_CONFIANCE ? IA_INTENTIONS[k] : null;
+  IA.pense = IA.n >= IA_ECOLE && IA.p[k] >= (PERSO.type === 'glaneur' && k === 0 ? .38 : IA_CONFIANCE) ? IA_INTENTIONS[k] : null;   // le glaneur pense plus tôt à la récolte
   // ce moment-ci attendra trois secondes sa leçon
   IA.attente.push({ x, t0: t, rec: IA_CPT.recolte, coups: IA_CPT.coups, px: P.x, py: P.y, men: A.men ? [A.men.x, A.men.y] : null, dMen: A.dMen });
   while (IA.attente.length && t - IA.attente[0].t0 >= IA_HORIZON) lecon(IA.attente.shift());
@@ -19788,13 +19779,16 @@ function lecon(w) {
   const dep = Math.hypot(P.x - w.px, P.y - w.py);
   const fuite = w.men && Math.hypot(P.x - w.men[0], P.y - w.men[1]) - w.dMen > 2.5 && dep > 2;
   const y = IA_CPT.coups > w.coups ? 1 : IA_CPT.recolte > w.rec ? 0 : fuite ? 2 : dep > 3 ? 3 : 4;
-  const devine = argmax(propager(IA.R, w.x).p);              // avant la leçon : avait-il vu juste ?
+  const pw = propager(IA.R, w.x).p, devine = argmax(pw);      // avant la leçon : avait-il vu juste ?
+  if (devine === y && y !== 4 && pw[y] > .75 && IA.n >= IA_ECOLE && Math.random() < .12) parler('devine', { act: IA_DITS[IA_INTENTIONS[y]] });   // (§158) et parfois, il le dit
   IA.juste += ((devine === y ? 1 : 0) - IA.juste) * .02;
   if (devine === y && IA.n >= IA_ECOLE && SAT.vu) burst(SAT.x, SAT.y, SAT.z + .18, 2, '#c8ffb8');   // vu juste : une petite étincelle à l'antenne
   apprendre(IA.R, w.x, y);
   for (let r = 0; r < 3 && IA.memoire.length; r++) { const m = IA.memoire[Math.random() * IA.memoire.length | 0]; apprendre(IA.R, m.x, m.y, .02); }   // il repasse ses souvenirs
   if (IA.memoire.length < 400) IA.memoire.push({ x: w.x, y }); else IA.memoire[Math.random() * 400 | 0] = { x: w.x, y };
   IA.avant = y; IA.n++;
+  persoLecon(w, y);                                          // (§158) son caractère se forge
+  xpComp(y);                                                 // (§159) et son arbre pousse
   if (IA.n % 120 === 0) Sauve.sale = true;                   // son savoir part avec la prochaine sauvegarde
   const P_ = [[IA_ECOLE, 'vous observe : il commence à deviner ce que vous allez faire'], [300, 'vous comprend de mieux en mieux'], [1200, 'vous connaît bien']];
   if (IA.palier < P_.length && IA.n >= P_[IA.palier][0]) { say(nomSatellite() + ' ' + P_[IA.palier][1] + ' · juste ' + Math.round(IA.juste * 100) + ' %', 3); IA.palier++; }
@@ -19802,15 +19796,17 @@ function lecon(w) {
 // --- ce qu'il fait de ce qu'il devine : où se placer ---
 function ancrePensee(k, cap, hautJ) {
   const vit = Math.hypot(SAT.pvx, SAT.pvy);
-  if (k === 'recolter') { if (t - (IA.piedT ?? -9) > .5) { IA.pied = piedProche(7, cap); IA.piedT = t; }   // au-dessus du prochain pied (cherché deux fois par seconde)
+  if (k === 'recolter') { if (t - (IA.piedT ?? -9) > .5) { IA.pied = piedProche(PERSO.type === 'glaneur' ? 9 : 7, cap); IA.piedT = t; }   // au-dessus du prochain pied (cherché deux fois par seconde)
     const p = IA.pied; return p ? [p.x, p.y, p.z + 1.05] : null; }
   if (k === 'combattre') { const c = cibleVue(); if (!c || !c.sp || c.tame || (c.x - P.x) ** 2 + (c.y - P.y) ** 2 > 144) return null;
+    if (PERSO.type === 'prudent') return null;               // le prudent reste à l'épaule
+    if (PERSO.type === 'fonceur') { const o = t * 3; return [c.x + Math.cos(o) * .7, c.y + Math.sin(o) * .7, c.z + .8]; }   // le fonceur y va le premier
     const a = Math.atan2(c.y - P.y, c.x - P.x); return [P.x + Math.cos(a) * .85, P.y + Math.sin(a) * .85, hautJ + .75]; }   // en garde, devant vous
   if (k === 'fuir') { const A = betesAutour(); let a;
     if (P.camp && campIci() && Math.hypot(P.camp.x - P.x, P.camp.y - P.y) > 6) a = Math.atan2(P.camp.y - P.y, P.camp.x - P.x);   // vers le campement
     else if (A.men) a = Math.atan2(P.y - A.men.y, P.x - A.men.x); else return null;
-    return [P.x + Math.cos(a) * 1.7, P.y + Math.sin(a) * 1.7, hautJ + .85]; }                               // il montre la sortie
-  if (k === 'explorer' && vit > .8) return [P.x + SAT.pvx / vit * 1.9, P.y + SAT.pvy / vit * 1.9, hautJ + 1.35];   // en éclaireur
+    const r = PERSO.type === 'prudent' ? 2.6 : 1.7; return [P.x + Math.cos(a) * r, P.y + Math.sin(a) * r, hautJ + .85]; }   // il montre la sortie (le prudent est déjà loin)
+  if (k === 'explorer' && vit > .8) { const r = PERSO.type === 'eclaireur' ? 3 : 1.9; return [P.x + SAT.pvx / vit * r, P.y + SAT.pvy / vit * r, hautJ + (PERSO.type === 'eclaireur' ? 1.7 : 1.35)]; }   // en éclaireur
   return null;
 }
 // --- ce qu'en dit le sac ---
@@ -19819,7 +19815,8 @@ function descSatellite() {
   if (!IA.n) return base + ' · depuis une case : le faire venir, ou le ranger';
   if (IA.n < IA_ECOLE) return base + ' · ' + nom + ' vous observe : encore ' + (IA_ECOLE - IA.n) + ' moments avant de deviner';
   const L = IA.p ? IA_INTENTIONS.map((k, i) => [k, IA.p[i]]).sort((a, b) => b[1] - a[1]).slice(0, 2).map(([k, v]) => IA_DITS[k] + ' ' + Math.round(v * 100) + ' %').join(', ') : '';
-  return base + ' · ' + nom + ' a appris de ' + IA.n + ' moments et devine juste ' + Math.round(IA.juste * 100) + ' % du temps' + (L ? ' · il pense que vous allez ' + L : '');
+  const T = SAT_TYPES[PERSO.type];
+  return base + ' · caractère : ' + T[0] + ', ' + T[1] + ' (bravoure ' + Math.round(PERSO.brave * 100) + ' %) · forme : ' + nomForme(SAT_FORME.type, SAT_FORME.stade) + ' · ' + nom + ' a appris de ' + IA.n + ' moments et devine juste ' + Math.round(IA.juste * 100) + ' % du temps' + (L ? ' · il pense que vous allez ' + L : '');
 }
 // --- la sauvegarde : les poids en entiers de 16 bits, en base 64 ---
 function iaPhoto() {
@@ -19827,10 +19824,17 @@ function iaPhoto() {
   const all = [IA.R.W1, IA.R.b1, IA.R.W2, IA.R.b2], n = all.reduce((s, a) => s + a.length, 0), q = new Int16Array(n); let o = 0;
   for (const a of all) for (const v of a) q[o++] = Math.max(-32767, Math.min(32767, Math.round(v * 4096)));
   let s = ''; const u = new Uint8Array(q.buffer); for (let i = 0; i < u.length; i++) s += String.fromCharCode(u[i]);
-  return { w: btoa(s), n: IA.n, j: Math.round(IA.juste * 1000) / 1000, g: Object.fromEntries(Object.entries(IA.gout).map(([k, v]) => [k, Math.round(v * 100) / 100]).slice(0, 12)), pa: IA.palier };
+  const r3 = v => Math.round(v * 1000) / 1000;
+  return { sk: { x: Object.fromEntries(SAT_BRANCHES.map(b => [b, Math.min(99999, SAT_XP[b] | 0)])), c: [...SAT_COMP] }, pe: { f: PERSO.f.map(r3), b: r3(PERSO.brave), m: Math.min(9999, PERSO.nMen), ty: PERSO.type }, w: btoa(s), n: IA.n, j: Math.round(IA.juste * 1000) / 1000, g: Object.fromEntries(Object.entries(IA.gout).map(([k, v]) => [k, Math.round(v * 100) / 100]).slice(0, 12)), pa: IA.palier };
 }
 function iaLire(d) {
   IA.R = null; IA.n = 0; IA.juste = .2; IA.gout = {}; IA.palier = 0; IA.memoire = []; IA.attente = []; IA.p = null; IA.pense = null;
+  Object.assign(PERSO, { f: IA_TAUX.slice(), brave: .5, nMen: 0, type: 'naif', cand: null, candN: 0 });   // (§158) son caractère, aussi
+  const pe = d && d.pe, sk = d && d.sk;
+  for (const b of SAT_BRANCHES) SAT_XP[b] = sk && sk.x ? Math.max(0, sk.x[b] | 0) : 0;   // (§159) son arbre
+  SAT_COMP.clear(); if (sk && Array.isArray(sk.c)) for (const id of sk.c) if (SAT_BRANCHES.some(b => SAT_ARBRE[b].some(s => s.id === id))) SAT_COMP.add(id);
+  if (pe && Array.isArray(pe.f) && pe.f.length === IA_SORT) { PERSO.f = pe.f.map(v => Math.max(0, Math.min(1, +v || 0))); PERSO.brave = Math.max(0, Math.min(1, +pe.b || .5)); PERSO.nMen = Math.max(0, pe.m | 0); if (SAT_TYPES[pe.ty]) PERSO.type = pe.ty; }
+  SAT_FORME.type = PERSO.type; SAT_FORME.stade = 0; SAT_FORME.anim = 0;   // (§160) sa forme, sans évolution à l'écran au chargement
   if (!d || typeof d.w !== 'string') return;
   try {
     const s = atob(d.w), u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
@@ -19840,6 +19844,382 @@ function iaLire(d) {
     IA.R = R; IA.n = Math.max(0, d.n | 0); IA.juste = Math.max(0, Math.min(1, +d.j || .2)); IA.palier = Math.max(0, Math.min(3, d.pa | 0));
     if (d.g && typeof d.g === 'object') for (const [k, v] of Object.entries(d.g)) if (RES[k] && Number.isFinite(+v)) IA.gout[k] = +v;
   } catch (e) { IA.R = null; }
+  SAT_FORME.stade = stadeVise(); SAT_FORME.anim = 0;
+}
+// ============================================================
+//  LE CARACTÈRE DU SATELLITE (§158)
+//  Ce que le cerveau apprend de vous lui forge un caractère, propre à chaque joueur :
+//  - sa bravoure : face à une menace, vous battez-vous, ou fuyez-vous ? (une moyenne lente) ;
+//  - ses penchants : ce que vous faites plus qu'un joueur moyen (récolter, explorer, souffler…).
+//  Six caractères : Naïf (il vient de naître), Fonceur, Prudent, Glaneur, Éclaireur, Rêveur. Il ne change
+//  qu'après deux constats de suite, et le dit. Le caractère change ce qu'il fait (le fonceur tourne autour
+//  de la bête, le prudent se cache derrière vous en tremblant, l'éclaireur part loin devant, le rêveur
+//  flotte haut et lentement, le glaneur repère les pieds plus tôt), la couleur de ses ailerons, et ses mots :
+//  une bulle au-dessus de lui, à des moments choisis (une menace, une victoire, la nuit, le campement…).
+// ============================================================
+const SAT_TYPES = { naif: ['Naïf', 'il découvre le monde, et vous'], fonceur: ['Fonceur', 'il fonce dans le tas'], prudent: ['Prudent', 'il se cache derrière vous'],
+  glaneur: ['Glaneur', 'il ne pense qu\'à la récolte'], eclaireur: ['Éclaireur', 'il part devant'], reveur: ['Rêveur', 'il flâne et regarde le ciel'] };
+const SAT_TEINTE = { naif: [214, 170, 80], fonceur: [222, 78, 58], prudent: [150, 182, 214], glaneur: [118, 192, 92], eclaireur: [240, 196, 70], reveur: [168, 138, 222] };
+const IA_TAUX = [.2, .1, .05, .35, .3];                   // ce que fait un joueur « moyen » : récolter, se battre, fuir, explorer, souffler
+const PERSO = { f: IA_TAUX.slice(), brave: .5, nMen: 0, type: 'naif', cand: null, candN: 0, parleT: -99, ctxT: {}, recoltes: [], camp: null, nuit: null, ile: null, reposDit: false, aDire: null };
+function caractere() {
+  if (IA.n < 150) return 'naif';
+  if (PERSO.nMen >= 6 && PERSO.brave > .66) return 'fonceur';
+  if (PERSO.nMen >= 6 && PERSO.brave < .34) return 'prudent';
+  const r = PERSO.f.map((v, k) => v / IA_TAUX[k]), k = argmax(r);   // ce que vous faites plus qu'un autre
+  return ['glaneur', 'fonceur', 'prudent', 'eclaireur', 'reveur'][k];
+}
+function majCaractere() {
+  const c = caractere(); if (c === PERSO.type) { PERSO.cand = null; return; }
+  if (PERSO.cand === c) PERSO.candN++; else { PERSO.cand = c; PERSO.candN = 1; }
+  if (PERSO.candN >= 2 || PERSO.type === 'naif') { PERSO.type = c; PERSO.cand = null; Sauve.sale = true; parler('devient', {}, true); }
+}
+// ce qu'il retient de chaque leçon (appelé par `lecon`)
+function persoLecon(w, y) {
+  for (let k = 0; k < IA_SORT; k++) PERSO.f[k] += ((k === y ? 1 : 0) - PERSO.f[k]) * .004;
+  if (w.men && (y === 1 || y === 2)) { PERSO.brave += ((y === 1 ? 1 : 0) - PERSO.brave) * .08; PERSO.nMen++; }
+  if (IA.n % 30 === 0) majCaractere();
+  if (y === 2) parler('fuite');
+}
+// --- ses mots : une réplique par caractère et par moment ; {nom}, {bete}, {Bete}, {res} (du bois), {leres} (le bois), {act} ---
+const SAT_DIT = {
+  arrive: { naif: ['Bip ! Je suis {nom}. Je te suis, d\'accord ?', 'Tout est grand, ici. Je reste près de toi.'],
+    fonceur: ['{nom}, prêt à cogner !', 'On va où ? Là où ça bastonne, j\'espère.'], prudent: ['{nom} au rapport. Restons discrets, d\'accord ?', 'Je suis là. Derrière toi. Tout près.'],
+    glaneur: ['{nom} ! On récolte quoi, aujourd\'hui ?', 'Ton sac est vide ? Au travail !'], eclaireur: ['{nom} ! Il y a tant à voir. On y va ?', 'Là-bas, derrière la colline… on va voir ?'],
+    reveur: ['{nom}, à ton épaule. Regarde comme le ciel est beau.', 'Bonjour. Le vent sent l\'herbe, aujourd\'hui.'] },
+  menace: { naif: ['Bip… c\'est quoi, ça ? Il a l\'air fâché.', 'Attention ! {Bete} en vue !'], fonceur: ['{Bete} en vue ! On fonce !', 'Enfin de l\'action ! À l\'attaque !'],
+    prudent: ['{Bete}… on s\'en va ? On s\'en va.', 'Bip bip bip ! Par où on part ?'], glaneur: ['Ça vient déranger la récolte…', 'Attention : {bete}. Protège le butin !'],
+    eclaireur: ['{Bete} sur la route. Je surveille.', 'Repéré avant toi : {bete} !'], reveur: ['Pourquoi tant de colère ?', 'Oh… {bete}. Mauvaise humeur, on dirait.'] },
+  victoire: { naif: ['Il ne bouge plus… On a gagné ? On a gagné !', 'C\'est fini ? Bip !'], fonceur: ['Et un de moins ! Au suivant !', 'Trop facile. On en cherche un autre ?'],
+    prudent: ['Ouf. On peut rentrer, maintenant ?', 'C\'est fini… mais il y en a peut-être d\'autres.'], glaneur: ['Il laisse de quoi ramasser ?', 'Bien. Retournons à la récolte.'],
+    eclaireur: ['La voie est libre. On continue ?', 'Un de moins sur le chemin.'], reveur: ['C\'était nécessaire, je suppose.', 'Tout redevient calme.'] },
+  fuite: { naif: ['On court ! Je ne sais pas pourquoi, mais on court !', 'Attends-moi !'], fonceur: ['On recule ?! Bon… pour mieux charger.', 'Tu fuis ? Moi, j\'y retournais, hein.'],
+    prudent: ['Bonne idée ! Les meilleures batailles sont celles qu\'on évite.', 'Cours, cours ! Je suis déjà devant.'], glaneur: ['On laisse les pieds mûrs ? Quel gâchis…', 'On reviendra les cueillir, hein ?'],
+    eclaireur: ['Par là ! J\'ai vu un passage tout à l\'heure.', 'On repart, on explore ailleurs !'], reveur: ['On s\'en va… le paysage défile, c\'est joli.', 'Fuir, c\'est aussi voyager.'] },
+  recolte: { naif: ['Encore {res} ? Je compte : beaucoup.', 'Tu aimes bien {leres}, toi.'], fonceur: ['Encore {res}… c\'est pour forger une plus grosse arme ?', 'Récolter, d\'accord. Mais vite.'],
+    prudent: ['Récolter {leres}, c\'est calme. J\'aime bien.', 'Récoltons. Personne ne se fait mordre en récoltant.'], glaneur: ['Encore {res} ! On en fera quelque chose de beau.', 'Tu as l\'œil pour {leres}.'],
+    eclaireur: ['Encore {res}… et après, on va voir plus loin ?', 'Récolte rapide, et en route !'], reveur: ['Chaque pied a son histoire, tu sais.', 'Encore {res}. La terre est généreuse.'] },
+  nuit: { naif: ['Il fait noir… mon œil éclaire un peu, regarde.', 'La nuit tombe. C\'est normal ?'], fonceur: ['La nuit, les bêtes sortent. Parfait.', 'Il fait noir ? Tant mieux, on les surprendra.'],
+    prudent: ['La nuit… je n\'aime pas la nuit. Rentrons ?', 'Il fait noir. Tout est une bête, la nuit.'], glaneur: ['La nuit, ça repousse. Demain, on cueille.', 'Il fait noir, mais je vois encore un pied mûr là-bas.'],
+    eclaireur: ['La nuit, on voit les lueurs des îles lointaines.', 'Il fait noir, mais je connais le chemin.'], reveur: ['Les étoiles sortent. Regarde-les avec moi.', 'La nuit est la plus belle heure.'] },
+  camp: { naif: ['C\'est ta maison ? Elle est jolie.', 'On est rentrés !'], fonceur: ['Pause au camp. Mais pas trop longue !', 'On répare, et on repart en découdre.'],
+    prudent: ['Le camp ! Enfin à l\'abri.', 'Restons ici un peu. Beaucoup.'], glaneur: ['On vide le sac au coffre ?', 'Au camp ! On range tout bien.'],
+    eclaireur: ['Déjà rentrés ? Il reste tant à découvrir !', 'Le camp, puis le portail ?'], reveur: ['Le feu crépite. On reste un peu ?', 'J\'aime le camp, le soir surtout.'] },
+  blesse: { naif: ['Tu as mal ? Fais attention à toi…', 'Bip… tu clignotes tout rouge.'], fonceur: ['Une égratignure ! Allez, encore un coup !', 'Tu saignes… mais tu tiens debout. On continue ?'],
+    prudent: ['Tu es blessé ! On rentre. Tout de suite.', 'Ça suffit pour aujourd\'hui, non ?'], glaneur: ['Prends soin de toi : qui portera le sac, sinon ?', 'Une baie, un plat chaud… et ça repart.'],
+    eclaireur: ['On a pris des risques… ça valait le coup, non ?', 'Une pause, et on repart explorer.'], reveur: ['Respire. Tout va bien aller.', 'Prends le temps de guérir.'] },
+  mort: { naif: ['Tu es revenu ! J\'ai eu peur.', 'Bip… ne refais plus jamais ça.'], fonceur: ['On s\'est fait avoir. La revanche sera terrible.', 'Tombé au combat : la plus belle façon de tomber.'],
+    prudent: ['Je te l\'avais dit… enfin, je l\'avais pensé très fort.', 'Plus jamais. On fera le tour, la prochaine fois.'], glaneur: ['On a perdu une partie du sac… quelle tristesse.', 'Tu es là ! Bon, on recommence à cueillir.'],
+    eclaireur: ['L\'aventure a ses risques. On y retourne ?', 'On a vu des choses, au moins !'], reveur: ['Tu es revenu… comme le soleil chaque matin.', 'On recommence. Doucement.'] },
+  repos: { naif: ['On attend quoi ?', 'J\'aime bien quand on ne bouge pas.'], fonceur: ['On attend quoi ? Les bêtes ne vont pas venir toutes seules.', 'Je m\'ennuie. Il n\'y a rien à frapper, ici ?'],
+    prudent: ['On ne bouge plus. Personne ne nous voit. Parfait.', 'Le calme… j\'adore le calme.'], glaneur: ['On ne cueille pas ? Il y a un pied mûr juste là.', 'Je compte les pieds autour : beaucoup.'],
+    eclaireur: ['On attend ? Il y a forcément quelque chose à voir là-bas.', 'Je m\'impatiente. Le monde est grand !'], reveur: ['Ne bougeons plus. Écoute le vent.', 'C\'est bien, de ne rien faire, parfois.'] },
+  ile: { naif: ['Une nouvelle île ! Ça sent différent.', 'Où on est ?'], fonceur: ['Nouvelle île, nouvelles bêtes à affronter !', 'Ça sent la bagarre, ici. J\'adore.'],
+    prudent: ['Une île inconnue… restons près du portail.', 'On ne connaît rien ici. Prudence.'], glaneur: ['Une nouvelle île : de nouvelles plantes à cueillir !', 'Tu as vu ? Ça pousse partout, ici.'],
+    eclaireur: ['Une nouvelle île ! Je pars devant !', 'Personne n\'est venu ici avant nous, je parie.'], reveur: ['Une île nouvelle, un ciel nouveau.', 'Qu\'il est beau, cet endroit.'] },
+  devine: { naif: ['J\'ai deviné que tu allais {act} !', 'Je commence à te connaître.'], fonceur: ['Je savais que tu allais {act}. On est pareils.', 'Je l\'ai senti venir, ça !'],
+    prudent: ['Je savais que tu voudrais {act}. Sage décision.', 'Toi aussi, tu sens les choses venir.'], glaneur: ['Tu allais {act}, je le savais.', 'Je te connais par cœur, maintenant.'],
+    eclaireur: ['Je savais que tu voudrais {act}. Moi aussi !', 'On pense pareil, toi et moi.'], reveur: ['Je sentais que tu voudrais {act}.', 'Tes pas me parlent, maintenant.'] },
+  devient: { naif: ['Je ne sais pas encore qui je suis.'], fonceur: ['Je crois que j\'aime la bagarre. Comme toi.', 'Je suis un fonceur, maintenant. Merci, chef.'],
+    prudent: ['J\'ai compris : on survit en évitant les ennuis.', 'Je serai prudent. Comme toi. Très prudent.'], glaneur: ['Je crois que j\'adore la récolte. Comme toi.', 'Je serai ton glaneur. Je te montrerai les plus beaux pieds.'],
+    eclaireur: ['Je crois que je suis fait pour explorer.', 'Je serai ton éclaireur. Toujours un pas devant.'], reveur: ['Je crois que j\'aime contempler, avec toi.', 'Je serai rêveur. Il faut bien que quelqu\'un regarde le ciel.'] },
+};
+SAT_DIT.appris = { naif: ['J\'ai appris quelque chose ! {comp} !', 'Oh ! Je sais faire {comp}, maintenant.'], fonceur: ['Nouvelle technique : {comp}. Ça va cogner !', '{comp} ! J\'ai hâte de m\'en servir.'],
+  prudent: ['J\'ai appris {comp}. Ça pourra nous sauver.', '{comp}… une précaution de plus.'], glaneur: ['J\'ai appris {comp}. Utile, très utile.', '{comp} ! On va remplir le sac.'],
+  eclaireur: ['{comp} ! Je vais voir encore plus loin.', 'Nouveau savoir : {comp}. En route !'], reveur: ['J\'ai appris {comp}, en te regardant.', '{comp}… c\'est venu tout seul, comme un rêve.'] };   // (§159)
+SAT_DIT.repere = { naif: ['Regarde, là-bas : {quoi} !', 'Il y a {quoi}, à {dist} mètres !'], fonceur: ['{Quoi} à {dist} m. On y va ?', 'Une proie rare : {quoi}. Allons-y !'],
+  prudent: ['Attention : {quoi}, à {dist} m.', 'Il y a {quoi} par là… on fait un détour ?'], glaneur: ['{Quoi} à {dist} m. Ça vaut le détour.', 'Rare, ça : {quoi}. Je l\'ai marqué.'],
+  eclaireur: ['Repéré : {quoi}, à {dist} m !', 'Je l\'ai vu le premier : {quoi}. C\'est marqué.'], reveur: ['Là-bas, {quoi}. Comme c\'est rare.', 'Regarde, au loin : {quoi}.'] };
+SAT_DIT.evolue = { naif: ['Je change…'], fonceur: ['Je deviens {forme} ! Regarde ces lames !', '{forme} ! Plus fort, plus vite, plus loin !'],
+  prudent: ['Je deviens {forme}. Rien ne passera.', '{forme}… une carapace de plus. Ouf.'], glaneur: ['Je deviens {forme} ! De quoi cueillir mieux encore.', '{forme} ! Je sens la terre, maintenant.'],
+  eclaireur: ['Je deviens {forme} ! Des ailes pour aller plus loin !', '{forme} ! Le monde est à nous.'], reveur: ['Je deviens {forme}… des étoiles tournent autour de moi.', '{forme}. Je flotte, et c\'est doux.'] };   // (§160)
+const RES_DU = { bois: ['du bois', 'le bois'], pierre: ['de la pierre', 'la pierre'], fibre: ['de la fibre', 'la fibre'], eclat: ['des éclats', 'les éclats'], ferraille: ['de la ferraille', 'la ferraille'], os: ['des os', 'les os'], spore: ['des spores', 'les spores'] };
+// Parler : une fois toutes les quatorze secondes au plus, et pas deux fois le même moment en moins de cinquante.
+function parler(ctx, v = {}, force) {
+  if (!SAT.vu || P.pv <= 0) return false;
+  if (!force && (t - PERSO.parleT < 14 || t - (PERSO.ctxT[ctx] ?? -99) < 50)) return false;
+  const T = SAT_DIT[ctx], L = T && (T[PERSO.type] || T.naif); if (!L) return false;
+  const vars = Object.assign({ nom: nomSatellite() }, v);
+  for (const [k, x] of Object.entries(v)) if (typeof x === 'string' && x) vars[k[0].toUpperCase() + k.slice(1)] = x[0].toUpperCase() + x.slice(1);   // {Bete}, {Quoi}…
+  let i = Math.random() * L.length | 0; if (L.length > 1 && L[i] === PERSO.dernier) i = (i + 1) % L.length;   // jamais deux fois la même de suite
+  PERSO.dernier = L[i];
+  const s = L[i].replace(/\{(\w+)\}/g, (m, k) => vars[k] ?? '');
+  PERSO.parleT = t; PERSO.ctxT[ctx] = t; bulle(s); return true;
+}
+// ce qui arrive autour de lui (appelé par le jeu : une bête tombée, un cœur perdu, une récolte)
+function satEvent(quoi, x) {
+  if (!SAT.on) return;
+  if (quoi === 'victoire' && x && x.sp && !x.tame) parler('victoire', { bete: x.sp.n.toLowerCase() });
+  else if (quoi === 'mort') PERSO.aDire = 'mort';
+  else if (quoi === 'recolte') {
+    PERSO.recoltes = PERSO.recoltes.filter(q => t - q < 30); PERSO.recoltes.push(t);
+    const R = RES_DU[x] || [RES[x] ? 'du ' + RES[x] : 'de tout ça', RES[x] ? 'le ' + RES[x] : 'ça'];
+    if (PERSO.recoltes.length >= 4) parler('recolte', { res: R[0], leres: R[1] });
+  }
+}
+// ce qu'il remarque de lui-même, deux fois par seconde (appelé par `majCerveau`)
+function majPerso() {
+  if (PERSO.aDire && P.pv > 0) { parler(PERSO.aDire, {}, true); PERSO.aDire = null; }
+  const camp = !!(P.camp && campIci() && auCamp()); if (PERSO.camp === false && camp) parler('camp'); PERSO.camp = camp;
+  const nuit = lumiere() < .4; if (PERSO.nuit === false && nuit) parler('nuit'); PERSO.nuit = nuit;
+  if (PERSO.ile !== null && PERSO.ile !== SEED) parler('ile', {}, true); PERSO.ile = SEED;
+  if (P.pv < .3 && P.pv > 0) parler('blesse');
+  if (SAT.immobile > 25 && !PERSO.reposDit) PERSO.reposDit = parler('repos'); else if (SAT.immobile < 1) PERSO.reposDit = false;
+}
+// --- la bulle, au-dessus de lui (et au bas de l'écran quand il est hors de vue) ---
+const BULLE = { el: null, fin: 0 };
+function bulle(s) {
+  if (!BULLE.el) {
+    const st = document.createElement('style');
+    st.textContent = `#satBulle{position:fixed;left:0;top:0;z-index:3;pointer-events:none;max-width:min(240px,70vw);padding:6px 10px 7px;border-radius:11px;
+      background:rgba(20,24,36,.88);border:1px solid rgba(143,232,255,.4);color:#e8eef8;font-size:12px;line-height:1.35;opacity:0;transition:opacity .35s;
+      box-shadow:0 4px 14px rgba(0,0,0,.35);will-change:transform}
+      #satBulle.vu{opacity:1} #satBulle b{display:block;font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:var(--sat,#8fe8ff);margin-bottom:1px}
+      #satBulle:after{content:'';position:absolute;left:50%;bottom:-6px;margin-left:-6px;border:6px solid transparent;border-bottom:0;border-top-color:rgba(20,24,36,.88)}
+      #satBulle.bord:after{display:none}`;
+    document.head.appendChild(st);
+    BULLE.el = document.createElement('div'); BULLE.el.id = 'satBulle'; BULLE.el.innerHTML = '<b></b><span></span>'; document.body.appendChild(BULLE.el);
+  }
+  const c = SAT_TEINTE[PERSO.type] || SAT_TEINTE.naif;
+  BULLE.el.style.setProperty('--sat', 'rgb(' + c.map(v => Math.min(255, v + 40)).join(',') + ')');
+  BULLE.el.querySelector('b').textContent = nomSatellite() + ' · ' + SAT_TYPES[PERSO.type][0];
+  BULLE.el.querySelector('span').textContent = s;
+  BULLE.fin = performance.now() + 3200 + s.length * 45;
+  SON.jouer('tic', {}, SAT.x, SAT.y, SAT.z);
+}
+function majBulle() {
+  const el = BULLE.el; if (!el) return;
+  const vu = SAT.vu && !sacOuvert && performance.now() < BULLE.fin;
+  el.classList.toggle('vu', vu); if (!vu) return;
+  const p = ecranMonde(SAT.x, SAT.y, SAT.z + .3), dans = p && p[0] > 60 && p[0] < Wd - 60 && p[1] > 90 && p[1] < Hd - 40;
+  const x = dans ? p[0] : Wd / 2, y = dans ? p[1] - 8 : Hd * .74;
+  el.classList.toggle('bord', !dans);
+  el.style.transform = `translate(${Math.round(x)}px,${Math.round(y)}px) translate(-50%,-100%)`;
+}
+// ============================================================
+//  L'ÉVOLUTION ET L'ARBRE DU SATELLITE (§159)
+//  Sa forme : voir LES FORMES DU SATELLITE (§160) — elle évolue par paliers, à la manière de Phantasy Star Online.
+//  Son arbre : une branche par comportement, qui se débloque seule. Chaque leçon (§157) nourrit la branche de
+//  ce que vous avez fait — deux fois plus vite celle de son caractère. Au seuil, il apprend la compétence, et
+//  la dit. Pour l'instant, un nœud par branche ; les suivants sont « à venir ».
+// ============================================================
+const SAT_BRANCHES = ['fonceur', 'prudent', 'glaneur', 'eclaireur', 'reveur'];
+const SAT_BRANCHE_DE = [2, 0, 1, 3, 4];                    // l'intention apprise (récolter, se battre, fuir, explorer, souffler) → sa branche
+const SAT_ARBRE = {
+  fonceur: [{ id: 'decharge', n: 'Décharge', xp: 60, d: 'en combat, il foudroie votre cible toutes les 4 secondes' }],
+  prudent: [{ id: 'bouclier', n: 'Bouclier', xp: 30, d: 'une bête menace et vous êtes blessé : il vous couvre d\'un bouclier, une fois par minute' }],
+  glaneur: [{ id: 'glanage', n: 'Glanage', xp: 150, d: 'près des pieds mûrs, il glane de lui-même un peu de ce que vous aimez récolter' }],
+  eclaireur: [{ id: 'reperage', n: 'Repérage', xp: 250, d: 'il repère les bêtes et les plantes rares alentour, et les marque à la boussole' }],
+  reveur: [{ id: 'apaisement', n: 'Apaisement', xp: 250, d: 'quand vous soufflez, sa lueur vous soigne doucement' }],
+};
+const SAT_CORPS = { naif: [72, 80, 98], fonceur: [98, 62, 66], prudent: [86, 98, 112], glaneur: [72, 94, 70], eclaireur: [64, 82, 108], reveur: [86, 74, 110] };
+const SAT_XP = { fonceur: 0, prudent: 0, glaneur: 0, eclaireur: 0, reveur: 0 }, SAT_COMP = new Set();
+const SAT_FORME = { type: 'naif', stade: 0, anim: 0, de: null };   // la forme qu'on voit, son stade (0 Noyau, 1, 2), l'évolution en cours (§160)
+const satComp = id => SAT_COMP.has(id);
+// --- l'arbre : chaque leçon nourrit une branche ---
+function xpComp(y) {
+  const br = SAT_BRANCHES[SAT_BRANCHE_DE[y]];
+  SAT_XP[br] += PERSO.type === br ? 2 : 1;
+  for (const s of SAT_ARBRE[br]) if (!s.avenir && !SAT_COMP.has(s.id) && SAT_XP[br] >= s.xp) {
+    SAT_COMP.add(s.id); Sauve.sale = true;
+    burst(SAT.x, SAT.y, SAT.z + .15, 18, '#fff4b0');
+    say(nomSatellite() + ' a appris : ' + s.n + ' · ' + s.d, 4.5);
+    parler('appris', { comp: s.n }, true);
+  }
+}
+// --- les compétences, à l'œuvre (chaque image, le satellite sorti) ---
+const SC = { zapT: -99, bouclierT: -99, glaneT: -99, repereT: -99, repere: null, soinT: 0 };
+const cibleHostile = o => o && o.sp && !o.dead && o.pv > 0 && !o.tame && !o.loin && !o.sp.pnj && !o.sp.villageois && !o.sp.plante && !o.sp.batiment && !o.cache;
+function rayon(A, B, col, n = 9) {                           // un trait de particules, de lui à la cible
+  for (let k = 0; k <= n; k++) { const u = k / n;
+    parts.push({ x: A[0] + (B[0] - A[0]) * u, y: A[1] + (B[1] - A[1]) * u, z: A[2] + (B[2] - A[2]) * u, vx: 0, vy: 0, vz: .2, g: 0, life: .25, age: 0, col, luit: 1, tl: .05 }); }
+}
+function majCompSat(dt) {
+  if (!SAT.vu || P.pv <= 0) return;
+  const ty = PERSO.type;
+  // Décharge : vous vous battez, il foudroie votre cible
+  if (satComp('decharge') && t - (SAT.coupT ?? -99) < 3 && t - SC.zapT > (ty === 'fonceur' ? 3 : 4)) {
+    const b = cibleVue();
+    if (cibleHostile(b) && (b.x - SAT.x) ** 2 + (b.y - SAT.y) ** 2 < 81) {
+      SC.zapT = t;
+      const cz = b.z + .45 * (b.sp.sz || 1), dg = degJoueur(.12, b);
+      rayon([SAT.x, SAT.y, SAT.z], [b.x, b.y, cz], '#ff7a5a'); burst(b.x, b.y, cz, 8, '#ffd0a0');
+      b.pv -= dg; b.hit = .25; b.alarm = 1; blesseParJoueur(b); SON.jouer('touche', { arme: 'fleche' }, b.x, b.y, cz);
+      if (typeof fauneCoup === 'function') fauneCoup(b, dg, 0, 0, 'satellite');
+      if (b.pv <= 0 && !b.dead) { mourirBete(b, 'satellite'); butin(b); }
+    }
+  }
+  // Bouclier : une menace, vous êtes blessé — il vous couvre
+  if (satComp('bouclier') && SAT.alerte && P.pv < .5 && t - SC.bouclierT > (ty === 'prudent' ? 45 : 60)) {
+    SC.bouclierT = t; P.bonusPv = Math.max(P.bonusPv || 0, ty === 'prudent' ? .3 : .2);
+    burst(P.x, P.y, P.z + .5, 22, '#9fd8ff'); rayon([SAT.x, SAT.y, SAT.z], [P.x, P.y, P.z + .5], '#9fd8ff', 6);
+    say(nomSatellite() + ' vous couvre d\'un bouclier', 1.8);
+  }
+  // Glanage : près d'un pied mûr, il en glane un peu, de lui-même
+  if (satComp('glanage') && t - SC.glaneT > 25 && SAT.immobile < 30) {
+    SC.glaneT = t - 20;                                      // pas de pied : on réessaie dans cinq secondes
+    const cap = mode === 'fps' ? yaw : (P.faceS ?? P.face ?? 0), pd = piedProche(4, cap);
+    if (pd) { const ty2 = typeFlore(pd.x | 0, pd.y | 0), sp = ty2 && FLORE[ty2], res = sp && sp.res;
+      if (res && RES[res] && ((res !== 'eclat' && res !== 'ferraille') || nivOutil() >= 2)) {
+        const n = ty === 'glaneur' ? 2 : 1; SC.glaneT = t;
+        P.sac[res] = (P.sac[res] || 0) + n; Sauve.sale = true;
+        rayon([pd.x, pd.y, pd.z + .3], [SAT.x, SAT.y, SAT.z], '#c8ffb0', 6);
+        gainFlottant('+' + n + ' ' + nomRes(res, n));
+      } }
+  }
+  // Repérage : une bête ou une plante rare, à quarante mètres, marquée à la boussole
+  if (SC.repere && t > SC.repere.fin) SC.repere = null;
+  if (satComp('reperage') && t - SC.repereT > 20) {
+    SC.repereT = t; let best = null, bs = 0;
+    for (const b of beasts) { if (b.dead || !(b.pv > 0) || b.tame || b.cache || b.sp.pnj || b.sp.villageois) continue;
+      const r = rareBete(b) | 0, d = Math.hypot(b.x - P.x, b.y - P.y); if (r < 3 || d > 40 || d < 6) continue;
+      const s = r * 10 - d * .1; if (s > bs) { bs = s; best = b; } }
+    if (best && (!SC.repere || SC.repere.o !== best)) {
+      const nom = best.sp.plante && best.pl ? best.pl.n : nomEspeceDe(best), d = Math.round(Math.hypot(best.x - P.x, best.y - P.y));
+      SC.repere = { o: best, x: best.x, y: best.y, n: nom, fin: t + 45 };
+      parler('repere', { quoi: nom.toLowerCase(), dist: String(d) }, true);
+    }
+  }
+  if (SC.repere && SC.repere.o && !SC.repere.o.dead) { SC.repere.x = SC.repere.o.x; SC.repere.y = SC.repere.o.y; }
+  // Apaisement : vous soufflez, sa lueur vous soigne
+  if (satComp('apaisement') && SAT.immobile > 3 && P.pv < 1) {
+    P.pv = Math.min(1, P.pv + dt * (ty === 'reveur' ? .015 : .01));
+    if ((SC.soinT -= dt) <= 0) { SC.soinT = .5; rayon([SAT.x, SAT.y, SAT.z], [P.x, P.y, P.z + .5], '#d6c4ff', 4); }
+  }
+}
+// le repère du satellite, pour la boussole
+const satRepere = () => SC.repere ? { x: SC.repere.x, y: SC.repere.y, k: 'sat', n: SC.repere.n, c: 'rgb(' + (SAT_TEINTE[PERSO.type] || SAT_TEINTE.naif).join(',') + ')' } : null;
+// --- l'arbre, dans sa fiche du sac ---
+function arbreSatHTML() {
+  if (!document.getElementById('satArbreCss')) {
+    const st = document.createElement('style'); st.id = 'satArbreCss';
+    st.textContent = `.sat-arbre{margin:8px 0 4px;padding:8px;border-radius:9px;background:rgba(0,0,0,.18);border:1px solid rgba(190,205,230,.14)}
+      .sat-arbre .sa-h{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#9aa6bf;margin-bottom:6px}
+      .sa-b{display:grid;grid-template-columns:72px 1fr 30px 30px;gap:4px;align-items:stretch;margin:4px 0}
+      .sa-t{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--c)}
+      .sa-t:before{content:'';width:8px;height:8px;border-radius:50%;background:var(--c);box-shadow:0 0 6px var(--c);flex:none}
+      .sa-b.sien .sa-t{text-decoration:underline;text-underline-offset:3px}
+      .sa-n{position:relative;overflow:hidden;padding:4px 6px 6px;border-radius:7px;border:1px solid rgba(190,205,230,.18);background:rgba(255,255,255,.03);font-size:11px;min-width:0}
+      .sa-n b{display:block;font-weight:600;color:#cfd6e4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .sa-n small{display:block;font-size:9.5px;color:#8d9ab4;line-height:1.3}
+      .sa-n i{position:absolute;left:0;bottom:0;height:3px;background:var(--c);opacity:.8}
+      .sa-n.ok{border-color:var(--c);background:rgba(255,255,255,.06);box-shadow:inset 0 0 0 1px rgba(255,255,255,.05)} .sa-n.ok b{color:#fff}
+      .sa-n.avenir{display:flex;align-items:center;justify-content:center;opacity:.35;border-style:dashed;padding:0} .sa-n.avenir b{color:#8d9ab4}`;
+    document.head.appendChild(st);
+  }
+  const F = SAT_FORME, rows = SAT_BRANCHES.map(br => {
+    const T = SAT_TYPES[br], c = SAT_TEINTE[br].join(','), s = SAT_ARBRE[br][0], ok = SAT_COMP.has(s.id), pc = Math.min(100, Math.floor(SAT_XP[br] / s.xp * 100));
+    const n1 = `<div class="sa-n${ok ? ' ok' : ''}" title="${ESC(s.n + ' · ' + s.d)}"><b>${ok ? '✦ ' : ''}${ESC(s.n)}</b><small>${ok ? ESC(s.d) : 'à ' + pc + ' %'}</small>${ok ? '' : `<i style="width:${pc}%"></i>`}</div>`;
+    return `<div class="sa-b${PERSO.type === br ? ' sien' : ''}" style="--c:rgb(${c})"><span class="sa-t">${T[0]}</span>${n1}<div class="sa-n avenir" title="à venir"><b>?</b></div><div class="sa-n avenir" title="à venir"><b>?</b></div></div>`; }).join('');
+  const suite = F.type === 'naif' ? 'il évoluera quand il aura un caractère' : F.stade < 2 ? 'vers ' + SAT_NOMS_FORME[F.type][F.stade] + ' : ' + Math.min(99, Math.floor(IA.n / SAT_PALIERS[F.stade] * 100)) + ' %' : 'forme ultime';
+  return `<div class="sat-arbre"><div class="sa-h">Forme : ${ESC(nomForme(F.type, F.stade))} · ${ESC(suite)}</div><div class="sa-h">Son arbre · il apprend seul, de ce que vous faites</div>${rows}</div>`;
+}
+// ============================================================
+//  LES FORMES DU SATELLITE (§160)
+//  À la manière des compagnons de Phantasy Star Online : il ne grandit pas peu à peu, il ÉVOLUE, d'un coup,
+//  à des paliers — un tourbillon, un éclair, une forme nouvelle, et un nom. Trois stades :
+//  - Noyau : la forme de départ (ses ailerons prennent déjà la teinte de son caractère) ;
+//  - la première évolution (600 leçons, cinq minutes sorti) ; la seconde (2 400 leçons, vingt minutes).
+//  Chaque caractère a ses deux formes, qui portent un nom d'étoile accordé à leur couleur et à leur rôle :
+//  Fonceur : Antarès puis Bételgeuse (rouges) · Prudent : Alcor puis Polaris (l'étoile fixe, sûre) ·
+//  Glaneur : Spica (l'épi) puis Vindemiatrix (la vendangeuse) · Éclaireur : Altaïr (l'aigle) puis Canopus
+//  (l'étoile des navigateurs) · Rêveur : Véga (la lyre) puis Pléiades (l'amas).
+//  Toutes ont un cœur lumineux à la couleur du caractère, et des pièces qui flottent, détachées du corps.
+//  Un changement de caractère fait aussi évoluer : la forme d'avant se résorbe en tournoyant, la nouvelle éclôt.
+// ============================================================
+const SAT_NOMS_FORME = { fonceur: ['Antarès', 'Bételgeuse'], prudent: ['Alcor', 'Polaris'], glaneur: ['Spica', 'Vindemiatrix'], eclaireur: ['Altaïr', 'Canopus'], reveur: ['Véga', 'Pléiades'] };
+const SAT_COEUR = { naif: [140, 230, 255], fonceur: [255, 112, 70], prudent: [176, 224, 255], glaneur: [255, 222, 110], eclaireur: [150, 226, 255], reveur: [214, 176, 255] };
+const SAT_PALIERS = [600, 2400];
+const nomForme = (ty, st) => st > 0 && SAT_NOMS_FORME[ty] ? SAT_NOMS_FORME[ty][st - 1] : 'Noyau';
+const stadeVise = () => PERSO.type === 'naif' ? 0 : IA.n >= SAT_PALIERS[1] ? 2 : IA.n >= SAT_PALIERS[0] ? 1 : 0;
+function majForme(dt) {
+  const F = SAT_FORME;
+  if (F.anim > 0) {                                          // l'évolution en cours : un tourbillon d'une seconde et demie
+    const a0 = F.anim; F.anim = Math.min(1, F.anim + dt / 1.5);
+    if (a0 < .5 && F.anim >= .5) { burst(SAT.x, SAT.y, SAT.z, 26, '#ffffff'); burst(SAT.x, SAT.y, SAT.z, 14, '#' + (SAT_COEUR[F.type] || SAT_COEUR.naif).map(v => v.toString(16).padStart(2, '0')).join('')); }
+    if (F.anim >= 1) F.anim = 0;
+    return;
+  }
+  const ty = PERSO.type, st = stadeVise();
+  if (ty === F.type && st === F.stade) return;
+  F.de = { type: F.type, stade: F.stade }; F.type = ty; F.stade = st; F.anim = 1e-3;
+  SON.jouer('tic', {}, SAT.x, SAT.y, SAT.z);
+  if (st > 0) { const nf = nomForme(ty, st); say(nomSatellite() + ' évolue : ' + nf + ' !', 3.5); parler('evolue', { forme: nf }, true); }
+}
+// La forme, en boîtes. `B` pose une boîte en coordonnées du satellite (avant, droite, haut), à l'échelle `k`.
+function formeSat(ty, st, at, k, oe) {
+  const L = [], B = (a, b, c, a2, b2, c2, w, h, col, lum = 0) => L.push([at(a * k, b * k, c * k), at(a2 * k, b2 * k, c2 * k), w * k, h * k, col, lum]);
+  const co = SAT_COEUR[ty] || SAT_COEUR.naif, bob = Math.sin(t * 2.4) * .012, flap = Math.sin(t * 6) * .02;
+  const or = [222, 182, 86], ail = SAT_TEINTE[ty] || SAT_TEINTE.naif;
+  if (!st) {                                                 // Noyau : la forme de départ
+    B(-.085, 0, 0, .085, 0, 0, .15, .13, [72, 80, 98]); B(-.06, 0, .045, .07, 0, .045, .12, .075, [190, 200, 216]);
+    B(-.075, 0, -.05, -.03, 0, -.068, .07, .03, [58, 64, 80]); B(.08, 0, .008, .112, 0, .008, .066, .056, oe, 1);
+    for (const s of [-1, 1]) B(-.01, s * .075, .02, -.06, s * .17, .06 + flap * s, .02, .075, ail);
+    B(-.03, 0, .07, -.05, 0, .15, .016, .016, [150, 160, 178]); B(-.05, 0, .148, -.05, 0, .176, .034, .034, oe, 1);
+    return L;
+  }
+  const pulse = 1 + .08 * Math.sin(t * 5);
+  if (ty === 'fonceur') {                                    // une pointe de lance, des lames détachées
+    B(-.03, 0, 0, .03, 0, 0, .075 * pulse, .075 * pulse, co, 1);                       // le cœur
+    B(0, 0, 0, .17 + .05 * (st - 1), 0, 0, .09, .07, [150, 40, 36]); B(-.13, 0, 0, 0, 0, 0, .11, .09, [70, 58, 64]);
+    B(-.08, 0, .05, .07, 0, .1, .02, .05, or);                                           // la crête
+    B(.1, 0, .036, .155, 0, .036, .07, .018, oe, 1);                                     // la visière
+    for (const s of [-1, 1]) {
+      B(-.02, s * .13, .02 + bob, -.15, s * .25, .075 + bob, .02, .065, [196, 52, 40]); B(-.02, s * .13, .02 + bob, -.07, s * .18, .047 + bob, .022, .022, or);
+      if (st > 1) { B(-.02, s * .11, -.04 - bob, -.13, s * .21, -.09 - bob, .02, .05, [170, 44, 36]);   // les lames du dessous
+        B(.08, s * .04, .05, .21, s * .075, .1, .022, .022, [236, 230, 218]); }          // les cornes
+    }
+    if (st > 1) for (const c of [-.04, 0, .04]) B(-.02, c, .1, -.03, c * 1.3, .15 + (c ? 0 : .03), .015, .015, or);   // la couronne
+  } else if (ty === 'prudent') {                             // deux coques autour d'un cœur, des boucliers qui tournent
+    B(-.035, 0, 0, .035, 0, 0, .07 * pulse, .07 * pulse, co, 1);
+    B(-.08, 0, .062, .08, 0, .062, .16, .06, [212, 220, 230]); B(-.07, 0, -.06, .07, 0, -.06, .14, .05, [118, 132, 150]);
+    B(.072, 0, .062, .088, 0, .062, .05, .016, oe, 1);
+    const n = st > 1 ? 4 : 2, R = st > 1 ? .21 : .19;
+    for (let i = 0; i < n; i++) { const a = t * (st > 1 ? .5 : .8) + i * 6.2832 / n, ca = Math.cos(a), sa = Math.sin(a);
+      B(ca * (R - .01), sa * (R - .01), 0, ca * (R + .01), sa * (R + .01), 0, st > 1 ? .1 : .12, st > 1 ? .2 : .12, [150, 170, 196]); }
+    if (st > 1) { B(0, 0, .09, 0, 0, .2, .02, .02, [232, 238, 246]); B(0, 0, .2, 0, 0, .235, .05, .05, co, 1); }   // l'étoile fixe
+  } else if (ty === 'glaneur') {                             // un épi, des grains d'or, des feuilles
+    B(0, 0, -.08, 0, 0, -.02, .07, .07, [86, 140, 70]); B(0, 0, -.02, 0, 0, .05, .1, .1, [100, 160, 80]);
+    B(0, 0, .05, 0, 0, .11, .07, .07, [120, 180, 90]); B(0, 0, .11, 0, 0, .15, .035, .035, [170, 220, 130]);
+    B(.05, 0, .03, .072, 0, .03, .05, .04, oe, 1);
+    for (let i = 0; i < 6; i++) { const a = i * 1.047 + .5, z = -.04 + (i % 3) * .06, ca = Math.cos(a), sa = Math.sin(a);
+      B(ca * .052, sa * .052, z, ca * .066, sa * .066, z, .025, .025, [232, 198, 90], i % 2); }   // les grains
+    for (const s of [-1, 1]) B(-.01, s * .05, .02, -.04, s * .17, .08 + flap * s, .015, .07, [130, 202, 90]);
+    if (st > 1) {
+      B(-.04, 0, .0, .04, 0, 0, .085 * pulse, .085 * pulse, co, 1);
+      for (let i = 0; i < 6; i++) { const a = i * 1.047 + t * .2, ca = Math.cos(a), sa = Math.sin(a);   // la corolle
+        B(ca * .08, sa * .08, -.03, ca * .19, sa * .19, .05, .07, .015, i % 2 ? [226, 190, 86] : [110, 182, 80]); }
+      for (const s of [-1, 1]) B(.02, s * .05, -.06, .07, s * .04, -.13, .018, .018, [150, 160, 178]);   // les petits bras
+    }
+  } else if (ty === 'eclaireur') {                           // un oiseau : longues ailes, traînes, œil-lunette
+    B(-.1, 0, 0, .1, 0, 0, .07, .06, [60, 90, 132]); B(.1, 0, .01, .15, 0, .01, .055, .05, [92, 124, 166]);
+    B(.15, 0, .012, .172, 0, .012, .046, .046, oe, 1); B(-.03, 0, -.035, .03, 0, -.035, .05 * pulse, .03, co, 1);
+    if (st < 2) for (const s of [-1, 1]) B(0, s * .045, .02, -.05, s * .3, .05 + flap * s, .012, .06, [236, 190, 80]);
+    else for (const s of [-1, 1]) for (let i = 0; i < 3; i++)   // trois rémiges par aile, de l'or au bleu
+      B(-.03 * i, s * .05, .02, -.06 - .04 * i, s * (.36 - .06 * i), .05 - .01 * i + flap * s * (1 - i * .3), .012, .05, [236 - 60 * i, 190 - 30 * i, 80 + 50 * i]);
+    for (let i = st > 1 ? -1 : 0; i <= (st > 1 ? 1 : 0); i++) B(-.1, 0, 0, -.22 - .04 * (st - 1), i * .05, .02, .01, .035, [236, 190, 80]);   // la traîne
+    if (st > 1) B(.06, 0, .04, .12, 0, .09, .015, .03, [236, 190, 80]);                  // la crête
+  } else if (ty === 'reveur') {                              // un croissant de lune autour d'un cœur, des étoiles qui tournent
+    B(-.03, 0, 0, .03, 0, 0, .065 * pulse, .065 * pulse, co, 1); B(.034, 0, .01, .05, 0, .01, .034, .034, oe, 1);
+    const cr = (R, ep, col) => { let p = null; for (let i = 0; i <= 8; i++) { const a = -.6 + i / 8 * 4.34, q = [-.01, Math.cos(a) * R, Math.sin(a) * R];
+      if (p) B(p[0], p[1], p[2], q[0], q[1], q[2], ep, ep, col); p = q; } };
+    cr(.12, .03, [140, 110, 204]); if (st > 1) cr(.17, .02, [186, 160, 240]);
+    const n = st > 1 ? 7 : 3, R = st > 1 ? .24 : .17;
+    for (let i = 0; i < n; i++) { const a = t * .5 + i * 6.2832 / n, z = (st > 1 ? Math.sin(a) * .06 : .02) + .012 * Math.sin(t * 2 + i), sz = st > 1 ? .02 + .012 * (i % 3) : .024;
+      B(Math.cos(a) * R, Math.sin(a) * R, z, Math.cos(a) * R, Math.sin(a) * R, z + sz, sz, sz, [222, 202, 255], 1); }   // les étoiles
+  }
+  return L;
+}
+// Son corps : sa forme, à son échelle (elle grandit à chaque évolution), et pendant une évolution, le tourbillon.
+function osSatellite() {
+  const S = SAT, F = SAT_FORME, oe = SAT_OEIL[S.humeur] || SAT_OEIL.calme;
+  let ty = F.type, st = F.stade, ech = 1, tour = 0;
+  if (F.anim > 0) { const a = F.anim; tour = a * a * 12; if (a < .5) { ty = F.de.type; st = F.de.stade; ech = 1 - a * 2; } else ech = a * 2 - 1; ech = Math.max(.02, ech); }
+  const k = (st === 2 ? 1.35 : st === 1 ? 1.18 : 1) * ech, cap = S.cap + tour;
+  const ca = Math.cos(cap), sa = Math.sin(cap), ci = Math.cos(S.inc), si = Math.sin(S.inc);
+  const f = [ca * ci, sa * ci, -si], r = [-sa, ca, 0], u = [ca * si, sa * si, ci];
+  const at = (a, b, c) => [S.x + f[0] * a + r[0] * b + u[0] * c, S.y + f[1] * a + r[1] * b + u[1] * c, S.z + f[2] * a + r[2] * b + u[2] * c];
+  return formeSat(ty, st, at, k, oe);
 }
 function majSorts(dt) {
   majLiens(dt);                                          // (§145) les liens lancés
@@ -23102,6 +23482,7 @@ function drawHud() { try { drawHud0(); } catch (e) { rattraper(e, 'hud'); } }   
 function drawHud0() {
   majBoussole();                                   // elle suit la caméra à chaque image
   majMire();                                       // (§151) le chevron au-dessus de la cible, à chaque image aussi
+  majBulle();                                      // (§158) la bulle du satellite
   // Réécrire le HUD à chaque image force le navigateur à refaire la mise en page du texte
   // soixante fois par seconde. Dix fois suffisent à l'œil, et rien si rien n'a changé.
   if (t - hudT < .1 && t >= hudT) return;
@@ -24003,6 +24384,7 @@ function reperes() {
   for (const c of P.compagnes) if (c.dehors && c.b && !c.b.dead) L.push({ x: c.b.x, y: c.b.y, k: 'comp' });
   if (!(P.trouble > t)) for (const j of Autres.values()) L.push({ x: j.x, y: j.y, k: 'joueur', n: j.nom });   // des spores plein les yeux : on perd les autres de vue
   const nm = nmRepere(); if (nm) L.push(nm);          // la halte des nomades
+  if (typeof satRepere === 'function') { const r = satRepere(); if (r) L.push(r); }   // (§159) ce que le satellite a repéré
   if (typeof nmMarques === 'function') for (const m of nmMarques()) L.push(m);   // ce qu'a marqué le cartographe, le sac de l'égaré (§110)
   for (const l of LUTRINS) if ((l.vu || curioFx('lutrins')) && !l.lu && !tomeAcquis(l.m, l.n || 1)) L.push({ x: l.x, y: l.y, k: 'tome', c: hexSort(MATIERE[l.m].col) });   // un lutrin aperçu, pas encore lu
   return L;
@@ -24045,6 +24427,8 @@ function majBoussole(forcer) {
       x.fillStyle = m.c; x.fillRect(X - 5.5, Y - 3.5, 5, 7.5); x.fillRect(X + .5, Y - 3.5, 5, 7.5);
     } else if (m.k === 'comp') {
       x.fillStyle = '#e8a0a8'; x.beginPath(); x.arc(X, Y, 3, 0, 6.2832); x.fill();
+    } else if (m.k === 'sat') {                     // (§159) ce que le satellite a repéré : une étoile à quatre branches, à sa couleur
+      x.fillStyle = m.c || '#f0c446'; x.beginPath(); x.moveTo(X, Y - 6); x.lineTo(X + 1.6, Y - 1.6); x.lineTo(X + 6, Y); x.lineTo(X + 1.6, Y + 1.6); x.lineTo(X, Y + 6); x.lineTo(X - 1.6, Y + 1.6); x.lineTo(X - 6, Y); x.lineTo(X - 1.6, Y - 1.6); x.fill();
     } else if (m.k === 'carte') {                   // une marque de cartographe : un losange de parchemin, une croix rouge
       x.fillStyle = '#e8d9b0'; x.beginPath(); x.moveTo(X, Y - 5); x.lineTo(X + 5, Y); x.lineTo(X, Y + 5); x.lineTo(X - 5, Y); x.fill();
       x.strokeStyle = '#b0302a'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(X - 2, Y - 2); x.lineTo(X + 2, Y + 2); x.moveTo(X + 2, Y - 2); x.lineTo(X - 2, Y + 2); x.stroke();
@@ -26235,7 +26619,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-124', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-127', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
