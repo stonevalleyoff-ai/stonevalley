@@ -284,6 +284,9 @@ const VL_CONSEILS = ['Ne récolte pas la roche qui noircit. Ceux qui l\'ont fait
   'Les îles de nuage portent les éclats. Il faut grimper, ou avoir des ailes.', 'Une bête affamée se laisse approcher par qui a de quoi manger dans son sac. Pas par qui court.',
   'Le soir, le feu attire les gens. Le matin, il attire les bêtes. Garde-le bas.'];
 function vlDit(b, sujet) {
+  if (sujet === 'recette') { const R = typeof recetteA === 'function' ? recetteA('v:' + b.metier) : null;   // (§153)
+    if (!R) return 'Une recette ? On mange ce que la saison donne.';
+    transmettreRecette(R.id, b.nm.nom + ', ' + VL_DIT_METIER[b.metier] + ' du village'); return R.dit; }
   const nuit = vlNuit(), repas = vlRepas(), M = b.metier, fam = b.famille.filter(g => g !== b && !g.dead), conj = fam.find(g => g.metier !== 'enfant'), enf = fam.find(g => g.metier === 'enfant');
   if (sujet === 'qui') return `Je suis ${b.nm.nom}, ${VL_DIT_METIER[M]} du village.` + (conj ? ` Avec ${conj.nm.nom}, ` + (enf ? `et notre ${enf.f ? 'fille' : 'petit'} ${enf.nm.nom}, ` : '') + `nous tenons la ${b.maison.forme === 'ronde' ? 'hutte ronde' : b.maison.forme === 'longue' ? 'maison longue' : 'maison haute'}.` : '');
   if (sujet === 'fait') {
@@ -309,7 +312,8 @@ function vlParler(b) {
 function vlNoeud(dit) {
   const b = VL.parle; if (!b) return;
   vlEcrire(dit);
-  const choix = [{ t: 'Qui es-tu ?', s: 'qui' }, { t: 'Que fais-tu ?', s: 'fait' }, { t: 'Parle-moi du village.', s: 'village' }, { t: 'Un conseil pour la route ?', s: 'conseil' }, { t: 'Au revoir.', fin: true }];
+  const rc = typeof recetteA === 'function' ? recetteA('v:' + b.metier) : null, rcOk = rc && !P.recTr[rc.id] && !P.recettes['r:' + rc.id];   // (§153) une recette de chez eux, à confier
+  const choix = [{ t: 'Qui es-tu ?', s: 'qui' }, { t: 'Que fais-tu ?', s: 'fait' }, { t: 'Parle-moi du village.', s: 'village' }, { t: 'Un conseil pour la route ?', s: 'conseil' }, ...(rcOk ? [{ t: 'Une recette de chez vous ?', s: 'recette' }] : []), { t: 'Au revoir.', fin: true }];
   const el = VL.ui.querySelector('.nm-choix'); el.innerHTML = '';
   choix.forEach((c, i) => { const bt = document.createElement('button'); bt.innerHTML = '<kbd>' + (i + 1) + '</kbd>'; bt.appendChild(document.createTextNode(c.t)); bt.onclick = e => { e.stopPropagation(); vlChoisir(c); }; el.appendChild(bt); });
   VL.choix = choix;

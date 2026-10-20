@@ -445,6 +445,7 @@ function identiteFaune(b) {
   if (b.nid) k.ni = [r2(b.nid.x), r2(b.nid.y), r2(b.nid.z)];
   if (b.antre) k.an = [r2(b.antre[0]), r2(b.antre[1])];
   if (b.djIdx !== undefined) { k.di = b.djIdx; k.ds = b.djSalle; }
+  if (b.pl && b.pl.id) k.pl = b.pl.id;                     // (§162) une plante rare semée en cours de partie : laquelle
   return Object.keys(k).length ? k : null;
 }
 function poserIdentite(b, k, idx) {
@@ -457,6 +458,7 @@ function poserIdentite(b, k, idx) {
   if (Array.isArray(k.ni)) b.nid = { x: k.ni[0], y: k.ni[1], z: k.ni[2] };
   if (Array.isArray(k.an)) b.antre = k.an.slice();
   if (k.di !== undefined) { b.djIdx = k.di; b.djSalle = k.ds; }
+  if (k.pl && typeof rarePar === 'function') { const pl = rarePar(k.pl); if (pl) b.pl = pl; }
 }
 
 // ---------- le monde ----------
@@ -827,7 +829,7 @@ function fauneEvenement(evt, d) {
     if (touche && d.br && !effet('braise')) P.brulure = t + 3;
     if (d.sh) { P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, Math.min(1, +d.sh || 0)); }
     // les épines : le coup rendu revient au gardien
-    if (touche && effet('epines') && loc) fauneCoup(loc, (+d.d || 0) * .3 * effet('epines') / robuste(loc), 0, 0, 'combat');
+    if (touche && effet('epines') && loc) fauneCoup(loc, (+d.d || 0) * .4 * effet('epines') / robuste(loc), 0, 0, 'combat');
   } else if (evt === 'frend') {                          // la bête d'un rodéo raté, rendue à l'île
     if (d.a !== moi || FA.role !== 'gardien' || !d.d || !specById[d.d.s]) return true;
     const e = d.d, b = naitre(specById[e.s], +e.x || 0, +e.y || 0, +e.a || 0);

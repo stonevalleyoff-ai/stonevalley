@@ -50,6 +50,9 @@ const FL_BIOMES = [
   [20, [[40, 40, 60], [50, 60, 90], [90, 210, 255], [200, 255, 255], [160, 100, 255]], "Étoile des fosses|Clochettes abyssales|Éventail des profondeurs|Crosse luisante|Orbe des gouffres|Arbuste-lanterne|Lys des abîmes|Saule des fosses|Méduse des gouffres|Arbre-veine|Gueule des fosses|Cracheuse abyssale"],
   [22, [[90, 120, 60], [100, 150, 70], [220, 60, 80], [255, 236, 120], [255, 255, 255]], "Rose trémière|Campanule|Fougère des jardins|Crosse de vigne|Lanterne de fête|Pommier fleuri|Tournesol-roi|Saule du puits|Voile de glycine|Cerisier millénaire|Gueule du potager|Fouet de ronces"],
   [23, [[96, 70, 66], [150, 186, 120], [255, 182, 208], [255, 236, 160], [255, 250, 252]], "Étoile de sakura|Clochettes de glycine|Éventail d'érable rouge|Crosse de jade|Lampion de pétales|Prunier du Japon|Pivoine-reine|Saule de pétales|Voile de pétales|Arbre aux mille fleurs|Gueule de camélia|Fouet d'églantier"],   // la cerisaie (§112)
+  // (§162) le biome 40 n'existe sur aucune île : c'est la flore de l'île démoniaque (brume.js, lieuxEnfer), qui sort de terre
+  // au passage de la vague et se fane quand l'île guérit. Ni les nomades ni les îles ordinaires ne l'ont.
+  [40, [[42, 24, 22], [72, 30, 28], [214, 42, 30], [255, 172, 52], [255, 92, 30]], "Étoile du Malin|Clochettes de soufre|Éventail d'obsidienne|Crosse de braise|Orbe-brasier|Ronce ardente|Lys de l'abîme|Saule des damnés|Voile de soufre|Arbre-cendre|Gueule de l'enfer|Fouet d'obsidienne"],
 ];
 const FLORE_RARES = [], FLORE_PRODUITS = [];
 const FL_TIER = [1, 1, 1, 2, 2, 2, 3, 3, 4, 4, 5, 5];

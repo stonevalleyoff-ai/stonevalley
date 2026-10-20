@@ -932,7 +932,7 @@ function nmHerbOffre(b) {
   if (second && niv >= 2 && typeof FLORE_RARES !== 'undefined' && typeof poidsRarete === 'function') for (let n = 0; n < 1; n++) {
     const W = [1, 2, 3, 4, 5].map(r => rareteOk(r, niv) ? poidsRarete(r, niv, 4.4) : 0), tot = W.reduce((a, v) => a + v, 0);
     let u = Math.random() * tot, r = 1; for (let k = 0; k < 5; k++) if ((u -= W[k]) < 0) { r = k + 1; break; }
-    const C = FLORE_RARES.filter(p => p.r === r && !L.some(o => o.k === p.id)); if (C.length) L.push({ k: C[Math.random() * C.length | 0].id });
+    const C = FLORE_RARES.filter(p => p.r === r && p.bio !== 40 && !L.some(o => o.k === p.id));   // (pas la flore du démon, §162) if (C.length) L.push({ k: C[Math.random() * C.length | 0].id });
   }
   for (const o of L) { const G = graineInfo(o.k);
     o.prix = G.pl ? { eclat: [0, 4, 8, 14, 24, 40][G.r], fibre: 6 } : G.ta === 'p' ? { eclat: 3, fibre: 4 } : G.ta === 'm' ? { eclat: 5, bois: 6 } : { eclat: 8, bois: 10 };
@@ -1193,6 +1193,7 @@ function nmAller(id, replique) {
   const R = NM_DIALOGUES[b.nm.role];
   let n = R[id]; if (typeof n === 'function') n = n(b);
   if (!n) { nmFermer(); return; }
+  if (id === 'accueil' && typeof recetteNomade === 'function') { const c = recetteNomade(b); if (c) n = Object.assign({}, n, { choix: [...(n.choix || []), c] }); }   // (§153) une recette de la route
   if ((NM_AFFAIRES[b.nm.role] || []).includes(id)) {   // (§123) une affaire par halte : au-delà, les offres grisées
     const ok = nmPeutAffaire(b);
     n = Object.assign({}, n, { choix: (n.choix || []).map(c => !c.fait ? c : ok ? Object.assign({}, c, { fait: () => { const r = c.fait(); nmAffaire(b); if (typeof jnl === 'function') jnl('nomade', { role: b.nm.role, affaire: id, ami: nmAmi(b), expl: profondeur() }); return r; } })

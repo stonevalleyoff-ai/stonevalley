@@ -10,8 +10,8 @@
 // approche, deux d'entre eux le combattent (le fouet de sang, qui tire vers eux ; la volée de cinq
 // traits) pendant que les autres chantent. Chaque mage qui tombe éclaircit la brume ; le dernier tombé,
 // elle se lève sur l'île. Mais s'ils achèvent leur incantation (une minute trente, plus lente à mesure qu'ils
-// tombent ; une barre en haut de l'écran dit le temps qu'il reste), un DÉMON cornu sort du cercle, massacre les mages, puis s'en prend à vous ; la brume ne se
-// lève qu'à sa mort.
+// tombent ; une barre en haut de l'écran dit le temps qu'il reste), un DÉMON cornu sort du cercle, massacre les mages, puis s'en prend à vous ; la brume se
+// retire d'un coup et l'île bascule : elle devient démoniaque (§162, plus bas), et ne guérit, lentement, qu'à sa mort.
 // Le jeu (index.html, etats.js) appelle, s'ils existent :
 //   brumeIle()          à chaque île marquée « brume » (etatsIle) ;
 //   brumeSang()         l'épaisseur de la brume ici, de 0 à 1 (le ciel, le brouillard, la musique) ;
@@ -20,6 +20,8 @@
 //   dessinerBrume(...)  l'image, par-dessus le monde (dessinerFiltre) ;
 //   majBrumeBete(b, dt) les mages, les Rôdeurs, le démon, le cercle (majBete) ; osBrume(f) leurs volumes ;
 //   butinBrume(b)       ce qu'ils laissent (butin) ; brumeMonde / brumeAppliquer : l'état du cercle, partagé (faune.js).
+// L'île démoniaque (§162) : enferGL (la carte graphique), enferCss (le canvas), enferCielK (le ciel), laveIci (la
+// pêche), enferFaune (capEsp), enferMusique (la valse) ; P.enfers est sauvegardé (index.html).
 
 const SANG = { k: 0, annonce: false, chantT: 0, cercle: null, incant: 0, phase: 'libre', total: 0, invT: 0, seuil: 0, leveeT: 0, dirT: 0 };
 const INCANT_DUREE = 90;                                   // l'incantation complète : une minute trente, tous les mages vivants
@@ -27,7 +29,9 @@ const NB_MAGES = 6, R_CERCLE = 3.2;
 const BRUME_PORTEE = 12;                                   // la fureur ne voit pas plus loin que la brume
 
 function brumeIle() {
-  Object.assign(SANG, { k: 1, annonce: false, incant: 0, phase: 'chant', total: NB_MAGES, invT: t + 12, seuil: 0, leveeT: 0, dirT: t + 8, cercle: null });
+  Object.assign(SANG, { k: 1, annonce: false, incant: 0, phase: 'chant', total: NB_MAGES, invT: t + 12, seuil: 0, leveeT: 0, dirT: t + 8, cercle: null, calme: false });
+  ENF.seed = null; ENF.poser = [];
+  if (typeof djIci === 'function' && djIci()) { SANG.k = 0; SANG.phase = 'libre'; SANG.cercle = null; return; }   // (§163) sous l'île, ni cercle ni mages
   if (!specById.mage_sang) return;
   const C = SANG.cercle = placerCercle();
   const c = naitre(specById.cercle_sang, C.x, C.y); c.variante = null; c.z = C.z; c.pv = 1; c.age = 1e6; c.ech = 1; c.etat = 'chant'; beasts.push(c);
@@ -36,17 +40,58 @@ function brumeIle() {
     m.variante = null; m.z = sol(m.x, m.y); m.pv = 1; m.age = 1e6; m.ech = 1; m.place = a; m.etat = 'psalmodier'; m.dir = m.dirT = a + Math.PI;
     m.blinde = 1 + Math.max(0, profondeur() - 8) * .05; beasts.push(m);
   }
-  if ((P.brumesLevees || []).includes(SEED)) {             // déjà levée par vous : le cercle reste éteint (les numéros des bêtes restent pris)
+  const levee = (P.brumesLevees || []).includes(SEED);
+  if (levee) {                                             // déjà levée par vous : le cercle reste éteint (les numéros des bêtes restent pris)
     SANG.k = 0; SANG.phase = 'libre'; for (const b of beasts) if (b.sp.brume) b.horsJeu = true;
   }
+  reprendreEnfer(true);                                    // (§162) l'île démoniaque, telle que vous l'avez laissée
+}
+// Au retour sur une île, la sauvegarde n'est lue qu'APRÈS la construction de l'île (index.html : loadWorld, puis
+// demarrerSauvegarde ou adopter, qui appellent ceci) : on remet alors l'île dans l'état où vous l'avez laissée — la
+// brume levée (avant le §162, elle revenait au retour), les livres déjà lus, l'île démoniaque.
+function brumeReprise() {
+  if (typeof LUTRINS !== 'undefined') for (const l of LUTRINS) if (l.brume && !l.lu) l.lu = (P.brumeTomes || []).includes(SEED + '.' + l.brume);
+  if (ETAT.id !== 'brume' || !SANG.cercle || (typeof djIci === 'function' && djIci())) return;
+  if (enferEtat() && !enferIci()) return reprendreEnfer(false);
+  if ((P.brumesLevees || []).includes(SEED) && SANG.phase === 'chant') {
+    SANG.k = 0; SANG.phase = 'libre'; SANG.calme = true;
+    for (const b of beasts) if (b.sp.brume) oterBete(b, false);
+  }
+}
+const oterBete = (b, chargement) => { if (chargement) b.horsJeu = true; else if (!b.retire && !b.dead) { b.retire = true; retraits++; } };   // (au chargement, son numéro reste pris)
+// Le démon vous attend (vous êtes parti pendant le combat), ou l'île guérit.
+function reprendreEnfer(chargement) {
+  const E = enferEtat(), C = SANG.cercle; if (!E || !C || !specById.demon_sang) return;
+  const g = E[1] ? (Date.now() - E[1]) / 1000 / ENFER_GUERIR : 0;
+  if (g >= 1) { delete P.enfers[SEED]; return; }
+  const levee = (P.brumesLevees || []).includes(SEED);
+  SANG.calme = true; SANG.k = 0; SANG.incant = 1;
+  for (const b of beasts) if (estMage(b) || b.sp.corps === 'rodeur' || (levee && b.sp.brume)) oterBete(b, chargement);
+  if (levee) SANG.phase = 'libre';
+  else {
+    SANG.phase = 'demon';
+    if (!beasts.some(b => b.sp.corps === 'demon' && !b.dead && !b.horsJeu && !b.retire)) {
+      const d = naitre(specById.demon_sang, C.x, C.y); d.variante = null; d.z = C.z; d.pv = 1; d.age = 1e6; d.ech = 1; d.emerge = 1; d.phaseD = 'chasser'; d.etat = 'chasser';
+      d.blinde = 1 + Math.max(0, profondeur() - 8) * .06; d.dir = d.dirT = Math.atan2(P.y - C.y, P.x - C.x); beasts.push(d);
+    }
+  }
+  debutEnfer(false);
+  for (const q of ENF.poser) if (q[4] > g) poserPlanteEnfer(q, false);
+  ENF.poser = [];
+  const kf = enLisse(.55, 1, g);                            // la faune ordinaire : brûlée ; elle revient avec la guérison
+  beasts.forEach((b, k) => { if (fauneOrdinaire(b) && (k * .618034) % 1 >= kf) oterBete(b, chargement); });
 }
 // Le cercle : sur un replat, loin de l'arrivée (35 à 80 cases), plutôt en hauteur ; la flore y est rasée.
+// Jamais à moins de 10 cases d'un lutrin des matières ni de l'arche : le seul livre du cercle est le sien.
+// (Le hasard est celui de la graine : brumeIle tourne sous avecHasardDe, le cercle est le même à chaque visite.)
 function placerCercle() {
   const S = P.spawn || [P.x, P.y]; let best = null, bs = -1e9;
+  const A = (typeof PortailIle !== 'undefined' && PortailIle) || (typeof PortailCache !== 'undefined' && PortailCache), L = typeof LUTRINS !== 'undefined' ? LUTRINS : [];
+  const libre = (x, y) => !(A && Math.hypot(A.x - x, A.y - y) < 10) && !L.some(l => Math.hypot(l.x - x, l.y - y) < 10);
   for (let k = 0; k < 260; k++) {
     const a = Math.random() * 6.2832, r = 35 + Math.random() * 45, x = (S[0] + Math.cos(a) * r) | 0, y = (S[1] + Math.sin(a) * r) | 0;
     if (x < 12 || y < 12 || x >= WS - 12 || y >= WS - 12) continue;
-    const h = hAt(x, y); if (h <= SEA + 1) continue;
+    const h = hAt(x, y); if (h <= SEA + 1 || !libre(x + .5, y + .5)) continue;
     let lo = 99, hi = -99, eau = 0;
     for (let dy = -5; dy <= 5; dy++) for (let dx = -5; dx <= 5; dx++) { if (dx * dx + dy * dy > 25) continue; const q = hAt(x + dx, y + dy); lo = Math.min(lo, q); hi = Math.max(hi, q); if (eauAt(x + dx, y + dy) || PlT[(y + dy) * WS + x + dx]) eau++; }
     if (eau || lo <= SEA) continue;
@@ -80,7 +125,7 @@ function fureurIci(b) {
 }
 
 function majBrume(dt) {
-  if (ETAT.id === 'brume') { majCercle(dt); majTomesBrume(); }
+  if (ETAT.id === 'brume') { majCercle(dt); majTomesBrume(); majEnfer(dt); }
   barreIncant();
   const k = brumeSang(); if (!k) return;
   if (!SANG.annonce) { SANG.annonce = true; say('Brume sanglante · ici, tout ce qui vit s\'entretue · vos compagnes aussi', 5); }
@@ -141,6 +186,10 @@ const BRUME_SPEC = [
     shell: [92, 12, 16], dark: [40, 4, 8], leg: [70, 8, 12], oeil: [255, 70, 50], bio: [], dur: .8, lien: 0, chasse: [], travail: {}, metier: 'lancé à vos trousses', grimpe: 0 },
   { id: 'demon_sang', n: 'Démon du cercle', corps: 'demon', brume: 1, diet: 'c', sz: 2.2, spd: 2.6, vue: 30, peur: 0, herd: 0, cap: 0, mat: 9999,
     shell: [64, 16, 14], dark: [28, 6, 6], leg: [52, 12, 10], oeil: [255, 150, 60], bio: [], dur: 22, lien: 0, chasse: [], travail: {}, metier: 'la fin de l\'incantation', grimpe: 0 },
+  { id: 'larve_braise', n: 'Larve de braise', corps: 'larve', brume: 1, enfer: 1, diet: 'c', sz: .8, spd: 2.6, vue: 14, peur: 0, herd: 0, cap: 0, mat: 9999,   // (§162)
+    shell: [44, 26, 22], dark: [24, 14, 12], leg: [44, 26, 22], oeil: [255, 196, 90], bio: [], dur: .6, lien: 0, chasse: [], travail: {}, metier: 'sort du sol de l\'île démoniaque', grimpe: 0 },
+  { id: 'diablotin', n: 'Diablotin', corps: 'diablotin', brume: 1, enfer: 1, diet: 'c', sz: .8, spd: 3.6, vue: 18, peur: 0, herd: 0, cap: 0, mat: 9999,
+    shell: [168, 34, 28], dark: [120, 22, 20], leg: [120, 22, 20], oeil: [255, 220, 80], bio: [], dur: .9, lien: 0, chasse: [], travail: {}, metier: 'jaillit d\'une fente rouge', grimpe: 0 },
   { id: 'cercle_sang', n: 'Cercle de sang', corps: 'cercle', brume: 1, cercle: 1, batiment: 1, diet: 's', sz: 1, spd: 0, vue: 0, peur: 0, herd: 0, cap: 0, mat: 9999,
     shell: [180, 20, 24], dark: [60, 6, 8], leg: [60, 6, 8], oeil: [255, 60, 40], bio: [], dur: 1e9, lien: 0, chasse: [], travail: {}, metier: 'le cercle d\'incantation', grimpe: 0 },
 ];
@@ -149,6 +198,7 @@ const autorite = () => !(typeof fauneSuiveur === 'function' && fauneSuiveur()); 
 const magesVivants = () => beasts.filter(b => estMage(b) && !b.dead && b.pv > 0 && !b.horsJeu);
 // Ceux qu'ils combattent : les joueurs, et les compagnes (pas les bêtes : la fureur s'en charge).
 function cibleBrume(b, R, dz = 4) {                        // (dz : l'écart de hauteur au-delà duquel on ne le voit plus ; les Rôdeurs sautent)
+  if (typeof pacteVue === 'function') R *= pacteVue();      // (§164) le pacte d'Ombre
   let best = null, bd = R * R;
   for (const J of (typeof joueursFaune === 'function' ? joueursFaune() : [P])) if (J.pv > 0 && Math.abs(J.z - b.z) < dz) { const d = (J.x - b.x) ** 2 + (J.y - b.y) ** 2; if (d < bd) { bd = d; best = J; } }
   for (const o of beasts) if (o.tame && !o.dead && o.pv > 0 && !o.loin && Math.abs(o.z - b.z) < dz) { const d = (o.x - b.x) ** 2 + (o.y - b.y) ** 2; if (d < bd * .7) { bd = d; best = o; } }
@@ -214,13 +264,17 @@ function agirBrume(b, act, c) { b.act = act; b.actT = t; b.actC = c; b.fait = fa
 
 function majBrumeBete(b, dt) {
   b.t += dt; b.age += dt; if (b.hit > 0) b.hit -= dt;
-  if (b.dead) { b.dead += dt * (b.sp.corps === 'demon' ? .35 : 1); b.z = sol(b.x, b.y); return; }   // le démon met du temps à se défaire
+  if (b.dead) { b.dead += dt * (b.sp.corps === 'demon' || b.sp.corps === 'mere' || b.sp.corps === 'bourreau' || b.sp.corps === 'jardinier' || b.sp.corps === 'roi' ? .35 : 1); b.z = sol(b.x, b.y); return; }   // le démon (et la Mère, §163) met du temps à se défaire
   if (b.horsJeu) return;
   const k = b.sp.corps;
   if (k === 'cercle') { b.etat = SANG.phase; return; }
   if (k === 'mage') majMage(b, dt);
   else if (k === 'rodeur') majRodeur(b, dt);
   else if (k === 'demon') majDemon(b, dt);
+  else if (k === 'larve') majLarve(b, dt);
+  else if (k === 'diablotin') majDiablotin(b, dt);
+  else if (k === 'mere' && typeof majMere === 'function') majMere(b, dt);   // (§163, roi.js)
+  else if (typeof ROI_CORPS !== 'undefined' && ROI_CORPS[k]) majRoiBete(b, dt);   // (§164) les bêtes des Forges
   pasBrumeVisuel(b, dt);
 }
 
@@ -343,6 +397,7 @@ function invoquerDemon() {
   b.blinde = 1 + Math.max(0, profondeur() - 8) * .06; b.dir = b.dirT = Math.atan2(P.y - C.y, P.x - C.x);
   beasts.push(b);
   SON.jouer('rugDemon'); say('L\'incantation est achevée · quelque chose sort du cercle', 4); P.secousse = t; P.secousseK = .6;
+  debutEnfer(true);                                          // (§162) et l'île bascule
 }
 function majDemon(b, dt) {
   const ph = b.phaseD || 'surgir';                           // (b.etat dit ce qui se voit ; b.phaseD, où il en est)
@@ -419,12 +474,15 @@ function actionDemon(b, dt) {
 
 // ---------- ce qu'ils laissent ----------
 function butinBrume(b) {
+  if (b.sp.roi && typeof roiButin === 'function') return roiButin(b);   // (§163) les gardiens des Cercles de cendre
   const k = b.sp.corps;
   if (k === 'rodeur') { P.sac.eclat += 1; say('le rôdeur se défait en brume · +1 éclat', 1.6); majSac(); return; }
   if (k === 'mage') {
     const ec = 4 + (Math.random() * 3 | 0); P.sac.eclat += ec;
     say('un mage du cercle tombe · +' + ec + ' éclats', 2.4); majSac(); return;
   }
+  if (k === 'larve') { P.sac.eclat += 1; say('la larve se défait en cendres · +1 éclat', 1.6); majSac(); return; }
+  if (k === 'diablotin') { P.sac.eclat += 2; say('le diablotin crève en fumée · +2 éclats', 1.6); majSac(); return; }
   if (k === 'demon') {
     P.sac.eclat += 40; let tm = '';
     const q = choixTomeBrume(2); if (q && gagnerTome(q[0], q[1])) tm = nomTome(cleTome(q[0], q[1]));   // le Tome II du Sang (§104, §105)
@@ -435,13 +493,14 @@ function butinBrume(b) {
 function leverBrume(demon) {
   if (SANG.phase === 'levee' || SANG.phase === 'libre') return;
   SANG.phase = 'levee'; SANG.leveeT = t;
-  for (const b of beasts) if (b.sp.corps === 'rodeur' && !b.dead) { b.pv = 0; mourirBete(b, 'brume'); }
+  for (const b of beasts) if ((b.sp.corps === 'rodeur' || (demon && estMage(b))) && !b.dead) { b.pv = 0; mourirBete(b, 'brume'); }   // (le démon tombé, les mages qu'il a épargnés se défont)
   (P.brumesLevees || (P.brumesLevees = [])).push(SEED); if (P.brumesLevees.length > 300) P.brumesLevees.shift();
   if (typeof Sauve !== 'undefined') Sauve.sale = true;
   if (!demon) {
     P.sac.eclat += 15;
     say('Le cercle est brisé · la brume se lève · +15 éclats', 4.5); majSac();
-  } else say('La brume se lève', 3);
+  } else if (enferIci()) { guerirEnfer(); setTimeout(() => say('Le démon tombé, l\'île respire · elle guérira lentement', 4), 4500); }
+  else say('La brume se lève', 3);
   const ile = typeof LUTRINS !== 'undefined' && LUTRINS.find(l => l.brume === 'ile' && !l.lu);
   if (ile) setTimeout(() => say('un livre attend encore, sur un lutrin, quelque part sur l\'île', 4), 5000);
   SON.jouer('ramasse');
@@ -484,7 +543,12 @@ function majTomesBrume() {
   if (!ile && SANG.essaiIle !== SEED) { SANG.essaiIle = SEED; placerTomeIle(); }
   if (!cer && SANG.cercle && SANG.phase !== 'chant' && !magesVivants().length) {
     const cb = beasts.find(b => b.sp.cercle && !b.horsJeu), C = cb || SANG.cercle, l = lutrinBrume('cercle', C.x, C.y, 1);
-    if (!l.lu && SANG.phase !== 'libre') { say('Le cercle s\'éteint · un lutrin de pierre en sort, un livre ouvert dessus', 4); burst(l.x, l.y, l.z + 1, 30, '#ff4030'); }
+    if (!l.lu && SANG.phase !== 'libre' && !SANG.calme) {                  // il sort de terre, en deux secondes (lutrinOs), dans la poussière et le sang
+      l.surgit = t; say('Le cercle s\'éteint · un lutrin de pierre sort de terre, un livre ouvert dessus', 4);
+      SON.jouer('impact', {}, l.x, l.y, l.z); P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, Math.hypot(P.x - l.x, P.y - l.y) < 20 ? .35 : .1);
+      for (let j = 0; j < 40; j++) { const a = Math.random() * 6.2832, r = Math.random() * 1.2; parts.push({ x: l.x + Math.cos(a) * r, y: l.y + Math.sin(a) * r, z: l.z + .05, vx: Math.cos(a) * 1.6, vy: Math.sin(a) * 1.6, vz: 1 + Math.random() * 2.5, g: 4, life: 1.2, age: 0, col: Math.random() < .6 ? '#5a4030' : '#7a6a58', tl: .1 }); }
+      for (let j = 0; j < 30; j++) parts.push({ x: l.x + (Math.random() - .5) * .5, y: l.y + (Math.random() - .5) * .5, z: l.z + Math.random() * 2, vx: 0, vy: 0, vz: 2 + Math.random() * 4, g: -.4, life: 2.2, age: 0, col: Math.random() < .5 ? '#ff4030' : '#a01018', luit: 1, tl: .08 });
+    }
   }
   for (const l of LUTRINS) if (l.brume && !l.lu && tomeAcquis(l.m, l.n)) { const q = choixTomeBrume(l.rang); if (q) { l.m = q[0]; l.n = q[1]; } }   // eu ailleurs entre-temps : il en offre un autre
 }
@@ -512,8 +576,8 @@ function majCercle(dt) {
       }
     } else if (SANG.phase === 'demon' && demon && demon.dead) leverBrume(true);
   }
-  // l'épaisseur : chaque mage qui tombe l'éclaircit ; le démon la rend pleine ; levée, elle s'en va en six secondes
-  const cible = SANG.phase === 'chant' ? .62 + .38 * vivants / SANG.total : SANG.phase === 'demon' ? 1 : SANG.phase === 'levee' ? Math.max(0, 1 - (t - SANG.leveeT) / 6) : 0;
+  // l'épaisseur : chaque mage qui tombe l'éclaircit ; le démon la chasse (§162 : l'île bascule) ; levée, elle s'en va en six secondes
+  const cible = SANG.phase === 'chant' ? .62 + .38 * vivants / SANG.total : SANG.phase === 'demon' ? 0 : SANG.phase === 'levee' ? (enferIci() ? 0 : Math.max(0, 1 - (t - SANG.leveeT) / 6)) : 0;
   SANG.k += (cible - SANG.k) * Math.min(1, dt * 1.5);
   if (SANG.phase === 'levee' && t - SANG.leveeT > 6) { SANG.phase = 'libre'; SANG.k = 0; }
   // d'où vient le chant
@@ -544,8 +608,379 @@ function brumeMonde() { return ETAT.id === 'brume' && SANG.cercle ? [Math.round(
 function brumeAppliquer(w) {
   if (!Array.isArray(w) || ETAT.id !== 'brume') return;
   SANG.incant = +w[0] || 0; SANG.seuil = w[2] | 0;
-  if (w[1] !== SANG.phase) { if (w[1] === 'levee' && SANG.phase === 'chant') leverBrume(false); else if (w[1] === 'levee') leverBrume(true); else SANG.phase = w[1]; }
+  if (w[1] !== SANG.phase) {
+    if (w[1] === 'levee' && SANG.phase === 'chant') leverBrume(false); else if (w[1] === 'levee') leverBrume(true);
+    else { SANG.phase = w[1]; if (w[1] === 'demon' && !enferIci()) debutEnfer(true); }   // (§162) chez qui suit, l'île bascule aussi
+  }
 }
+
+// ============================================================
+//  L'ÎLE DÉMONIAQUE (§162)
+// ============================================================
+// Le démon sorti du cercle, la brume se retire d'un coup et l'île bascule : une vague part du cercle et
+// traverse l'île en quinze secondes. Derrière elle, l'eau devient lave (elle brûle), l'herbe et les feuilles
+// virent à la cendre, la pierre au basalte, des braises piquent le sol (index.html, enfer() dans DECOR_FS) ;
+// le ciel se ferme, presque noir, rouge sombre à l'horizon ; il pleut de la cendre. La faune de l'île brûle
+// (vos compagnes, non). Une flore à elle sort de terre sur le passage de la vague (les douze plantes du biome
+// 40, flore.js, avec leurs ingrédients) et des créatures sortent du sol : les larves de braise, qui surgissent,
+// mordent et replongent ; les diablotins, par petites bandes, qui griffent et crachent le feu.
+// Le démon mort, l'île GUÉRIT LENTEMENT, au temps réel (trente minutes, même loin d'elle) : la lave se fige
+// en obsidienne puis redevient eau, case à case ; la cendre reverdit ; la flore du démon se fane ; les
+// créatures se font rares, puis plus rien ; la faune revient. P.enfers garde, île par île, [l'heure de la
+// bascule, l'heure de la mort du démon] (Date.now()).
+const ENFER_VAGUE = 15, ENFER_GUERIR = 1800, ENFER_PLANTES = 14, ENFER_BIO = 40;
+const ENF = { seed: null, t0: 0, cx: 0, cy: 0, Rmax: 1, gT: -9, g: 0, poser: [], nesT: 0, bruleT: 0, laveT: 0, faneT: 0 };
+const ENF_GL = new Float32Array(8);
+const enLisse = (a, b, x) => { const u = Math.max(0, Math.min(1, (x - a) / (b - a))); return u * u * (3 - 2 * u); };
+const enferIci = () => ENF.seed === SEED && ETAT.id === 'brume' && !(typeof djIci === 'function' && djIci());
+const enferEtat = () => (P.enfers || {})[SEED] || null;
+function enferG() {                                          // la guérison : 0 tant que le démon vit, 1 guérie
+  if (t - ENF.gT < .5) return ENF.g;
+  const E = enferEtat(); ENF.gT = t;
+  return (ENF.g = E && E[1] ? Math.max(0, Math.min(1, (Date.now() - E[1]) / 1000 / ENFER_GUERIR)) : 0);
+}
+const enferR = () => Math.min(ENF.Rmax, Math.max(0, (t - ENF.t0) / ENFER_VAGUE) ** .8 * ENF.Rmax);   // le rayon de la vague
+const enferPasse = (x, y) => (x - ENF.cx) ** 2 + (y - ENF.cy) ** 2 < enferR() ** 2;
+const chaleurLave = () => 1 - enLisse(.2, .45, enferG());
+const eauEnfer = (x, y) => { const i = (y | 0) * WS + (x | 0); return i >= 0 && i < WS * WS && (Eau[i] > Hgt[i] || (Bio[i] === 0 && Hgt[i] <= SEA)); };
+function laveIci(x, y) { return enferIci() && chaleurLave() > .15 && enferPasse(x, y) && eauEnfer(x, y); }
+// Le ciel ici : il se ferme avec la vague (tout à fait quand elle vous a passé), se rouvre avec la guérison.
+function enferCielK() {                                    // (une fois par image : le canvas le demande à chaque case)
+  if (!enferIci()) return 0;
+  if (ENF.kcT === t) return ENF.kc;
+  const p = Math.min(1, (t - ENF.t0) / ENFER_VAGUE), d = Math.hypot(P.x - ENF.cx, P.y - ENF.cy);
+  ENF.kcT = t; return (ENF.kc = Math.max(p * p * .7, enLisse(-6, 30, enferR() - d)) * (1 - enLisse(.1, .6, enferG())));
+}
+// Pour la carte graphique (DECOR_FS) : [cercle x, y, rayon de la vague, force, temps, guérison, chaleur, ciel].
+function enferGL() {
+  if (typeof roiIci === 'function' && roiIci()) { ENF_GL.set([P.x, P.y, 1e5, 1, t % 600, 0, 1, roiTerreNue() ? -1 : .5]); return ENF_GL; }   // (§165) -1 : seule la lave   // (§163) en bas, tout est de cendre et de lave
+  if (!enferIci()) { ENF_GL[3] = 0; ENF_GL[7] = 0; return ENF_GL; }
+  ENF_GL[0] = ENF.cx; ENF_GL[1] = ENF.cy; ENF_GL[2] = enferR(); ENF_GL[3] = 1;
+  ENF_GL[4] = t % 600; ENF_GL[5] = enferG(); ENF_GL[6] = chaleurLave(); ENF_GL[7] = enferCielK();
+  return ENF_GL;
+}
+// Sans carte graphique (canvas) : un filtre sur l'image, faute de mieux (etats.js, dessinerFiltre).
+function enferCss() {
+  const k = typeof roiIci === 'function' && roiIci() ? .6 : enferCielK(); if (k < .02) return '';
+  if (typeof G3 !== 'undefined' && G3.ok && !G3.perdu && (mode === 'fps' || (mode === 'iso' && isoGL))) return '';
+  return `grayscale(${(.55 * k).toFixed(2)}) sepia(${(.45 * k).toFixed(2)}) hue-rotate(${(-25 * k).toFixed(0)}deg) saturate(${(1 + .9 * k).toFixed(2)}) brightness(${(1 - .45 * k).toFixed(2)}) contrast(${(1 + .2 * k).toFixed(2)})`;
+}
+const enferMusique = () => enferIci() && SANG.phase === 'demon';   // le combat garde la valse, sans la brume
+// La faune ordinaire : nulle tant que l'île est démoniaque, elle revient avec la guérison (capEsp, index.html).
+const fauneOrdinaire = b => !b.tame && !b.comp && !b.sp.brume && !b.sp.plante && !b.sp.batiment && !b.sp.pnj && !b.sp.villageois && !b.sp.illusion
+  && !b.sp.boss && !b.sp.dragon && !b.sp.horreur && !b.retire && !(typeof automate === 'function' && automate(b.sp));
+function enferFaune(sp) { return !enferIci() || sp.brume || sp.plante ? 1 : enLisse(.55, 1, enferG()); }
+
+function debutEnfer(vague) {
+  const C = SANG.cercle; if (!C) return;
+  Object.assign(ENF, { seed: SEED, cx: C.x, cy: C.y, t0: vague ? t : t - ENFER_VAGUE * 2, gT: -9, nesT: t + (vague ? 12 : 5), bruleT: 0, faneT: 0 });
+  ENF.Rmax = Math.max(...[[0, 0], [WS, 0], [0, WS], [WS, WS]].map(([x, y]) => Math.hypot(x - C.x, y - C.y))) + 6;
+  const E = P.enfers || (P.enfers = {});
+  if (!E[SEED]) {
+    E[SEED] = [Date.now(), 0];
+    const K = Object.keys(E); if (K.length > 60) delete E[K.reduce((a, k) => E[k][0] < E[a][0] ? k : a, K[0])];
+    if (typeof Sauve !== 'undefined') Sauve.sale = true;
+  }
+  ENF.poser = lieuxEnfer();
+  if (!vague) return;
+  for (const b of beasts) if (b.sp.corps === 'rodeur' && !b.dead) { b.pv = 0; mourirBete(b, 'brume'); }   // ils étaient de brume
+  say('La brume se retire d\'un coup · la terre se fend · l\'île bascule', 4.5);
+  P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, .7);
+}
+function guerirEnfer() {
+  const E = enferEtat(); if (!E || E[1]) return;
+  E[1] = Date.now(); ENF.gT = -9; if (typeof Sauve !== 'undefined') Sauve.sale = true;
+}
+// La flore du démon : quatorze places, au hasard de la graine (le même pour tous), triées par distance au
+// cercle pour sortir de terre au passage de la vague. [x, y, plante, distance, seuil de fanaison, rayon]
+function lieuxEnfer() {
+  if (typeof FLORE_RARES === 'undefined') return [];
+  const cat = FLORE_RARES.filter(p => p.bio === ENFER_BIO); if (!cat.length) return [];
+  let s = (SEED ^ 0xe4fe12) >>> 0 || 1; const r = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
+  const niv = profondeur() + 2, W = [1, 2, 3, 4, 5].map(k => typeof poidsRarete === 'function' ? poidsRarete(k, niv, 4.4) : 1), S = W.reduce((a, b) => a + b);
+  const rang = () => { let u = r() * S; for (let k = 0; k < 5; k++) if ((u -= W[k]) < 0) return k + 1; return 5; };
+  const L = [], C = SANG.cercle, A = typeof PortailIle !== 'undefined' && PortailIle;
+  for (let k = 0; k < 700 && L.length < ENFER_PLANTES; k++) {
+    const x = 6 + r() * (WS - 12) | 0, y = 6 + r() * (WS - 12) | 0, i = y * WS + x, h = Hgt[i], rg = rang(), C2 = cat.filter(p => p.r === rg), pl = C2[r() * C2.length | 0], th = .4 + .45 * r();
+    if (!pl || h <= SEA + 1 || Eau[i] > Hgt[i] || PlT[i]) continue;
+    const R = pl.port === 'geante' ? 2 : pl.port === 'vive' ? 1 : 0; let ok = true;
+    for (let dy = -R; dy <= R && ok; dy++) for (let dx = -R; dx <= R; dx++) { const j = i + dy * WS + dx; if (Math.abs(Hgt[j] - h) > 1 || Eau[j] > Hgt[j] || Flo[j]) { ok = false; break; } }
+    if (!ok || (C && Math.hypot(C.x - x, C.y - y) < 8) || (A && Math.hypot(A.x - x, A.y - y) < 5) || L.some(q => Math.hypot(q[0] - x, q[1] - y) < 9)) continue;
+    L.push([x + .5, y + .5, pl, C ? Math.hypot(C.x - x, C.y - y) : 0, th, R]);
+  }
+  return L.sort((a, b) => a[3] - b[3]);
+}
+function poserPlanteEnfer(q, vif) {
+  const [x, y, pl, , th] = q, sp = specById[pl.port === 'simple' ? 'plante_r' : pl.port === 'geante' ? 'plante_l' : 'plante_e']; if (!sp) return null;
+  const b = naitre(sp, x, y); b.variante = null; b.age = 1e6; b.ech = pl.port === 'simple' ? 1.3 : 1; b.pv = 1; b.z = sol(x, y); b.pl = pl;
+  b.dir = b.dirT = (x * 7.31 + y * 3.17) % 6.2832; b.graine = (x * .618 + y * .414) % 1; b.etat = 'pousse'; b.enferTh = th;
+  beasts.push(b);
+  if (vif && Math.hypot(P.x - x, P.y - y) < 60) {
+    for (let j = 0; j < 22; j++) { const a = Math.random() * 6.2832; parts.push({ x: x + Math.cos(a) * .4, y: y + Math.sin(a) * .4, z: b.z + .1, vx: Math.cos(a) * 1.2, vy: Math.sin(a) * 1.2, vz: 1 + Math.random() * 2, g: 3, life: 1, age: 0, col: Math.random() < .5 ? '#3a2a24' : '#ff6a20', luit: Math.random() < .5 ? 1 : 0, tl: .08 }); }
+  }
+  return b;
+}
+
+// ---------- à chaque image ----------
+function majEnfer(dt) {
+  if (!enferIci()) return;
+  const g = enferG(), R = enferR(), kc = enferCielK(), chaud = chaleurLave(), hote = autorite();
+  if (g >= 1) {                                             // guérie : la dernière plante du démon se fane
+    if (hote) for (const b of beasts) if (b.pl && b.pl.bio === ENFER_BIO && !b.dead) { b.butin = true; b.pv = 0; b.dead = .001; }
+    delete P.enfers[SEED]; ENF.seed = null; if (typeof Sauve !== 'undefined') Sauve.sale = true; say('L\'île a guéri', 3); return;
+  }
+  // la flore du démon sort de terre au passage de la vague (chez le gardien : la faune partagée la donne aux autres)
+  while (ENF.poser.length && ENF.poser[0][3] < R) { const q = ENF.poser.shift(); if (hote && q[4] > g) poserPlanteEnfer(q, true); }
+  if (hote && t > ENF.faneT) {                              // la guérison : elle se fane, plante par plante
+    ENF.faneT = t + 1;
+    for (const b of beasts) if (b.pl && b.pl.bio === ENFER_BIO && !b.dead && g > (b.enferTh ?? .6)) {
+      b.butin = true; b.pv = 0; b.dead = .001; burst(b.x, b.y, b.z + .6, 14, '#6a625c');
+    }
+  }
+  if (hote) { brulerFaune(R, g); nesEnfer(g); }
+  // la cendre qui tombe, les braises qui montent
+  if (kc > .05) {
+    for (let j = 0; j < 3; j++) if (Math.random() < dt * 12 * kc) {
+      const x = P.x + (Math.random() - .5) * 26, y = P.y + (Math.random() - .5) * 26;
+      parts.push({ x, y, z: P.z + 5 + Math.random() * 5, vx: .25 + (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, vz: -.55 - Math.random() * .3, g: 0, life: 7, age: 0, col: Math.random() < .6 ? '#5e5854' : '#8c8682', tl: .055 });
+    }
+    if (Math.random() < dt * 7 * kc) {
+      const x = P.x + (Math.random() - .5) * 18, y = P.y + (Math.random() - .5) * 18;
+      parts.push({ x, y, z: sol(x, y) + .1, vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4, vz: .7 + Math.random(), g: -.15, life: 1.8, age: 0, col: Math.random() < .5 ? '#ff7a20' : '#ffb040', luit: 1, tl: .05 });
+    }
+  }
+  // la lave bouillonne
+  if (chaud > .2) for (let j = 0; j < 4; j++) {
+    const x = P.x + (Math.random() - .5) * 28, y = P.y + (Math.random() - .5) * 28;
+    if (Math.random() > dt * 9 * chaud || !eauEnfer(x, y) || !enferPasse(x, y)) continue;
+    const z = hRendu(x, y) + .02;
+    for (let q = 0; q < 3; q++) parts.push({ x, y, z, vx: (Math.random() - .5) * .8, vy: (Math.random() - .5) * .8, vz: 1 + Math.random() * 1.6, g: 5, life: .55, age: 0, col: Math.random() < .5 ? '#ffb040' : '#ff5a18', luit: 1, tl: .07 });
+  }
+  // elles brûlent : des flammes, le temps que la vague les emporte
+  for (const b of beasts) if (b.brule && !b.dead && Math.random() < dt * 14 && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 900)
+    parts.push({ x: b.x + (Math.random() - .5) * .6, y: b.y + (Math.random() - .5) * .6, z: b.z + Math.random() * .8, vx: 0, vy: 0, vz: 1 + Math.random(), g: -.4, life: .6, age: 0, col: Math.random() < .5 ? '#ffb040' : '#ff5a18', luit: 1, tl: .09 });
+  // la lave, sous vos pieds
+  if (chaud > .3 && P.pv > 0 && !P.monture && laveIci(P.x, P.y) && P.z < hRendu(P.x, P.y) - .05 && !(typeof effet === 'function' && effet('braise'))) {
+    P.pv = Math.max(0, P.pv - BRULURE * 2.5 * chaud * dt * vieK()); P.dernierCoup = t;
+    if (t - ENF.laveT > 2.5) { ENF.laveT = t; say('la lave brûle', 1.4); }
+    if (Math.random() < dt * 10) burst(P.x, P.y, P.z + .3, 1, '#ffa04c');
+    if (P.pv <= 0) terrasse();
+  }
+}
+// La faune ordinaire brûle quand la vague la rattrape (une à deux secondes de flammes).
+function brulerFaune(R, g) {
+  if (t < ENF.bruleT || g > .5) return; ENF.bruleT = t + .3;
+  const R2 = R * R;
+  for (const b of beasts) {
+    if (b.dead || !fauneOrdinaire(b) || (b.x - ENF.cx) ** 2 + (b.y - ENF.cy) ** 2 > R2) continue;
+    if (!b.brule) { b.brule = t + .6 + Math.random() * 1.2; continue; }
+    if (t > b.brule) { b.pv = 0; mourirBete(b, 'enfer'); if ((b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 1600) burst(b.x, b.y, b.z + .4, 14, '#ff7a20'); }
+  }
+}
+// Les créatures sortent du sol, près d'un joueur que la vague a passé ; plus souvent près du cercle et du démon.
+function nesEnfer(g) {
+  if (t < ENF.nesT) return;
+  if (g > .7) { ENF.nesT = t + 30; return; }
+  const L = typeof joueursFaune === 'function' ? joueursFaune() : [P], J = L[Math.random() * L.length | 0] || P;
+  if (!enferPasse(J.x, J.y) || !(J.pv > 0)) { ENF.nesT = t + 2; return; }
+  const D = beasts.find(b => b.sp.corps === 'demon' && !b.dead);
+  const pres = Math.max(0, 1 - Math.hypot(J.x - ENF.cx, J.y - ENF.cy) / 45) + (D && Math.hypot(J.x - D.x, J.y - D.y) < 30 ? .5 : 0);
+  const vit = (1 + 1.4 * pres) * (1 - g / .7) ** 2;
+  ENF.nesT = t + (10 + Math.random() * 8) / Math.max(.15, vit);
+  const n = c => beasts.filter(b => b.sp.corps === c && !b.dead).length;
+  if (Math.random() < .6) { if (n('larve') < 5) surgirEnfer('larve_braise', J, 1 + (Math.random() < .3 + pres * .3 ? 1 : 0), 5, 9); }
+  else if (n('diablotin') < 5) surgirEnfer('diablotin', J, 2 + (Math.random() < .25 + pres * .3 ? 1 : 0), 8, 12);
+}
+function surgirEnfer(id, J, n, r0, r1) {
+  const sp = specById[id]; if (!sp) return;
+  let fait = 0;
+  for (let k = 0; k < 30 && fait < n; k++) {
+    const a = Math.random() * 6.2832, r = r0 + Math.random() * (r1 - r0), x = J.x + Math.cos(a) * r, y = J.y + Math.sin(a) * r;
+    if (x < 3 || y < 3 || x > WS - 4 || y > WS - 4 || hAt(x | 0, y | 0) <= SEA || eauEnfer(x, y) || PlT[(y | 0) * WS + (x | 0)] || Math.abs(sol(x, y) - J.z) > 2) continue;
+    const b = naitre(sp, x, y); b.variante = null; b.z = sol(x, y); b.pv = 1; b.age = 1e6; b.ech = 1; b.etat = 'surgir'; b.etT = t;
+    b.vie = id === 'diablotin' ? 50 : 35; b.dir = b.dirT = Math.atan2(J.y - y, J.x - x); b.blinde = 1 + Math.max(0, profondeur() - 8) * .04;
+    beasts.push(b); fait++; jaillir(b, id === 'diablotin');
+  }
+  if (fait && !ENF.vuC) { ENF.vuC = true; say('le sol se fend · quelque chose en sort', 2.5); }
+}
+function jaillir(b, fente) {                                 // la terre qui gicle, les braises ; une fente rouge pour les diablotins
+  SON.jouer('atterrir', { k: .7 }, b.x, b.y, b.z);
+  for (let q = 0; q < 18; q++) { const a = Math.random() * 6.2832; parts.push({ x: b.x, y: b.y, z: b.z + .05, vx: Math.cos(a) * (1 + Math.random()), vy: Math.sin(a) * (1 + Math.random()), vz: 1.5 + Math.random() * 2.5, g: 6, life: .8, age: 0, col: Math.random() < .6 ? '#3a2c26' : '#5a4436', tl: .09 }); }
+  for (let q = 0; q < (fente ? 16 : 8); q++) parts.push({ x: b.x + (Math.random() - .5) * (fente ? 1.4 : .5), y: b.y + (Math.random() - .5) * .3, z: b.z + .05, vx: 0, vy: 0, vz: .8 + Math.random() * 1.5, g: -.3, life: 1.1, age: 0, col: Math.random() < .5 ? '#ff6a20' : '#ffb040', luit: 1, tl: .07 });
+}
+
+// Au donjon du Roi (roi.js), elles ne chassent que ce qu'elles voient (ou ont vu il y a moins de six secondes).
+function cibleEnfer(b, R) {                                 // (le pacte d'Ombre : cibleBrume s'en charge)
+  const c = cibleBrume(b, R, 4); if (!c || b.djIdx === undefined) return c;
+  if (b.t < (b.alerte || 0) || (Math.hypot(c.x - b.x, c.y - b.y) < 14 && voitCible(b, c))) { b.alerte = b.t + 6; return c; }
+  return null;
+}
+// ---------- les larves de braise ----------
+// Une larve d'un mètre, en croûte noire fendue de braise. Elle sort du sol, rampe vers vous, se cabre et
+// mord (la morsure brûle deux secondes) ; puis elle replonge, file sous terre (une traînée de terre et de
+// braises trahit sa route) et ressort à vos pieds. Au bout d'une demi-minute, elle s'enfonce pour de bon.
+function majLarve(b, dt) {
+  const u = t - (b.etT || 0);
+  if ((b.vie = (b.vie ?? 35) - dt) <= 0 && b.etat !== 'enfouir' && !b.fin) { b.fin = true; b.etat = 'enfouir'; b.etT = t; b.act = null; return; }
+  if (b.etat === 'surgir') { b.vit = 0; b.cache = false; if (u > .9) { b.etat = 'ramper'; b.etT = t; } return; }
+  if (b.etat === 'enfouir') {
+    b.vit = 0;
+    if (u > .7) { if (b.fin) { b.pv = 0; b.dead = .001; } else { b.etat = 'sous'; b.cache = true; b.etT = t; } }
+    return;
+  }
+  const c = cibleEnfer(b, 26);
+  if (b.etat === 'sous') {
+    if (!c) { if (u > 6 && b.vie !== Infinity) { b.fin = true; b.pv = 0; b.dead = .001; } return; }   // (au donjon, elle attend sous terre)
+    const d = Math.hypot(c.x - b.x, c.y - b.y); b.dir = b.dirT = Math.atan2(c.y - b.y, c.x - b.x);
+    if (d > 1.6) { const s = Math.min(5.5 * dt, d - 1.5), nx = b.x + Math.cos(b.dir) * s, ny = b.y + Math.sin(b.dir) * s; if (hAt(nx | 0, ny | 0) > SEA) { b.x = nx; b.y = ny; b.z = sol(nx, ny); } }
+    b.vit = 0;
+    if (Math.random() < dt * 16) parts.push({ x: b.x + (Math.random() - .5) * .4, y: b.y + (Math.random() - .5) * .4, z: b.z + .05, vx: (Math.random() - .5) * .6, vy: (Math.random() - .5) * .6, vz: .8 + Math.random(), g: 5, life: .5, age: 0, col: Math.random() < .7 ? '#3a2c26' : '#ff6a20', tl: .08 });
+    if ((d < 2.4 || u > 7) && !eauEnfer(b.x, b.y) && Math.abs(hAt(b.x | 0, b.y | 0) - c.z) < 1.2) { b.etat = 'surgir'; b.etT = t; b.cache = false; jaillir(b, false); }
+    return;
+  }
+  if (b.act === 'mordre') {
+    const v = t - b.actT; b.vit = 0;
+    if (v < .35) { if (c) { b.dirT = Math.atan2(c.y - b.y, c.x - b.x); tournerBrume(b, dt, 8); } b.etat = 'cabrer'; return; }
+    b.etat = 'mordre';
+    if (!b.fait) {
+      b.fait = true; const C = b.actC;
+      if (C && (estJoueur(C) ? C.pv > 0 : !C.dead) && Math.hypot(C.x - b.x, C.y - b.y) < 1.7) {
+        coupBrume(b, C, .07, [Math.cos(b.dir) * 2, Math.sin(b.dir) * 2, 0]); SON.jouer('lacere', {}, b.x, b.y, b.z + .3);
+        if (C === P) P.brulure = Math.max(P.brulure || 0, t + 2);
+        b.morsures = (b.morsures || 0) + 1;
+      }
+    }
+    if (v > .8) { b.act = null; b.mordT = t + 1.4; if (b.morsures >= 2) { b.morsures = 0; b.etat = 'enfouir'; b.etT = t; } }
+    return;
+  }
+  if (!c) { b.vit = 0; b.etat = 'ramper'; return; }
+  const d = Math.hypot(c.x - b.x, c.y - b.y);
+  b.dirT = Math.atan2(c.y - b.y, c.x - b.x); tournerBrume(b, dt, 5);
+  if (d < 1.5 && t > (b.mordT || 0) && Math.abs(c.z - b.z) < 1.2) { agirBrume(b, 'mordre', c); return; }
+  if (u > 6 && d > 4) { b.etat = 'enfouir'; b.etT = t; return; }     // trop loin : il replonge, et revient par-dessous
+  b.etat = 'ramper'; pasBrume(b, c.x, c.y, 2.6, dt, 1);
+}
+
+// ---------- les diablotins ----------
+// Un petit diable d'un mètre, rouge, cornu, aux ailes de chauve-souris trop petites pour voler. Ils jaillissent
+// d'une fente rouge, à deux ou trois ; ils tournent autour de vous en sautillant, puis l'un fond griffes en
+// avant, ou crache une boule de feu. Au bout de cinquante secondes, ils replongent dans leur fente.
+function majDiablotin(b, dt) {
+  const u = t - (b.etT || 0);
+  if ((b.vie = (b.vie ?? 50) - dt) <= 0 && b.etat !== 'enfouir') { b.etat = 'enfouir'; b.etT = t; b.act = null; jaillir(b, true); return; }
+  if (b.etat === 'surgir') { b.vit = 0; if (u > 1) b.etat = 'roder'; return; }
+  if (b.etat === 'enfouir') { b.vit = 0; if (u > .8) { b.pv = 0; b.dead = .001; } return; }
+  if (b.act) return actionDiablotin(b, dt);
+  const c = cibleEnfer(b, 30);
+  if (!c) { b.vit = 0; b.etat = 'roder'; return; }
+  const d = Math.hypot(c.x - b.x, c.y - b.y);
+  b.dirT = Math.atan2(c.y - b.y, c.x - b.x);
+  if (t > (b.coupT || 0)) {
+    if (d < 5.5) { agirBrume(b, 'griffer', c); b.coupT = t + 2.4 + Math.random() * 1.8; return; }
+    if (d < 14) { agirBrume(b, 'cracher', c); b.coupT = t + 2.6 + Math.random() * 2; return; }
+  }
+  const a = Math.atan2(b.y - c.y, b.x - c.x) + (b.cote || 1) * .55;
+  b.etat = 'roder'; pasBrume(b, c.x + Math.cos(a) * 6, c.y + Math.sin(a) * 6, 3.6, dt, 1.3); tournerBrume(b, dt, 6);
+}
+function actionDiablotin(b, dt) {
+  const u = t - b.actT, c = b.actC, vivant = c && (estJoueur(c) ? c.pv > 0 : !c.dead);
+  b.vit = 0;
+  if (b.act === 'griffer') {                                 // il se ramasse, puis fond sur vous
+    if (u < .4) { if (vivant) { b.dirT = Math.atan2(c.y - b.y, c.x - b.x); tournerBrume(b, dt, 8); } return; }
+    if (u < .75) {
+      const nx = b.x + Math.cos(b.dir) * 10 * dt, ny = b.y + Math.sin(b.dir) * 10 * dt, h = hAt(nx | 0, ny | 0);
+      if (h > SEA && Math.abs(h - hAt(b.x | 0, b.y | 0)) <= 1.5 && !eauEnfer(nx, ny)) { b.x = nx; b.y = ny; b.z = sol(nx, ny); b.vit = 10; }
+      if (!b.fait && vivant && Math.hypot(c.x - b.x, c.y - b.y) < 1.2) { b.fait = true; coupBrume(b, c, .07, [Math.cos(b.dir) * 4, Math.sin(b.dir) * 4, 1]); SON.jouer('lacere', {}, b.x, b.y, b.z + .6); }
+      return;
+    }
+    if (u > 1.1) b.act = null;
+  } else if (b.act === 'cracher') {                          // la main levée s'allume, puis la boule de feu part en cloche
+    if (vivant) { b.dirT = Math.atan2(c.y - b.y, c.x - b.x); tournerBrume(b, dt, 8); }
+    if (u >= .65 && !b.fait && vivant) {
+      b.fait = true; SON.jouer('volee', {}, b.x, b.y, b.z + 1);
+      const ox = b.x + Math.cos(b.dir) * .3, oy = b.y + Math.sin(b.dir) * .3, oz = b.z + .95 * (b.sp.sz || 1), cz = (c.z || 0) + .8;
+      const d = Math.hypot(c.x - ox, c.y - oy) || 1, vol = d / 9;
+      TIRS.push({ x: ox, y: oy, z: oz, vx: (c.x - ox) / vol, vy: (c.y - oy) / vol, vz: (cz - oz) / vol + TIR_G * vol * .5, de: b, deg: .06, age: 0, c: [255, 120, 40], feu: true });
+      if (typeof fauneTir === 'function') fauneTir(b, TIRS[TIRS.length - 1]);
+    }
+    if (u > 1.1) b.act = null;
+  } else b.act = null;
+}
+
+// ---------- leurs volumes ----------
+function osLarve(f, O) {
+  const { add } = O;
+  if (f._e !== f.etat) { f._e = f.etat; f._eT = t; }
+  const E = f.etat, u = t - (f._eT || 0);
+  if (E === 'sous' || f.cache || (f.dead && E === 'enfouir')) return;            // sous terre : seule la traînée se voit
+  const e = E === 'surgir' ? Math.min(1, u / .9) : E === 'enfouir' ? Math.max(0, 1 - u / .7) : 1, mort = f.dead > 0 ? Math.min(1, f.dead) : 0;
+  const crout = [44, 26, 22], crout2 = [62, 36, 28], lave = [255, 116, 30], cl = [255, 196, 90];
+  const cab = E === 'cabrer' ? Math.min(1, u / .35) : E === 'mordre' ? Math.max(0, 1 - u / .3) : 0, sort = 1 - e;
+  const ph = t * 8 + (f.num || 0), rampe = (f.vit || 0) > .1 ? 1 : .35, N = 6;
+  const P0 = [];
+  for (let k = 0; k < N; k++) {
+    const s = k / (N - 1), x = .44 - s * .92 + (E === 'mordre' ? .18 * (1 - s) : 0);
+    const leve = (k < 3 ? (cab * .32 + sort * .7) * (1 - k / 3) : 0);
+    P0.push([x, Math.sin(ph - k * 1.1) * .07 * rampe * (1 - mort), Math.max(-.6, .15 + leve - sort * .55 - mort * .08) + Math.abs(Math.sin(ph - k * 1.1)) * .025 * rampe]);
+  }
+  for (let k = 0; k < N; k++) {
+    const p = P0[k], q = P0[Math.min(N - 1, k + 1)], w = (.34 - k / (N - 1) * .17), d = [(p[0] - q[0]) * .5, (p[1] - q[1]) * .5, (p[2] - q[2]) * .5];
+    const A = [p[0] + d[0] * .9, p[1] + d[1] * .9, p[2] + d[2] * .9], B = k < N - 1 ? [p[0] - d[0] * .9, p[1] - d[1] * .9, p[2] - d[2] * .9] : [p[0] - .1, p[1], p[2]];
+    add(A, B, w, w * .85, k % 2 ? crout : crout2);
+    add([B[0] - .005, B[1], B[2]], [B[0] - .02, B[1], B[2]], w * .9, w * .75, lave, true);                        // la braise entre les anneaux
+    add([p[0] + .05, p[1], p[2] + w * .43], [p[0] - .05, p[1], p[2] + w * .43], .05, .02, k % 2 ? lave : cl, true);   // la fente sur le dos
+  }
+  const H = P0[0], o = E === 'mordre' ? .5 : E === 'cabrer' ? .9 : .2 + .1 * Math.sin(t * 9);
+  for (const s of [-1, 1]) {
+    add([H[0] + .12, H[1] + s * .07, H[2] - .02], [H[0] + .3, H[1] + s * (.04 + o * .1), H[2] - .05], .05, .05, [24, 14, 12]);   // les mandibules
+    add([H[0] + .15, H[1] + s * .09, H[2] + .07], [H[0] + .17, H[1] + s * .09, H[2] + .07], .045, .045, cl, true);                // les yeux
+  }
+  if (E === 'cabrer' || E === 'mordre') add([H[0] + .16, H[1], H[2] - .02], [H[0] + .2, H[1], H[2] - .02], .09, .06, lave, true);   // la gueule
+}
+function osDiablotin(f, O) {
+  const { add, os2 } = O;
+  if (f._e !== f.etat) { f._e = f.etat; f._eT = t; }
+  const E = f.etat, u = t - (f._eT || 0), mort = f.dead > 0 ? Math.min(1, f.dead) : 0;
+  if (f.dead && E === 'enfouir') return;
+  const peau = [168, 34, 28], peau2 = [120, 22, 20], noir = [30, 18, 18], aile = [92, 16, 18], oeil = [255, 220, 80], feu = [255, 150, 50];
+  const e = E === 'surgir' ? Math.min(1, u / 1) : E === 'enfouir' ? Math.max(0, 1 - u / .8) : 1;
+  const saut = E === 'surgir' ? Math.sin(Math.min(1, u) * Math.PI) * .9 : 0;
+  const zb = -(1 - e) * 1.1 + saut - mort * .5, v = Math.min(1, (f.vit || 0) / 3.6), ph = t * 9 + (f.num || 0) * 1.7;
+  const hop = Math.abs(Math.sin(ph)) * .12 * v, gr = E === 'griffer' ? Math.min(1, u / .4) : 0, cr = E === 'cracher' ? Math.min(1, u / .6) : 0;
+  const z = zb + hop, pen = gr * .35 * (u < .75 ? 1 : 0);
+  // les pattes de bouc
+  for (const s of [-1, 1]) {
+    const p = ph + (s > 0 ? 0 : Math.PI), hip = [0, s * .1, z + .46], knee = [.1 + Math.sin(p) * .08 * v, s * .11, z + .27], ank = [-.04 + Math.sin(p) * .12 * v, s * .11, z + .1 + Math.max(0, Math.cos(p)) * .08 * v], foot = [ank[0] + .07, s * .11, Math.max(zb, z) + .02];
+    os2(hip, knee, .1, peau2); os2(knee, ank, .07, peau2); os2(ank, foot, .08, noir);
+  }
+  const T0 = [0, 0, z + .46], T1 = [pen * .3, 0, z + .82];
+  add(T0, T1, .3, .2, peau);                                                      // le torse
+  add([T1[0] + .02, 0, T1[2] - .2], [T1[0] + .02, 0, T1[2] - .05], .2, .21, peau2);  // le ventre
+  const Hc = [T1[0] + .04 + pen * .2, 0, T1[2] + .15];
+  add([Hc[0] - .11, 0, Hc[2]], [Hc[0] + .11, 0, Hc[2]], .24, .22, peau);           // la tête
+  add([Hc[0] + .1, 0, Hc[2] - .05], [Hc[0] + .16, 0, Hc[2] - .06], .14, .08, peau2);   // le museau
+  add([Hc[0] + .13, 0, Hc[2] - .09], [Hc[0] + .16, 0, Hc[2] - .09], .1, .02, cr > .5 ? feu : [40, 10, 10], cr > .5);   // la gueule
+  for (const s of [-1, 1]) {
+    add([Hc[0] + .1, s * .06, Hc[2] + .03], [Hc[0] + .12, s * .06, Hc[2] + .03], .05, .04, oeil, true);   // les yeux
+    const c0 = [Hc[0] - .02, s * .09, Hc[2] + .1], c1 = [Hc[0] - .08, s * .17, Hc[2] + .22], c2 = [Hc[0] - .02, s * .2, Hc[2] + .32];
+    os2(c0, c1, .06, noir); os2(c1, c2, .04, noir);                                 // les cornes
+    const fl = Math.sin(t * 11 + (f.num || 0)) * .35;                               // les ailes, trop petites
+    const W0 = [T1[0] - .12, s * .08, T1[2] - .02], W1 = [W0[0] - .16, s * (.32 + fl * .1), W0[2] + .16 + fl * .1], W2 = [W0[0] - .1, s * (.36 + fl * .12), W0[2] - .12];
+    os2(W0, W1, .03, noir); add(W0, mi3(W1, W2), .02, .22, aile); os2(W1, W2, .025, noir);
+    // les bras : ballants ; tendus pour griffer ; le droit levé pour cracher
+    const Sh = [T1[0], s * .19, T1[2] - .03];
+    let Hd = [Sh[0] + .06 + Math.sin(ph + (s > 0 ? Math.PI : 0)) * .06 * v, s * .22, Sh[2] - .3];
+    if (gr) Hd = [Sh[0] + .32 * gr, s * .14, Sh[2] - .02];
+    if (cr && s > 0) Hd = [Sh[0] - .05, s * .2, Sh[2] + .3 * cr];
+    os2(Sh, Hd, .07, peau2);
+    add(Hd, [Hd[0] + .07, Hd[1], Hd[2] - .02], .06, .05, noir);                      // les griffes
+    if (cr && s > 0 && u < .65) add([Hd[0] - .07, Hd[1], Hd[2] + .05], [Hd[0] + .07, Hd[1], Hd[2] + .05], .14 * cr, .14 * cr, feu, true);   // la boule de feu
+  }
+  let q = [T0[0] - .1, 0, T0[2] + .02];                                            // la queue, en pointe de flèche
+  for (let j = 1; j <= 3; j++) { const n = [q[0] - .13, Math.sin(t * 4 + j) * .06 * j, q[2] - .03 + Math.sin(t * 3 + j) * .03]; os2(q, n, .05, peau2); q = n; }
+  add([q[0] + .02, q[1], q[2]], [q[0] - .1, q[1], q[2]], .12, .03, noir);
+}
+const mi3 = (A, B) => [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2];
 
 // ---------- leurs volumes ----------
 // Les mêmes outils que les visions du Korlaz (etats.js) : des repères, des volumes posés dedans, des
@@ -572,6 +1007,9 @@ function outilsOs(f) {
 function osBrume(f) {
   const O = outilsOs(f), k = f.sp.corps;
   if (k === 'mage') osMage(f, O); else if (k === 'rodeur') osRodeur(f, O); else if (k === 'demon') osDemon(f, O); else if (k === 'cercle') osCercle(f, O);
+  else if (k === 'larve') osLarve(f, O); else if (k === 'diablotin') osDiablotin(f, O);
+  else if (k === 'mere' && typeof osMere === 'function') osMere(f, O);
+  else if (typeof ROI_CORPS !== 'undefined' && ROI_CORPS[k]) osRoiBete(f, O);
   return O.B;
 }
 // LE MAGE : une longue robe cramoisie qui s'évase, une ceinture de corde, des runes qui luisent sur le

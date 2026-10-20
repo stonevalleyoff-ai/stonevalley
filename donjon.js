@@ -13,6 +13,8 @@
 //  visent le joueur le plus proche ; une machine abattue l'est pour tous ceux qui sont là. Les portes de la
 //  salle du gardien se ferment sur qui y entre, les plaques claquent sous les pas de chacun. Les coffres,
 //  eux, restent à chacun : ce qu'on trouve en bas est à soi.
+//  (§170) Le plan, le mobilier, les machines du décor et la musique du Centre sont dans rouages.js : djGenere,
+//  djPeupler, djDecor et djMajMonde lui passent la main (centreGenere, centrePeupler, centreDecor, centreMaj).
 //  Ce fichier est chargé AVANT le script du jeu : il ne déclare que des fonctions et son propre
 //  état (tout est préfixé dj / DJ), et ne touche au monde qu'une fois appelé par le jeu.
 // ============================================================
@@ -43,9 +45,12 @@ function djPropre(e, graine) {
   const s0 = {}; for (const r of DJ_RES) s0[r] = nb(e.s0 && e.s0[r], 0, 1e6) | 0;
   const tr = Array.isArray(e.tr) && e.tr.length === 3 && e.tr.every(Number.isFinite) ? e.tr.map(v => Math.round(v * 100) / 100) : null;
   const ints = a => (Array.isArray(a) ? a : []).filter(i => Number.isInteger(i) && i >= 0 && i < 400).slice(0, 200);
-  return { g: graine, e: e.e, s0, b0: nb(e.b0, 0, 1e6) | 0, tr, test: e.test ? 1 : 0,
+  return { g: graine, e: e.e, s0, b0: nb(e.b0, 0, 1e6) | 0, tr, test: e.test ? 1 : 0, th: e.th === 'roi' ? 'roi' : undefined,   // (§163) th : le donjon du Roi démon (roi.js)
     o0: (Array.isArray(e.o0) ? e.o0 : []).filter(id => typeof id === 'string' && id.length < 24).slice(0, 80),
-    ouverts: ints(e.ouverts), vaincus: ints(e.vaincus) };
+    ouverts: ints(e.ouverts), vaincus: ints(e.vaincus), defis: ints(e.defis).slice(0, 6),
+    pactes: (Array.isArray(e.pactes) ? e.pactes : []).filter(id => typeof id === 'string' && /^[a-z]{2,10}$/.test(id)).slice(0, 6),   // (§164) les pactes, les autels
+    autels: ints(e.autels).slice(0, 6),
+    ing: (() => { const r = {}; if (e.ing && typeof e.ing === 'object') for (const k of Object.keys(e.ing).slice(0, 8)) if (/^[a-z_]{1,16}$/.test(k) && Number.isFinite(e.ing[k])) r[k] = Math.max(0, Math.min(999, e.ing[k] | 0)); return r; })() };
 }
 function djLire() {
   try {
@@ -76,7 +81,9 @@ function djTransit(d) {
 function djGenere() {
   const s = djLire();
   if (!s) return false;
-  DJ.etat = s; DJ.n = djNbEtages(SEED); DJ.e = s.e = Math.min(s.e, DJ.n);
+  DJ.etat = s; DJ.n = s.th === 'roi' ? ROI_ETAGES : djNbEtages(SEED); DJ.e = s.e = Math.min(s.e, DJ.n);
+  if (s.th === 'roi') return roiGenere();             // (§163) les Cercles de cendre (roi.js)
+  if (typeof centreGenere === 'function') return centreGenere();   // (§170) le Centre, refait (rouages.js)
   const R = djAlea(djHash(SEED ^ Math.imul(DJ.e, 0x9e3779b1) ^ 0xd0e5));
   const Z0 = DJ_Z0, HM = DJ_Z0 + DJ_MUR, dernier = DJ.e === DJ.n;
   Hgt.fill(HM); Bio.fill(DJ_BIO_MUR); Eau.fill(0); PlT.fill(0); PlB.fill(0);
@@ -175,6 +182,7 @@ function djTrouverTrappe() {
 function djPeupler() {
   DJ.traits = []; DJ.visee = null;
   if (!djIci()) { djTrouverTrappe(); if (DJ.msg) { say(DJ.msg, 5.5); DJ.msg = null; } return; }
+  if (DJ.etat.th === 'roi') return roiPeupler();      // (§163)
   const Z0 = DJ_Z0, e = DJ.e, st = DJ.etat, R = djAlea(djHash(SEED ^ Math.imul(e, 0x51ed27) ^ 0xbeef));
   const esp = id => ESP.findIndex(o => o.id === id) + 1;
   Flo.fill(0); coupes.clear();
@@ -199,7 +207,8 @@ function djPeupler() {
     for (let k = 0; k < n; k++) { const x = q.x + 1 + (R() * (q.w - 2) | 0), y = q.y + 1 + (R() * (q.h - 2) | 0), i = y * WS + x;
       if (Hgt[i] === Z0 && Bio[i] !== DJ_BIO_HUILE && !Flo[i]) Flo[i] = f; } };
   // un néon tous les quatre pas le long des murs de chaque salle, de la couleur de ce qu'elle garde
-  const NEON = { garde: [255, 80, 64], horloge: [255, 206, 120], arrivee: [255, 196, 96], escalier: [140, 255, 200], vapeur: [255, 150, 70] };
+  const NEON = { garde: [255, 80, 64], horloge: [255, 206, 120], arrivee: [255, 196, 96], escalier: [140, 255, 200], vapeur: [255, 150, 70],
+    halle: [255, 176, 84], fonderie: [255, 120, 50], generateur: [196, 156, 255], archives: [140, 255, 190], chaudieres: [255, 140, 70], atelier: [255, 214, 150] };   // (§170)
   DJ.salles.forEach((q, s) => {
     const c = NEON[q.role] || [110, 226, 255], zN = Z0 + 2.5;
     for (let x = q.x + 1; x < q.x + q.w - 1; x += 4) {
@@ -224,15 +233,15 @@ function djPeupler() {
     } else if (q.role === 'grenier') {
       coffre(cx - 1.5 + R() * 3, q.y + 1.5, 'petit', s); if (q.w * q.h > 90) coffre(q.x + q.w - 2, cy, 'petit', s);
       floreEn('pylone', 2, q); floreEn('engrenage', 1, q);
-      for (let k = 0; k < 1 + k0; k++) machine('araignee', q.x + 1.5 + R() * (q.w - 3), q.y + 1.5 + R() * (q.h - 3), s);
+      for (let k = 0; k < 1 + (k0 >> 1); k++) machine('araignee', q.x + 1.5 + R() * (q.w - 3), q.y + 1.5 + R() * (q.h - 3), s);   // (§170) plus de salles : moins par salle
     } else if (q.role === 'garde') {
       machine('gardien', cx, cy, s, R() * 6.28); coffre(q.x + q.w - 2, q.y + 1.5, 'garde', s);
-      for (let k = 0; k < k0; k++) machine('araignee', q.x + 1.5 + R() * (q.w - 3), q.y + 1.5 + R() * (q.h - 3), s);
+      for (let k = 0; k < (k0 + 1 >> 1); k++) machine('araignee', q.x + 1.5 + R() * (q.w - 3), q.y + 1.5 + R() * (q.h - 3), s);
     } else if (q.role === 'tourelles') {
       for (let k = 0; k < 2 + (e > 2 ? 1 : 0); k++) { const p = bord(); if (p) machine('tourelle', p[0], p[1], s, Math.atan2(cy - p[1], cx - p[0])); }
       coffre(cx + (R() < .5 ? -1 : 1) * (q.w / 2 - 2), cy, 'petit', s);
     } else if (q.role === 'araignees') {
-      for (let k = 0; k < 3 + k0; k++) machine('araignee', q.x + 1.5 + R() * (q.w - 3), q.y + 1.5 + R() * (q.h - 3), s);
+      for (let k = 0; k < 2 + Math.ceil(k0 * .6); k++) machine('araignee', q.x + 1.5 + R() * (q.w - 3), q.y + 1.5 + R() * (q.h - 3), s);
       floreEn('druse', 3, q);
     } else if (q.role === 'cristaux') {
       floreEn('druse', 3, q); floreEn('condensateur', 2, q); floreEn('bobine', 2, q);
@@ -278,6 +287,7 @@ function djPeupler() {
   }
   // de loin en loin, une veilleuse au sol des couloirs
   for (const c of droits) if ((c.x * 7 + c.y * 13) % 23 === 0) deco([c.x + (c.hor ? .5 : 1), c.y + (c.hor ? 1 : .5), Z0 + .01], [c.x + (c.hor ? .5 : 1), c.y + (c.hor ? 1 : .5), Z0 + .05], .16, .16, [120, 220, 255], 1);
+  if (typeof centrePeupler === 'function') centrePeupler({ R, machine, coffre, e });   // (§170) le mobilier, les machines des salles nouvelles
   // l'arrivée : au pied du monte-charge, sauf si la sauvegarde remet déjà à sa place
   const m = DJ.monte[0] || { x: DJ.salles[0].cx, y: DJ.salles[0].cy };
   P.x = m.x + 1.4; P.y = m.y + 1.4; P.z = Z0; P.vx = P.vy = P.vz = 0; P.spawn = [P.x, P.y, P.z]; P.sol = [P.x, P.y, P.z]; P.ground = true;
@@ -300,7 +310,7 @@ function djPortes(q, fermer) {
     Hgt[i] = fermer ? DJ_Z0 + DJ_MUR : DJ_Z0; signalDecor('dalle', i);
   }
   SON.jouer('clank', { vol: 1 }, q.cx, q.cy, DJ_Z0 + 1);
-  say(fermer ? 'les portes se referment · le gardien ne vous laissera pas sortir' : 'les portes se rouvrent', 3);
+  say(fermer ? (q.role === 'mere' ? 'le basalte se referme · la Mère des larves ne vous laissera pas sortir' : 'les portes se referment · le gardien ne vous laissera pas sortir') : 'les portes se rouvrent', 3);
 }
 // Ceux de l'étage : soi, et les joueurs d'en face (le canal de l'île est celui de l'étage).
 const djJoueurs = () => [P, ...(typeof Autres !== 'undefined' ? Autres.values() : [])].filter(Q => Q.pv > 0);
@@ -309,7 +319,11 @@ function djMajMonde(dt) {
   if (t - DJ.dernierTir > .8) DJ.chaleur = Math.max(0, DJ.chaleur - dt * .45);   // il ne refroidit qu'au repos
   for (let k = DJ.traits.length - 1; k >= 0; k--) if (t - DJ.traits[k].t0 > DJ.traits[k].dur) DJ.traits.splice(k, 1);
   djMajVisee();
+  if (typeof roiMaj === 'function') roiMaj(dt);         // (§163) la Brèche, et les Cercles de cendre
+  if (typeof forgeMaj === 'function') forgeMaj(dt);     // (§171) les armes forgées : brûlures, zones, auras, traits
   if (!djIci()) return;
+  if (DJ.etat.th === 'roi') DJ.accueil = false;
+  else if (typeof centreMaj === 'function') centreMaj(dt);   // (§170) les tapis, les fumées
   if (DJ.accueil && t > .3) { DJ.accueil = false;
     say(DJ.msg || ('Centre des automates · étage ' + DJ.e + ' sur ' + DJ.n + (DJ.e === DJ.n ? ' · la salle de l\'Horloge' : '')
       + (DJ.etat.test ? ' · descente d\'essai : rien n\'en remonte' : ' · le monte-charge remonte le butin')), 5.5); DJ.msg = null; }
@@ -317,8 +331,8 @@ function djMajMonde(dt) {
   for (const b of beasts) if (b.djIdx !== undefined && b.dead && !DJ.etat.vaincus.includes(b.djIdx)) { DJ.etat.vaincus.push(b.djIdx); Sauve.sale = true; }
   // la salle du gardien se referme sur qui y entre, et se rouvre quand il tombe
   DJ.salles.forEach((q, s) => {
-    if (q.role !== 'garde' && q.role !== 'horloge') return;
-    const vivant = beasts.some(b => b.djSalle === s && b.sp.id === 'gardien' && !b.dead);
+    if (q.role !== 'garde' && q.role !== 'horloge' && q.role !== 'mere' && q.role !== 'bourreau' && q.role !== 'choeur' && q.role !== 'jardin' && q.role !== 'trone') return;
+    const vivant = beasts.some(b => b.djSalle === s && (b.sp.id === 'gardien' || b.sp.gardeSalle) && !b.dead);   // (§163 : la Mère des larves)
     if (!vivant) { if (q.fermee) djPortes(q, false); return; }
     if (!q.fermee && djJoueurs().some(Q => djDansSalle(q, Q.x, Q.y, 1.2))) djPortes(q, true);
   });
@@ -361,8 +375,9 @@ function djAction() {
     const tr = DJ.trappe;
     if (tr && (tr.x - P.x) ** 2 + (tr.y - P.y) ** 2 < 1.7 && Math.abs(P.z - tr.z) < 1)
       return { v: 'DESCENDRE', o: 'une trappe, sous les tôles', f: djEntrer };
-    return null;
+    return typeof roiActionSurface === 'function' ? roiActionSurface() : null;   // (§163) la Brèche
   }
+  if (DJ.etat.th === 'roi') return roiAction();
   for (const m of DJ.monte) if ((m.x - P.x) ** 2 + (m.y - P.y) ** 2 < 2.6)
     return { v: 'REMONTER', o: 'monte-charge · le butin est sauvé', f: djRemonter };
   const es = DJ.escalier;
@@ -398,6 +413,7 @@ function djRendre() {
   const s0 = DJ.etat.s0;
   for (const r of DJ_RES) P.sac[r] = Math.min(P.sac[r] || 0, s0[r] || 0);
   P.baies = Math.min(P.baies, DJ.etat.b0);
+  if (DJ.etat.ing && typeof INGR !== 'undefined') for (const id in DJ.etat.ing) if (INGR[id]) metSacIngr(id, Math.max(0, sacIngr(id) - DJ.etat.ing[id]));   // (§164) les ingrédients d'en bas
   for (const k of Object.keys(P.objets)) if (P.objets[k] && !DJ.etat.o0.includes(k)) {
     delete P.objets[k];
     for (const emp of Object.keys(P.equip)) if (P.equip[emp] === k) P.equip[emp] = null;
@@ -418,7 +434,8 @@ function djButin() {
   for (const r of DJ_RES) { const d = (P.sac[r] || 0) - (s0[r] || 0); if (d > 0) g.push('+' + d + ' ' + (RES[r] || r)); }
   const o = Object.keys(P.objets).filter(k => P.objets[k] && !DJ.etat.o0.includes(k)).map(k => (objet(k) || {}).n || k);
   const tm = (DJ.etat.tomes || []).filter(k => typeof tomePorte === 'function' && P.tomesPortes.includes(k)).map(k => nomTome(k));
-  return g.concat(o, tm);
+  const ing = Object.entries(DJ.etat.ing || {}).filter(([id, n]) => n > 0 && typeof INGR !== 'undefined' && INGR[id]).map(([id, n]) => '+' + n + ' ' + INGR[id].court);   // (§164)
+  return g.concat(o, tm, ing);
 }
 function djSurface() { const tr = DJ.etat.tr; return tr ? [tr[0] + 1.2, tr[1] + .4, tr[2]] : null; }
 function djRemonter() {
@@ -429,7 +446,7 @@ function djRemonter() {
   if (DJ.etat.test) { djRendre(); DJ.msgSuivant = 'fin de la descente d\'essai · rien n\'est gardé'; }
   else DJ.msgSuivant = b.length ? 'de retour à la surface · butin sauvé : ' + b.join(' · ') : 'de retour à la surface · les mains vides';
   SON.jouer('niveau', {}, P.x, P.y, P.z);
-  if (!voyagerVers(SEED, djSurface(), 'le monte-charge vous remonte')) { DJ.transit = undefined; return false; }
+  if (!voyagerVers(SEED, djSurface(), DJ.etat.th === 'roi' ? 'la chaîne du soupirail vous remonte' : 'le monte-charge vous remonte')) { DJ.transit = undefined; return false; }
   return true;
 }
 // Terrassé en bas : le sac revient à ce qu'il était à la trappe (ce qu'on a dépensé reste
@@ -441,7 +458,7 @@ function djMort() {
   djRendre();
   P.pv = 1; P.endu = 1; P.epuise = false; P.arc = null;
   DJ.transit = null;
-  DJ.msgSuivant = 'terrassé sous terre · vous vous réveillez près de la trappe' + (b.length ? ' · perdu : ' + b.join(' · ') : '');
+  DJ.msgSuivant = 'terrassé sous terre · vous vous réveillez près de ' + (DJ.etat.th === 'roi' ? 'la Brèche' : 'la trappe') + (b.length ? ' · perdu : ' + b.join(' · ') : '');
   if (!voyagerVers(SEED, djSurface(), 'tout devient noir…')) DJ.transit = undefined;
   return true;
 }
@@ -476,10 +493,11 @@ function djOuvrir(c) {
 //  Une liste d'os { a, b, w, h, c, lum } en coordonnées du monde, que les deux rendus posent
 //  comme ceux du campement. `lum` : une lumière — elle ne prend pas d'ombre.
 // ============================================================
-function djDecor(ex, ey, r) {
+function djDecor(ex, ey, r, sansFixe) {   // sansFixe : le rendu WebGL a déjà le mobilier du Centre dans sa roche (§170)
   const L = [], r2 = (r || 40) ** 2, pres = (x, y) => (x - ex) ** 2 + (y - ey) ** 2 < r2;
-  const os = (a, b, w, h, c, lum) => L.push({ a, b, w, h, c, lum: !!lum });
+  const os = (a, b, w, h, c, lum, ref) => L.push({ a, b, w, h, c, lum: !!lum, ref });
   if (!djIci()) {
+    if (typeof roiDecorSurface === 'function') roiDecorSurface(ex, ey, r2, os);   // (§163) la Brèche
     const tr = DJ.trappe; if (!tr || !pres(tr.x, tr.y)) return L;
     const z = tr.z + .02;                                      // une plaque de tôle, un peu plus sombre, et son anneau
     os([tr.x - .62, tr.y, z], [tr.x + .62, tr.y, z], 1.24, .03, [96, 99, 110]);
@@ -488,7 +506,8 @@ function djDecor(ex, ey, r) {
     os([tr.x + .35, tr.y - .08, z + .03], [tr.x + .35, tr.y + .08, z + .03], .14, .025, [128, 120, 104]);
     return L;
   }
-  for (const o of DJ.statique) if (pres(o.a[0], o.a[1])) L.push(o);
+  if (DJ.etat.th === 'roi') return roiDecor(ex, ey, r);   // (§163)
+  if (!(sansFixe && typeof djStatiqueDans === 'function' && rouagesIci())) for (const o of DJ.statique) { const d = (o.a[0] - ex) ** 2 + (o.a[1] - ey) ** 2; if (d < r2 && (!o.f || d < 576)) L.push(o); }   // (§170) les détails, de près
   const Z0 = DJ_Z0;
   for (const m of DJ.monte) if (pres(m.x, m.y)) {                // le monte-charge : un plateau, une cage, un feu qui bat
     os([m.x - .8, m.y, Z0 + .04], [m.x + .8, m.y, Z0 + .04], 1.6, .1, [86, 90, 102]);
@@ -529,14 +548,15 @@ function djDecor(ex, ey, r) {
       os([H.x, y + .14, H.z], [H.x + Math.cos(a) * H.r * L2, y + .14, H.z + Math.sin(a) * H.r * L2], w, w, [255, 230, 170], 1); }
     os([H.x, y + .1, H.z], [H.x, y + .2, H.z], .3, .3, [255, 206, 120], 1);
   }
+  if (typeof centreDecor === 'function') centreDecor(os, pres);   // (§170) ce qui bouge
   return L;
 }
 // Les deux rendus : le canvas passe par emitLimb, WebGL par boite (voir index.html).
 function djEmit(view, out) {
-  if (!djIci() && !DJ.trappe) return;
+  if (!djIci() && !DJ.trappe && !(typeof roiBreche === 'function' && roiBreche())) return;
   for (const o of djDecor(P.x, P.y, 34)) {
     const cle = view.kEnt && view.kEnt((o.a[0] + o.b[0]) / 2, (o.a[1] + o.b[1]) / 2);
-    emitLimb(o.a, o.b, o.w, o.h, o.c, view, out, cle, rangSol(Math.min(o.a[2], o.b[2]), false), o.lum ? 1 : undefined);
+    emitLimb(o.a, o.b, o.w, o.h, o.c, view, out, cle, rangSol(Math.min(o.a[2], o.b[2]), false), o.lum ? 1 : undefined, undefined, undefined, o.ref);
   }
   for (const R of djTraits()) {
     const n = Math.max(1, Math.ceil(Math.hypot(R.b[0] - R.a[0], R.b[1] - R.a[1])));
@@ -848,10 +868,11 @@ function djTirDistant(j) {
 }
 // Le HUD : la chaleur du rayon.
 function djHud() {
+  const pa = typeof roiHud === 'function' ? roiHud() : '';    // (§164) les pactes portés
   const a = typeof porte === 'function' ? porte('arme') : null;
-  if (!a || a.id !== 'laser') return '';
+  if (!a || a.id !== 'laser') return pa;
   const n = Math.round(Math.min(1, DJ.chaleur) * 6), chaud = t < DJ.surchauffe;
-  return ` · CHALEUR <b style="color:${chaud ? '#ff7a5a' : '#8fe3ff'}">${'█'.repeat(n).padEnd(6, '·')}</b>`;
+  return pa + ` · CHALEUR <b style="color:${chaud ? '#ff7a5a' : '#8fe3ff'}">${'█'.repeat(n).padEnd(6, '·')}</b>`;
 }
 // Les vignettes du sac, dessinées comme les autres.
 function djDessins(D) {

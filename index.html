@@ -753,9 +753,13 @@
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
 <script src="donjon.js"></script>
+<script src="rouages.js"></script>
+<script src="forge.js"></script>
 <script src="nomades.js"></script>
 <script src="etats.js"></script>
 <script src="brume.js"></script>
+<script src="roi.js"></script>
+<script src="trone.js"></script>
 <script src="achromie.js"></script>
 <script src="village.js"></script>
 <script src="coop.js"></script>
@@ -1129,14 +1133,14 @@ const SON = (() => {
     ramasse(o, t) { osc(o, t, 'sine', 720, 1150, .07, .002, .09); return .1; },
     // les armes : l'élan (un souffle qui monte), le coup, la marque de chacune
     elan(o, t, p) {
-      const A = { gourdin: [260, 900, 1, .1], lance: [500, 1700, 1.2, .08], epee: [420, 1500, 1.4, .09], lame: [800, 3200, 2, .08], marteau: [140, 480, .9, .16] }[p.arme] || [400, 1400, 1.2, .08];
+      const A = { gourdin: [260, 900, 1, .1], lance: [500, 1700, 1.2, .08], epee: [420, 1500, 1.4, .09], lame: [800, 3200, 2, .08], marteau: [140, 480, .9, .16] }[armeBase(p.arme)] || [400, 1400, 1.2, .08];
       const d = p.dur || .15;
       souffle(o, t, 'bandpass', A[0], A[1], A[2], d * .6, d * .5, A[3]);
       return d * 1.4;
     },
     touche(o, t, p) {
       osc(o, t, 'sine', 95, 60, .12, .003, .22); souffle(o, t, 'lowpass', 700, 250, .8, .09, .002, .18);   // la chair
-      const a = p.arme;
+      const a = armeBase(p.arme);
       if (a === 'gourdin') { souffle(o, t, 'bandpass', 480, 0, 2, .1, .001, .3); osc(o, t, 'triangle', 150, 100, .09, .001, .15); }
       else if (a === 'lance') souffle(o, t, 'bandpass', 1400, 600, 2.5, .07, .001, .22);
       else if (a === 'epee') { for (const [f, g] of [[930, .08], [1420, .05]]) osc(o, t, 'triangle', f, 0, .18, .001, g); souffle(o, t, 'highpass', 2600, 0, .7, .05, .001, .12); }
@@ -1601,12 +1605,14 @@ const SON = (() => {
         O.type = i ? 'sine' : 'triangle'; O.frequency.value = f; g.gain.value = [1, 1, .6, .3, .3][i]; O.connect(g); g.connect(F); O.start(); return O; }) };
     },
     choisir() {
-      if (typeof brumeSang === 'function' && brumeSang() > .3) return 'brume';   // la brume sanglante a sa valse
+      if (typeof brumeSang === 'function' && (brumeSang() > .3 || enferMusique())) return 'brume';   // la brume sanglante a sa valse (et le démon la garde, §162)
       const K = !!P.korlaz && P.pv > 0;                    // infecté : la musique ment, elle aussi — une silhouette qui surgit sonne comme un vrai danger
+      if (!K && typeof rouagesIci === 'function' && rouagesIci()) return 'rouages';   // (§170) le Centre des automates a sa musique : « La Grande Horloge »
       for (const b of beasts) if (!b.dead && !b.tame && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 18 * 18
         && (b.etat === 'viser' || b.etat === 'assaut' || (b.cible === P && (b.etat === 'chasser' || b.etat === 'traquer'))
           || (K && b.sp.illusion && (b.etat === 'surgir' || b.etat === 'ramper' || b.etat === 'agripper')))) return K ? 'korlazDanger' : 'danger';
       if (K) return 'korlaz';
+      if (typeof roiIci === 'function' && roiIci()) return 'brume';   // (§163) chez le Roi démon, la valse de la brume
       if (ileMeca || djIci()) return 'automates';
       return nuitK() > .6 ? 'nuit' : 'jour';
     },
@@ -1660,6 +1666,10 @@ const SON = (() => {
       if (h !== this.humeur) { this.humeur = h; this.reste = 0; this.enPhrase = false; this.silence = Math.min(this.silence, now + (h === 'danger' || h === 'korlazDanger' ? .3 : 2)); this.prochain = this.silence; }
       if (this.humeur === 'brume') {
         if (typeof valseBrume === 'function') { if (!this.rouge) this.rouge = valseBrume(ctx, bus.m); this.rouge.maj(now, typeof brumeIntensite === 'function' ? brumeIntensite() : .5); }
+        return;
+      }
+      if (this.humeur === 'rouages') {                     // (§170) rouages.js : son propre lecteur, qui suit le danger
+        if (typeof rouagesMusique === 'function') { if (!this.rg) this.rg = rouagesMusique(ctx, bus.m); this.rg.maj(now, rouagesIntensite()); }
         return;
       }
       if (!K) return this.phrases(now);                    // hors du Korlaz : les phrases composées (§108)
@@ -1895,12 +1905,12 @@ const SUNX = Math.cos(SUN_AZ) * Math.cos(SUN_EL), SUNY = Math.sin(SUN_AZ) * Math
 // Couleur de l'horizon, dont dépendent le ciel et le brouillard. Elle suit le jour : le
 // brouillard doit toujours virer vers ce que l'on voit derrière, sinon il se voit.
 function couleurCiel() {
-  if (djIci()) return [16, 18, 26];                    // la roche, au loin
+  if (djIci()) return typeof roiIci === 'function' && roiIci() ? roiCiel() : [16, 18, 26];   // la roche, au loin (§163 : rougeoyante, chez le Roi)
   const l = clarte(), c = [30 + 118 * l, 38 + 126 * l, 58 + 118 * l];
   const k = typeof brumeSang === 'function' ? brumeSang() * .88 : 0;   // la brume sanglante (brume.js) : le ciel et l'horizon virent au rouge sombre
-  if (!k) return c;
-  const r = .35 + .65 * l;
-  return [c[0] + (104 * r - c[0]) * k, c[1] + (14 * r - c[1]) * k, c[2] + (16 * r - c[2]) * k];
+  const r = .35 + .65 * l, s = k ? [c[0] + (104 * r - c[0]) * k, c[1] + (14 * r - c[1]) * k, c[2] + (16 * r - c[2]) * k] : c;
+  const e = typeof enferCielK === 'function' ? enferCielK() : 0;   // (§162) l'île démoniaque : presque noir, rouge sombre à l'horizon
+  return e ? [s[0] + (38 - s[0]) * e, s[1] + (8 - s[1]) * e, s[2] + (6 - s[2]) * e] : s;
 }
 // la brume sanglante resserre la vue : où le brouillard commence, où il culmine (vue de dessus et canvas)
 const bruSang = () => { const k = typeof brumeSang === 'function' ? brumeSang() : 0; return k ? [BRU0 + (1.5 - BRU0) * k, BRU1 + (8 - BRU1) * k] : null; };
@@ -2635,7 +2645,7 @@ P.parti = null; P.solde = null; // le départ de chez soi, et le dernier départ
 // Le coffre du campement : ce qui y est déposé ne risque plus rien. Le sac, lui, voyage.
 P.coffre = { fibre: 0, bois: 0, pierre: 0, os: 0, eclat: 0, ferraille: 0, baies: 0, spore: 0 };
 P.modules = {};                                       // les modules créés au campement : { id: niveau }
-P.alchimie = {}; P.chaudron = null; P.carnetAlch = {};   // les rangs acquis par potion { caractéristique: rang } ; le chaudron en cours ; le carnet (§133)
+P.alchimie = {}; P.alchP = {}; P.chaudron = null; P.carnetAlch = {};   // les rangs acquis par potion { caractéristique: rang } ; le chaudron en cours ; le carnet (§133)
 P.codex = []; P.nomsSorts = {};                       // les accords déjà écrits (clés « matière+matière ») ; les noms donnés aux sorts
 P.tomesPortes = []; P.tomeHalte = 0;                  // les tomes trouvés, pas encore déchiffrés ; la halte où le conteur en a cédé un
 P.tomes = {}; P.sorts = []; P.sortMain = null; P.egide = null;   // la magie : les tomes lus { matière: 1..3 }, les phrases inscrites, celle que lance X, l'égide en cours
@@ -2772,7 +2782,8 @@ const enSerie = o => o.emp === 'munition' || o.emp === 'lien' || o.emp === 'baum
 const acheve = o => NIV_CARRE[o.id] ? carresTot() >= champsMax() && ![1, 2].some(k => k < NIV_CARRE[o.id] && carresSac(k) > 0) : !enSerie(o) && !!P.objets[o.id] && !(o.emp === 'ceinture' && nivCeinture() < CEINTURE_MAX);   // (§119) les carrés : jusqu'au plafond
 const campIci = () => !!P.camp && P.camp.graine === SEED;
 const sacPlein = o => false;                   // plus de plafond aux liens : leur prix suffit
-const objet = id => OBJETS.find(o => o.id === id);
+const objet = id => OBJETS.find(o => o.id === id) || (typeof forgeObjet === 'function' && typeof id === 'string' && id.startsWith('fg') ? forgeObjet(id) : undefined);   // (§171) une arme forgée se reconstruit d'après son identifiant
+const armeBase = id => (typeof forgeBase === 'function' && forgeBase(id)) || id;   // (§171) le geste, le son, la traînée d'une arme forgée : ceux de sa base
 const porte = emp => P.equip[emp] ? objet(P.equip[emp]) : null;
 const nivOutil = () => (porte('outil') || { niv: 0 }).niv;
 const rendement = () => (porte('outil') || { rend: 1 }).rend;
@@ -3564,6 +3575,7 @@ const RANGEES = {
   arbalete: (h, n) => ({ arb: { o: v3.add(h, [-.19, -.02, .05]), u: nrm([0, .25, .97]), side: nrm([0, .97, -.25]), k: 0, th: 0, trait: 0 } }),
 };
 function geomArme(id, F, J, B) {
+  if (typeof forgeGeom === 'function' && forgeGeom(id, F, J, B)) return;   // (§171) une arme forgée : sa forme vient de sa recette
   if (djEstFusil(id)) return djGeomFusil(id, F, J, B);
   const pose = (a, b, w, h, c) => B.push({ a, b, w, h, c });
   if (id === 'arc') {
@@ -3637,12 +3649,13 @@ function geomArme(id, F, J, B) {
     pose(vv(T, -.1), vv(T, -.13 - ext), .085, .085, [118, 120, 128]);        // la face : le pilon sort au coup
     pose(vv(T, .1), vv(T, .17), .05, .05, [188, 190, 200]);                  // le cylindre
     pose(vv(T, .17), vv(T, .19), .065, .03, [92, 96, 108]);
-  }
+  } else if (typeof roiGeomArme === 'function') roiGeomArme(id, at, vv, pose);   // (§166) la lame de soufre, le fouet de chaînes
 }
 // Le fourreau reste à la hanche, le carquois dans le dos, la sangle en travers de la poitrine.
 function accessoiresArme(id, J, hip, neck, B) {
   const pose = (a, b, w, h, c) => B.push({ a, b, w, h, c });
-  if (id === 'epee' || id === 'lame') {
+  if (id && id.startsWith('fg')) id = armeBase(id);                // (§171) le fourreau, le carquois de sa base
+  if (id === 'epee' || id === 'lame' || id === 'soufre') {
     const R = RANGEES[id](hip, neck), cuir = id === 'lame' ? [58, 54, 70] : [96, 66, 42];
     pose(v3.add(R.o, v3.mul(R.u, .05)), v3.add(R.o, v3.mul(R.u, .37)), .062, .036, cuir);
     pose(v3.add(R.o, v3.mul(R.u, .35)), v3.add(R.o, v3.mul(R.u, .4)), .068, .04, [130, 128, 120]);
@@ -3664,7 +3677,7 @@ function osArmePortee(id, J, hip, neck, GG, B) {
   let enMain = null;
   if (main > .001) {
     const p = GG.pose;
-    enMain = id === 'arc' ? { arc: { ...(p.arc || ARC_GARDE.arc), o: p.m2 || ARC_GARDE.m2 } }
+    enMain = armeBase(id) === 'arc' ? { arc: { ...(p.arc || ARC_GARDE.arc), o: p.m2 || ARC_GARDE.m2 } }
       : id === 'arbalete' || djEstFusil(id) ? { arb: p.arb || ARB_GARDE.arb } : { o: p.g, u: p.u };
   }
   if (main >= .999) { geomArme(id, enMain, J, B); return; }
@@ -4035,7 +4048,7 @@ function tirerFleche(p) {
   const a = porte('arme');
   FLECHES.push({ x: P.x + dx * .45, y: P.y + dy * .45, z: P.z + .55 + dz * .45,
     vx: dx * v0, vy: dy * v0, vz: dz * v0, age: 0, plantee: 0, dir: [dx, dy, dz],
-    deg: (a && a.deg || .8) });
+    deg: (a && a.deg || .8), fg: a && a.fg ? a.id : null, pleine: p >= .95 });
   if (RS.ouvert && Autres.size && Compte.uid) { const f = FLECHES[FLECHES.length - 1];   // les autres la voient filer
     diffuser(canalIle(), 'fleche', { u: Compte.uid, x: r2(f.x), y: r2(f.y), z: r2(f.z), vx: r2(f.vx), vy: r2(f.vy), vz: r2(f.vz) }); }
   burst(P.x + dx * .4, P.y + dy * .4, P.z + .55, 4, '#dfe6f2');
@@ -4077,6 +4090,7 @@ function impactFleche(f, nx, ny, nz) {
       if (typeof fauneCoup === 'function') fauneCoup(b, dgJ, f.vx * .18, f.vy * .18, 'flèche');
       if (b.pv <= 0) { mourirBete(b, 'flèche'); butin(b); }
       else say(b.sp.n + ' · ' + Math.round(b.pv * 100) + '% · flèche ' + Math.round(deg * 100), 1.2);
+      if (f.fg && typeof forgeFleche === 'function') forgeFleche(f, b, dgJ);   // (§171)
       return true;                                      // la flèche est perdue dans la bête
     }
   }
@@ -5004,7 +5018,7 @@ function travailAbsence(liste, depuis) {
     if (r.role !== 'recolte') continue;
     if (recolteDe(r) === 'jardin') { if (specById[r.esp]) jard.push(r); continue; }   // (§121) les jardinières : ensemble, plus bas (sans coffre, elles soignent sans récolter)
     if (!aModule('coffre')) continue;                    // sans coffre, rien à engranger
-    const k = recolteDe(r), cf = coefApt(r.esp, k) * (1 + .1 * potComp(r, 'recolte'));
+    const k = recolteDe(r), cf = coefApt(r.esp, k) * (1 + .1 * puissComp(r, 'recolte'));
     if (!specById[r.esp] || !cf) continue;
     let tot = 0;
     if (k === 'peche') {                                 // la sterne pêche pour le campement : au cellier
@@ -5376,10 +5390,12 @@ const COGNE = 1.2;
 const VIT_MARCHE = 4.2, VIT_COURSE = 5.8, VIT_EPUISE = 3.2;   // la marche au pas de l'ancien sprint, le sprint plus vif encore
 const ENDU_COURSE = 8, ENDU_REPRISE = .12, ENDU_REPOS = .24, ENDU_SEUIL = .35;
 const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1) / (b && b.gangue > t ? 1.5 : 1);   // l'escouade est blindée
-const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.6, effet('robuste') * .2)) * vieK();   // peau dure : −20 % par niveau, −60 % au plus
-const degJoueur = (deg, b) => deg / danger() / robuste(b) * forceK();   // coups puissants : +25 % par niveau
+const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.7, effet('robuste') * .25)) * vieK() * (typeof pacteSubi === 'function' ? pacteSubi() : 1);   // (§164) les pactes de Fer et de Hâte   // peau dure : −25 % par niveau, −70 % au plus (§168)
+const degJoueur = (deg, b) => deg / danger() / robuste(b) * forceK() * (b && b.sp && b.sp.roi && typeof roiDegK === 'function' ? roiDegK(b) : 1);   // (§164) le bouclier du forgeron, (§165) la pierre des gargouilles   // coups puissants : +25 % par niveau
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
-function capEsp(sp) {
+// (§162) sur l'île démoniaque, la faune ordinaire a brûlé : elle revient avec la guérison (brume.js, enferFaune)
+function capEsp(sp) { const k = typeof enferFaune === 'function' ? enferFaune(sp) : 1; return k >= 1 ? capEsp0(sp) : Math.round(capEsp0(sp) * k); }
+function capEsp0(sp) {
   if (sp.biome) return especesIle.has(sp.id) ? sp.cap : 0;   // un Tellurien : autant que son sol en nourrit
   if (trottin(sp)) return especesIle.has(sp.id) ? sp.cap : 0;   // (§137) une bande de Trottins : la même à tout niveau
   if (especesIle.size && !especesIle.has(sp.id)) return 0;   // la graine ne l'a pas mise sur cette île
@@ -5702,6 +5718,7 @@ function recevoir(m) {
   if (evt === 'pos') majDistant(d);
   else if (evt === 'coup') encaisser(d);
   else if (evt === 'soin') etreSoigne(d);                 // un équipier nous soigne
+  else if (evt === 'arme' && typeof forgeRecue === 'function') forgeRecue(d);   // (§171) un équipier nous donne une arme forgée
   else if (evt === 'glu') etreEnglue(d);                  // la boule visqueuse d'une compagne d'en face
   else if (evt === 'sort') recevoirSort(d);              // un sort d'en face : ce qu'on en voit, ce qu'on en prend
   else if (evt === 'parti') effacerDistant(d.u);
@@ -5885,7 +5902,7 @@ function encaisser(d) {
   if (d.c >= 0) {
     const sorties = P.compagnes.filter(c => c.dehors && c.b);
     const c = sorties[i]; if (!c || !c.b) return;
-    c.b.pv = Math.max(0, c.b.pv - deg / robuste(c.b) * (1 - .06 * potComp(c, 'defense'))); c.b.hit = .25; c.b.alarm = 1;
+    c.b.pv = Math.max(0, c.b.pv - deg / robuste(c.b) * (1 - .06 * puissComp(c, 'defense'))); c.b.hit = .25; c.b.alarm = 1;
     burst(c.b.x, c.b.y, c.b.z + .4, 9, '#ffb0a0');
     if (c.b.pv <= 0) { assommer(c.b, 'coup'); say(c.nom + ' est tombée sous les coups de ' + qui, 3); }
     return;
@@ -6132,6 +6149,7 @@ const ETATS_NOMS = { korlaz: 'Korlaz · roche rongée, spores neurotoxiques', br
   achromie: 'Achromie · la couleur a quitté l\'île, son arche est éteinte, des veilleurs y rôdent' };
 // (§127) L'Achromie (achromie.js) : ce que la carte graphique reçoit à chaque image (GRIS_GLSL). a : la force du
 // gris, puis le rouge, le jaune, le vert rendus ; b : le bleu, le violet, le contraste ; l : la lanterne (xyz, rayon).
+const ENF_VIDE = new Float32Array(8);                  // (§162) l'île démoniaque, quand brume.js manque
 const GRIS_GL = { a: new Float32Array(4), b: new Float32Array(4), l: new Float32Array(4), arc: new Float32Array(4) };   // (§129) arc : l'arc-en-ciel (son centre, sa force)   // les états d'île (etats.js)
 function apercuIle(g, niv, det) {
   if (det < 1) return { texte: '', risque: '' };
@@ -6316,7 +6334,7 @@ const dalles = [];                                // dalles conjurées, avec leu
 // En mode essai, rien ne se paie.
 const JAUGE_MANA = 100;                                      // cent éclats remplissent la jauge, comme les cent points d'avant
 const manaDispo = () => essai ? Infinity : (P.sac.eclat || 0);
-const coutSort = o => Math.max(1, Math.round((o.mana || 0) * (1 - ((porte('armure') || {}).sort || 0)) * (biomeIci === 12 ? .5 : 1) * (1 - .08 * rangAlch('mana'))));   // le manteau, les champs de cristal
+const coutSort = o => Math.max(1, Math.round((o.mana || 0) * (1 - ((porte('armure') || {}).sort || 0)) * (biomeIci === 12 ? .5 : 1) * (1 - .08 * puissAlch('mana'))));   // le manteau, les champs de cristal
 const coutFoyer = () => Math.min(100, Math.max(20, 10 * ecart()));   // dix éclats par exploration d'écart, de 20 à 100
 const eclats = n => n + ' éclat' + (n > 1 ? 's' : '');
 function payerMana(n) {
@@ -6381,7 +6399,7 @@ function lancerSort() {
   } else if (gr.id === 'aube') {
     horloge = .26; burst(P.x, P.y, P.z + .6, 26, '#ffe9b0'); say('le jour se lève', 2.2);
     if (typeof fauneGeste === 'function') fauneGeste('aube');   // une seule heure sur l'île : celle du gardien
-  }
+  } else if (gr.id === 'abime') ok = typeof roiSortAbime === 'function' && roiSortAbime();   // (§166) le Bâton de l'Abîme
   if (ok) payerMana(cs);
   if (ok && RS.ouvert && Autres.size && Compte.uid) diffuser(canalIle(), 'fx', { u: Compte.uid, k: gr.id, x: r2(P.x), y: r2(P.y), z: r2(P.z) });   // l'éclat du sort, vu d'en face
 }
@@ -7592,6 +7610,7 @@ function voletCases(volet) {
       creer: ['des potions qui améliorent le personnage pour de bon : ' + ALCH.map(a => a.n.toLowerCase()).join(', '), 'cinq rangs par caractéristique ; au niveau 1, la table prépare les rangs 1 et 2', 'chaque potion a sa recette : l\'eau, le feu, les ingrédients dans l\'ordre, le repos entre eux, la cuisson ; et sa chance de réussite — si elle tourne, tout est perdu', 'elle s\'améliore deux fois : le rang 3, puis les rangs 4 et 5, et de meilleures chances'],
       sait: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : ' + (n > 1 ? '+' + ALCH_TABLE * (n - 1) + ' points' : 'celle de la recette'), INSTR_ALCH[n]],
       niv: n => ['les potions jusqu\'au rang ' + [0, 2, 3, 5][n], 'chance de réussite : +' + ALCH_TABLE + ' points de plus', INSTR_ALCH[n]] }),
+    ...(typeof forgeCaseCamp === 'function' ? [forgeCaseCamp(proche)] : []),   // (§171) la forge
     caseMod('biblio', 'modbiblio', 'livre', { court: 'écrire ses sorts', le: 'la bibliothèque', il: 'elle',
       creer: ['un pupitre où écrire ses sorts : une forme (' + FORMES.map(f => f.n.toLowerCase()).join(', ') + ') et une matière (' + MATIERES.map(m => m.n.toLowerCase()).join(', ') + ')', 'les tomes trouvés en exploration s\'y lisent : le Tome I d\'une matière l\'apprend', 'un grimoire de trois sorts inscrits, à ranger dans les cases du bord droit ou à tenir en main (X)', 'elle s\'améliore deux fois : cinq sorts puis sept, les mélanges, puis les accents'],
       sait: n => ['un grimoire de ' + PAGES_SORT[n] + ' sorts inscrits', 'les ' + FORMES.length + ' formes, et les matières dont vous avez le tome'],
@@ -7708,6 +7727,7 @@ function faireCamp(id) {
   else if (id === 'modalchimie') { if (aModule('alchimie')) ameliorerModule('alchimie'); else creerModule('alchimie'); }
   else if (id === 'modbiblio') { if (aModule('biblio')) ameliorerModule('biblio'); else creerModule('biblio'); }
   else if (id === 'moddefense') creerModule('defense');
+  else if (id === 'modforge' && typeof forgeBatir === 'function') forgeBatir();   // (§171)
   else if (id.startsWith('def:')) ameliorerDefense(id.slice(4));
   else if (id === 'reprendre') reprendreCampement();
 }
@@ -7975,7 +7995,7 @@ function outilBeta(k) {
     say('au lutrin · ' + nomTome(cleTome(l.m, 1)), 2); ouvrirSac(false); return;
   }
   if (k === 'alchRang') {
-    const n = (rangAlch('vie') + 1) % (ALCH_MAX + 1); P.alchimie = {}; P.chaudron = null;
+    const n = (rangAlch('vie') + 1) % (ALCH_MAX + 1); P.alchimie = {}; P.alchP = {}; P.chaudron = null;
     if (n) for (const a of ALCH) P.alchimie[a.id] = n;
     say('potions · toutes les caractéristiques au rang ' + n, 2); majSac(); return;
   }
@@ -8465,7 +8485,7 @@ const HORREURS = [
   { id:'millegueule', n:'Mille-gueules', corps:'millegueule', horreur:1, terre:20, diet:'c', sz:1, spd:1, vue:0, peur:0, herd:0, cap:1, mat:9999,
     shell:[44,40,58], dark:[66,60,84], leg:[44,40,58], oeil:[90,205,255], bio:[], dur:6, lien:0, chasse:[], travail:{}, metier:'il nage sous la terre', grimpe:0 },
 ];
-SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof BRUME_SPEC !== 'undefined' ? BRUME_SPEC : []), ...(typeof GR_SPEC !== 'undefined' ? GR_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
+SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefined' ? ETATS_SPEC : []), ...(typeof BRUME_SPEC !== 'undefined' ? BRUME_SPEC : []), ...(typeof ROI_SPEC !== 'undefined' ? ROI_SPEC : []), ...(typeof GR_SPEC !== 'undefined' ? GR_SPEC : []), ...(typeof VL_SPEC !== 'undefined' ? VL_SPEC : []), ...(typeof FLORE_SPEC !== 'undefined' ? FLORE_SPEC : []));   // le village (village.js), la flore rare (flore.js)   // les visions du Korlaz (etats.js)                     // à la fin : les indices des autres ne bougent pas
 // La cerisaie en fleur (§112) : trois bêtes qui n'y vivent que là. En QUEUE de SPEC : rien ne bouge des autres.
 // Le cerf des cerisiers (un Tellurien, ses bois fleurissent), le renard des pétales (trois queues ; leur bout blanc
 // luit la nuit) et le lentigrade-cerisier (un Doux, qui porte un cerisier en fleur sur le dos).
@@ -8566,7 +8586,7 @@ const JOUR = 240;
 const LEVER = 6, COUCHER = 20, CREPUSCULE = 1.5;
 const lisse01 = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
 function lumiere() {
-  if (djIci()) return .9;                              // en bas, il ne fait jamais nuit
+  if (djIci()) return typeof roiNoir === 'function' && roiNoir() ? .18 : .9;   // en bas, il ne fait jamais nuit — sauf dans les Ossuaires (§165)
   const H = horloge * 24;
   if (H >= LEVER && H <= COUCHER) return .74 + .26 * Math.sin(Math.PI * (H - LEVER) / (COUCHER - LEVER));
   if (H > COUCHER) return .74 - .44 * lisse01((H - COUCHER) / CREPUSCULE);
@@ -8714,7 +8734,7 @@ function majFeux() {
   const L = [];
   const vacille = (r, s) => r * (1 + .035 * Math.sin(t * 9.3 + s) + .02 * Math.sin(t * 23.1 + s * 2));
   const pousse = (x, y, z, r) => { if (Number.isFinite(x) && Number.isFinite(y)) L.push([x, y, z, r, (x - P.x) ** 2 + (y - P.y) ** 2]); };
-  feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : effet('nuit') ? 6.5 + (effet('nuit') - 1) * 2.5 : RAYON.joueur]);   // un plat de lueurs : on voit la nuit
+  feux.push([P.x, P.y, P.z + 1, porte('lumiere') ? vacille(RAYON.lanterne, 0) : effet('nuit') ? 8 + (effet('nuit') - 1) * 3 : RAYON.joueur]);   // un plat de lueurs : on voit la nuit
   for (const c of campsIci()) {                        // le feu de camp ; le portail d'éclat éclaire aussi
     pousse(c.x, c.y, c.z + .6, vacille(RAYON.feu, 3));
     if (c === P.camp && aModule('portail') && palierCamp(nivCamp()) >= 2) { const q = lieuModule(c, 'portail'); pousse(q[0], q[1], c.z + 1.1, RAYON.arche); }
@@ -8724,6 +8744,7 @@ function majFeux() {
   for (const b of beasts) if (b.tame && !b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
   for (const j of Autres.values()) pousse(j.x, j.y, j.z + 1, j.lum ? vacille(RAYON.lanterne, 5) : RAYON.joueur);
   for (const b of betesLoin) if (!b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
+  if (typeof roiLueurs === 'function') roiLueurs(pousse);   // (§165) les Ossuaires : la lave, les dalles ouvertes, les âmes
   if (noirceur() > .05) lueursRares(pousse);
   if (noirceur() > .05 && typeof lueursPlantes === 'function') lueursPlantes(pousse);   // la flore qui luit, la nuit (flore.js)
   L.sort((a, b) => a[4] - b[4]);
@@ -8803,6 +8824,7 @@ function majBiome(dt) {
   // le sol sous les pieds — pas celui qu'on survole d'une île volante, ni le fond d'un lac ;
   // en l'air on garde le dernier, pour que la ligne du HUD ne clignote pas à chaque saut
   if (P.ground) biomeIci = !eauAt(x, y) && Math.abs(P.z - hAt(x, y)) < .45 ? bAt(x, y) : 0;
+  if (typeof roiIci === 'function' && roiIci()) biomeIci = 0;   // (§165) chez le Roi, le sol n'est d'aucun biome : ni découverte, ni braise qui brûle
   const R = rareDe(biomeIci);
   if ((biomeIci === 15 || biomeIci === 16) && !P.biomes.includes(15)) {
     P.biomes.push(15);
@@ -9796,14 +9818,15 @@ function update(dt) {
   } else {
   const court = im > .06 && veutCourir && !P.epuise && !(P.recul > 0);
   if (court && P.enduBonus > 0) { P.enduBonus = Math.max(0, P.enduBonus - dt / ENDU_COURSE); P.courseT = t; }   // le second souffle s'use d'abord
-  else if (court) { P.endu = Math.max(0, P.endu - dt / (ENDU_COURSE * (1 + .1 * rangAlch('souffle'))) * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * [1, .5, .3, .15, 0][effet('souffle')]); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
+  else if (court) { P.endu = Math.max(0, P.endu - dt / (ENDU_COURSE * (1 + .1 * puissAlch('souffle'))) * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * [1, .5, .3, .15, 0][effet('souffle')]); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
   else if (t - P.courseT > .5) P.endu = Math.min(1, P.endu + dt * (im > .06 ? ENDU_REPRISE : ENDU_REPOS));
   if (P.epuise && P.endu >= ENDU_SEUIL) P.epuise = false;
-  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (1 + effet('vif') * .15) * (1 + .04 * rangAlch('vitesse'));   // pas vif : +15 % par niveau ; la potion de vitesse : +4 % par rang
+  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (1 + effet('vif') * .2) * (1 + .04 * puissAlch('vitesse'));   // pas vif : +20 % par niveau (§168) ; la potion de vitesse : +4 % par rang
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
-  if (P.toile > t) SPD *= .3;                         // pris dans la toile de la Tisseuse
+  if (P.toile > t) SPD *= .3;
+  if (typeof pacteVitesse === 'function') SPD *= pacteVitesse();   // (§164) les pactes de Fer et de Hâte                         // pris dans la toile de la Tisseuse
   if (!M && floreFreine(P.x, P.y, P.z)) SPD *= .72;   // les herbes hautes, les buissons, les roseaux (la monture les enjambe)
   if (P.anim && P.anim.k === 'recolte' && im > .3) { P.anim = null; annoncer('stop', 0); }               // on se remet en marche : le geste s'interrompt
   const glisse = biomeIci === 16 && P.ground && !M;     // l'huile : on accélère mal, on s'arrête plus mal encore
@@ -9988,7 +10011,7 @@ function update(dt) {
   }
   // Sans soin, chaque rencontre usait le personnage pour de bon : loin des coups, on se remet.
   if (P.pv > 0 && P.pv < 1 && curioFx('regen')) P.pv = Math.min(1, P.pv + dt * .003 * curioFx('regen'));   // une curiosité qui régénère (§109)
-  if (P.pv < 1 && t - (P.dernierCoup ?? -99) > 8 - .8 * rangAlch('recup')) P.pv = Math.min(1, P.pv + dt * .015 * (1 + .2 * rangAlch('recup')));
+  if (P.pv < 1 && t - (P.dernierCoup ?? -99) > 8 - .8 * puissAlch('recup')) P.pv = Math.min(1, P.pv + dt * .015 * (1 + .2 * puissAlch('recup')));
 
   // --- caméra : elle suit en douceur ---
   const [cX, cY] = cadreCible();                     // (§151) entre vous et la cible désignée
@@ -10437,6 +10460,7 @@ function heroBonesBase(J) {
     return B;
   }
   B.push({ a: v3.add(hip, [-0.09, 0, 0.05]), b: v3.add(neck, [-0.085, 0, -0.04]), w: 0.15, h: 0.10, c: HC.pack });  // sac
+  if (typeof roiDos === 'function') roiDos(J, hip, neck, B);   // (§166) le bouclier d'obsidienne
   { const id = (J === P || J.distant) ? armeDe(J) : null; if (id) osArmePortee(id, J, hip, neck, GG && GG.k !== 'recolte' ? GG : null, B); }
   const head = [neck[0] + 0.012, neck[1], neck[2] + 0.105];
   B.push({ a: v3.add(head, [0, 0, -0.085]), b: v3.add(head, [0, 0, 0.055]), w: 0.185, h: 0.175, c: HC.skin });
@@ -12627,8 +12651,9 @@ function terrasse() {
 }
 // Le joueur vient de blesser une bête : elle s'en souvient, et une meute répond pour elle.
 function blesseParJoueur(b) {
-  if (effet('vampire')) P.pv = Math.min(1, P.pv + .015 * effet('vampire'));
-  if (effet('gel')) { b.etourdi = Math.max(b.etourdi || 0, .4 + .3 * effet('gel')); burst(b.x, b.y, b.z + .6, 6, '#bfe8ff'); }
+  if (typeof pacteCoup === 'function') pacteCoup(b);          // (§164) les pactes de Braise et de Sang
+  if (effet('vampire')) P.pv = Math.min(1, P.pv + .022 * effet('vampire'));
+  if (effet('gel')) { b.etourdi = Math.max(b.etourdi || 0, .5 + .4 * effet('gel')); burst(b.x, b.y, b.z + .6, 6, '#bfe8ff'); }
   if (effet('invisible')) { P.effets.invisible = t; say('vous redevenez visible', 1.6); }
   b.colere = 20; b.aise = 0; P.agiteT = t; b.colereD = false;
   if (b.sp.roche) for (const o of beasts) if (o !== b && o.sp === b.sp && !o.tame && !o.dead   // toute la colonie s'en mêle
@@ -12659,7 +12684,7 @@ function porterCoup(b, c, deg) {
     if (P.bonusPv > 0) { const a = Math.min(P.bonusPv, dg); P.bonusPv -= a; dg -= a; }   // la vie en plus prend le coup d'abord
     P.pv = Math.max(0, P.pv - dg);
     if (egideActive() && b.sp && !b.tame && b.pv > 0 && !b.dead) toucherSort(b, P.egide.m, P.egide.deg);   // l'égide rend sa matière
-    if (effet('epines') && b.sp && !b.tame && b.pv > 0) { b.pv -= deg * .3 * effet('epines') / robuste(b); b.hit = .25; if (b.pv <= 0 && !b.dead) mourirBete(b, 'combat'); }   // les épines rendent le coup
+    if (effet('epines') && b.sp && !b.tame && b.pv > 0) { b.pv -= deg * .4 * effet('epines') / robuste(b); b.hit = .25; if (b.pv <= 0 && !b.dead) mourirBete(b, 'combat'); }   // les épines rendent le coup
     P.vx = dx / d * 7; P.vy = dy / d * 7; P.vz = 4.2; P.recul = .3;
     if (b.sp && b.sp.roche && b.as) { P.vx = dx / d * 11; P.vy = dy / d * 11; P.vz = 5.4; }   // la charge de l'oglodon projette loin
     burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
@@ -12668,7 +12693,7 @@ function porterCoup(b, c, deg) {
     if (P.pv <= 0) terrasse();
     return true;
   }
-  const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .25 * effet('meute') : 1) * (1 + .1 * potBete(b, 'defense')) * (1 - .06 * potBete(c, 'defense'));
+  const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .35 * effet('meute') : 1) * (1 + .1 * puissBete(b, 'defense')) * (1 - .06 * puissBete(c, 'defense'));
   c.pv -= dgC; c.hit = .25; c.alarm = 1;   // la meute galvanisée   // sur la Tisseuse, crocs et griffes glissent
   // le bossu rend parfois le coup qu'il reçoit d'un chasseur
   if (b.sp.chasse && c.sp.riposte > .3 && Math.random() < c.sp.riposte * .5) { b.pv -= .12; b.hit = .2; }
@@ -13321,6 +13346,7 @@ function impactTir(f, nx, ny, nz) {
   }
   if (!sien) for (const j of Autres.values()) if (j.fv && j.pv > 0 && (nx - j.x) ** 2 + (ny - j.y) ** 2 < .36 && nz > j.z - .1 && nz < j.z + 1.4) return true;   // il le voit chez lui, et l'y encaisse
   if (!sien && (nx - P.x) ** 2 + (ny - P.y) ** 2 < .36 && nz > P.z - .1 && nz < P.z + 1.4) {
+    if (typeof roiRenvoi === 'function' && roiRenvoi(f)) return false;   // (§166) le bouclier d'obsidienne renvoie le feu
     porterCoup(de, P, f.deg);
     return true;
   }
@@ -15340,7 +15366,7 @@ const giteDe = b => b.mode === 'camp' && campIci() && b.comp ? lieuCamp(b.comp) 
 function rapporter(c, res, n, ex) {
   if (!n) return;
   if (res === 'baies' && c && specById[c.esp] && specById[c.esp].nectar) { res = 'nectar'; n = Math.max(1, Math.round(n * .5)); }   // l'oglodon en fait du nectar
-  { const r = potComp(c, 'recolte'); if (r) { const v = n * (1 + .1 * r); n = Math.floor(v) + (Math.random() < v - Math.floor(v) ? 1 : 0); } }   // la potion de récolte
+  { const r = puissComp(c, 'recolte'); if (r) { const v = n * (1 + .1 * r); n = Math.floor(v) + (Math.random() < v - Math.floor(v) ? 1 : 0); } }   // la potion de récolte
   { const rk = potComp(c, 'comp');                      // la trouvaille d'une Douce : un produit rare, en plus
     if (!ex && rk && compDe(c) === 'doux' && Math.random() < (typeof globalThis.__TROUVE === 'number' ? globalThis.__TROUVE : TROUVE[rk])) ex = trouvaille(rk); }
   const coffre = !!(c && c.mode === 'camp' && campIci() && aModule('coffre'));
@@ -17279,6 +17305,7 @@ function lancerLigne() {
   let c = null;
   for (const d of [3.4, 2.8, 4, 2.2, 4.6]) { const x = P.x + ux * d, y = P.y + uy * d; if (habitatEau(x, y)) { c = [x, y]; break; } }
   if (!c) { say('pas d\'eau devant vous', 1.4); return; }
+  if (typeof laveIci === 'function' && laveIci(c[0], c[1])) { say('c\'est de la lave', 1.4); return; }   // (§162)
   const b0 = boutCanne();
   P.peche = { etat: 'lance', t: 0, dip: 0, bx: c[0], by: c[1], bz: hRendu(c[0], c[1]), px: P.x, py: P.y, x0: b0, poisson: null };
   SON.jouer('lancer', {}, P.x, P.y, P.z + 1);
@@ -17751,6 +17778,11 @@ for (const f of POISSONS) INGR[f.id] = { id: f.id, n: f.n, court: f.n.split(' ')
 for (const [sp, n, court, r, tag, c] of VIANDES) INGR['v_' + sp] = { id: 'v_' + sp, sp, n, court, fam: 'viande', r, tag, soin: SOIN_FAM.viande * (1 + (r - 1) * .15), c, src: 'denree' };
 for (const [fl, n, court, fam, r, tag, c] of [...PRODUITS, ...(typeof FLORE_PRODUITS !== 'undefined' ? FLORE_PRODUITS : [])]) INGR['p_' + fl] = { id: 'p_' + fl, fl, n, court, fam, r, tag, soin: SOIN_FAM[fam] * (1 + (r - 1) * .15), c, src: 'denree' };
 INGR.baie = { id: 'baie', n: 'Baie', court: 'baies', fam: 'fruit', r: 1, tag: null, soin: .04, c: [214, 72, 104], src: 'baie' };
+INGR.ferdamne = { id: 'ferdamne', n: 'Fer damné', court: 'fer damné', fam: 'demon', r: 5, tag: 'braise', soin: 0, c: [150, 70, 56], src: 'denree' };   // (§164) les Forges hurlantes : rare, il va aux étapes « au choix »
+INGR.oeufbraise = { id: 'oeufbraise', n: 'Œuf de braise', court: 'œuf de braise', fam: 'demon', r: 4, tag: 'braise', soin: 0, c: [255, 120, 50], src: 'denree' };   // (§166) les Galeries de cendre
+INGR.fleursoufre = { id: 'fleursoufre', n: 'Fleur de soufre', court: 'fleur de soufre', fam: 'demon', r: 5, tag: 'souffle', soin: 0, c: [236, 210, 70], src: 'denree' };   // (§166) les Jardins de soufre
+INGR.sangroi = { id: 'sangroi', n: 'Sang du Roi', court: 'sang du Roi', fam: 'demon', r: 6, tag: 'braise', soin: 0, c: [178, 16, 30], src: 'denree' };   // (§166) sur le Roi démon : la plus haute rareté
+INGR.poussame = { id: 'poussame', n: 'Poussière d\'âme', court: 'poussière d\'âme', fam: 'demon', r: 5, tag: 'nuit', soin: 0, c: [176, 214, 226], src: 'denree' };   // (§165) les Ossuaires
 INGR.nectar = { id: 'nectar', n: 'Nectar d\'oglodon', court: 'nectar', fam: 'douceur', r: 2, tag: 'souffle', soin: .1, c: [238, 158, 52], src: 'denree' };   // une denrée comme les autres : garde-manger, cellier
 const viandeDe = sp => INGR['v_' + sp.id] || null;
 const produitDe = fl => INGR['p_' + fl] || null;
@@ -18003,7 +18035,7 @@ function preparer(ids) {
   // les étoiles : la rareté, la variété, un plat qui tient debout, un mariage remarquable
   const score = L.reduce((s, i) => s + i.r, 0) + (F.size - 1) * 1.2 + (cle.startsWith('voyageur') ? 0 : 1) + (R || Rn ? 3 : 0);
   const q = Math.max(Rn ? [3, 3, 4, 4, 5, 5][Rn.r - 1] : R ? 4 : 1, Math.min(5, Math.round(score / 2.6)));   // (§153) la rareté de la recette fait ses étoiles
-  const soin = Math.min(1, L.reduce((s, i) => s + i.soin, 0) * (.8 + .15 * q) + (R && R.id === 'lune' ? 1 : 0) + (Rn ? .04 * Rn.r : 0));
+  const soin = Math.min(1, L.reduce((s, i) => s + i.soin, 0) * (1.1 + .22 * q) + (R && R.id === 'lune' ? 1 : 0) + (Rn ? .04 * Rn.r : 0));
   // l'effet : celui qui revient le plus ; deux effets à égalité se contrarient
   // la flore de flore.js (§117) : commune et peu commune comme un ingrédient ordinaire (1), rare et exotique 2, légendaire 3, épique 4
   const rang = i => i.id && i.id.startsWith('p_fl') ? (i.r >= 6 ? 4 : i.r >= 5 ? 3 : i.r >= 3 ? 2 : 1) : 1;
@@ -18012,18 +18044,18 @@ function preparer(ids) {
   if (Rn) { const v = (cpt[Rn.fx] || 0) + 1 + Rn.r; for (const x in cpt) delete cpt[x]; cpt[Rn.fx] = v; }   // (§153) son effet à elle, seul
   const tri = Object.entries(cpt).sort((a, b) => b[1] - a[1]);
   const tag = tri.length && (tri.length === 1 || tri[0][1] > tri[1][1]) ? tri[0][0] : null;
-  const d = tag ? Math.round(Math.min(pu >= 3 ? 1200 : 600, 45 * cpt[tag] * (1 + .3 * (q - 1)) * (R || Rn ? 2 : 1) * (pu >= 2 ? 1.5 : 1))) : 0;
+  const d = tag ? Math.round(Math.min(pu >= 3 ? 3600 : 1800, 135 * cpt[tag] * (1 + .3 * (q - 1)) * (R || Rn ? 2 : 1) * (pu >= 2 ? 1.5 : 1))) : 0;
   const souffle = has('fruit') || has('douceur') || has('fleur') ? 1 : 0;
   const main = L.slice().sort((a, b) => b.r - a.r)[0];
-  const soinF = pu >= 4 ? 1 : Math.min(1, soin + (pu >= 3 ? .3 : pu >= 2 ? .1 : 0));
-  const uniq = tag && EFFETS_UNIQUES.has(tag), u = uniq ? Math.round((tag === 'coeur' ? 1 : Math.min(tag === 'surplus' ? .8 : 1.5, (tag === 'surplus' ? .15 : .3) * pu + .05 * (cpt[tag] - 1))) * 100) / 100 : 0;
-  return { c: cle, n, q, soin: Math.round(soinF * 100) / 100, tag, d: uniq ? 0 : d, ...(uniq ? { u } : {}), so: souffle || pu >= 3 ? 1 : 0, col: main.c, pu, ...(pu >= 3 ? { rv: pu >= 4 ? .02 : .01, rd: pu >= 4 ? 90 : 60 } : {}) };
+  const soinF = pu >= 4 ? 1 : Math.min(1, soin + (pu >= 3 ? .4 : pu >= 2 ? .15 : 0));
+  const uniq = tag && EFFETS_UNIQUES.has(tag), u = uniq ? Math.round((tag === 'coeur' ? 1 : Math.min(tag === 'surplus' ? 1 : 2, (tag === 'surplus' ? .2 : .4) * pu + .05 * (cpt[tag] - 1))) * 100) / 100 : 0;
+  return { c: cle, n, q, soin: Math.round(soinF * 100) / 100, tag, d: uniq ? 0 : d, ...(uniq ? { u } : {}), so: souffle || pu >= 3 ? 1 : 0, col: main.c, pu, ...(pu >= 3 ? { rv: pu >= 4 ? .03 : .015, rd: pu >= 4 ? 270 : 180 } : {}) };
 }
 // ---------- ce qui se garde ----------
 // Tout plat va au sac (PLATS_AU_SAC) : c'est un objet, avec sa vignette, qu'on met dans une case du
 // bord droit. Un plat « chaud » fait une part et se garde dix minutes de jeu ; certains font plusieurs
 // parts : ceux « d'un moment » se gâtent en vingt minutes, ceux « de longue conservation » tiennent.
-// Une part vaut la moitié du plat entier (vie, durée de l'effet).
+// Une part vaut les trois quarts du plat entier (vie, durée de l'effet) (§168).
 // PLATS_AU_SAC à false : la règle d'avant — un plat chaud ne se garde pas, on le mange ou on le donne
 // à une compagne près du feu tout de suite, sinon il est perdu.
 const PLATS_AU_SAC = true;
@@ -18126,9 +18158,9 @@ function consommer(p) {
   if (p.c === 'r:serum' && typeof guerirKorlaz === 'function') guerirKorlaz();   // le sérum, injecté
   P.pv = Math.min(1, P.pv + p.soin);
   if (p.so) { P.endu = 1; P.epuise = false; }
-  if (p.tag === 'surplus') P.bonusPv = Math.min(.8, (P.bonusPv || 0) + (p.u || .15));                 // de la vie en plus, au-delà du plein
+  if (p.tag === 'surplus') P.bonusPv = Math.min(1, (P.bonusPv || 0) + (p.u || .2));                 // de la vie en plus, au-delà du plein
   else if (p.tag === 'coeur') { if (lives < 4) lives++; else say('vous avez déjà un cœur en plus', 2); }   // un quatrième cœur, le premier à partir
-  else if (p.tag === 'second') P.enduBonus = Math.min(1.5, (P.enduBonus || 0) + (p.u || .3));          // un souffle en réserve
+  else if (p.tag === 'second') P.enduBonus = Math.min(2, (P.enduBonus || 0) + (p.u || .4));          // un souffle en réserve
   else if (p.tag) {
     const actif = (P.effets[p.tag] || 0) > t, n = p.pu || 1; P.effetsN = P.effetsN || {};
     P.effetsN[p.tag] = actif ? Math.max(P.effetsN[p.tag] || 1, n) : n;      // la puissance la plus forte l'emporte
@@ -18181,6 +18213,7 @@ function marmiteDecor(ex, ey, r) {
     if (Math.random() < .03) parts.push({ x: m.x + (Math.random() - .5) * .1, y: m.y, z: m.z + .5, vx: (Math.random() - .5) * .2, vy: (Math.random() - .5) * .2, vz: .45, g: -.15, life: 1.4, age: 0, col: '#e8e8e8', tl: .05 });   // un filet de vapeur
     L.push(...marmiteOs(m));
   }
+  if (typeof forgeDecor === 'function') forgeDecor(ex, ey, r, L);   // (§171) la forge, à côté du campement
   return L;
 }
 function marmiteEmit(view, out) {
@@ -18299,14 +18332,14 @@ const ALCH_MOTIF = [
 ];
 const decAlch = v => String(Math.round(v * 10) / 10).replace('.', ',');
 const ALCH = [   // v(r) : ce que vaut la caractéristique au rang r (0 : la base)
-  { id: 'vie', n: 'Vie', fam: ['douceur', 'viande', 'fruit'], d: 'la jauge tient davantage : chaque blessure en coûte moins', v: r => String(100 + 10 * r) },
+  { id: 'vie', n: 'Vie', fam: ['douceur', 'viande', 'fruit'], d: 'la jauge tient davantage : chaque blessure en coûte moins', v: r => String(Math.round(100 + 10 * r)) },
   { id: 'souffle', n: 'Souffle', fam: ['poisson', 'feuille', 'graine'], d: 'on court plus longtemps avant de s\'épuiser', v: r => decAlch(ENDU_COURSE * (1 + .1 * r)) + ' s' },
-  { id: 'mana', n: 'Mana', fam: ['fleur', 'champignon', 'douceur'], d: 'les sorts coûtent moins d\'éclats', v: r => (100 - 8 * r) + ' %' },
-  { id: 'force', n: 'Force', fam: ['viande', 'racine', 'champignon'], d: 'les coups et les flèches portent plus fort', v: r => (100 + 10 * r) + ' %' },
+  { id: 'mana', n: 'Mana', fam: ['fleur', 'champignon', 'douceur'], d: 'les sorts coûtent moins d\'éclats', v: r => Math.round(100 - 8 * r) + ' %' },
+  { id: 'force', n: 'Force', fam: ['viande', 'racine', 'champignon'], d: 'les coups et les flèches portent plus fort', v: r => Math.round(100 + 10 * r) + ' %' },
   { id: 'recup', n: 'Récupération', fam: ['racine', 'viande', 'feuille'], d: 'loin des coups, la vie remonte plus tôt et plus vite', v: r => decAlch(8 - .8 * r) + ' s' },
-  { id: 'vitesse', n: 'Vitesse', fam: ['fruit', 'poisson', 'graine'], d: 'le pas et la course', v: r => (100 + 4 * r) + ' %' },
-  { id: 'saut', n: 'Saut', fam: ['feuille', 'fleur', 'fruit'], d: 'la détente', v: r => (100 + 5 * r) + ' %' },
-  { id: 'recolte', n: 'Récolte', fam: ['champignon', 'fruit', 'racine'], d: 'ce que rend chaque arbre, chaque roche', v: r => (100 + 10 * r) + ' %' },
+  { id: 'vitesse', n: 'Vitesse', fam: ['fruit', 'poisson', 'graine'], d: 'le pas et la course', v: r => Math.round(100 + 4 * r) + ' %' },
+  { id: 'saut', n: 'Saut', fam: ['feuille', 'fleur', 'fruit'], d: 'la détente', v: r => Math.round(100 + 5 * r) + ' %' },
+  { id: 'recolte', n: 'Récolte', fam: ['champignon', 'fruit', 'racine'], d: 'ce que rend chaque arbre, chaque roche', v: r => Math.round(100 + 10 * r) + ' %' },
 ];
 // (§142) L'éclat d'encre : une potion à part, sans rang. Une recette fixe où trois versées d'éclats alternent avec
 // trois ingrédients (E : une versée d'éclats, le nombre en second) ; il en faut un pour inscrire chaque sort.
@@ -18314,19 +18347,30 @@ const ENCRE_ALCH = { n: 'Encre', d: 'un éclat d\'encre : de quoi inscrire un so
   motif: [['A', 1], ['E', 10], ['B', 1], ['E', 10], ['C', 1], ['E', 10]], base: 70, niv: 1, cout: {} };
 const ALCH_PAR_ID = {}; for (const a of ALCH) ALCH_PAR_ID[a.id] = a;
 const rangAlch = k => Math.max(0, Math.min(ALCH_MAX, P.alchimie[k] | 0));
+// (§169) La puissance d'une potion : la chance qu'elle avait en fiole. 5 % → 55 %, 50 % → 100 %, 95 % → 145 % ;
+// parfaite, 150 %. Ce que vaut une caractéristique, c'est la somme des puissances de ses rangs (un rang d'avant : 100 %).
+const puissFiole = (chance, parf) => Math.round(Math.min(1.5, .5 + chance / 100 + (parf ? .05 : 0)) * 100) / 100;
+const lirePuiss = v => Number.isFinite(+v) && +v > 0 ? Math.max(.5, Math.min(1.5, Math.round(+v * 100) / 100)) : 1;
+const sommeP = (L, n) => { let s = 0; for (let i = 0; i < n; i++) s += L && L[i] > 0 ? L[i] : 1; return s; };
+const puissAlch = k => sommeP(P.alchP && P.alchP[k], rangAlch(k));
+const puissComp = (c, g) => g === 'comp' ? potComp(c, g) : sommeP(c && c.pot && c.pot.p && c.pot.p[g], potComp(c, g));
+const puissBete = (b, g) => b && b.tame && b.comp ? puissComp(b.comp, g) : 0;
+const effAlch = q => q.g === 'comp' || q.g === 'encre' ? q.rg : q.c ? puissComp(q.c, q.g) : puissAlch(q.k);   // ce que vaut la caractéristique, en rangs
+const pwFiole = (q, C) => q.g === 'comp' || q.g === 'encre' ? 1 : puissFiole(C.total, C.parfaite > 0);
+const pctP = v => Math.round(v * 100) + ' %';
 // Ce que les rangs changent en jeu.
-const vieK = () => (egideActive() ? .67 : 1) * (P.gangue > t ? 1.5 : 1) / (1 + .1 * rangAlch('vie'));                    // la jauge tient plus : toute blessure en coûte moins
-const forceK = () => (1 + effet('fort') * .25) * (1 + .1 * rangAlch('force'));   // coups puissants (plat) et force (potion)
-const sautK = () => (1 + .12 * effet('saut')) * (1 + .05 * rangAlch('saut'));
+const vieK = () => (egideActive() ? .67 : 1) * (P.gangue > t ? 1.5 : 1) / (1 + .1 * puissAlch('vie'));                    // la jauge tient plus : toute blessure en coûte moins
+const forceK = () => (1 + effet('fort') * .35) * (1 + .1 * puissAlch('force'));   // coups puissants (plat) et force (potion)
+const sautK = () => (1 + .16 * effet('saut')) * (1 + .05 * puissAlch('saut'));
 function arrondiAlch(v) {                                   // la récolte : la fraction en plus tombe au sort
-  const r = rangAlch('recolte'); if (!r) return Math.round(v);
+  const r = puissAlch('recolte'); if (!r) return Math.round(v);
   v *= 1 + .1 * r; return Math.floor(v) + (Math.random() < v - Math.floor(v) ? 1 : 0);
 }
 // --- les recettes ---
 // Une potion vise une caractéristique du joueur ('vie') ou d'une compagne : 'c12:recolte',
 // 'c12:defense', 'c12:comp' (la compétence de son type). Les automates n'ont pas de compétence.
 const INSTR_ALCH = ['', 'la recette se lit à l\'œil : la hauteur de l\'eau, les flammes, les bulles', 'le thermomètre et la louche graduée : la recette en clair', 'le sablier : le repos et la cuisson se voient, avec plus de marge'];
-const NOM_ETAPE = { viande: 'Viande', poisson: 'Poisson', fruit: 'Fruit', racine: 'Racine', graine: 'Graine', fleur: 'Fleur', feuille: 'Feuille', champignon: 'Champignon', douceur: 'Douceur', '*': 'Ingrédient au choix' };
+const NOM_ETAPE = { demon: 'Démoniaque', viande: 'Viande', poisson: 'Poisson', fruit: 'Fruit', racine: 'Racine', graine: 'Graine', fleur: 'Fleur', feuille: 'Feuille', champignon: 'Champignon', douceur: 'Douceur', '*': 'Ingrédient au choix' };
 const COMP_MAX = 3;
 const GLU = [null, { dur: 2.5, del: 10 }, { dur: 3.5, del: 8 }, { dur: 4.5, del: 6 }];                       // la boule visqueuse : ce qu'elle cloue, son délai
 const CHARGE = [null, { deg: .22, pousse: 7 }, { deg: .3, pousse: 8.5 }, { deg: .38, pousse: 10 }];          // en selle, au galop
@@ -18334,8 +18378,8 @@ const RUADE = [null, { del: 9, r: 1.9, pousse: 8, deg: .12 }, { del: 7, r: 2.1, 
 const SECOUSSE = [null, { del: 14, r: 3, et: 1.2, deg: .1 }, { del: 11, r: 3.5, et: 1.6, deg: .14 }, { del: 8, r: 4, et: 2, deg: .18 }];
 const TROUVE = [0, .08, .12, .16];                                                                         // la chance d'une trouvaille, par récolte rapportée
 const ALCH_COMP = {
-  recolte: { n: 'Récolte', fam: ['feuille', 'fruit', 'racine'], d: 'elle rapporte davantage, quoi qu\'elle récolte', v: r => (100 + 10 * r) + ' %' },
-  defense: { n: 'Défense', fam: ['viande', 'champignon', 'racine'], d: 'elle frappe plus fort et encaisse mieux : +10 % à ses coups, −6 % à ceux qu\'elle reçoit, par rang', v: r => (100 + 10 * r) + ' %' },
+  recolte: { n: 'Récolte', fam: ['feuille', 'fruit', 'racine'], d: 'elle rapporte davantage, quoi qu\'elle récolte', v: r => Math.round(100 + 10 * r) + ' %' },
+  defense: { n: 'Défense', fam: ['viande', 'champignon', 'racine'], d: 'elle frappe plus fort et encaisse mieux : +10 % à ses coups, −6 % à ceux qu\'elle reçoit, par rang', v: r => Math.round(100 + 10 * r) + ' %' },
 };
 const COMPETENCES = {
   rampant: { n: 'Boule visqueuse', fam: ['champignon', 'douceur', 'viande'], d: 'elle crache une boule qui englue la bête qui vous menace, ou le joueur que vous venez de frapper : cloué sur place',
@@ -18374,6 +18418,7 @@ function potLue(p) {                                        // ce qu'une sauvega
   if (!p || typeof p !== 'object') return null;
   const o = {};
   for (const [g, max] of [['recolte', ALCH_MAX], ['defense', ALCH_MAX], ['comp', COMP_MAX]]) { const n = Math.max(0, Math.min(max, Number(p[g]) | 0)); if (n) o[g] = n; }
+  if (p.p && typeof p.p === 'object') for (const g of ['recolte', 'defense']) if (o[g] && Array.isArray(p.p[g])) (o.p || (o.p = {}))[g] = p.p[g].slice(0, o[g]).map(lirePuiss);   // (§169)
   return Object.keys(o).length ? o : null;
 }
 // Tout ce qu'il faut savoir de la potion k — ou rien, si elle ne vise plus personne.
@@ -18549,7 +18594,8 @@ function tenterAlch() {
   const C = chanceAlch(k), chance = C.total, parf = C.parfaite > 0, de = typeof globalThis.__ALCH_DE === 'number' ? globalThis.__ALCH_DE : Math.random() * 100;
   const p = lieuModule(P.camp, 'alchimie'), ok = de < chance;
   { const n = carnetDe(q); n.n++; if (ok) n.ok++; n.m = Math.max(n.m, chance); if (C.b && C.b.cuit === 'ok') n.cu = gestesAlch(q).cuisson; if (ok && parf) n.p = 1; }
-  AL.der = { ok, parf, chance, gestes: C.gestes, cuit: C.b ? C.b.cuit : '' };
+  const pw = pwFiole(q, C), avant = effAlch(q);   // (§169) la puissance, et ce que valait la caractéristique
+  AL.der = { ok, parf, chance, gestes: C.gestes, cuit: C.b ? C.b.cuit : '', pw: q.g === 'comp' || q.g === 'encre' ? 0 : pw };
   if (alOuverte()) bilanFiole(q, ch, C, de, ok, parf, cout);
   P.chaudron = null; Sauve.sale = true;
   alFx(ok ? (parf ? 'or' : 'ok') : 'rate', q);
@@ -18560,12 +18606,14 @@ function tenterAlch() {
     if (q.g === 'encre') { const n = parf ? 2 : 1; P.encre = (P.encre | 0) + n; dire(pf + 'encre réussie · +' + n + ' éclat' + (n > 1 ? 's' : '') + ' d\'encre · ' + P.encre + ' en réserve', 5); }
     else if (q.c) {
       q.c.pot = Object.assign({}, q.c.pot, { [q.g]: rang });
+      if (q.g !== 'comp') { const pp = Object.assign({}, q.c.pot.p), L = (pp[q.g] || []).slice(0, rang - 1); while (L.length < rang - 1) L.push(1); L.push(pw); pp[q.g] = L; q.c.pot.p = pp; }
       if (q.c.b && q.c.dehors) burst(q.c.b.x, q.c.b.y, q.c.b.z + .8, 24, '#ffd27d');
       dire(pf + (q.g === 'comp' && rang === 1 ? 'potion réussie · ' + q.c.nom + ' apprend : ' + q.n.toLowerCase() + ' · ' + q.v(1)
-        : nomPotion(q) + ' réussie · donnée à ' + q.c.nom + ' · rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang)), 5);
+        : nomPotion(q) + ' réussie · donnée à ' + q.c.nom + ' · rang ' + rang + ' sur ' + q.max + (q.g === 'comp' ? ' · ' + q.v(rang) : ' · puissance ' + pctP(pw) + ' · ' + q.v(avant) + ' → ' + q.v(effAlch(q)))), 5);
     } else {
-      P.alchimie[k] = rang; burst(P.x, P.y, P.z + 1, 24, '#ffd27d');
-      dire(pf + nomPotion(q) + ' réussie · bue · ' + q.n.toLowerCase() + ' rang ' + rang + ' sur ' + q.max + ' · ' + q.v(rang - 1) + ' → ' + q.v(rang), 5);
+      P.alchimie[k] = rang; { const L = ((P.alchP || (P.alchP = {}))[k] || []).slice(0, rang - 1); while (L.length < rang - 1) L.push(1); L.push(pw); P.alchP[k] = L; }
+      burst(P.x, P.y, P.z + 1, 24, '#ffd27d');
+      dire(pf + nomPotion(q) + ' réussie · bue · ' + q.n.toLowerCase() + ' rang ' + rang + ' sur ' + q.max + ' · puissance ' + pctP(pw) + ' · ' + q.v(avant) + ' → ' + q.v(effAlch(q)), 5);
     }
   } else {
     burst(p[0], p[1], P.camp.z + 1, 30, '#6a5a7a'); SON.jouer('pilon', {}, p[0], p[1], P.camp.z + .6);
@@ -18589,11 +18637,11 @@ function bilanFiole(q, ch, C, de, ok, parf, cout) {
   if (ch.f) L.push(puce(false, '<b>⇄</b>', ch.f + ' hors de son tour'));
   const n = Math.floor(de), cl = !ok ? 'rate' : parf ? 'or' : 'ok';
   const perte = Object.entries(cout).map(([r, v]) => v + ' ' + (v > 1 ? PLURIEL[r] || RES[r] : RES[r])).join(', ');
-  const enc = q.g === 'encre', ne = parf ? 2 : 1;
+  const enc = q.g === 'encre', ne = parf ? 2 : 1, cp = q.g === 'comp', pw = pwFiole(q, C), e0 = effAlch(q), apres = cp ? q.v(rang) : q.v(e0 + pw);
   const eff = !ok ? 'Tout est perdu : ce qui était versé' + (essai || !perte ? '' : ', et ' + perte) + '.'
     : enc ? '+' + ne + ' éclat' + (ne > 1 ? 's' : '') + ' d\'encre · ' + ((P.encre | 0) + ne) + ' en réserve'
-    : q.c ? (q.g === 'comp' && rang === 1 ? q.c.nom + ' apprend ' + q.n.toLowerCase() + ' · ' + q.v(1) : 'Donnée à ' + q.c.nom + ' · ' + q.n + ' ' + q.v(rang - 1) + ' → ' + q.v(rang))
-    : 'Bue · ' + q.n + ' ' + q.v(rang - 1) + ' → ' + q.v(rang);
+    : q.c ? (cp && rang === 1 ? q.c.nom + ' apprend ' + q.n.toLowerCase() + ' · ' + q.v(1) : 'Donnée à ' + q.c.nom + ' · ' + q.n + ' ' + q.v(cp ? rang - 1 : e0) + ' → ' + apres + (cp ? '' : ' · puissance ' + pctP(pw)))
+    : 'Bue · ' + q.n + ' ' + q.v(e0) + ' → ' + apres + ' · puissance ' + pctP(pw);
   let pts = ''; if (!enc) for (let j = 0; j < q.max; j++) pts += j < q.rg ? '<i class="p"></i>' : j === q.rg && ok ? '<i class="n"></i>' : '<i></i>';
   montrerBilan(`<div class="ab-fiole">${img(icFiole(q))}</div><div class="ab-v">${!ok ? 'La potion a tourné' : parf ? '★ Potion parfaite' : 'Potion réussie'}</div>`
     + `<div class="ab-n">${ESC(nomPotion(q))}${q.c ? ' pour ' + ESC(q.c.nom) : ''}</div>`
@@ -18651,8 +18699,9 @@ function ditGeste(q, quoi, i) {
 // chaque ingrédient tient son étape.
 function alchimieLue(d) {
   const nb = (v, a, b, def) => Number.isFinite(v) ? Math.max(a, Math.min(b, v)) : def;
-  P.alchimie = {}; P.chaudron = null;
-  for (const a of ALCH) { const n = nb(d.alchimie && d.alchimie[a.id], 0, ALCH_MAX, 0) | 0; if (n) P.alchimie[a.id] = n; }
+  P.alchimie = {}; P.alchP = {}; P.chaudron = null;
+  for (const a of ALCH) { const n = nb(d.alchimie && d.alchimie[a.id], 0, ALCH_MAX, 0) | 0; if (n) P.alchimie[a.id] = n;
+    const L = d.alchP && d.alchP[a.id]; if (n && Array.isArray(L)) P.alchP[a.id] = L.slice(0, n).map(lirePuiss); }   // (§169) la puissance de chaque rang
 }
 function chaudronLu(ch) {
   P.chaudron = null;
@@ -18874,7 +18923,7 @@ function alStyle() {
     + '.al-in .ic{width:30px;height:30px;}.al-in b{position:absolute;right:3px;bottom:1px;font-size:10px;color:#fff;text-shadow:0 0 2px #000;}'
     + '.al-in.r2{border-color:#7fc77a;}.al-in.r3{border-color:#6aa6ff;}.al-in.r4{border-color:#c48cff;}.al-in.r5{border-color:#ffb347;}.al-in:disabled{opacity:.35;cursor:default;}'
     + '.al-in.hors{opacity:.6;}.al-in.hors::after{content:"";position:absolute;left:3px;top:3px;width:6px;height:6px;border-radius:50%;background:#ff8a6a;}'
-    + '.al-chance small{display:block;color:#8d9ab4;font-size:10.5px;margin-top:3px;}.al-chance .cu-lig b{color:#ffd27d;font-size:12px;}'
+    + '.al-chance small{display:block;color:#8d9ab4;font-size:10.5px;margin-top:3px;}.al-chance .cu-lig b{color:#ffd27d;font-size:12px;}.al-chance .al-pw{margin-top:8px;padding-top:6px;border-top:1px solid #ffffff14;}'
     + '.al-pied{display:flex;justify-content:space-between;align-items:baseline;gap:10px;padding:0 12px 10px;font-size:12px;color:#e2e8f4;}.al-pied small{color:#6f7c96;white-space:nowrap;}'
     + '#al-bilan{z-index:31;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(8,10,16,.55);pointer-events:auto;}#al-bilan[hidden]{display:none;}'
     + '#al-bilan .ic{display:inline-block;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;flex:none;}'
@@ -18974,12 +19023,12 @@ function rendreAlchimie() {
   const tuile = (id, nom, r, max, ic, val) => { const on = id === k;   // (§140) la valeur d'aujourd'hui, sous le nom : la fiche du personnage
     const pq = !(max && r >= max) && !(on && verse) ? potionDe(id) : null, mq = pq ? manqueAlch(pq) : [];   // (§152) ce qui manque pour la faire
     return `<button class="al-t${on ? ' on' : ''}${max && r >= max ? ' max' : ''}${mq.length ? ' manque' : ''}" data-al="p:${id}"${verse && !on ? ' disabled' : ''} aria-pressed="${on}" title="${ESC(nom + ' · ' + val + (max ? ' · rang ' + r + ' sur ' + max : '') + (mq.length ? ' · il manque ' + mq.join(', ') : ''))}">${img(ic)}<span><b>${ESC(nom)}</b><s>${ESC(mq.length ? 'manque' : val)}</s>${max ? `<i>${'●'.repeat(r)}<u>${'●'.repeat(max - r)}</u></i>` : ''}</span></button>`; };
-  let g = `<div class="al-h">Vous</div><div class="al-tuiles">` + ALCH.map(a => tuile(a.id, a.n, rangAlch(a.id), ALCH_MAX, 'fiole_' + a.id, a.v(rangAlch(a.id)))).join('') + `</div>`
+  let g = `<div class="al-h">Vous</div><div class="al-tuiles">` + ALCH.map(a => tuile(a.id, a.n, rangAlch(a.id), ALCH_MAX, 'fiole_' + a.id, a.v(puissAlch(a.id)))).join('') + `</div>`
     + `<div class="al-h">Le grimoire</div><div class="al-tuiles">` + tuile('encre', 'Encre', 0, 0, 'encre', (P.encre | 0) + ' éclat' + (P.encre > 1 ? 's' : '')) + `</div>`;   // (§142)
   for (const c of P.compagnes) { const f = compDe(c), id = 'c' + c.id + ':';
     g += `<div class="al-h">${ESC(c.nom)}${c.ko ? ' · à terre' : ''}</div><div class="al-tuiles">`
-      + tuile(id + 'recolte', 'Récolte', potComp(c, 'recolte'), ALCH_MAX, 'fiole_recolte', ALCH_COMP.recolte.v(potComp(c, 'recolte')))
-      + tuile(id + 'defense', 'Défense', potComp(c, 'defense'), ALCH_MAX, 'fiole_defense', ALCH_COMP.defense.v(potComp(c, 'defense')))
+      + tuile(id + 'recolte', 'Récolte', potComp(c, 'recolte'), ALCH_MAX, 'fiole_recolte', ALCH_COMP.recolte.v(puissComp(c, 'recolte')))
+      + tuile(id + 'defense', 'Défense', potComp(c, 'defense'), ALCH_MAX, 'fiole_defense', ALCH_COMP.defense.v(puissComp(c, 'defense')))
       + (f ? tuile(id + 'comp', COMPETENCES[f].n, potComp(c, 'comp'), COMP_MAX, 'fiole_comp', potComp(c, 'comp') ? 'rang ' + potComp(c, 'comp') : 'à éveiller') : '') + `</div>`; }
   pose('.al-g', g);
   // au milieu, sous le chaudron : ce qu'on en voit, et les gestes
@@ -19027,11 +19076,11 @@ function rendreAlchimie() {
       : `<div class="cu-note">Rien, au garde-manger, n'entre dans ce qui reste à verser.</div>`;
     const coul = C.total >= 70 ? '#7fd06a' : C.total >= 45 ? '#d9b46a' : '#e07a6a';
     const det = detChance(C);
-    const der = AL.der ? `<div class="cu-etat">${AL.der.ok ? '<span class="bon">' + (AL.der.parf ? '★ potion parfaite' : 'réussie') + '</span>' : '<span class="mal">tournée</span>'} · elle avait ${AL.der.chance} %</div>` : '';
-    d = `<div class="cu-nom">${img(icFiole(q))}<div><b>${maj(nomPotion(q))}${pour}</b><small>${q.g === 'encre' ? 'un éclat par sort inscrit · ' + (P.encre | 0) + ' en réserve · deux si elle est parfaite' : `rang ${q.rg + 1} sur ${q.max} · ${q.v(q.rg)} → ${q.v(q.rg + 1)}`}</small></div></div>${der}`
+    const der = AL.der ? `<div class="cu-etat">${AL.der.ok ? '<span class="bon">' + (AL.der.parf ? '★ potion parfaite' : 'réussie') + (AL.der.pw ? ' · puissance ' + pctP(AL.der.pw) : '') + '</span>' : '<span class="mal">tournée</span>'} · elle avait ${AL.der.chance} %</div>` : '';
+    d = `<div class="cu-nom">${img(icFiole(q))}<div><b>${maj(nomPotion(q))}${pour}</b><small>${q.g === 'encre' ? 'un éclat par sort inscrit · ' + (P.encre | 0) + ' en réserve · deux si elle est parfaite' : `rang ${q.rg + 1} sur ${q.max} · ${q.v(effAlch(q))} → ${q.v(effAlch(q) + pwFiole(q, C))}`}</small></div></div>${der}`
       + (frein ? `<div class="cu-etat"><span class="mal">${maj(frein)}.</span></div>` : '')
       + `<ol class="al-rec">${L}</ol><div class="al-av"><div class="al-h">À verser${suiv >= 0 ? ' · étape ' + (suiv + 1) : ''}</div>${ingr}</div>`
-      + `<div class="al-chance"><div class="cu-lig"><span>Chance de réussite${niv < 3 && fini ? ', si elle est à point' : ''}</span><b>${C.total} %</b></div><div class="cu-barre"><i style="width:${C.total}%;background:${coul}"></i></div><small>${det}</small></div>`
+      + `<div class="al-chance"><div class="cu-lig"><span>Chance de réussite${niv < 3 && fini ? ', si elle est à point' : ''}</span><b>${C.total} %</b></div><div class="cu-barre"><i style="width:${C.total}%;background:${coul}"></i></div><small>${det}</small>${q.g === 'comp' || q.g === 'encre' ? '' : `<div class="cu-lig al-pw"><span>Puissance, si elle réussit</span><b>${pctP(pwFiole(q, C))}</b></div><small>la chance fait la puissance : 50 % de chance, 100 % de puissance ; parfaite, 150 %</small>`}</div>`
       + `<div class="cu-note">En fiole : ${Object.keys(cout).length ? ditCout(cout) : 'rien de plus, les éclats sont dans la recette'}.${car && car.n ? ' Carnet : ' + car.n + ' essai' + (car.n > 1 ? 's' : '') + ', au mieux ' + car.m + ' %' + (car.p ? ', ★ parfaite' : '') + '.' : ''}</div>`;
   }
   if (AL.vue === 'carnet') {                             // (§140) le carnet de l'alchimiste : une ligne par recette essayée
@@ -19214,11 +19263,11 @@ DESSINS.alambic = d => { d.rect(6, 1, 9, 2, PIX.pierreC); d.rect(7, 3, 8, 6, [15
 //  personnage pour de bon, c'est l'alchimie. Un sort se lance contre des éclats : le mana.
 // ============================================================
 const FORMES = [   // c : son prix en éclats ; del : le délai avant de relancer le même sort
-  { id: 'trait', n: 'Trait', role: 'attaque', c: 5, del: 1.2, deg: .35, d: 'un projectile, sur la bête que vous visez' },
-  { id: 'onde', n: 'Onde', role: 'attaque', c: 10, del: 5, deg: .2, d: 'un anneau qui part de vous, à quatre cases et demie' },
-  { id: 'piege', n: 'Piège', role: 'attaque', c: 8, del: 4, deg: .45, d: 'un glyphe posé à vos pieds, qui attend la première bête' },
-  { id: 'mur', n: 'Mur', role: 'défense', c: 12, del: 8, deg: .12, d: 'une barrière devant vous, huit secondes : ni les bêtes ni leurs tirs ne passent' },
-  { id: 'egide', n: 'Égide', role: 'défense', c: 12, del: 14, deg: .15, d: 'un bouclier sur vous, dix secondes : un tiers des blessures en moins, et la matière rendue à qui vous frappe' },
+  { id: 'trait', n: 'Trait', role: 'attaque', c: 2, del: 1.2, deg: .6, d: 'un projectile, sur la bête que vous visez' },
+  { id: 'onde', n: 'Onde', role: 'attaque', c: 10, del: 5, deg: .34, d: 'un anneau qui part de vous, à quatre cases et demie' },
+  { id: 'piege', n: 'Piège', role: 'attaque', c: 8, del: 4, deg: .75, d: 'un glyphe posé à vos pieds, qui attend la première bête' },
+  { id: 'mur', n: 'Mur', role: 'défense', c: 12, del: 8, deg: .2, d: 'une barrière devant vous, huit secondes : ni les bêtes ni leurs tirs ne passent' },
+  { id: 'egide', n: 'Égide', role: 'défense', c: 12, del: 14, deg: .25, d: 'un bouclier sur vous, dix minutes : un tiers des blessures en moins, et la matière rendue à qui vous frappe' },
 ];
 const MATIERES = [   // k : ce que pèse son coup (le cristal perce, la fange retient)
   { id: 'fange', n: 'Fange', de: 'de fange', c: 3, k: .5, col: [128, 102, 64], biome: 'la Tourbière', d: 'englue : la bête est clouée sur place' },
@@ -19307,11 +19356,12 @@ const biblioIci = () => campIci() && auCamp() && nivBiblio() > 0;
 const tomeDe = m => Math.max(Math.max(0, Math.min(TOME_MAX, P.tomes[m] | 0)), m === 'vent' && P.objets.souffle ? 1 : 0);
 const pagesSort = () => PAGES_SORT[nivBiblio()] || 0;
 const sortInscrit = k => P.sorts.includes(k);
-const coutPhrase = s => Math.max(1, Math.round((s.f.c + s.m.c + (s.a ? s.a.c : 0)) * (1 - ((porte('armure') || {}).sort || 0)) * (biomeIci === 12 ? .5 : 1) * (1 - .08 * rangAlch('mana'))));
+const coutPhrase = s => Math.max(1, Math.round((s.f.c + s.m.c + (s.a ? s.a.c : 0)) * (1 - ((porte('armure') || {}).sort || 0)) * (biomeIci === 12 ? .5 : 1) * (1 - .08 * puissAlch('mana'))));
 const sortPret = {};                                      // phrase -> l'instant où elle peut repartir
 const SORTS_POSES = [];                                   // les pièges et les murs, sur cette île
 const SORT_DE = { tame: true, sp: { n: 'sort' }, x: 0, y: 0 };   // le brasier d'un sort : il épargne le joueur et les siens
 const egideActive = () => !!P.egide && P.egide.fin > t;
+const EGIDE_T = 600;                                      // (§167) l'égide tient dix minutes (quatorze avec le circonflexe)
 // Ce qui manque pour écrire une phrase : les tomes, le niveau de la bibliothèque. '' si tout y est.
 function freinPhrase(s) {
   const niv = nivBiblio(), ms = s.m.mix || [s.m.id];
@@ -19451,12 +19501,12 @@ function sortTouche(f, nx, ny, nz) {                       // le trait en vol : 
     if (nz < sol(nx, ny) + .02) { burst(nx, ny, nz + .1, 8, hexSort(f.c)); return true; }
     return false;
   }
-  for (const o of beasts) if (prenable(o) && toucheBete(o, nx, ny, nz)) { toucherSort(o, f.sortM, f.deg); if (MATIERE[f.sortM].feu) brasierSort(o.x, o.y); return true; }
+  for (const o of beasts) if (prenable(o) && toucheBete(o, nx, ny, nz)) { toucherSort(o, f.sortM, f.deg); if (MATIERE[f.sortM].feu) brasierSort(o.x, o.y); if (f.abime && typeof roiAbimeExplose === 'function') roiAbimeExplose(f, nx, ny, nz); return true; }
   if (Autres.size) {
     for (const j of Autres.values()) if (j.pv > 0 && !allieSort(j.u) && (nx - j.x) ** 2 + (ny - j.y) ** 2 < .36 && nz > j.z - .1 && nz < j.z + 1.5) { toucherJoueur(j, f.sortM, f.deg); return true; }
     for (const o of betesLoin) if (o.pv > 0 && !o.gardeLoin && o.loin && !allieSort(o.loin.u) && toucheBete(o, nx, ny, nz)) { burst(nx, ny, nz, 8, hexSort(f.c)); if (!sousAbri()) frapperLoin({ j: o.loin, b: o }, f.deg * MATIERE[f.sortM].k / danger()); return true; }
   }
-  if (nz < sol(nx, ny) + .02) { burst(nx, ny, nz + .1, 8, hexSort(f.c)); if (MATIERE[f.sortM].feu) brasierSort(nx, ny); return true; }
+  if (nz < sol(nx, ny) + .02) { burst(nx, ny, nz + .1, 8, hexSort(f.c)); if (MATIERE[f.sortM].feu) brasierSort(nx, ny); if (f.abime && typeof roiAbimeExplose === 'function') roiAbimeExplose(f, nx, ny, nz); return true; }
   return false;
 }
 function sortOnde(s) {
@@ -19488,7 +19538,7 @@ function sortMur(s) {
   return true;
 }
 function sortEgide(s) {
-  P.egide = { m: s.m.id, deg: s.deg, fin: t + 10 * s.amp }; direSort({ q: 'egide', m: s.m.id, d: r2(10 * s.amp) });
+  P.egide = { m: s.m.id, deg: s.deg, fin: t + EGIDE_T * s.amp }; direSort({ q: 'egide', m: s.m.id, d: r2(EGIDE_T * s.amp) });
   anneauSort(P.x, P.y, P.z + .5, s.m.col, 1.2, 16);
   return true;
 }
@@ -20378,7 +20428,7 @@ function recevoirSort(d) {
   } else if (d.q === 'onde') {
     if (nb(d.x, d.y, d.z)) { const r = Math.max(1, Math.min(8, +d.r || 4.5)); anneauSort(d.x, d.y, d.z, M.col, r); if (M.mix) anneauSort(d.x, d.y, d.z, M.col2, r * .8, 14); SON.jouer('sort', {}, d.x, d.y, d.z); }
   } else if (d.q === 'egide') {
-    if (j) { j.egide = { m: M.id, fin: t + Math.max(0, Math.min(20, +d.d || 0)) }; anneauSort(j.x, j.y, j.z + .5, M.col, 1.2, 16); }
+    if (j) { j.egide = { m: M.id, fin: t + Math.max(0, Math.min(900, +d.d || 0)) }; anneauSort(j.x, j.y, j.z + .5, M.col, 1.2, 16); }
   } else if (d.q === 'rate') {
     if (nb(d.x, d.y, d.z)) { burst(d.x, d.y, d.z, d.b ? 26 : 14, d.b ? '#8fe3ff' : '#8a8f9c'); burst(d.x, d.y, d.z, 8, hexSort(M.col)); SON.jouer('pouf', {}, d.x, d.y, d.z); }
   } else if (d.q === 'pose') {
@@ -20471,7 +20521,8 @@ function placerLutrins() {
 // recopié, ses pages ont la couleur de la matière, un signe flotte au-dessus, et la nuit le livre
 // luit : un fil de lumière monte, qui se voit de loin.
 function lutrinOs(l) {
-  const B = [], c = MATIERE[l.m].col, cl = c.map(v => Math.min(255, v + 70)), x = l.x, y = l.y, z = l.z, lu = l.lu || tomeAcquis(l.m, l.n || 1), nuit = noirceur() > .3;
+  const B = [], c = MATIERE[l.m].col, cl = c.map(v => Math.min(255, v + 70)), x = l.x, y = l.y, lu = l.lu || tomeAcquis(l.m, l.n || 1), nuit = noirceur() > .3;
+  const z = l.z - (l.surgit !== undefined ? Math.max(0, 1 - (t - l.surgit) / 2) ** 2 * 1.3 : 0);   // celui du cercle de brume sort de terre
   const P1 = [132, 130, 124], P2 = [102, 100, 96], add = (a, b, w, h, col, lum) => B.push({ a, b, w, h, c: col, lum: lum ? 1 : 0 });
   add([x, y, z], [x, y, z + .14], .8, .8, P2);
   add([x, y, z + .14], [x, y, z + .84], .3, .3, P1);
@@ -20533,7 +20584,7 @@ function dechiffrerTome(k) {
   if (!essai) payer({ eclat: DECHIFFRE[q.n] });
   P.tomes[q.m] = Math.max(P.tomes[q.m] | 0, q.n); rangerTomes(); Sauve.sale = true; SON.jouer('niveau');
   { const p = lieuModule(P.camp, 'biblio'); burst(p[0], p[1], P.camp.z + 1.1, 34, hexSort(MATIERE[q.m].col)); }
-  say(nomTome(q.k) + ' déchiffré · ' + (q.n === 1 ? 'la matière « ' + MATIERE[q.m].n.toLowerCase() + ' » peut s\'écrire' : q.n === 2 ? 'cette matière pourra se mélanger' : 'cette matière pourra s\'accentuer'), 3.6);
+  say(nomTome(q.k) + ' déchiffré · ' + (q.n === 1 ? 'la matière « ' + MATIERE[q.m].n.toLowerCase() + ' » peut s\'écrire' : q.n === 2 ? 'ses mélanges ne tournent plus mal' : 'cette matière pourra s\'accentuer (bibliothèque de niveau 3)'), 3.6);
   return true;
 }
 // Un coffre gardé des Horlogers : parfois un Tome II. Comme tout ce qu'on trouve en bas, il n'est à soi qu'une fois remonté.
@@ -20562,6 +20613,7 @@ function magieLue(d) {
   for (const m of MATIERES) { const n = Math.max(0, Math.min(TOME_MAX, Number(d.tomes && d.tomes[m.id]) | 0)); if (n) P.tomes[m.id] = n; }
   for (const k of Array.isArray(d.sorts) ? d.sorts : []) { const s = phraseDe(k); if (s && !P.sorts.includes(s.k) && P.sorts.length < PAGES_SORT[3]) P.sorts.push(s.k); }
   if (typeof d.sortMain === 'string' && P.sorts.includes(d.sortMain)) P.sortMain = d.sortMain;
+  if (d.egide && MATIERE[d.egide.m] && +d.egide.r > 0) P.egide = { m: d.egide.m, deg: Math.max(0, Math.min(1, +d.egide.deg || .25)), fin: t + Math.min(900, +d.egide.r) };   // (§167) l'égide en cours
   P.codex = []; P.nomsSorts = {};
   for (const k of Array.isArray(d.codex) ? d.codex : []) if (MATIERE[k] && MATIERE[k].mix && !P.codex.includes(k)) P.codex.push(k);
   for (const k of P.sorts) { const q = phraseDe(k); if (q.m.mix && !P.codex.includes(q.m.id)) P.codex.push(q.m.id); }   // un accord inscrit est un accord connu
@@ -20629,7 +20681,7 @@ function puStyle() {
     + '.pu-g{flex:0 1 210px;min-width:180px;display:flex;flex-direction:column;gap:3px;}'
     + '.pu-hx{display:flex;justify-content:space-between;align-items:center;gap:6px;}.pu-hx .al-bc{text-transform:none;letter-spacing:0;padding:2px 8px;font-size:11px;}'
     + '.pu-p{display:inline-block;width:13px;height:13px;border-radius:50%;flex:none;font-style:normal;box-shadow:0 0 0 1px rgba(0,0,0,.45),0 0 7px rgba(255,220,160,.25);vertical-align:-2px;}'
-    + '.al-t.inc{opacity:.5;}.al-t.on2{border-style:dashed;border-color:#e6b0ff;background:rgba(230,176,255,.1);}'
+    + '.al-t.inc{opacity:.5;}#magie-ui .al-bc[disabled]{opacity:.45;cursor:not-allowed;}#magie-ui .al-bc.inc{opacity:.6;border-style:dashed;}.al-t.on2{border-style:dashed;border-color:#e6b0ff;background:rgba(230,176,255,.1);}'
     + '.pu-acc{display:flex;flex-wrap:wrap;gap:4px;}.pu-acc .al-bc{padding:4px 9px;font-size:11.5px;}'
     + '.pu-m{flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:7px;margin:0 auto;}'
     + '.pu-m canvas{position:static;inset:auto;width:384px;height:264px;image-rendering:pixelated;border-radius:10px;background:#1a1412;box-shadow:inset 0 0 0 1px rgba(232,190,130,.18),0 0 26px rgba(255,170,80,.08);}'
@@ -20747,11 +20799,20 @@ function puRendre() {
   // à gauche : les matières, les formes, l'accent
   const tm = MATIERES.map(m => { const n = tomeDe(m.id), on = m.id === pupitre.m, on2 = m.id === pupitre.m2;
     return `<button class="al-t${on ? ' on' : ''}${on2 ? ' on2' : ''}${n ? '' : ' inc'}" data-mg="m:${m.id}" aria-pressed="${on || on2}" title="${ESC(m.n + ' · ' + m.d)}">${past(m.col)}<span><b>${m.n}</b><s>${n ? 'tome ' + TOME_CH[n] : 'inconnue'}</s><i>${'●'.repeat(n)}<u>${'●'.repeat(TOME_MAX - n)}</u></i></span></button>`; }).join('');
-  const mx = niv >= 2 ? `<button class="al-bc${PU.meler || pupitre.m2 ? ' on' : ''}" data-mg="meler" aria-pressed="${PU.meler || !!pupitre.m2}">${pupitre.m2 ? '✕ ' + MATIERE[pupitre.m2].n : PU.meler ? 'laquelle ?' : '+ mêler'}</button>` : '';
+  const coutTxt = c => c ? Object.entries(c).map(([r, q]) => q + ' ' + (RES[r] || r)).join(', ') : '';   // (§167)
+  const mx = niv >= 2 ? `<button class="al-bc${PU.meler || pupitre.m2 ? ' on' : ''}" data-mg="meler" aria-pressed="${PU.meler || !!pupitre.m2}">${pupitre.m2 ? '✕ ' + MATIERE[pupitre.m2].n : PU.meler ? 'laquelle ?' : '+ mêler'}</button>`
+    : `<button class="al-bc" disabled title="Mêler deux matières : bibliothèque de niveau 2">🔒 mêler</button>`;
+  const mxNote = niv >= 2 ? (PU.meler ? '<div class="cu-note">Choisissez la seconde matière.</div>' : '')
+    : `<div class="cu-note">Mêler deux matières : la bibliothèque de niveau 2 (${ESC(coutTxt(coutModule('biblio', 2)))}), et le Tome I de chacune. Leurs Tomes II rendent le mélange stable.</div>`;
   const cleF = f => f + '.' + pupitre.m + (pupitre.m2 ? '+' + pupitre.m2 : '');
   const tf = FORMES.map(f => `<button class="al-t${f.id === pupitre.f ? ' on' : ''}" data-mg="f:${f.id}" aria-pressed="${f.id === pupitre.f}" title="${ESC(f.n + ' · ' + f.d)}">${img(icSort(cleF(f.id)))}<span><b>${f.n}</b><s>${f.c} éclats</s></span></button>`).join('');
-  const ta = niv >= 3 ? `<div class="al-h">L'accent</div><div class="pu-acc">` + [['', 'Sans'], ...ACCENTS.map(x => [x.id, x.n])].map(([id, n]) => `<button class="al-bc${pupitre.a === id ? ' on' : ''}" data-mg="a:${id}" aria-pressed="${pupitre.a === id}">${n}</button>`).join('') + `</div>` : '';
-  pose('.pu-g', `<div class="al-h pu-hx"><span>Les matières</span>${mx}</div><div class="al-tuiles">${tm}</div><div class="al-h">Les formes</div><div class="al-tuiles">${tf}</div>${ta}`);
+  const sansIII = (pupitre.m2 ? [pupitre.m, pupitre.m2] : [pupitre.m]).filter(m => tomeDe(m) < 3);
+  const ta = `<div class="al-h">L'accent</div><div class="pu-acc">` + [['', 'Sans'], ...ACCENTS.map(x => [x.id, x.n])].map(([id, n]) => niv >= 3
+      ? `<button class="al-bc${pupitre.a === id ? ' on' : ''}${id && sansIII.length ? ' inc' : ''}" data-mg="a:${id}" aria-pressed="${pupitre.a === id}" title="${ESC(id ? ACCENT[id].d : 'sans accent')}">${n}</button>`
+      : `<button class="al-bc" disabled title="${ESC(id ? ACCENT[id].d : 'sans accent')}">${id ? '🔒 ' : ''}${n}</button>`).join('') + `</div>`
+    + (niv < 3 ? `<div class="cu-note">Les accents : la bibliothèque de niveau 3 (${ESC(coutTxt(coutModule('biblio', 3)))}), et le Tome III de chaque matière de la phrase.</div>`
+      : sansIII.length ? `<div class="cu-note">Pour accentuer cette phrase : le Tome III ${ESC(sansIII.map(m => TOME_DE[m]).join(' et '))} (la Tisseuse de fer le porte).</div>` : '');
+  pose('.pu-g', `<div class="al-h pu-hx"><span>Les matières</span>${mx}</div>${mxNote}<div class="al-tuiles">${tm}</div><div class="al-h">Les formes</div><div class="al-tuiles">${tf}</div>${ta}`);
   // au milieu, sous le lutrin : la phrase, et l'encre pour l'inscrire
   const deja = sortInscrit(s.k), plein = P.sorts.length >= pagesSort(), connu = accordConnu(s.m), inst = instabilite(s);
   const frein = !niv ? 'il faut une bibliothèque' : !ici ? 'il faut être au pupitre' : bas(freinPhrase(s)) || (deja ? '' : plein ? 'le grimoire est plein · ' + pagesSort() + ' sorts à ce niveau de bibliothèque' : !essai && (P.encre | 0) < 1 ? 'il faut un éclat d\'encre · il se prépare à la table d\'alchimie' : '');
@@ -21175,7 +21236,7 @@ function cuire() {
   const nom = plat.n; if (!V.mix && b.pa === 3) plat.n += ' · parfait'; else if (!V.mix && !b.pa) plat.n += ' · raté';
   const chaud = !conserve(plat.c), cs = conserve(plat.c) || [1, 0];   // au sac : une part chaude, plusieurs parts, ou longue conservation
   plat.parts = cs[0]; if (!cs[1]) plat.g = chaud ? GARDE_CHAUD : GARDE_MOMENT;
-  if (plat.parts > 1) { plat.soin = Math.round(plat.soin * 50) / 100; plat.d = Math.round(plat.d / 2); }
+  if (plat.parts > 1) { plat.soin = Math.round(plat.soin * 75) / 100; plat.d = Math.round(plat.d * .75); }   // (§168) une part : les trois quarts du plat
   P.plats.unshift(plat); if (P.plats.length > PLATS_MAX) P.plats.length = PLATS_MAX;
   P.pot = potNeuf(p.fc, p.fa); potCle = ''; Sauve.sale = true;
   SON.jouer(V.mix || (b && !b.pa) ? 'pilon' : 'cuisson'); if (!V.mix && b.pa >= 2) SON.jouer('prise', { rare: plat.q >= 5 || b.pa === 3 || plat.c.startsWith('r:') ? 1 : 0 });
@@ -22796,7 +22857,7 @@ function pecheLie(b, A) {
 function rapporterPoisson(b) {
   const c = b.comp, i = (b.peche.y | 0) * WS + (b.peche.x | 0), hab = EauT[i] === 1 ? 'lac' : EauT[i] === 2 ? 'riviere' : 'ocean';
   const f = tirerPoisson(hab, b.peche.x, b.peche.y) || tirerPoisson('ocean') || POISSONS[0], coffre = c.mode === 'camp' && campIci() && aModule('coffre');
-  const n = 1 + (Math.random() < coefApt(b.sp.id, 'peche') - 1 ? 1 : 0) + (Math.random() < .1 * potComp(c, 'recolte') ? 1 : 0);   // la potion de récolte
+  const n = 1 + (Math.random() < coefApt(b.sp.id, 'peche') - 1 ? 1 : 0) + (Math.random() < .1 * puissComp(c, 'recolte') ? 1 : 0);   // la potion de récolte
   if (coffre) P.cellier[f.id] = (P.cellier[f.id] || 0) + n; else metSacIngr(f.id, sacIngr(f.id) + n);
   annonceCompagne(c, 'i:' + f.id, n, coffre); if (sacOuvert) majSac();
 }
@@ -23500,7 +23561,7 @@ function drawHud0() {
   const main = [`<span class="puce" title="Baies">${ic('baies')}<b>${P.baies}</b></span>`];
   if (P.fleches || ((porte('arme') || {}).arc && !(porte('arme') || {}).fusil)) main.push(`<span class="puce" title="Flèches">${ic('fleches')}<b>${P.fleches}</b></span>`);
   if (P.baumes) main.push(`<span class="puce" title="Baumes de relève">${ic('baume')}<b>${P.baumes}</b></span>`);
-  main.push(djIci() ? `<span class="puce dj">Centre des automates · étage <b>${DJ.e}/${DJ.n}</b></span>`
+  main.push(djIci() ? (DJ.etat.th === 'roi' ? `<span class="puce dj">Cercles de cendre · ${DJ.e >= DJ.n ? '<b>le Trône</b>' : `cercle <b>${DJ.e}/${DJ.n - 1}</b>`}</span>` : `<span class="puce dj">Centre des automates · étage <b>${DJ.e}/${DJ.n}</b></span>`)
     : `<span class="puce heure"><b>${hh}:${mm}</b>&nbsp;${METEO[Meteo.vers].n}</span>`);
   // 2. ce qui se passe : escouade, chaleur du rayon, arc bandé, essai, autres joueurs (les effets des plats,
   //    le poison, le Korlaz : en vignettes sous le souffle, voir majStatuts)
@@ -23673,6 +23734,7 @@ function actionContexte() {
   { const gra = typeof achromieAction === 'function' ? achromieAction() : null; if (gra) return gra; }   // (§127) l'arche éteinte, les mécanismes du sanctuaire
   if (auPortailIle()) return { v: 'FRANCHIR', o: 'arche · exploration ' + (profondeur() + 1), f: franchirPortail };
   const lta = lutrinAction(); if (lta) return lta;     // un lutrin de pierre : le Tome I d'une matière
+  { const fga = typeof forgeAction === 'function' ? forgeAction() : null; if (fga) return fga; }   // (§171) la forge, à côté du campement
   const cpa = campAction(); if (cpa) return cpa;       // au campement : la tente, un module, un emplacement libre
   const cha = champAction(); if (cha) return cha;      // (§119) à un carré de culture : semer, arroser, la pousse
   // (§151) le lien ne passe plus par ACTION : il se lance sur une bête désignée, par LIER sous sa fiche (ou Y)
@@ -23762,7 +23824,7 @@ function lancerAttaque(a, c) {
   const seq = SEQ_ARME[a.id] || [a.id];
   P.combo = t - (P.finAttaque ?? -99) < .45 ? ((P.combo || 0) + 1) % seq.length : 0;   // coup droit, revers…
   const g = seq[P.combo];
-  P.anim = { k: 'arme', g, arme: a.id, t0: t, dur: a.cad || .35, coup: GESTES[g].coup, fait: false, w0: poidsGeste(P), hs: ARRET_ARME[a.id] || .05 };
+  P.anim = { k: 'arme', g, arme: a.id, t0: t, dur: (a.cad || .35) * (typeof pacteCadence === 'function' ? pacteCadence() : 1), coup: GESTES[g].coup, fait: false, w0: poidsGeste(P), hs: ARRET_ARME[a.id] || .05 };
   P.frappe = P.anim.dur; P.garde = t + P.anim.dur + GARDE_T;
   annoncer(g, P.anim.dur, a.id);
   const Gt = GESTES[g].trace; if (Gt) SON.jouer('elan', { arme: a.id, dans: Gt[0] * P.anim.dur, dur: (Gt[1] - Gt[0]) * P.anim.dur }, P.x, P.y, P.z + .6);
@@ -23778,11 +23840,11 @@ function traineeArme(J, A) {
   const G = GESTES[A.g], x = xGeste(A);
   if (!G.trace || x < G.trace[0] || x > G.trace[1]) { A.pt = null; return; }
   // les épées laissent un croissant plein (quatre points le long de la lame), les autres un sillage
-  const epee = A.arme === 'epee' || A.arme === 'lame', F = epee ? [1, .86, .72, .58] : [1, .62];
+  const ab = armeBase(A.arme), epee = ab === 'epee' || ab === 'lame' || ab === 'soufre', F = epee ? [1, .86, .72, .58] : [1, .62];
   const pose = poseGeste(A.g, x), pts = F.map(f => pointeArme(J, pose, A.arme, f));
   const prev = A.pt; A.pt = pts;
   if (!prev) return;
-  const col = COUL_TRAINEE[A.arme] || '#eeeeee', luit = A.arme === 'lame', n = epee ? 6 : 3;
+  const col = COUL_TRAINEE[A.arme] || '#eeeeee', luit = A.arme === 'lame' || A.arme === 'soufre', n = epee ? 6 : 3;
   for (let k = 0; k < F.length; k++) for (let s = 1; s <= n; s++) {
     const q = mixv(prev[k], pts[k], s / n);
     parts.push({ x: q[0], y: q[1], z: q[2], vx: 0, vy: 0, vz: 0, g: 0, life: (epee ? .17 : .14) * (1 - k * .12), age: 0, col, tl: (epee ? .055 : .05) * (1 - k * .15), luit });
@@ -23794,8 +23856,8 @@ const secousseCam = () => { const d = t - (P.secousse ?? -99); return d < .32 ? 
 // de cristal ; le marteau-pilon frappe le sol quoi qu'il arrive, en souffle de vapeur et en onde.
 function coupArme(A) {
   const a = objet(A.arme); if (!a) return;
-  const pose = poseGeste(A.g, A.coup), tip = pointeArme(P, pose, A.arme, 1);
-  if (A.arme === 'marteau') {
+  const pose = poseGeste(A.g, A.coup), tip = pointeArme(P, pose, A.arme, 1), base = armeBase(A.arme);
+  if (base === 'marteau') {
     P.pilon = t; P.secousse = t; P.secousseK = 1; SON.jouer('pilon', {}, tip[0], tip[1], tip[2]);
     const sol = hAt(tip[0] | 0, tip[1] | 0);
     for (let k = 0; k < 18; k++) { const an = k / 18 * 6.2832, v = 2.2 + Math.random();
@@ -23811,12 +23873,12 @@ function coupArme(A) {
   }
   A.arret = true;
   SON.jouer('touche', { arme: A.arme }, tip[0], tip[1], tip[2]);
-  const etin = { gourdin: ['#c8a070', 5], lance: ['#f0e8d6', 5], epee: ['#e0e0da', 7], lame: ['#aef4fc', 9], marteau: ['#ffe0a0', 8] }[A.arme] || ['#ffffff', 5];
+  const etin = a.fg ? [COUL_TRAINEE[A.arme] || '#ffe0b0', 8] : { gourdin: ['#c8a070', 5], lance: ['#f0e8d6', 5], epee: ['#e0e0da', 7], lame: ['#aef4fc', 9], marteau: ['#ffe0a0', 8], soufre: ['#ffd84a', 9], fouet: ['#c8c2b8', 5] }[A.arme] || ['#ffffff', 5];
   for (let k = 0; k < etin[1]; k++) parts.push({ x: tip[0], y: tip[1], z: tip[2], vx: (Math.random() - .5) * 5, vy: (Math.random() - .5) * 5, vz: Math.random() * 3,
-    life: .25 + Math.random() * .2, age: 0, col: etin[0], tl: .045, luit: A.arme === 'lame' });
+    life: .25 + Math.random() * .2, age: 0, col: etin[0], tl: .045, luit: A.arme === 'lame' || A.arme === 'soufre' });
   if (c.cl) { frapperLoin(c.cl, degJoueur(a.deg)); return; }
   const pr = c.b;
-  const dgJ = degJoueur(a.deg, pr);
+  const dgJ = degJoueur(a.deg, pr) * (a.fg && typeof forgeAvant === 'function' ? forgeAvant(A, pr, a) : 1);   // (§171) le dos, la série, la charge, le brise-garde
   pr.pv -= dgJ; pr.hit = .25; pr.alarm = 1; blesseParJoueur(pr);
   lacherParoi(pr);                                   // frappée sur sa paroi, elle tombe
   const rec = RECUL_ARME[A.arme] || 3;
@@ -23825,6 +23887,7 @@ function coupArme(A) {
   burst(pr.x, pr.y, pr.z + .4, 9, '#ffb0a0');
   if (pr.pv <= 0) { mourirBete(pr, 'chassé'); butin(pr); }
   else say(pr.sp.n + ' · ' + Math.round(pr.pv * 100) + '%', 1);
+  if (a.fg && typeof forgeApres === 'function') forgeApres(A, pr, dgJ, pr.pv <= 0 || !!pr.dead, a);   // (§171) l'usure, la mécanique, la compétence
 }
 // Avec un arc, l'appui bande la corde et le relâchement décoche : la puissance suit le temps
 // de bande. Avec toute autre arme, l'appui frappe — dans le vide s'il n'y a personne.
@@ -23834,6 +23897,7 @@ function attaquerDown() {
   if (!a) { say('aucune arme en main · sautez-lui dessus', 1.6); return; }
   if (P.effroi > t) { say('saisi d\'effroi · vos coups ne partent plus', 1.2); return; }
   if (a.fusil) return djTirDown(a);                    // les armes du Centre des automates
+  if (a.fg && !a.arc && typeof forgeChargeDown === 'function' && forgeChargeDown(a)) return;   // (§171) une arme forgée : on maintient pour charger, le coup part au lâcher
   if (a.arc) {
     if (!essai && P.fleches <= 0) { say('plus de flèches', 1.4); return; }
     if (P.anim) P.anim = null;
@@ -23844,6 +23908,7 @@ function attaquerDown() {
   attaquer(a, cibleContact(a.port));
 }
 function attaquerUp() {
+  if (typeof forgeChargeUp === 'function' && forgeChargeUp()) return;   // (§171)
   const af = porte('arme'); if (af && af.fusil) return djTirUp(af);
   if (P.arc === null) return;
   const p = Math.min(1, P.arc / ARC_TEMPS); P.arc = null;
@@ -23851,6 +23916,7 @@ function attaquerUp() {
   SON.jouer(armeDe(P) === 'arbalete' ? 'carreau' : 'decoche', { k: p }, P.x, P.y, P.z + .6);
   annoncer('decoche', 0, Math.round(p * 100) / 100);
   tirerFleche(p);
+  if (typeof forgeRafale === 'function') forgeRafale(p);   // (§171) l'arc court forgé : deux flèches de plus
 }
 // L'ancien geste unique, gardé pour qui l'appelle encore : frapper si une cible est à portée, sinon agir.
 function agir() { if (!frapper(porte('arme'))) faireAction(); }
@@ -24724,6 +24790,51 @@ vec3 achromie(vec3 c, vec3 w) {
   vec3 g = vec3(clamp((l - 0.5) * max(uGris2.z, 1.0) + 0.5, 0.0, 1.0));
   return mix(c, mix(g, c, garde), uGris.x);
 }`;
+  // (§162) L'île démoniaque (brume.js) : derrière la vague partie du cercle, l'eau devient lave (qui luit, la nuit
+  // aussi), l'herbe et les feuilles virent à la cendre, le reste au basalte, des braises piquent le sol ; le front
+  // de la vague est une bande de braise. La guérison (uEnf2.y) rend la lave obsidienne puis eau, et la cendre
+  // reverdit, case à case. uEnf : le cercle (xy), le rayon de la vague, la force · uEnf2 : temps, guérison, chaleur.
+  const ENFER_GLSL = `
+uniform vec4 uEnf, uEnf2;
+float hEnf(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float nEnf(vec2 p) { vec2 i = floor(p), f = fract(p); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hEnf(i), hEnf(i + vec2(1.0, 0.0)), f.x), mix(hEnf(i + vec2(0.0, 1.0)), hEnf(i + vec2(1.0, 1.0)), f.x), f.y); }
+vec3 enfer(vec3 c, vec3 w, bool eau, out vec3 lu) {
+  lu = vec3(0.0);
+  float fr = uEnf.z - distance(w.xy, uEnf.xy);
+  if (fr < -2.0) return c;
+  float g = uEnf2.y, ce = hEnf(floor(w.xy) + 0.37), tm = uEnf2.x;
+  float k = uEnf.w * smoothstep(-2.0, 0.5, fr);
+  vec3 bord = vec3(1.0, 0.32, 0.06) * (1.0 - smoothstep(0.0, 2.5, abs(fr - 0.8))) * (1.0 - step(0.001, g));
+  if (eau) {
+    float ch = uEnf2.z;
+    float re = smoothstep(0.0, 0.15, (g - 0.5) / 0.3 - ce * 0.85);
+    vec2 q = floor(w.xy * 8.0) / 8.0 * 0.85 + vec2(tm * 0.05, tm * 0.03);   // au grain du décor
+    float n = nEnf(q) * 0.62 + nEnf(q * 2.7 - vec2(tm * 0.09, 0.0)) * 0.38;
+    vec3 lave = mix(vec3(0.30, 0.03, 0.02), vec3(1.0, 0.38, 0.04), smoothstep(0.36, 0.62, n));
+    lave = mix(lave, vec3(1.0, 0.84, 0.34), smoothstep(0.66, 0.80, n));
+    float fe = 1.0 - smoothstep(0.0, 0.05, abs(n - 0.52));
+    vec3 obs = vec3(0.05, 0.045, 0.06) + vec3(0.55, 0.10, 0.03) * fe * (1.0 - smoothstep(0.42, 0.62, g));
+    float km = k * (1.0 - re);
+    lu = (lave * ch * 0.8 + bord) * km;
+    return mix(c, mix(obs, lave * 0.25, ch), km);
+  }
+  if (uEnf2.w < 0.0) return c;                        // (§165) les Ossuaires : l'os et la pierre gardent leurs couleurs
+  float so = smoothstep(-0.04, 0.04, g - (0.35 + 0.6 * ce));
+  float kk = k * (1.0 - so);
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  float vert = clamp((c.g - max(c.r, c.b)) * 6.0, 0.0, 1.0);          // l'herbe, les feuilles : de la cendre
+  vec3 cendre = vec3(0.12, 0.11, 0.11) + l * vec3(0.46, 0.43, 0.42);
+  vec3 basalte = vec3(0.02, 0.012, 0.015) + l * vec3(0.36, 0.27, 0.27);  // le reste : du basalte
+  vec3 p8 = floor(w * 8.0 + 0.001) / 8.0;                             // au grain du décor
+  float nv = nEnf(vec2(p8.x + p8.z * 0.7, p8.y - p8.z * 0.7) * 0.55 + 3.1);
+  float ve = (1.0 - smoothstep(0.009, 0.026, abs(nv - 0.5))) * (1.0 - vert) * uEnf2.z;   // des veines de lave, tant qu'elle est chaude
+  vec3 d = mix(mix(basalte, cendre, vert), vec3(0.32, 0.05, 0.02), ve);
+  float sp = hEnf(p8.xy * 8.0 + p8.z * 57.0);
+  float br = step(0.982, sp) * (0.55 + 0.45 * sin(tm * 2.6 + sp * 61.0));
+  lu = (vec3(1.0, 0.36, 0.06) * br * 0.9 + vec3(1.0, 0.30, 0.04) * ve * (0.55 + 0.25 * sin(tm * 1.7 + nv * 40.0)) + bord) * kk;
+  return mix(c, d, kk);
+}`;
   const DECOR_VS = `#version 300 es
 layout(location=0) in vec3 aP;
 layout(location=1) in vec3 aC;
@@ -24734,7 +24845,7 @@ layout(location=5) in vec2 aS;
 uniform mat4 uM;
 uniform vec3 uVent;
 out vec3 vW; out vec3 vC; out vec2 vT;
-flat out ivec3 vK; flat out int vL; flat out int vP; flat out float vN; flat out float vHor;
+flat out ivec3 vK; flat out int vL; flat out int vP; flat out float vN; flat out float vHor; flat out int vEau;
 void main() {
   vec3 p = aP;
   if (aS.x != 0.0) p.xy += uVent.xy * aS.x * (0.10 + 0.06 * sin(uVent.z * 2.3 + aS.y));
@@ -24743,14 +24854,15 @@ void main() {
   vK = ivec3(k % 128, (k / 128) % 128, k / 16384);
   int f = int(aF + 0.5);
   vL = f % 4; vP = (f / 4) % 2; vN = max(1.0, float((f / 8) % 32));
-  vHor = float(f / 256) / 64.0;                       // pente de l'obstacle vers le soleil
+  vHor = float((f / 256) % 256) / 64.0;               // pente de l'obstacle vers le soleil
+  vEau = (f / 65536) % 2;                             // (§162) de l'eau
   gl_Position = uM * vec4(p, 1.0);
 }`;
   const DECOR_FS = `#version 300 es
 precision highp float;
 precision highp int;
 in vec3 vW; in vec3 vC; in vec2 vT;
-flat in ivec3 vK; flat in int vL; flat in int vP; flat in float vN; flat in float vHor;
+flat in ivec3 vK; flat in int vL; flat in int vP; flat in float vN; flat in float vHor; flat in int vEau;
 uniform sampler2D uA;
 uniform vec3 uOeil, uBrume, uBr;
 uniform vec2 uLum;
@@ -24762,6 +24874,7 @@ uniform vec4 uVers;     // la direction de l'œil, et jusqu'où couper
 out vec4 o;
 ${NUIT_GLSL}
 ${GRIS_GLSL}
+${ENFER_GLSL}
 // le grain se répète par cube ; les calques d'arête couvrent la face une seule fois
 vec4 grain(int k, vec2 t) {
   ivec2 p = clamp(ivec2(floor(fract(t) * 16.0)), ivec2(0), ivec2(15));
@@ -24806,9 +24919,11 @@ void main() {
     if (vK.z > 0) { vec4 t = calque(vK.z - 1, tf); c = mix(c, t.rgb, t.a * av); }
     if (vK.y > 0) { vec4 t = calque(vK.y - 1, tf); c = mix(c, t.rgb, t.a * av); }
   }
+  vec3 lu = vec3(0.0);                                // (§162) l'île démoniaque : ni les bêtes ni les objets (L_FIXE)
+  if (uEnf.w > 0.0 && vL != 2) c = enfer(c, vW, vEau == 1, lu);
   float fb = vL == 3 ? f * 0.35 + f * f * f * f * 0.65 : f;
   c = mix(c, uBrume, fb);
-  o = vec4(achromie(nocturne(c, vW), vW), 1.0);
+  o = vec4(achromie(nocturne(c, vW) + lu * (1.0 - fb), vW), 1.0);
 }`;
   const CIEL_VS = `#version 300 es
 layout(location=0) in vec2 aP;
@@ -25017,10 +25132,10 @@ void main() { o = uC; }`;
     const h = nap || Hgt[i], bi = nap ? 0 : Bio[i], b = BIOME[bi];
     const rel = (.82 + .18 * Sh[i]) * (.90 + .22 * h / MAXH);
     const dessus = [[x, y, h], [x + 1, y, h], [x + 1, y + 1, h], [x, y + 1, h]];
-    const hor = 256 * Horiz[i];
+    const hor = 256 * Horiz[i], eauF = bi === 0 ? 65536 : 0;   // (§162) l'eau, que l'île démoniaque change en lave
     if (bi === 8) quad(T, ...dessus, HAUT, VIDE_COL, 1, K(tuile(TEX.abime), 0, 0), L_ABIME + hor, 0, 0, 0);
     else quad(T, ...dessus, HAUT, mulc(b.top, rel), 1,
-      K(tuile(TEX_HAUT[bi]), tuile(BORD[masqueHaut(x, y, h)]), tuile(FRANGE[masqueBiome(x, y, h, bi)])), L_DECOR + hor, 0, 0, 0);
+      K(tuile(TEX_HAUT[bi]), tuile(BORD[masqueHaut(x, y, h)]), tuile(FRANGE[masqueBiome(x, y, h, bi)])), L_DECOR + hor + eauF, 0, 0, 0);
     for (const [dx, dy] of SIDES) {
       const hn = hRendu(x + dx, y + dy);
       if (hn >= h) continue;
@@ -25030,7 +25145,7 @@ void main() { o = uC; }`;
       else { const py = y + (dy > 0 ? 1 : 0); q = [[x, py, hn], [x + 1, py, hn], [x + 1, py, h], [x, py, h]]; }
       const puits = bAt(x + dx, y + dy) === 8 ? 1 : 0;
       quad(T, ...q, n, mulc(b.side, rel * shade(n)), h - hn,
-        K(tuile(TEX_COTE[bi]), tuile(BORD[masqueFlanc(x, y, dx, dy, h)]), 0), L_DECOR + 4 * puits + 8 * (h - hn) + hor, 0, 0, 0);
+        K(tuile(TEX_COTE[bi]), tuile(BORD[masqueFlanc(x, y, dx, dy, h)]), 0), L_DECOR + 4 * puits + 8 * (h - hn) + hor + eauF, 0, 0, 0);
     }
     const zt = plaT(x, y); if (!zt) return;
     const zb = plaB(x, y);
@@ -25144,7 +25259,7 @@ void main() { o = uC; }`;
         const o = (b + j) * PV;
         f[o] = x; f[o + 1] = y; f[o + 2] = z; f[o + 3] = col[0] / 255; f[o + 4] = col[1] / 255; f[o + 5] = col[2] / 255;
         f[o + 6] = x; f[o + 7] = y;                        // le grain suit le monde, une vague par case
-        f[o + 8] = k; f[o + 9] = L_DECOR; f[o + 10] = 0; f[o + 11] = 0;
+        f[o + 8] = k; f[o + 9] = L_DECOR + 65536; f[o + 10] = 0; f[o + 11] = 0;   // (§162) de l'eau
       });
       const I = T.i, q = T.ni;                             // même enroulement qu'un dessus de colonne
       I[q] = b; I[q + 1] = b + 1; I[q + 2] = b + 2; I[q + 3] = b; I[q + 4] = b + 2; I[q + 5] = b + 3;
@@ -25241,6 +25356,8 @@ void main() { o = uC; }`;
     TT.nv = TT.ni = 0;
     if (quoi === 't') {
       for (let y = c.y0; y < c.y1; y++) for (let x = c.x0; x < c.x1; x++) colonne(TT, x, y);
+      const SD = typeof djStatiqueDans === 'function' ? djStatiqueDans(c.x0, c.y0) : null;   // (§170) le mobilier du Centre, cuit avec la roche
+      if (SD) for (const o of SD) boite(TT, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, o.lum ? 0 : kCouleur(o.c, 'meca'), o.lum ? L_FIXE : L_DECOR + 256 * horizAt(o.a[0], o.a[1]), 0, 0, 0, o.ref, 2);
       c.t = maillage(c.t, TT); c.bt = c.verT;
     } else {
       for (let y = Math.max(1, c.y0); y < Math.min(WS - 1, c.y1); y++)
@@ -25424,11 +25541,15 @@ void main() { o = uC; }`;
     const nuit = l < .99 ? 1 - l : 0;
     const voile = [(20 + nuit * 8) / 255, (26 - nuit * 10) / 255, (56 + nuit * 12) / 255, nuit * .55];
     const noir = [NOIR[0] / 255, NOIR[1] / 255, NOIR[2] / 255, noirceur() * NOIR_MAX];
+    const EN = typeof enferGL === 'function' ? enferGL() : ENF_VIDE, kEn = EN[7];   // (§162) l'île démoniaque : un voile rouge sombre sur tout
+    { const VJ = typeof roiVoile === 'function' ? roiVoile() : null; if (VJ) { for (let i = 0; i < 3; i++) voile[i] += (VJ[i] - voile[i]) * .7; voile[3] = Math.max(voile[3], VJ[3]); } }   // (§166) la brume de soufre
+    if (kEn > 0) { voile[0] += (.13 - voile[0]) * kEn; voile[1] += (.015 - voile[1]) * kEn; voile[2] += (.012 - voile[2]) * kEn; voile[3] = Math.max(voile[3], .34 * kEn); }
     FEUX_GL.fill(0);
     feux.forEach((f, i) => FEUX_GL.set([f[0], f[1], f[2], f[3]], i * 4));
     // en orbite, la brume se compte depuis le joueur, pas depuis l'œil posé loin derrière lui
     distVue = iso ? BRU1 : (tierce || 0) + Math.max(tierce ? 30 : 0, 10 + 54 * met('brume'));
-    const brume = djIci() ? (iso ? [14, 34, textures ? 1 : 0] : [6 + (tierce || 0), 26 + (tierce || 0), textures ? 1 : 0])   // sous terre, le noir vient vite
+    const brume = djIci() ? (rouagesIci() ? (iso ? [18, 44, textures ? 1 : 0] : [12 + (tierce || 0), 44 + (tierce || 0), textures ? 1 : 0])   // (§170) le Centre est éclairé : on voit loin, et grand
+      : iso ? [14, 34, textures ? 1 : 0] : [6 + (tierce || 0), 26 + (tierce || 0), textures ? 1 : 0])   // sous terre, le noir vient vite
       : iso ? [BRU0, BRU1, textures ? 1 : 0] : [10 + (tierce || 0), distVue, textures ? 1 : 0];
     const kSang = typeof brumeSang === 'function' ? brumeSang() : 0;   // la brume sanglante : on n'y voit qu'à quelques cases
     if (kSang && !djIci()) {
@@ -25463,7 +25584,7 @@ void main() { o = uC; }`;
     const elS = hauteurSoleil();
     for (const [az, el, c, r] of djIci() ? [] : [[SUN_AZ, elS, [255, 226, 150], .052], [SUN_AZ + Math.PI, -elS, [222, 230, 246], .040]]) {
       if (el < -.05) continue;
-      const al = Math.min(1, .3 + el * 2) * (1 - met('nuages') * .75);
+      const al = Math.min(1, .3 + el * 2) * (1 - met('nuages') * .75) * (1 - .65 * kEn);
       if (al < .03) continue;
       if (iso) {
         const q = place(az, el); if (!q) continue;
@@ -25476,7 +25597,7 @@ void main() { o = uC; }`;
       panneau(p[0], p[1], p[2], k * 1.8, k * 1.8, c[0] / 255, c[1] / 255, c[2] / 255, al * .2, 2);
       panneau(p[0], p[1], p[2], k, k, c[0] / 255, c[1] / 255, c[2] / 255, al, 2);
     }
-    const couv = met('nuages'), cl = 40 + 190 * l * (1 - couv * .45);
+    const couv = met('nuages'), cl = (40 + 190 * l * (1 - couv * .45)) * (1 - .75 * kEn);   // (§162) une fumée sombre
     for (let i = 0; i < (djIci() ? 0 : 30); i++) {
       const h1 = hachCell(i * 7 + 101, 37), h2 = hachCell(i * 13 + 5, 91);
       if (h1 > .25 + couv * .75) continue;
@@ -25512,6 +25633,7 @@ void main() { o = uC; }`;
     gl.uniform4fv(u.uVoile, voile);
     gl.uniform4fv(u.uNuit, noir); gl.uniform4fv(u['uFeux[0]'], FEUX_GL);
     gl.uniform4fv(u.uGris || null, GRIS_GL.a); gl.uniform4fv(u.uGris2 || null, GRIS_GL.b); gl.uniform4fv(u.uLant || null, GRIS_GL.l);   // (§127)
+    gl.uniform4fv(u.uEnf || null, EN.subarray(0, 4)); gl.uniform4fv(u.uEnf2 || null, EN.subarray(4, 8));   // (§162)
     gl.uniform2f(u.uIso, iso ? 1 : 0, coupe);
     // Sous terre, les murs de quatre cubes cacheraient le joueur : on les ouvre, dans un cylindre qui
     // va du joueur vers l'œil, au-dessus de ses genoux. Seuls la roche et la flore s'ouvrent.
@@ -25627,7 +25749,8 @@ void main() { o = uC; }`;
         boite(TD, [c.x + o.a[0], c.y + o.a[1], c.z + o.a[2]], [c.x + o.b[0], c.y + o.b[1], c.z + o.b[2]],
           o.w, o.h, o.c, o.luit ? 1 : 0, o.luit ? 0 : kCouleur(o.c, 'bati'), o.luit ? L_FIXE : hc, 0, 0, 0, undefined, 2);
     }
-    for (const o of djDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, o.lum ? 0 : kCouleur(o.c, 'meca'), L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0, undefined, 2);
+    { const Lc = rouagesIci() ? L_DECOR : L_FIXE;                 // (§170) au Centre, le décor s'ouvre devant l'œil comme la roche
+      for (const o of djDecor(ex, ey, 40, true)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, o.lum ? 0 : kCouleur(o.c, 'meca'), o.lum ? L_FIXE : Lc + 256 * horizAt(o.a[0], o.a[1]), 0, 0, 0, o.ref, 2); }
     for (const o of marmiteDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, o.lum ? 0 : kCouleur(o.c, 'bati'), L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0, undefined, 2);
     for (const o of sortDecor(ex, ey, 60)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, o.lum ? 0 : kCouleur(o.c, 'bati'), L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0, undefined, 2);
     for (const o of pecheDecor(ex, ey, 40)) boite(TD, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, o.lum ? 0 : kCouleur(o.c, 'bati'), L_FIXE + (o.lum ? 0 : 256 * horizAt(o.a[0], o.a[1])), 0, 0, 0, undefined, 2);
@@ -25905,7 +26028,7 @@ function photo() {
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
-    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), achromies: (P.achromies || []).slice(-300), grisProg: P.grisProg || null, pigments: Object.assign({}, P.pigments || {}), brumeTomes: (P.brumeTomes || []).slice(-600), rumeurs: (P.rumeurs || []).slice(0, 40), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite, pot: P.pot && (P.pot.e.length || P.pot.eau || P.pot.fc) ? { e: P.pot.e.slice(), eau: Math.round(P.pot.eau * 100) / 100, fa: Math.round(P.pot.fa * 100) / 100, fc: P.pot.fc, t: Math.round(P.pot.t * 10) / 10, fs: Math.round(P.pot.fs), ft: Math.round(P.pot.ft * 10) / 10, br: Math.round(P.pot.br * 100) / 100, brT: Math.round(P.pot.brT * 10) / 10, rm: P.pot.rm } : null, manieres: P.manieres, ratees: P.ratees.slice(0, 60), recTr: Object.assign({}, P.recTr), satIA: iaPhoto(),
+    amis: (P.amis || []).slice(0, 50), amisAttente: (P.amisAttente || []).slice(0, 20), groupe: P.groupe || null, groupeCible: P.groupeCible || null, brumesLevees: (P.brumesLevees || []).slice(-300), enfers: P.enfers || {}, achromies: (P.achromies || []).slice(-300), grisProg: P.grisProg || null, pigments: Object.assign({}, P.pigments || {}), brumeTomes: (P.brumeTomes || []).slice(-600), rumeurs: (P.rumeurs || []).slice(0, 40), bossVaincus: (P.bossVaincus || []).slice(-300), plats: P.plats.slice(0, PLATS_MAX), recettes: JSON.parse(JSON.stringify(P.recettes)), marmite: P.marmite, pot: P.pot && (P.pot.e.length || P.pot.eau || P.pot.fc) ? { e: P.pot.e.slice(), eau: Math.round(P.pot.eau * 100) / 100, fa: Math.round(P.pot.fa * 100) / 100, fc: P.pot.fc, t: Math.round(P.pot.t * 10) / 10, fs: Math.round(P.pot.fs), ft: Math.round(P.pot.ft * 10) / 10, br: Math.round(P.pot.br * 100) / 100, brT: Math.round(P.pot.brT * 10) / 10, rm: P.pot.rm } : null, manieres: P.manieres, ratees: P.ratees.slice(0, 60), recTr: Object.assign({}, P.recTr), satIA: iaPhoto(),
     fleches: P.fleches, baumes: P.baumes, encre: P.encre | 0, soins: Object.assign({}, P.soins), defense: { mur: P.defense.mur | 0, tours: P.defense.tours | 0 }, baies: P.baies, pv: Math.round(P.pv * 1000) / 1000, mana: Math.round(P.mana),
     pseudo: P.pseudo || null,
     parti: P.parti || null, solde: P.solde || null,
@@ -25917,7 +26040,7 @@ function photo() {
     carres: Object.assign({}, P.carresN),
     coupesCamp: P.camp && coupesG === P.camp.graine && (CAMP_COUPES.size || PL_CUEILLIES.size) ? { g: coupesG, c: coupesEcrire(), pl: [...PL_CUEILLIES] } : null, aviseRepousse: P.aviseRepousse ? 1 : 0,   // (§124)
     graines: Object.assign({}, P.graines), graineSel: P.graineSel || null, seau: P.seau,   // (§130) ces champs étaient pris dans le commentaire du §124 : graines, graine choisie et seau ne se gardaient plus
-    campNiv: nivCamp(), modules: Object.assign({}, P.modules), tomes: Object.assign({}, P.tomes), tomesPortes: P.tomesPortes.slice(), tomeHalte: P.tomeHalte | 0, sorts: P.sorts.slice(), sortMain: P.sortMain || null, codex: P.codex.slice(), nomsSorts: Object.assign({}, P.nomsSorts), alchimie: Object.assign({}, P.alchimie), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), s: P.chaudron.s.map(x => x && x.slice()), f: P.chaudron.f, eau: P.chaudron.eau, fa: Math.round(P.chaudron.fa * 100) / 100, fc: P.chaudron.fc, t: Math.round(P.chaudron.t * 100) / 100 } : null, carnetAlch: P.carnetAlch, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
+    campNiv: nivCamp(), modules: Object.assign({}, P.modules), tomes: Object.assign({}, P.tomes), tomesPortes: P.tomesPortes.slice(), tomeHalte: P.tomeHalte | 0, sorts: P.sorts.slice(), sortMain: P.sortMain || null, egide: egideActive() ? { m: P.egide.m, deg: P.egide.deg, r: Math.round(P.egide.fin - t) } : null, codex: P.codex.slice(), nomsSorts: Object.assign({}, P.nomsSorts), alchimie: Object.assign({}, P.alchimie), alchP: JSON.parse(JSON.stringify(P.alchP || {})), chaudron: P.chaudron ? { c: P.chaudron.c, e: P.chaudron.e.slice(), s: P.chaudron.s.map(x => x && x.slice()), f: P.chaudron.f, eau: P.chaudron.eau, fa: Math.round(P.chaudron.fa * 100) / 100, fc: P.chaudron.fc, t: Math.round(P.chaudron.t * 100) / 100 } : null, carnetAlch: P.carnetAlch, forge: typeof forgeSauve === 'function' ? forgeSauve() : null, portail: { t: P.portailT | 0, r: P.portailR | 0, v: P.portailVoeu || '' },
     journal: { gardees: (P.journal.gardees || []).slice(0, 12), visites: (P.journal.visites || []).slice(0, VISITES_MAX) },
     coffre: Object.assign({}, P.coffre),
     pillages: P.pillages.slice(0, 5),
@@ -26017,6 +26140,8 @@ function appliquer(d, vivantes) {
   P.korlaz = d.korlaz && typeof d.korlaz === 'object' ? { duree: nb(d.korlaz.duree, 0, 1e7, 0), prochain: 0 } : null; P.korlazExpo = 0;   // l'infection suit le personnage
   P.bossVaincus = Array.isArray(d.bossVaincus) ? d.bossVaincus.filter(Number.isInteger).slice(-300) : [];
   P.brumesLevees = Array.isArray(d.brumesLevees) ? d.brumesLevees.filter(Number.isInteger).slice(-300) : [];
+  P.enfers = {};                                       // (§162) les îles démoniaques : [la bascule, la mort du démon], au temps réel
+  if (d.enfers && typeof d.enfers === 'object') for (const [k, v] of Object.entries(d.enfers).slice(-60)) if (/^-?\d+$/.test(k) && Array.isArray(v) && v.length === 2 && v.every(Number.isFinite)) P.enfers[k] = [v[0], v[1]];
   // (§127) l'Achromie : les îles rendues à leurs couleurs, l'île en cours, les pigments
   { const L = Array.isArray(d.achromies) ? d.achromies : Array.isArray(d.grisailles) ? d.grisailles : []; P.achromies = L.filter(Number.isInteger).slice(-300); }   // (§128) l'ancien nom : « grisailles »
   P.grisProg = d.grisProg && Number.isInteger(d.grisProg.g) ? { g: d.grisProg.g, s: Array.isArray(d.grisProg.s) ? d.grisProg.s.filter(x => typeof x === 'string').slice(0, 8) : [],
@@ -26031,7 +26156,7 @@ function appliquer(d, vivantes) {
     if (a) P.denrees.nectar = Math.min(1e4, (P.denrees.nectar || 0) + a); if (b) P.cellier.nectar = Math.min(1e6, (P.cellier.nectar || 0) + b); }
   P.plats = (Array.isArray(d.plats) ? d.plats : []).filter(p => p && typeof p.n === 'string' && typeof p.c === 'string').slice(0, PLATS_MAX)
     .map(p => ({ c: p.c.slice(0, 40), n: p.n.slice(0, 60), q: nb(p.q, 1, 5, 1) | 0, soin: nb(p.soin, 0, 1, 0), tag: EFFETS[p.tag] ? p.tag : null,
-      d: nb(p.d, 0, 1200, 0) | 0, ...(p.u ? { u: nb(p.u, 0, 1.5, 0) } : {}), so: p.so ? 1 : 0, pu: nb(p.pu, 1, 4, 1) | 0, ...(p.rv ? { rv: nb(p.rv, 0, .05, 0), rd: nb(p.rd, 0, 300, 0) | 0 } : {}), parts: nb(p.parts, 1, 8, 1) | 0, ...(Number.isFinite(p.g) ? { g: nb(p.g, 0, 7200, 0) } : {}), col: Array.isArray(p.col) ? p.col.slice(0, 3).map(v => nb(v, 0, 255, 128) | 0) : [196, 130, 80] }));
+      d: nb(p.d, 0, 7200, 0) | 0, ...(p.u ? { u: nb(p.u, 0, 2, 0) } : {}), so: p.so ? 1 : 0, pu: nb(p.pu, 1, 4, 1) | 0, ...(p.rv ? { rv: nb(p.rv, 0, .05, 0), rd: nb(p.rd, 0, 900, 0) | 0 } : {}), parts: nb(p.parts, 1, 8, 1) | 0, ...(Number.isFinite(p.g) ? { g: nb(p.g, 0, 7200, 0) } : {}), col: Array.isArray(p.col) ? p.col.slice(0, 3).map(v => nb(v, 0, 255, 128) | 0) : [196, 130, 80] }));
   P.recettes = {};
   if (d.recettes && typeof d.recettes === 'object') for (const [k, r] of Object.entries(d.recettes).slice(0, 300))
     if (r && typeof r.n === 'string') { const i = Array.isArray(r.i) ? r.i.filter(x => INGR[x]).slice(0, 4) : [];
@@ -26134,6 +26259,7 @@ function appliquer(d, vivantes) {
   }
   installerCompagnes(liste, !!vivantes);
   chaudronLu(d.chaudron); carnetLu(d.carnetAlch);
+  if (typeof forgeLue === 'function') forgeLue(d.forge);   // (§171) la forge, les armes forgées, le carnet, les codes lus
   return true;
 }
 // Remet les compagnes d'une sauvegarde dans le jeu. Une bête déjà dehors sous le même numéro
@@ -26263,7 +26389,7 @@ function adopter(r) {
     }
     return;
   }
-  appliquer(d);
+  appliquer(d); if (typeof brumeReprise === 'function') brumeReprise();   // (§162)
   if (P.camp) noterVisite();
   Sauve.signature = signature(); Sauve.pos = [P.x, P.y];
   ecrireLocal();
@@ -26311,7 +26437,7 @@ function demarrerSauvegarde() {
   if (l && l.uid === Compte.uid) {
     Sauve.rev = l.rev | 0; Sauve.sale = !!l.sale; Sauve.quand = l.quand || 0;
     Sauve.envois = Array.isArray(l.envois) ? l.envois.filter(x => typeof x === 'string' && x.length < 40).slice(-8) : [];   // (§155)
-    if (l.donnees && l.donnees.graine === SEED) appliquer(l.donnees);
+    if (l.donnees && l.donnees.graine === SEED) { appliquer(l.donnees); if (typeof brumeReprise === 'function') brumeReprise(); }   // (§162) l'île se lit avant la sauvegarde
   } else Sauve.sale = true;                              // première partie de ce compte ici
   if (P.camp) noterVisite();                             // l'arrivée s'inscrit au journal
   Sauve.signature = signature(); Sauve.pos = [P.x, P.y]; Sauve.pret = true;
@@ -26610,6 +26736,8 @@ function resize() {
 }
 addEventListener('resize', resize); resize();
 djInit();                                             // les armes d'en bas, leurs places sur le dos, leurs vignettes
+if (typeof roiInit === 'function') roiInit();
+if (typeof forgeInit === 'function') forgeInit();       // (§171) les vignettes de la forge         // (§166) les objets uniques des Cercles de cendre, la couronne du Roi
 redistribuerEffets();                                // un effet varié pour chaque ingrédient
 if (typeof etatsInit === 'function') etatsInit();   // le remède du Korlaz dans les recettes (etats.js)
 loadWorld();
@@ -26619,7 +26747,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-127', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-130', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }
