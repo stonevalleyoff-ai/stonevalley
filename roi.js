@@ -373,6 +373,8 @@ function roiOuvrir(c, force) {
   if (DJ.e === 5 && c.taille === 'garde') for (const id of ['oeufbraise', 'ferdamne', 'poussame', 'fleursoufre']) { const s2 = roiDonnerIngr(id, 2); if (s2) L.push(s2); }   // (§166) le trésor du Roi
   const tome = c.taille === 'garde' && typeof tomeCoffre === 'function' ? tomeCoffre('garde') : '';
   if (tome) { L.push(tome.toUpperCase()); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
+  const plan = typeof forgePlanCoffre === 'function' ? forgePlanCoffre(c.taille, 'cercles') : '';   // (§172) un plan de forge
+  if (plan) { L.push(plan.toUpperCase() + ' (APPRIS)'); if (!tome) SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
   SON.jouer('clank', {}, c.x, c.y, c.z); SON.jouer('ramasse', {});
   burst(c.x, c.y, c.z + .6, 18, tome ? '#c9a2ec' : '#ff9a40');
   say((c.taille === 'garde' ? 'le coffre ' + deG(ROI_GARDE[DJ.e]) + ' · ' : c.taille === 'scelle' ? 'le coffre scellé · ' : c.double ? 'la gueule rend son butin, doublé · ' : DJ.e === 2 ? 'coffre de fer · ' : DJ.e === 3 ? 'coffre d\'ossuaire · ' : 'coffre de cendre · ') + L.join(' · ') + ' · à remonter pour le garder', 5);

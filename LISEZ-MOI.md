@@ -4566,3 +4566,776 @@ Les formes et les noms sont originaux, pas ceux du jeu.
 **Dans le code** : le bloc LES FORMES DU SATELLITE (`SAT_NOMS_FORME`, `SAT_COEUR`, `SAT_PALIERS`, `nomForme`, `stadeVise`, `majForme`, `formeSat`, `osSatellite`). `SAT_FORME` vaut désormais `{ type, stade, anim, de }`. L'ancienne croissance continue du §159 (`SAT_FORME.p`, `maturiteSat`, `stadeDe`) est retirée.
 
 **À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-127`), `LISEZ-MOI.md`.
+
+## 161. Brume sanglante : le Tome I sort de terre à la mort des mages
+
+Le Tome I du cercle ne pouvait être vu avant la mort du dernier mage : le livre aperçu dans le pilier rouge était, très probablement, le lutrin d'une matière (posé avant le cercle, sans que le cercle l'évite).
+
+- **Le cercle évite les autres lutrins** : jamais à moins de 10 cases d'un lutrin des matières ni de l'arche. Son seul livre est le sien. Il reste à la même place à chaque visite (le hasard de la graine).
+- **Le lutrin sort de terre** à la mort du dernier mage (sous vos coups ou sous ceux du démon) : il monte en deux secondes, dans une gerbe de terre et une colonne d'étincelles rouges, avec un grondement et une petite secousse.
+
+**Vérifié** : cinq mages tombés, pas de lutrin ; le sixième tombé, il sort de terre au centre du cercle (images de contrôle à mi-course et à la fin).
+
+**Dans le code** : `placerCercle` (brume.js, `libre`), `majTomesBrume` (`l.surgit`), `lutrinOs` (index.html, l'enfoncement).
+
+**À déposer** : `brume.js`, `index.html`, `sw.js` (qui passe en `stone-valley-128`), `LISEZ-MOI.md`.
+
+## 162. L'île démoniaque
+
+Quand le démon sort du cercle, la brume ne s'épaissit plus : elle se retire d'un coup, et l'île **bascule**.
+
+**La vague.** Elle part du cercle et traverse l'île en quinze secondes, avec un front de braise. Derrière elle :
+- l'eau (lacs, rivières, mer) devient de la **lave** qui bouillonne et luit, la nuit aussi ;
+- l'herbe et les feuilles virent à la **cendre** (les arbres deviennent des arbres-cendre) ;
+- le reste du sol passe au **basalte**, parcouru de veines de lave et piqué de braises ;
+- le **ciel** se ferme, presque noir, rouge sombre à l'horizon ; les nuages deviennent une fumée sombre, et un voile rouge couvre tout ;
+- il pleut de la **cendre**, des braises montent du sol.
+
+**La lave brûle** : environ 9 % de vie par seconde. La potion de braise protège, comme sur la caldeira. On ne pêche pas dans la lave.
+
+**La faune de l'île brûle** quand la vague la rattrape. Vos compagnes, les nomades, les villageois et les automates ne brûlent pas. Les Rôdeurs se défont.
+
+**La flore du démon** sort de terre au passage de la vague : jusqu'à quatorze plantes rares (biome 40 de flore.js), aux raretés habituelles :
+
+| Port | Plantes |
+|---|---|
+| Simples | Étoile du Malin, Clochettes de soufre, Éventail d'obsidienne, Crosse de braise, Orbe-brasier, Ronce ardente |
+| Géantes | Lys de l'abîme, Saule des damnés, Voile de soufre, Arbre-cendre |
+| Vives | Gueule de l'enfer, Fouet d'obsidienne |
+
+Elles donnent leurs ingrédients (cuisine, alchimie) et leurs graines, comme les autres plantes rares. Les nomades ne les vendent pas.
+
+**Les créatures sortent du sol**, près des joueurs que la vague a passés. Elles viennent plus souvent près du cercle et du démon.
+- **Larves de braise** : une à deux. Elles surgissent, rampent, se cabrent et mordent (la morsure brûle deux secondes). Puis elles replongent, filent sous terre (une traînée de terre et de braises trahit leur route) et ressortent à vos pieds. Au bout d'une demi-minute, elles s'enfoncent pour de bon. +1 éclat.
+- **Diablotins** : deux ou trois, qui jaillissent d'une fente rouge. Ils tournent autour de vous en sautillant, fondent griffes en avant ou crachent une boule de feu. Au bout de cinquante secondes, ils replongent. +2 éclats.
+
+**Le combat** garde la valse de la brume.
+
+**La guérison.** Le démon mort, l'île guérit lentement, au temps réel : trente minutes, que vous soyez là ou non.
+
+| Avancement | Ce qui se passe |
+|---|---|
+| Dès la mort du démon | Le ciel commence à se rouvrir (ouvert à 60 %) |
+| 20 à 45 % | La lave se fige en obsidienne fendue |
+| 50 à 80 % | L'obsidienne redevient eau, case à case |
+| 35 à 95 % | La cendre reverdit, case à case |
+| 40 à 85 % | La flore du démon se fane, plante par plante |
+| Jusqu'à 70 % | Les créatures se font de plus en plus rares, puis plus rien |
+| À partir de 55 % | La faune revient |
+
+**Le retour.** Si vous quittez l'île pendant le combat, vous la retrouvez démoniaque et le démon vous attend. Les mages sont morts, le Tome I est sur son lutrin. Après la mort du démon, vous la retrouvez où en est sa guérison.
+
+**Correctif au passage.** La sauvegarde n'est lue qu'après la construction de l'île. Une île dont vous aviez levé la brume la retrouvait donc au retour, mages compris. De même, un livre de la brume déjà lu se rallumait. Maintenant, la sauvegarde lue, l'île est remise dans l'état où vous l'avez laissée (`brumeReprise`).
+
+**En plusieurs** :
+- le gardien de l'île dit au suiveur que le démon est sorti, et l'île bascule chez lui aussi ;
+- la flore du démon et les créatures sont des bêtes du gardien (la faune partagée dit désormais quelle plante rare est une plante semée en cours de partie) ;
+- l'état de l'île (`P.enfers`) est propre à chacun.
+
+**Sans carte graphique** (canvas), l'île n'est qu'assombrie et teintée par un filtre. La lave, les veines et la cendre case par case demandent la carte graphique.
+
+**Vérifié** :
+- la bascule, la vague, la faune qui brûle, la flore qui sort ;
+- la lave, le basalte et la cendre, de jour et de nuit, en vue de dessus et en 1re personne ;
+- les larves (surgir, ramper, mordre, replonger, ressortir) et les diablotins (rôder, griffer, cracher : 13 boules de feu en 35 s), le tout pas à pas ;
+- la guérison à 30, 60 et 90 % ;
+- le retour sur l'île (démon vivant, puis guérison à 62 et 80 %) à travers la sauvegarde ;
+- le filtre canvas ; une île ordinaire inchangée.
+
+**Dans le code** :
+- brume.js : le bloc L'ÎLE DÉMONIAQUE (`ENF`, `debutEnfer`, `guerirEnfer`, `majEnfer`, `brulerFaune`, `nesEnfer`, `surgirEnfer`, `majLarve`, `majDiablotin`, `osLarve`, `osDiablotin`, `lieuxEnfer`, `poserPlanteEnfer`, `enferGL`, `enferCss`, `enferCielK`, `laveIci`, `enferFaune`), et `brumeReprise` / `reprendreEnfer` ;
+- index.html : `ENFER_GLSL` (`enfer()` dans DECOR_FS, ni sur les bêtes ni sur les objets), le drapeau « eau » des sommets (65536), `couleurCiel`, `capEsp` (devenue `capEsp0`), la musique, la pêche, la sauvegarde ;
+- flore.js : la palette 40 ; faune.js : `k.pl` ; etats.js : le filtre ; nomades.js.
+
+**À déposer** : `brume.js`, `index.html`, `flore.js`, `faune.js`, `etats.js`, `nomades.js`, `sw.js` (qui passe en `stone-valley-129`), `LISEZ-MOI.md`.
+
+## 163. Les Cercles de cendre : le donjon du Roi démon (premier cercle)
+
+**La Brèche.** Dès que l'île bascule (§162), une faille rougeoyante s'ouvre dans le sol, à dix ou dix-sept cases du cercle (la graine en décide). Des braises en montent, et un message la signale quand on approche. ACTION : DESCENDRE. On peut y plonger pour fuir le démon. Elle reste ouverte tant que l'île est démoniaque et se referme quand l'île a guéri. Si vous êtes en bas à ce moment-là, vous remontez quand même.
+
+**Les règles** sont celles du Centre des automates :
+- le plan sort de la graine, le même pour tous les joueurs de l'île ;
+- chaque étage a son canal, et ses bêtes sont partagées ;
+- le butin n'est à vous qu'une fois remonté, par un **soupirail** (une chaîne qui pend du plafond, un cercle de braise au sol) ;
+- terrassé, vous vous réveillez près de la Brèche, sans ce que vous avez trouvé.
+
+**Le décor.** Tout est basalte, veiné de lave (le rendu de l'île démoniaque, partout). Le ciel de la roche est rouge sombre, la musique est la valse de la brume, et des braises flottent dans l'air.
+
+**Le premier cercle : les Galeries de cendre.** Neuf à onze salles :
+
+| Salle | Ce qu'on y trouve |
+|---|---|
+| Arrivée | Le soupirail |
+| Rivière | Une rivière de lave en travers, un pont d'obsidienne, un coffre, parfois un diablotin |
+| Nid | Des œufs de braise ; deux ou trois larves, tapies sous terre, qui jaillissent quand elles vous voient |
+| Fente | Une fente rouge au sol ; deux ou trois diablotins |
+| Trésor | Un ou deux coffres de cendre ; une larve tapie |
+| Braseros | Quatre braseros, deux mares de lave, parfois un diablotin |
+| La Mère | Voir plus bas |
+
+- **Les ponts d'obsidienne** se fissurent sous les pas, s'effondrent une seconde et demie plus tard, et la lave se refige en douze secondes.
+- **La lave** brûle comme à la surface.
+- **Les geysers de feu** sont dans les couloirs, par paires. Ils grondent (des braises montent), puis crachent une seconde, toutes les 3,6 s, à la même cadence pour tous. Un geyser fait 9 % de dégâts et brûle une seconde et demie.
+- **Les larves et les diablotins** ne chassent ici que ce qu'ils voient (ou ont vu il y a moins de six secondes), ne s'en vont jamais, et une larve sans proie attend sous terre.
+
+**La Mère des larves**, gardienne du cercle :
+- une larve de quatre mètres, l'abdomen gonflé d'œufs qui battent ;
+- elle dort jusqu'à ce qu'on entre, puis le basalte ferme sa salle ;
+- **elle mord** : elle se cabre 0,7 s avant, en cône devant elle (15 %, la morsure brûle) ;
+- **elle plonge** toutes les dix à quatorze secondes : elle file sous terre vers vous (le sol tremble, on ne peut pas la toucher), un cercle de braise marque où elle va jaillir, et elle frappe tout ce qui s'y trouve (18 %, projeté) ;
+- **elle pond** deux larves toutes les quatorze secondes, quatre au plus ;
+- morte : +25 éclats et +8 os ; la salle se rouvre et son coffre se descelle (éclats, os, ferraille, pierre, et parfois un tome).
+
+Dans sa salle se trouvent aussi un soupirail et l'escalier du cercle suivant, que ferme pour l'instant un **sceau de feu**. Les Forges hurlantes, les Ossuaires, les Jardins de soufre et le Trône viendront dans les deux prochaines livraisons.
+
+**Vérifié** :
+- la Brèche (sa place, son ouverture avec la vague, l'action) ;
+- la descente d'essai ;
+- le plan : 11 salles, 6 coffres, 2 ponts, 6 geysers ;
+- la Mère pas à pas sur 40 s : mordre, plonger, sous terre, jaillir, pondre (4 larves) ;
+- la salle qui se ferme et se rouvre, le coffre scellé puis ouvert, le sceau ;
+- le pont (fissure, chute, lave, retour), le geyser (dégâts), la mort en bas (retour à la surface) ;
+- les images : lave et pont, œufs, Mère, soupirail.
+
+**Dans le code** :
+- **roi.js** (nouveau) : la Brèche, `roiGenere`, `roiPeupler`, `roiMaj`, `roiAction`, `roiOuvrir`, la Mère (`majMere`, `actionMere`, `osMere`), `roiDecor` ;
+- **donjon.js** : `DJ.etat.th === 'roi'` passe la main à roi.js ; la porte de la salle et la mort disent « la Mère », « la Brèche » ;
+- **brume.js** : `cibleEnfer`, le routage de la Mère, la lave en bas (`enferGL`) ;
+- **index.html** : le ciel, la musique, le bandeau, `ROI_SPEC`, le script ;
+- **sw.js** : roi.js dans le cache.
+
+**À déposer** : `roi.js` (nouveau), `donjon.js`, `brume.js`, `index.html`, `sw.js` (qui passe en `stone-valley-130`), `LISEZ-MOI.md`.
+
+## 164. Les Forges hurlantes, les pactes et la clé d'os (deuxième cercle)
+
+L'escalier de la Mère des larves s'ouvre : il mène au **deuxième cercle**, les Forges hurlantes. Les murs sont de cendre et de fer, avec des bords rougis. Des chaînes pendent du plafond et se balancent.
+
+**Les salles** : forge, chenil, coulée, armurerie, salle des chaînes, salle d'arrivée (avec l'autel et un soupirail), et la salle du Bourreau.
+
+**Les pièges** :
+- les **marteaux-pilons** frappent toutes les 2,8 s ; leur sole rougit juste avant le coup. Un coup fait 14 % de dégâts et repousse. Ils écrasent aussi les bêtes ;
+- les **coulées** sont des canaux de deux cases en travers de certaines salles. Le métal y coule 2,4 s, puis se fige 3 s. Juste avant la vague, la croûte s'éclaire et clignote.
+
+Les pilons et les coulées suivent l'horloge de l'île : tous les joueurs les voient battre au même rythme.
+
+**Les bêtes** :
+- le **forgeron damné** est lent et porte un bouclier devant lui : de face, il n'encaisse que 15 % des coups, il faut le prendre de dos. Il lève son marteau, puis l'abat ;
+- les **chiens de l'Abîme** dorment en meute dans le chenil, rôdent et mordent. La morsure brûle.
+
+**Le Bourreau** (le gardien) : sa salle se ferme sur vous. Il commence par lancer sa chaîne : un trait rouge au sol montre où elle va. Si elle vous touche, elle vous tire contre lui et sa hache tombe 0,6 s plus tard. De près, il frappe seulement à la hache. Sous la moitié de sa vie, il fait tournoyer ses chaînes.
+- Sa mort rapporte +30 éclats, +10 os, 2 fers damnés et la **clé d'os**. La salle se rouvre.
+
+**La clé d'os** : à chaque cercle, un **coffre scellé**, cerclé de chaînes et fermé par une serrure d'os, attend dans une armurerie (au premier cercle : dans une salle des Galeries). Il ne s'ouvre qu'une fois le gardien du cercle abattu. Il contient 8 à 12 éclats, 4 à 7 os et 5 à 9 ferrailles, plus 2 fers damnés aux Forges.
+
+**Les coffres-gueules** : un coffre sur dix mord (un sur quatre avec l'Avarice). La gueule se jette sur vous. Abattue, elle rend son butin doublé. Le tirage dépend de la graine : sur une même île, ce sont les mêmes coffres.
+
+**Les pactes** : l'autel de basalte de la salle d'arrivée propose trois pactes, tirés de la graine. On en prend un (touches 1 à 3, Échap pour refuser). Un autel ne sert qu'une fois. Les pactes s'additionnent et durent jusqu'à la remontée ou la mort.
+
+| Pacte | Avantage | Prix |
+|---|---|---|
+| Braise | vos coups brûlent | la lave et le feu brûlent deux fois plus |
+| Sang | chaque coup porté rend un peu de vie | la vie ne dépasse plus les trois quarts |
+| Avarice | butin des coffres doublé | un coffre sur quatre a des dents |
+| Fer | −30 % de dégâts reçus | −15 % de vitesse |
+| Ombre | les bêtes vous voient deux fois moins loin | rien ne vous soigne |
+| Hâte | +20 % de vitesse et de cadence | +25 % de dégâts reçus |
+
+Les pactes pris s'affichent dans le bandeau du donjon.
+
+**Le fer damné** (ingrédient d'alchimie) : il est de famille *Démoniaque*, de rareté 5, et porte l'étiquette *braise*. Il ne se trouve qu'aux Forges :
+- 3 dans le coffre du Bourreau, 2 dans le coffre scellé, 1 dans un petit coffre sur quatre ;
+- 1 sur un forgeron sur trois.
+
+Comme tout le butin du donjon, on le perd si l'on meurt avant de remonter. En alchimie, il remplit n'importe quelle étape « au choix ». Sa rareté élevée augmente les chances de réussite de la potion.
+
+**Vérifié** (descente d'essai) :
+- le plan : 9 salles, 4 pilons, 2 coulées, 14 chaînes, l'autel ;
+- les bêtes : 4 forgerons, 2 chiens et le Bourreau ;
+- le bouclier : 0,04 de dégâts de face, 0,27 de dos ;
+- le forgeron qui frappe, la meute (sommeil, rôde, morsure, brûlure) ;
+- le pilon (2 coups en 7 s), la coulée (figée, puis coulante, puis dégâts) ;
+- le Bourreau : le lancer, la chaîne qui happe à 4 cases et ramène contre lui, puis la hache ;
+- le Fer (×0,7), le Fer et la Hâte ensemble (×0,875) ;
+- l'Avarice avec la gueule ; le coffre scellé ;
+- la Braise (la bête brûle), le Sang (vol de vie, vie plafonnée à 0,75) ;
+- le fer damné perdu à la mort ; l'autel (choix à la touche 2, bandeau).
+
+**Dans le code** :
+- **roi.js** :
+  - `genForges`, `peuplerForges`, `majForges`, `decorForges`, et `roiPlan` (le plan des salles, mis en commun avec les Galeries sans rien changer à leurs plans) ;
+  - les bêtes : `ROI_CORPS`, avec `majForgeron`, `majChien`, `majBourreau`, `majGueule` et leurs modèles `os*` ;
+  - les pactes : `PACTES`, `pacte`, `majPactes`, `ouvrirAutel`, `choisirPacte`, `roiHud` ;
+  - `roiDonnerIngr`, `roiGueule` ;
+- **brume.js** : le routage des bêtes du Roi, `pacteVue` dans `cibleBrume` et `cibleEnfer` ;
+- **donjon.js** : `djPropre` garde les pactes, les autels utilisés et les ingrédients trouvés en bas ; `djRendre` retire ces ingrédients à la mort ; le bandeau affiche les pactes ;
+- **index.html** : `INGR.ferdamne`, la famille *Démoniaque*, et les pactes dans `degSubi`, `degJoueur` (le bouclier), la vitesse, la cadence et `blesseParJoueur` ;
+- **sw.js** : `stone-valley-131`.
+
+**À déposer** : `roi.js`, `donjon.js`, `brume.js`, `index.html`, `sw.js`, `LISEZ-MOI.md`.
+
+## 165. Les Ossuaires (troisième cercle)
+
+L'escalier du Bourreau s'ouvre : il mène au **troisième cercle**, les Ossuaires. Ce sont des catacombes noires, la nuit en plein donjon.
+
+**La lumière** : seules la lave et la lanterne éclairent.
+- Ce qui donne de la lumière : les bassins, les fosses et les rigoles de lave, les dalles ouvertes, et la pâle lueur des âmes.
+- Sans lanterne, on ne voit qu'à trois ou quatre pas.
+- Les murs sont d'os : des niches de crânes et deux rangs de fémurs empilés.
+- Dans la lumière, la poussière flotte. Au loin, de pâles lueurs passent.
+
+**Les salles** : arrivée (avec l'autel et un soupirail), crypte, ossuaire, fosse, galerie des gargouilles, salle piégée, salle effondrée, et la salle du Chœur.
+- Crypte : des sarcophages, certains au couvercle glissé.
+- Ossuaire : une rigole de lave au pied du mur, des chaînes.
+- Fosse : un puits de lave entre quatre pieux à crâne.
+
+**Les pièges** :
+- **Les dalles** : un joint un peu plus sombre les trahit. Sous le pied, un déclic : le joint rougeoie, et une demi-seconde plus tard la dalle s'ouvre sur la lave. Elle se referme quatre secondes après, si personne n'est dedans. On en trouve dans les couloirs et dans la salle piégée.
+- **Les plafonds** : on passe dessous, la poussière tombe, et une ombre grandit au sol pendant 1,2 s. Puis les pierres tombent : 16 % de dégâts dans l'ombre. Les gravats restent.
+
+**Les bêtes** :
+- **L'âme en peine** traverse les murs.
+  - Quand elle vous sent, elle glisse vers vous et boit votre vie : sa vie remonte, et un filet de lueurs va de vous à elle.
+  - La lumière d'une lanterne la tient à distance. Trop près, elle fuit en sifflant. Au bord de la lumière, elle tourne et guette.
+- **La gargouille** ne bouge que quand on lui tourne le dos.
+  - Il suffit d'un regard à moins de 72°, sans mur entre vous, pour qu'elle redevienne pierre. Elle reste alors figée, dans la pose où on l'a surprise.
+  - De dos, elle bondit et griffe. Ses yeux ne s'allument que quand elle bouge.
+  - Figée, la pierre encaisse : elle ne prend que 55 % des coups.
+  - Dans la galerie, la plupart des statues ne sont que de pierre.
+
+**Le Chœur des damnés** (le gardien) : trois voix liées par des fils de lumière, chacune de sa teinte. Elles tournent autour du puits.
+- Sa salle se ferme sur vous.
+- **Le cri** : une voix crie (sa bouche s'ouvre et luit 0,7 s), et une onde court au sol. Il faut la sauter.
+- **La morsure** : trop près d'une voix, elle boit votre vie.
+- **L'accord** : environ toutes les douze secondes, un triangle de lumière se tend au sol entre les voix vivantes et bat de plus en plus vite. Qui s'y trouve encore 1,6 s plus tard prend 20 % de dégâts.
+- **Les voix qui se relèvent** : une voix abattue laisse une flamme pâle. Si les autres chantent encore six secondes après la première chute, les voix tombées se relèvent à moitié de leur vie. Plus il reste de voix à terre, plus le Chœur tourne vite et plus les cris pressent.
+- **La victoire** : les trois voix à terre en même temps, le Chœur se tait. Il rapporte +35 éclats, +12 os, 3 poussières d'âme et la clé d'os. La salle se rouvre, et son coffre et le coffre scellé (dans une crypte) se descellent.
+
+L'escalier du quatrième cercle est dans sa salle, encore scellé : les Jardins de soufre viendront avec le Roi.
+
+**La poussière d'âme** (ingrédient d'alchimie) : famille *Démoniaque*, rareté 5, étiquette *nuit*.
+- Où la trouver : 3 sur le Chœur, 3 dans son coffre, 2 dans le coffre scellé, 1 dans un petit coffre sur quatre, 1 sur une âme sur trois.
+- Elle se perd si l'on meurt en bas.
+- En alchimie, elle remplit les étapes « au choix », comme le fer damné.
+
+**L'autel** : il propose trois pactes dans la salle d'arrivée de ce cercle aussi. Les pactes du deuxième cercle s'ajoutent.
+
+**Corrigé au passage** (§164) :
+- en bas, le sol n'est plus d'aucun biome : les Forges n'annoncent plus la « Terre des automates » comme un biome découvert, et la croûte figée d'une coulée ne brûle plus (seul le métal qui coule brûle) ;
+- le pacte d'Ombre ne s'appliquait pas deux fois aux bêtes des Cercles ;
+- (déjà dans la version 131, non signalé) le Bourreau lance sa chaîne 1,2 s après son réveil au lieu de 3 : avant, on était à portée de hache avant qu'il ne la lance.
+
+**Vérifié** (descente d'essai, du deuxième cercle au troisième) :
+- l'escalier du Bourreau mort ;
+- le plan : 11 salles, 31 dalles, 7 plafonds, 22 lumières de lave ;
+- les bêtes : 12 âmes, 7 gargouilles dont 3 statues, et le Chœur ;
+- le noir (noirceur 1, huit lumières) ;
+- la dalle (déclic, ouverture, la chute dans la lave, puis elle se referme) ;
+- le plafond (ombre, chute, 19 % de dégâts) ;
+- l'âme sans lanterne (elle vient et boit) puis avec (elle fuit et guette) ;
+- la gargouille immobile de face, qui bondit et griffe de dos, puis se fige ;
+- le Chœur : le réveil, la salle fermée, les cris et les ondes, l'accord, une voix qui se relève, puis les trois ensemble (fini, butin, salle rouverte, coffre scellé ouvert) ;
+- la poussière d'âme perdue à la mort ;
+- les images : arrivée, crypte, ossuaire, gargouilles, âme, Chœur et accord, plafond.
+
+**Dans le code** :
+- **roi.js** :
+  - `genOssuaires`, `peuplerOssuaires`, `majOssuaires`, `majChoeurSalle`, `decorOssuaires` ;
+  - `roiLueurs`, `roiNoir`, `roiCiel` ;
+  - les bêtes et leurs modèles : `majAme`/`osAme`, `majGargouille`/`osGargouille`, `majChoeur`/`osChoeur` ;
+  - `pierreK`, `roiDegK`, `ROI_INGR` ;
+- **index.html** :
+  - `lumiere` (la nuit des Ossuaires), `couleurCiel`, `majFeux` (`roiLueurs`) ;
+  - le shader : si `uEnf2.w < 0`, seule la lave est touchée ;
+  - `degJoueur` (`roiDegK`), `INGR.poussame`, `majBiome` ;
+- **brume.js** : `enferGL`, `cibleEnfer` ;
+- **donjon.js** : la salle du Chœur se ferme ;
+- **sw.js** : `stone-valley-132`.
+
+**À déposer** : `roi.js`, `index.html`, `brume.js`, `donjon.js`, `sw.js`, `LISEZ-MOI.md`.
+
+## 166. Les Jardins de soufre, le Trône, les reliquaires et les objets uniques
+
+La dernière livraison des Cercles de cendre. Le code est dans un nouveau fichier, **trone.js** ; roi.js garde la main et l'appelle selon le cercle. Les quatre cercles et le Trône sont maintenant tous ouverts.
+
+### Le quatrième cercle : les Jardins de soufre
+
+**Le décor** : un sol de soufre et d'ocre, des plaques de mousse rouge, des murs de cendre noire où grimpent des lianes à épines piquées de fleurs rouges. Une brume jaune flotte (un voile sur le rendu, un fond de couleur soufre). Du pollen qui luit, de la cendre qui tombe.
+
+**La flore vive du démon** : ce sont les plantes de l'île démoniaque (flore.js).
+- des fleurs à cueillir ;
+- des géantes (le Saule des damnés, l'Arbre-cendre…) ;
+- des vives, qui mordent ou fouettent (la Gueule de l'enfer, le Fouet d'obsidienne).
+
+À côté poussent des **lys de soufre** dans des parterres bordés de pierre, des gerbes de **cristaux de soufre**, des ronces noires aux épines rouges, des fumerolles qui crachent une fumée jaune.
+
+**Les salles** : arrivée (avec l'autel et un soupirail), serre, fumerolles, cercle des sorcières (des cierges noirs, un chaudron qui bouillonne), salle des geysers, mare de lave bordée de cristaux, roncier, reliquaire, et le jardin du gardien.
+
+**Les dangers** :
+- **les poches de soufre** : on s'y empoisonne et la vie baisse. Au contact du feu (un cercle de sorcière, un geyser), elles **explosent** : 20 % de dégâts et une brûlure. Elles se remplissent quatorze secondes plus tard.
+- **les geysers de flammes** : ils grondent 1,4 s, puis crachent une colonne de près de quatre mètres pendant 1,5 s.
+
+**La sorcière de soufre** : bossue, chapeau pointu à ruban jaune, bâton coiffé d'une pierre de soufre.
+- Elle se tient à six ou neuf pas et tourne autour de vous.
+- Toutes les quatre secondes environ, elle incante un **cercle de feu** là où vous allez : le cercle s'allume 1,3 s avant que les flammes ne montent, et elles brûlent 3 s.
+- Trop près, elle disparaît dans un nuage jaune et reparaît plus loin.
+
+**Le Jardinier** (le gardien) : une gueule géante enracinée au milieu de sa salle, entre six pétales, avec six lianes qui courent jusqu'aux murs.
+- **La morsure** : il mord qui s'approche ; ses pétales s'ouvrent avant.
+- **Le fouet** : une liane se soulève en rougeoyant (un trait rouge au sol), puis s'abat sur toute sa longueur.
+- **L'étreinte** : sous le plus éloigné, un anneau de racines, puis une liane jaillit et le tient 1,8 s.
+- **Les graines** : il en crache, et elles éclatent en poches de soufre.
+- **La floraison** : à mi-vie, il fleurit. Deux plantes vives sortent de terre et le soufre de la salle s'embrase.
+- **Sa mort** : +40 éclats, +14 os, 3 fleurs de soufre et la clé d'os.
+
+### Le Trône
+
+**L'antichambre** : le soupirail, l'autel des pactes, deux démons de pierre, des braseros et des bannières. Une allée y mène à la salle du Trône (vingt-huit cases sur vingt-quatre) :
+- un tapis rouge bordé d'or jusqu'à l'estrade ;
+- huit piliers en deux rangées ;
+- des bannières rouges à la couronne d'or, des braseros sur trépied ;
+- des cages pendues à des chaînes, des crânes au pied de l'estrade ;
+- deux rigoles de lave le long des murs ;
+- et le trône : un dossier immense hérissé de cornes, des accoudoirs à crânes.
+
+**Le Roi démon** : trois mètres et demi, une armure noire filetée d'or, une cape cramoisie, deux cornes, l'épée de flammes, de grandes ailes repliées. Sa couronne a sept pointes d'obsidienne et des pierres de braise.
+- **Assis** (au-dessus des deux tiers de sa vie) : il appelle trois diablotins, fait jaillir des colonnes de feu (un cercle au sol 1,4 s avant), et balaie de son épée qui monte sur l'estrade.
+- **Il se lève** : 2,2 s pendant lesquelles on ne le touche pas. L'onde repousse tout le monde.
+- **Debout** :
+  - l'épée de flammes en arc ;
+  - la chaîne, qui vous tire contre lui avant l'épée ;
+  - la charge en ligne droite, annoncée par un trait rouge au sol. S'il heurte un pilier, le pilier tombe et le Roi reste sonné 1,6 s.
+  - Toutes les seize secondes, un pilier tombe de lui-même (il tremble et se fend avant). Ses tambours restent couchés en travers : un abri, et plus tard un îlot.
+- **Sous 30 %** : il s'envole, et le sol de la salle s'effondre en lave. Il rougeoie 2,5 s avant de céder du bord vers le centre ; il ne reste que l'estrade, les piliers tombés, sept îlots et l'entrée.
+  - Dans les airs, on ne le touche pas.
+  - Il crache des boules de feu (que le Bouclier d'obsidienne renvoie).
+  - Il plonge sur vous : une ombre grandit au sol, et il frappe à l'impact.
+  - Puis il reste **étourdi** 2,4 s, à genoux, la couronne embrasée : c'est son point faible, les coups y comptent double et plus.
+- **Sa mort** : +80 éclats, +24 os, 2 Sang du Roi et la **Couronne du Roi démon**. La lave se refige, et son coffre se descelle : éclats, os, ferraille, pierre et deux de chaque ingrédient des cercles.
+
+### Les reliquaires
+
+Chaque cercle a maintenant sa salle de défi. Au fond, un reliquaire scellé (une châsse noire cerclée d'or) attend sur un socle, entre des cierges noirs, et trois sceaux marquent le sol.
+- Qui entre, la porte se ferme.
+- Trois vagues sortent des sceaux, de plus en plus fortes : larves et diablotins, chiens et forgerons, âmes et gargouilles, sorcières et plantes vives.
+- La dernière tombée, la porte se rouvre et le reliquaire se descelle.
+- Il donne l'**objet unique** du cercle. Si on l'a déjà, il donne un trésor : éclats, os et deux ingrédients du cercle.
+
+Pour les trois premiers cercles, la salle de défi prend la place d'une salle sans relief : un trésor, une armurerie, une salle effondrée. Le plan des salles ne change pas, mais ce qu'elles contiennent change un peu.
+
+### Les objets uniques
+
+On ne les trouve nulle part ailleurs. Comme tout le butin d'en bas, ils ne sont à vous qu'une fois remontés.
+
+| Objet | Où | Ce qu'il fait |
+|---|---|---|
+| Bouclier d'obsidienne (armure) | les Galeries | −55 % de dégâts ; porté dans le dos ; une boule de feu qui arrive de face repart vers celui qui l'a lancée |
+| Fouet de chaînes (arme) | les Forges | dégâts 50, portée de quatre pas ; la chaîne file devant vous et tire la bête jusqu'à vous (pas les gardiens ni les grosses bêtes) |
+| Bâton de l'Abîme (grimoire) | les Ossuaires | une boule de feu noire et rouge, vers ce que vous visez ; elle éclate : dégâts et brûlure à deux pas et demi, des brasiers au sol |
+| Lame de soufre (arme) | les Jardins | dégâts 84, très vive ; une lame noire au fil jaune ; vos coups brûlent, partout, pas seulement en bas |
+
+**La Couronne du Roi démon** est une curiosité épique, la plus haute rareté : coups puissants, insensible aux braises, et la vie revient d'elle-même.
+
+**Les ingrédients** (famille *Démoniaque*) :
+- l'**œuf de braise** aux Galeries (rareté 4, *braise*), sur la Mère et dans les coffres ;
+- la **fleur de soufre** aux Jardins (rareté 5, *souffle*), sur les sorcières, le Jardinier et dans les coffres ;
+- le **Sang du Roi** (rareté 6, la plus haute, *braise*), seulement sur le Roi.
+
+**Corrigé au passage** :
+- « le coffre de le Bourreau » devient « le coffre du Bourreau » (de même pour le Chœur, le Jardinier et le Roi) ;
+- la brûlure des bêtes (pacte de Braise, Lame de soufre) marche maintenant partout.
+
+**Vérifié** (descente d'essai, des Galeries au Trône) :
+- les cinq plans, sans erreur ;
+- le reliquaire : trois vagues, la porte, l'objet unique ;
+- la Lame de soufre (la brûlure), le Fouet (une bête ramenée de 3,8 à 1,2 pas) ;
+- le Bouclier (renvoyée de face : le diablotin prend 84 % ; de dos, elle touche) ;
+- le Bâton (la cible et sa voisine abattues) ; la perte des uniques à la mort ;
+- la sorcière (cercles, distance, disparition) ; la poche de soufre (poison, explosion) ;
+- le Jardinier : morsure, fouet, étreinte, graines, floraison, mort, salle rouverte, escalier ;
+- le Roi : assis (colonnes, diablotins), levé (intouchable), debout (épée, chaîne qui happe, charge et sonné, un pilier tombé), envol (517 cases de lave), vol (intouchable), boules de feu, plongée, étourdi (×2,2) ;
+- sa mort : butin, couronne, lave refigée, coffre ;
+- les images de chaque salle et de chaque phase.
+
+**Dans le code** :
+- **trone.js** (nouveau) :
+  - les objets : `roiInit`, `roiGeomArme`, `roiDos`, `roiCoupArme`, `roiMajArmes`, `roiRenvoi`, `roiSortAbime`, `roiAbimeExplose` ;
+  - les reliquaires : `peuplerReliquaire`, `lancerVague`, `majReliques`, `ouvrirReliquaire`, `decorReliquaire`, `decorReliques` ;
+  - les Jardins : `genJardins`, `peuplerJardins`, `planteJardin`, `majJardins`, `exploserGaz`, `cercleFeu`, `majSorciere`, `clignoter`, `majJardinier`, `actionJardinier`, `osSorciere`, `osJardinier`, `decorJardins` ;
+  - le Trône : `genTrone`, `peuplerTrone`, `majTrone`, `tomberPilier`, `effondrerTrone`, `majRoi`, `actionRoi`, `roiK`, `osRoi`, `decorTrone`, `roiButinBas` ;
+- **roi.js** :
+  - la répartition par cercle, les salles de défi des trois premiers cercles, les espèces, `ROI_INGR` ;
+  - les geysers « grands », `deG`, `roiTerreNue`, `roiVoile` ;
+- **index.html** :
+  - le script trone.js, `roiInit` ;
+  - les crochets de l'arme en main, du dos, de la traînée, du sort, du tir renvoyé, du voile ;
+  - les trois ingrédients ; « le Trône » dans le bandeau ;
+- **brume.js** : `roiTerreNue` ; le Jardinier et le Roi se défont lentement ;
+- **donjon.js** : les salles du Jardinier et du Roi se ferment ; `defis` dans la sauvegarde ;
+- **sw.js** : `stone-valley-133` et trone.js.
+
+**À déposer** : `trone.js` (nouveau), `roi.js`, `index.html`, `brume.js`, `donjon.js`, `sw.js`, `LISEZ-MOI.md`.
+
+## 167. La magie, plus forte ; le pupitre montre ce qui est verrouillé
+
+**Plus forte** :
+
+| Forme | Dégâts (avant → après) | Prix en éclats |
+|---|---|---|
+| Trait | 35 → 60 | 5 → **2** |
+| Onde | 20 → 34 | 10 |
+| Piège | 45 → 75 | 8 |
+| Mur | 12 → 20 | 12 |
+| Égide | 15 → 25 (rendus à qui vous frappe) | 12 |
+
+Le prix d'un sort reste celui de sa forme plus celui de sa matière : un Trait de vent coûte maintenant 5 éclats au lieu de 8. Les dégâts sont ensuite multipliés par le poids de la matière (le Cristal ×1,6, le Vent ×0,5…).
+
+**L'égide tient dix minutes** (quatorze avec le circonflexe), au lieu de dix secondes. Elle se garde dans la sauvegarde, et suit donc d'une île à l'autre et d'un cercle à l'autre. Les autres joueurs la voient tout du long.
+
+**Le pupitre** : le bouton « mêler » et la ligne des accents se montrent même verrouillés, grisés d'un cadenas, avec ce qui manque :
+- **mêler deux matières** : la bibliothèque de niveau 2 (le coût s'affiche), et le Tome I de chacune ; leurs Tomes II rendent le mélange stable ;
+- **les accents** : la bibliothèque de niveau 3, et le Tome III de chaque matière de la phrase. Un accent qu'il manque un Tome III pour poser est en pointillé, et une note dit lequel (la Tisseuse de fer le porte).
+
+**Corrigé** : déchiffrer un Tome II disait « cette matière pourra se mélanger ». On peut mêler dès les Tomes I : le Tome II rend les mélanges stables, et le message le dit maintenant.
+
+**Vérifié** :
+- le pupitre au niveau 1 (verrous et notes) et au niveau 3 (mélange, accent, note du Tome III) ;
+- un Trait de vent à 5 éclats ;
+- une égide de 600 s, toujours là après une relecture de la sauvegarde ;
+- l'inscription d'un mélange accentué.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-134`), `LISEZ-MOI.md`.
+
+## §168 — La nourriture, plus forte et plus longue
+
+**Les durées** :
+- l'effet d'un plat dure trois fois plus longtemps (135 s par ingrédient qui le porte, au lieu de 45) ;
+- les plafonds passent de 10 à 30 min, et de 20 à 60 min pour les plats légendaires et épiques (×1,5 pour un plat parfait) ;
+- la régénération des plats légendaires dure 3 min (au lieu d'1), celle des épiques 4 min 30 (au lieu d'1 min 30).
+
+**La force** :
+- **Soin** : la vie rendue par un plat cuisiné passe à environ ×1,4. Le bonus des plats rares passe de +10 % à +15 %, celui des légendaires de +30 % à +40 %. Manger cru ne change pas.
+- **Régénération** : 1,5 %/s (légendaire), 3 %/s (épique).
+- **Par niveau d'effet** :
+  - coups puissants +35 % (au lieu de +25 %) ;
+  - peau dure −25 % (au lieu de −20 %), jusqu'à −70 % ;
+  - pas vif +20 % ;
+  - saut +16 % ;
+  - vampire 2,2 % de vie par coup ;
+  - gel plus long ;
+  - épines 40 % du coup rendu ;
+  - meute +35 % ;
+  - vision de nuit plus large.
+- **Vie en plus et second souffle** : plus gros par plat. Les plafonds passent à 100 % (vie) et 200 % (souffle).
+- **Les parts** : une part d'un plat à plusieurs parts vaut les trois quarts du plat entier (vie et durée), au lieu de la moitié.
+
+**Remarques** :
+- Les curiosités qui donnent un effet de plat profitent aussi des nouveaux niveaux.
+- Les plats déjà cuisinés gardent leurs anciennes valeurs. Seuls les nouveaux en profitent.
+
+**Vérifié** :
+- un plat de 3 ingrédients rend 60 % de vie, avec un effet de 5 min 51 ;
+- un plat légendaire rend 75 % de vie, avec un effet de 16 min et 3 min de régénération ;
+- un plat parfait donne un effet de niveau II pendant 8 min 47, affiché au HUD ;
+- aucune erreur.
+
+**À déposer** : `index.html`, `faune.js`, `sw.js` (qui passe en `stone-valley-135`), `LISEZ-MOI.md`.
+
+## §169 — L'alchimie : la chance fait la puissance
+
+La puissance d'une potion dépend de la chance qu'elle avait au moment de la mise en fiole : **puissance = 50 % + la chance**.
+- 5 % de chance donnent 55 % de puissance, 50 % donnent 100 %, 95 % donnent 145 %.
+- Une potion parfaite donne 150 %.
+
+**Effet en jeu** :
+- Chaque rang garde sa puissance. Une caractéristique vaut la somme des puissances de ses rangs. Exemple : deux rangs, l'un à 150 %, l'autre à 77 %, valent 2,27 rangs.
+- Cela vaut pour les huit caractéristiques du joueur, et pour la récolte et la défense des compagnes.
+- Les compétences éveillées (boule visqueuse, charge…) restent par rang.
+- L'encre ne change pas : deux éclats si la potion est parfaite.
+
+**Affichage** :
+- la fenêtre de la potion montre la puissance prévue, sous la chance de réussite ;
+- elle montre aussi la valeur avant → après, avec cette puissance ;
+- le message et le bilan de la fiole disent la puissance obtenue ;
+- les tuiles montrent les valeurs réelles.
+
+**Compatibilité** : les rangs gagnés avant cette version valent 100 %. La puissance est sauvegardée (`alchP` pour le joueur, `pot.p` pour une compagne).
+
+**Vérifié** :
+- une potion parfaite (95 %) donne 150 % de puissance (vie 100 → 115) ;
+- une potion ratée de gestes (27 %), mais réussie au dé, donne 77 % ;
+- la sauvegarde est relue sans perte ;
+- une ancienne sauvegarde à 2 rangs vaut 2 ;
+- une potion de récolte pour une compagne donne 150 % ;
+- la fenêtre est capturée ;
+- aucune erreur.
+
+**À déposer** : `index.html`, `sw.js` (qui passe en `stone-valley-136`), `LISEZ-MOI.md`.
+
+## §170 — Le Centre des automates, refait : plus dense, plus grand, et sa musique
+
+Nouveau fichier : `rouages.js`. `donjon.js` lui passe la main pour le plan, le mobilier, ce qui bouge et la musique du Centre.
+
+**Le plan, serré**
+- Les salles se posent les unes contre les autres, au plus près du milieu, avec trois à six cases de roche entre elles. Le souterrain forme un bloc compact, et les couloirs sont courts.
+- Chaque étage compte 15 à 18 salles, au lieu de 8 à 11.
+- Une **grande halle des machines** (22-26 × 18-21) occupe chaque étage, sauf le dernier.
+- Dès le deuxième étage s'ajoute une **fonderie** (15-17 × 13-15).
+- Au dernier étage, la **salle de l'Horloge** est immense (30 × 24).
+- Quatre boucles au lieu de deux : on a plus d'un chemin.
+- Des **niches** (deux cases sur deux) s'ouvrent au flanc des couloirs. Chacune abrite un meuble et une lampe.
+- **Les murs montent** autour des salles :
+  - 4 cubes pour les petites, 5 ou 6 pour les grandes ;
+  - 8 pour la halle, 7 pour la fonderie, 11 pour l'Horloge ;
+  - autour des grandes salles, de l'arrivée, des archives et du générateur, les murs sont en tôle.
+
+**Les salles nouvelles, plus calmes** (un coffre une fois sur deux ; à partir de l'étage 3, parfois une araignée) :
+- l'**atelier** : établis, tableaux d'outils, et un automate démonté sur une table, sous un bras de soudure qui crache des étincelles ;
+- le **dépôt** : un wagonnet de minerai sur ses rails, des piles de caisses ;
+- les **archives** : des rangées de mémoires à bandes, avec leurs bobines qui tournent et leurs voyants ;
+- la **chaufferie** : deux à quatre chaudières, leurs foyers, leurs cheminées, la vapeur des soupapes ;
+- la **chaîne** : deux tapis roulants qui emportent caisses **et joueur**, des presses qui frappent ;
+- le **générateur** : une dynamo à rotor, et deux bobines de Tesla qui s'arquent au-dessus de la salle (une tourelle à partir de l'étage 2).
+
+**La halle**
+- un volant de 6,6 m qui tourne dans son bâti, avec son régulateur à boules ;
+- deux pistons géants ;
+- deux colosses de bronze de sept mètres sur leurs socles ;
+- deux paires de rouages muraux qui engrènent ;
+- des balcons et un pont roulant qui promène sa charge ;
+- des suspensions, des cheminées d'angle et des allées peintes ;
+- deux araignées et une ou deux tourelles.
+
+**La fonderie** : des fours rougeoyants avec leurs cheminées, et un creuset qui court sur sa poutre et verse le métal dans une rangée de moules. Des chaînes, des lingots, deux araignées ou trois.
+
+**L'Horloge**
+- un cadran de 8 m sur le mur nord, qui donne l'heure réelle, avec trois aiguilles ;
+- ses deux tours et son balancier de 5 m, qui bat sur un socle ;
+- des rouages muraux, six colonnes de 2 × 2 avec leurs lanternes, et des balcons ;
+- un grand cadran au sol, où veille le gardien.
+
+**Le mobilier**
+- **Contre les murs**, et on ne le traverse pas : armoires, casiers, consoles à écran, étagères, établis, citernes, caisses, munitions, charbon, lingots, statues d'automates, condensateurs, mémoires à bandes.
+- **Au mur**, on passe devant : tableaux électriques, vannes, tableaux d'outils, docks de recharge, bannières.
+- Le mobilier laisse libres les abords des portes, les coffres et le monte-charge. Chaque salle a son assortiment.
+- **De quoi se couvrir** : des barricades d'acier chez les tourelles, des caisses chez les araignées, au grenier et près de l'escalier, des cristaux sur socle dans la salle des cristaux.
+
+**Partout**
+- des nervures d'acier et des poutres sur les grands murs, et des conduites avec leurs brides ;
+- des cadres de porte rayés de jaune, avec leur lampe au linteau et des bandes au sol ;
+- une ligne peinte devant le mobilier, des grilles et des plaques d'égout ;
+- dans les couloirs : conduites, câbles, lanternes grillagées, grilles ;
+- une rambarde et une enseigne autour de l'escalier, et un cercle rouge dans l'arène du gardien.
+
+**La lumière** : le Centre est éclairé, donc la brume y recule (18-44 en vue de dessus, 12-44 en vue à la première personne).
+
+**Le rendu**
+- En WebGL, le mobilier fixe (≈ 7 000 os) est rangé par tronçon de 16 cases et construit une seule fois avec la roche. Seul ce qui bouge est refait à chaque image : 200 à 800 os près du joueur, les petits détails à moins de 26 cases.
+- En vue de dessus, le décor s'ouvre devant l'œil comme la roche.
+- Le rendu canvas garde l'ancien chemin.
+
+**La difficulté** : il y a plus de salles, donc moins de machines par salle :
+- araignées : 2 + 60 % de l'étage au lieu de 3 + l'étage ;
+- grenier : moitié moins d'araignées ;
+- salle du gardien : la moitié de ses araignées.
+
+Le dernier étage compte environ 25 machines.
+
+**La musique : « La Grande Horloge »** (composition originale, 4/4 à 120, ut dièse mineur)
+- Les instruments : le balancier (tic aigu, tac grave), une basse d'automate en doubles croches, le marteau-pilon, les sifflets de vapeur, l'enclume, une boîte à musique, un orgue, des cuivres, la grande cloche, des toms.
+- Cinq parties :
+  - l'ouverture ;
+  - l'ostinato ;
+  - le thème ;
+  - le sommet ;
+  - le pont, où l'horloge sonne avant que le cliquet ne s'emballe.
+- Elles s'enchaînent selon le danger :
+  - en exploration, une version calme, sans batterie ;
+  - une machine qui vous voit fait monter le morceau ;
+  - une salle refermée, ou le gardien, déclenche le sommet.
+- Le morceau est rendu en tâche de fond dans des tampons, comme la Valse rouge, puis enchaîné par un lecteur léger.
+- Il est joué partout dans le Centre (`MUS.choisir` → `rouages`), sauf pour un joueur infecté par le Korlaz. La surface de l'île des automates garde sa musique.
+
+**Vérifié**
+- Trois îles × trois étages, dont le dernier : tout est relié à l'arrivée, c'est-à-dire les coffres, toutes les salles, l'escalier et les monte-charge.
+- Aucune erreur, au Centre comme dans les Cercles de cendre et à la surface.
+- Captures en vue de dessus et à la première personne de chaque type de salle.
+- Les niveaux sonores sont proches de ceux de la Valse rouge, et les tampons se rendent en jeu.
+
+**À déposer** : `rouages.js` (nouveau), `donjon.js`, `index.html`, `sw.js` (qui passe en `stone-valley-137` et liste `rouages.js`), `LISEZ-MOI.md`.
+
+## §171 — La Forge (phase A)
+
+Nouveau fichier : `forge.js`. Une arme se forge comme une potion se prépare, avec des gestes **en temps réel**. Le métal refroidit pendant qu'on travaille.
+
+**Le principe**
+- **La recette fait l'arme** : sa forme, son allure et sa compétence. La recette, c'est le plan, la charge, le nombre de coups, les plis, l'âme (ordre compris), le bain et la monture.
+- **L'exécution fait sa puissance** : c'est la justesse des gestes, de 5 à 100 %. À 97 % et plus, l'arme est un **chef-d'œuvre** : +5 %, et elle s'use deux fois moins vite.
+- Deux joueurs qui suivent la même fiche obtiennent la même arme.
+
+**La forge**
+- Elle se bâtit depuis l'onglet Campement : « Forge », après l'établi.
+- Elle ne prend pas de place dans l'anneau des modules. Elle s'élève sur un replat voisin, à cinq à douze pas du feu, et défriche s'il le faut.
+- Sa place est gardée tant que le campement ne bouge pas.
+- On y voit le foyer et sa hotte, le soufflet, l'enclume, le bac de trempe, puis la meule (niveau 2) et le râtelier (niveau 3).
+- ACTION devant elle : FORGER.
+- Coûts :
+  - niveau 1 : 60 pierres, 30 bois, 20 ferrailles ;
+  - niveau 2 : 80 pierres, 50 ferrailles, 30 éclats ;
+  - niveau 3 : 100 ferrailles, 60 éclats, 30 os.
+
+| Niveau | Ingrédients d'âme | Lecture de la forge | Lecture d'un code |
+|---|---|---|---|
+| 1 | 1 | à l'œil : la chaleur en mots, la trempe à la vapeur | plan, charge, monture |
+| 2 | 2 | en clair | en plus : chauffe, coups, plis, trempe |
+| 3 | 3, et la gravure (un nom sur la lame) | en clair, avec plus de marge à la trempe | tout, l'âme et la compétence comprises |
+
+**Les gestes**
+
+1. **Le plan** : six plans aujourd'hui. Les vingt-trois autres sont décrits et viendront.
+2. **La charge** : de deux à quatre portions.
+   - ferraille : 8 par portion ;
+   - pierre : 10 ;
+   - os : 6 ;
+   - éclat : 6 ;
+   - fer damné : 1.
+   
+   Elle fait l'alliage : tranchant, dureté, poids, couleur, et la chauffe juste.
+3. **La chauffe** : on maintient le SOUFFLET, puis on pose la pièce SUR L'ENCLUME à la bonne couleur. Au-delà du jaune, la pièce brûle.
+4. **Le martelage** : on FRAPPE sur le battement, de 6 à 21 coups. Le nombre de coups fait la longueur. Un coup à contretemps, ou à froid, est un défaut.
+5. **Les plis** : de 0 à 5, la pièce encore chaude. Ils donnent le déclencheur de la compétence. Un sixième pli casse la lame.
+6. **L'âme** : on verse les ingrédients sur le métal rouge. L'ordre compte : le premier pèse plus. Versée trop froide, l'âme ne prend pas.
+7. **La trempe** : on choisit un bain, puis on PLONGE et on RETIRE au bon moment, à ±1 s (±1,4 au niveau 3). Les bains :
+   - eau : gratuite ;
+   - huile : 2 graines ;
+   - sang : 2 viandes ;
+   - nectar : 1 douceur ;
+   - neige d'éclat : 6 éclats.
+8. **L'affûtage** : il faut garder l'angle dans la bande pendant cinq secondes (◀ ▶).
+9. **La monture** : bois, os, cuir ou laiton. Au niveau 3, on peut aussi graver un nom.
+
+La pièce peut retourner AU FEU entre deux gestes. Clavier : Espace pour le geste principal, flèches pour la meule, Échap pour fermer.
+
+**La compétence** : élément × déclencheur × forme, du niveau I à IV.
+- **L'élément** vient de l'âme : du tag de l'ingrédient, sinon de sa famille, sinon de son identité. Les ingrédients du Roi démon donnent les éléments forts.
+  - feu, givre, foudre (en chaîne), poison ;
+  - vie, ombre (invisibilité), lumière (soin et aveuglement) ;
+  - séisme (étourdit), vent (projette).
+  
+  Deux âmes contraires s'annulent : feu et givre, lumière et ombre, vie et poison, séisme et vent. Une seconde âme nuance la première.
+- **Le déclencheur** vient des plis :
+  - 0 : à chaque coup, une fois sur quatre ;
+  - 1 : au 3ᵉ coup d'une série ;
+  - 2 : sur un coup chargé ;
+  - 3 : dans le dos ;
+  - 4 : en tuant ;
+  - 5 : en riposte, juste après avoir été touché.
+- **La forme** vient du bain :
+  - eau : sur le coup ;
+  - huile : une zone au sol ;
+  - sang : sur soi (peau dure, coups puissants, pas vif, invisibilité, régénération, coups brûlants…) ;
+  - nectar : un trait vers la bête suivante ;
+  - neige : une aura de quelques secondes.
+
+**Les six armes de la phase A**
+- **Dague** : très rapide. Dans le dos, elle fait trois fois les dégâts.
+- **Épée** : trois coups en série. Le troisième frappe une fois et demie plus fort.
+- **Lance** : longue portée. L'estoc touche aussi la bête de derrière, à 70 %.
+- **Hache** : fend les boucliers et la pierre (forgerons, gargouilles), et fait saigner.
+- **Marteau** : l'onde du choc étourdit tout autour, à 2,2 cases, avec 30 % des dégâts.
+- **Arc court** : une rafale de trois flèches.
+
+Toutes les armes de contact forgées se **chargent** : on maintient, puis on lâche, pour un coup à ×1,5. Un simple appui frappe au lâcher.
+
+**L'usure** : une arme tient de 2 000 à 4 000 coups selon la dureté, le bain et les plis. Usée, elle est émoussée (−40 %). On la répare à la forge (onglet Mes armes), avec de la ferraille et un peu de sa charge.
+
+**Le code, la fiche, le partage**
+- Chaque arme a son code, FG-XXXX-XXXX-XXXXX : 62 bits pour le plan, la charge, les coups, les plis, le bain, la monture et trois ingrédients hachés.
+- L'identifiant de l'arme, c'est son code et sa justesse. Le jeu, et les autres joueurs, la reconstruisent d'après lui : la même forme, la même vignette, les mêmes dégâts.
+- On lit un code à la forge (onglet Lire un code). Ce qu'on en lit dépend du niveau de la forge. Une ligne illisible se déchiffre avec 15 éclats.
+- La fiche dit aussi **ce qu'il faut éviter** : un pli de plus, l'ordre de l'âme, l'autre bain, l'âme versée trop froide, l'os qui brûle vite, le fer damné.
+- Le **carnet de forge** garde les armes forgées (combien de fois, la meilleure justesse) et les codes lus.
+- **Donner** : depuis Mes armes, à un équipier à portée. L'arme part avec sa fiche, son poinçon (« forgée par… ») et son usure. Message réseau `arme`.
+
+**Sauvegarde** : `forge` contient le niveau, les armes (usure, forgeron, nom gravé), le carnet, les codes lus et la place de la forge.
+
+**Vérifié** :
+- bâtir, monter de niveau et ouvrir la forge ; forger une dague du premier au dernier geste ;
+- la dague dans le dos ×3 (0,59 → 1,77), le 3ᵉ coup d'épée ×1,5, la lance qui traverse, le saignement de la hache, l'onde du marteau, la rafale de l'arc court (3 flèches) ;
+- les cinq formes de compétence ;
+- l'usure qui émousse ;
+- l'aller-retour de la sauvegarde ;
+- un don reçu ;
+- la fiche, le déchiffrage, le carnet ;
+- les armes en main et les vignettes ;
+- sans régression au Centre, dans les Cercles et à la surface.
+
+**À déposer** : `forge.js` (nouveau), `index.html`, `donjon.js`, `sw.js` (qui passe en `stone-valley-138` et liste `forge.js`), `LISEZ-MOI.md`.
+
+## §172 — La Forge (phase B) : neuf armes de mêlée, et les plans
+
+**Les plans** : les six plans de la phase A sont connus à la forge. Les neuf nouveaux se trouvent dans les coffres d'en bas (`forgePlanCoffre(taille, src)`, appelé par `djOuvrir` et `roiOuvrir`).
+- Centre : petit 6 %, gardé 25 %, grand 60 %.
+- Cercles : petit 5 %, gardé 35 %, scellé 30 %.
+
+Un plan est appris sur-le-champ et se garde même à la mort (`P.forgePlans`, sauvegardé dans `forge.plans`). À la forge, les plans manquants apparaissent grisés sous « À trouver ».
+
+**Les armes** (forme et vignette propres ; mécaniques dans `forgeAvant`, `forgeApres` et `forgeChargeUp`) :
+- **Rapière** : un estoc sur cinq porte double. La **parade** : un coup lancé moins de 0,28 s avant d'être touché annule les dégâts (`forgeSubi`, appelé dans `porterCoup`), et le coup suivant, dans les 1,5 s, est une **riposte** ×2,5 (déclencheur `riposte`).
+- **Sabre** : maintenir puis lâcher donne la **fente**, une ruée de 3,5 pas qui s'arrête aux murs et à l'eau ; elle frappe ×1,8 tout ce qui est sur le trajet (`fgFente`).
+- **Griffes** : chaque coup qui porte dans les 1,25 s ajoute un cran, jusqu'à 5 ; chaque cran donne +6 % de dégâts et −10 % de temps entre deux coups (getter `cad`).
+- **Fléau** : balayage de 150° à 70 % ; l'élan monte jusqu'à 5 crans (+12 % de dégâts et un peu de portée par cran).
+- **Espadon** : balayage à 360° à 80 %, avec une petite secousse.
+- **Faux** : arc de 160° à 85 % ; +2,5 % de vie par bête touchée.
+- **Hallebarde** : un balayage de 120° à 75 %, puis le **crochet** ×1,2 qui tire la bête à vous (sauf les grandes et les gardiens).
+- **Bâton** : repousse fort et étourdit un instant ; la parade (0,4 s) ne laisse passer qu'un quart du coup.
+- **Épée-fouet** : maintenir puis lâcher bascule la lame en **fouet** (portée 4, coups ×1,3 plus lents) qui tire les bêtes légères, ou la referme. La forme en main suit le mode.
+
+Assistants : `fgBalayage` et `fgFrappable` (ni gardiens, ni bâtiments, ni bêtes cachées).
+
+**Vérifié** :
+- chaque mécanique, en chiffres ;
+- la parade dans `porterCoup` (vie 1 → 1, contre 0,76 sans) ;
+- un plan tiré d'un grand coffre du Centre, puis l'aller-retour de la sauvegarde ;
+- la liste des plans à la forge ;
+- les neuf armes en main ;
+- pas de régression sur la phase A.
+
+**À déposer** : `forge.js`, `index.html`, `donjon.js`, `roi.js`, `sw.js` (`stone-valley-139`), `LISEZ-MOI.md`.
+
+## §173 — La Forge (phase C) : les armes qu'on lance et qui tirent loin ; une forge plus chaleureuse
+
+**L'atelier, plus chaleureux.**
+- **La fenêtre de la forge** : murs de briques, poutre, poteau, étagère (bocaux, livres, bougie), outils pendus, plancher, tapis, foyer de pierre avec sa hotte de cuivre et son cendrier qui rougeoie, bûches.
+  - La fenêtre montre le ciel de l'île à l'heure qu'il est (jour, couchant, nuit étoilée).
+  - Une lanterne est accrochée à la poutre, et des étincelles montent du foyer.
+  - Une lueur chaude, qui vacille, éclaire la pièce ; la pénombre gagne les coins.
+  - Une chatte rousse dort roulée en boule près du feu ; un coup de marteau lui fait lever la tête.
+  - Le décor fixe est peint une fois (`fgFond`). Le style de la fenêtre passe aux tons bruns et ambrés.
+- **Au campement** : foyer de briques et margelle, hotte de cuivre, cendrier rougeoyant, étincelles, tas de bûches, tabouret, panneau d'outils, lanterne sur potence, et la chatte près du foyer.
+  - La nuit, le foyer et la lanterne éclairent les alentours (`forgeLueurs`, appelée par `majFeux`).
+
+**Les cinq armes** (un plan à trouver pour chacune, comme en phase B) :
+- **Chakram** : lancé, il file sur 10 pas vers sa cible et rebondit jusqu'à 3 fois de bête en bête (−12 % à chaque rebond). Il revient ensuite dans la main ; un mur le renvoie aussi. Maintenir puis lâcher : 5 rebonds, ×1,5. Tant qu'il vole, il n'est plus en main.
+- **Javelots** : 3 en main. Lancés (même balistique que les flèches), ils se plantent dans le sol ou dans la bête, qu'ils suivent. Maintenir puis lâcher, ou attaquer la main vide, les rappelle :
+  - un javelot planté dans une bête en est arraché (×0,5) ;
+  - au retour, il frappe ce qu'il traverse (×0,7).
+  
+  S'il n'y a rien à rappeler (javelots perdus en changeant d'île), les trois reviennent « de loin ».
+- **Arc long** : flèches 25 % plus rapides ; bandé à fond, la flèche traverse jusqu'à 3 bêtes.
+- **Arbalète** : carreaux 45 % plus rapides, qui repoussent. Si un mur ou un tronc se trouve à moins d'un pas et demi derrière la bête, elle y est **clouée** : étourdie 3 s, ×1,5. Les gestes, les sons et la pose sont ceux de l'arbalète à poulies (`armeBase` partout où l'arbalète était testée par son id).
+- **Fronde** : les billes rebondissent 3 fois sur le sol et les murs, et ricochent vers la bête la plus proche (−15 % à chaque ricochet). Maintenir puis lâcher : 3 billes en éventail. Pas de munitions.
+
+**Technique.**
+- Les projectiles lancés vivent dans `FG.projs` : mis à jour par `fgMajProjs` (dans `forgeMaj`), dessinés par `forgeEmit` (dans `emitFleches`), effacés au changement d'île.
+- `coupArme` passe la main à `forgeLance`. La flèche reçoit `perce`, et `tirerFleche` la vitesse `vK`.
+
+**Vérifié** :
+- les chiffres de chaque mécanique (rebonds du chakram et son retour ; javelot planté, arraché, rappelé ; ricochet de la fronde et éventail ; traversée de l'arc long ; recul et clouage de l'arbalète) ;
+- les armes en main ;
+- la fenêtre de la forge ;
+- la forge au campement, de jour et de nuit ;
+- pas de régression sur les phases A et B, ni sur les coffres.
+
+**Pas vérifié** : les autres joueurs ne voient pas les projectiles lancés (seuls leurs effets sur les bêtes passent).
+
+**À déposer** : `forge.js`, `index.html`, `sw.js` (`stone-valley-140`), `LISEZ-MOI.md`.

@@ -1394,8 +1394,8 @@ const SON = (() => {
     J.pv = P.pv;
     const a = armeDe(P);                                  // l'arc qu'on bande, l'arbalète qu'on remonte
     if (P.arc !== null && a && !djEstFusil(a)) {
-      const k = Math.min(1, P.arc / ARC_TEMPS), c = Math.floor(k * (a === 'arbalete' ? 24 : 6));
-      if (c !== J.cran && k < 1) { J.cran = c; jouer(a === 'arbalete' ? 'cliquet' : 'bande', { k, vol: .8 }); }
+      const arb = armeBase(a) === 'arbalete', k = Math.min(1, P.arc / ARC_TEMPS), c = Math.floor(k * (arb ? 24 : 6));
+      if (c !== J.cran && k < 1) { J.cran = c; jouer(arb ? 'cliquet' : 'bande', { k, vol: .8 }); }
     } else J.cran = -1;
     if (Meteo.flash > .9 && J.flash <= .9) jouer('tonnerre', { dans: alea(.3, 2.1), k: alea(.6, 1.1), bus: 'a' });   // l'éclair, puis le tonnerre
     J.flash = Meteo.flash;
@@ -3526,7 +3526,7 @@ const tensionDe = J => J === P ? (P.arc === null ? null : Math.min(1, P.arc / AR
 function poseTir(J, id) {
   const k = tensionDe(J), r = t - (J.decoche ?? -99), ts = t - (J.tir0 ?? -99);
   if (djEstFusil(id)) return djPoseFusil(J, id, k, r, ts);
-  return id === 'arbalete' ? poseArb(J, k, r, ts) : poseArc(J, k, r, ts);
+  return armeBase(id) === 'arbalete' ? poseArb(J, k, r, ts) : poseArc(J, k, r, ts);
 }
 
 // ---------- ce que le corps fait par-dessus l'allure ----------
@@ -3678,7 +3678,7 @@ function osArmePortee(id, J, hip, neck, GG, B) {
   if (main > .001) {
     const p = GG.pose;
     enMain = armeBase(id) === 'arc' ? { arc: { ...(p.arc || ARC_GARDE.arc), o: p.m2 || ARC_GARDE.m2 } }
-      : id === 'arbalete' || djEstFusil(id) ? { arb: p.arb || ARB_GARDE.arb } : { o: p.g, u: p.u };
+      : armeBase(id) === 'arbalete' || djEstFusil(id) ? { arb: p.arb || ARB_GARDE.arb } : { o: p.g, u: p.u };
   }
   if (main >= .999) { geomArme(id, enMain, J, B); return; }
   const Br = []; geomArme(id, rang, J, Br);
@@ -4014,7 +4014,7 @@ function tirerFleche(p) {
   if (!essai && P.fleches <= 0) { say('plus de flèches', 1.4); return; }
   P.agiteT = t; iaNote('coup');                         // (§157)
   if (!essai) P.fleches--;
-  const v0 = ARC_VMIN + (ARC_VMAX - ARC_VMIN) * p;
+  const aF = porte('arme'), v0 = (ARC_VMIN + (ARC_VMAX - ARC_VMIN) * p) * (aF && aF.vK || 1);   // (§173) l'arc long, l'arbalète forgée tirent plus vite
   let dx, dy, dz;
   if (mode === 'fps') {                                 // en 1re personne on vise librement
     const cp = Math.cos(pitch); dx = Math.cos(yaw) * cp; dy = Math.sin(yaw) * cp; dz = Math.sin(pitch);
@@ -4048,7 +4048,7 @@ function tirerFleche(p) {
   const a = porte('arme');
   FLECHES.push({ x: P.x + dx * .45, y: P.y + dy * .45, z: P.z + .55 + dz * .45,
     vx: dx * v0, vy: dy * v0, vz: dz * v0, age: 0, plantee: 0, dir: [dx, dy, dz],
-    deg: (a && a.deg || .8), fg: a && a.fg ? a.id : null, pleine: p >= .95 });
+    deg: (a && a.deg || .8), fg: a && a.fg ? a.id : null, pleine: p >= .95, perce: a && a.perce && p >= .95 ? a.perce : 0 });
   if (RS.ouvert && Autres.size && Compte.uid) { const f = FLECHES[FLECHES.length - 1];   // les autres la voient filer
     diffuser(canalIle(), 'fleche', { u: Compte.uid, x: r2(f.x), y: r2(f.y), z: r2(f.z), vx: r2(f.vx), vy: r2(f.vy), vz: r2(f.vz) }); }
   burst(P.x + dx * .4, P.y + dy * .4, P.z + .55, 4, '#dfe6f2');
@@ -4081,6 +4081,7 @@ function impactFleche(f, nx, ny, nz) {
     return true;
   }
   if (!f.fantome) for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {        // une flèche épargne les compagnes
+    if (f.vues && f.vues.has(b)) continue;            // (§173) la flèche qui traverse ne touche pas deux fois
     if (toucheBete(b, nx, ny, nz)) {
       const v = Math.hypot(f.vx, f.vy, f.vz), deg = f.deg * Math.min(1, v / ARC_VMAX), dgJ = degJoueur(deg, b);
       b.pv -= dgJ; b.hit = .25; b.alarm = 1; blesseParJoueur(b); SON.jouer('touche', { arme: 'fleche' }, b.x, b.y, b.z + .4);
@@ -4091,6 +4092,7 @@ function impactFleche(f, nx, ny, nz) {
       if (b.pv <= 0) { mourirBete(b, 'flèche'); butin(b); }
       else say(b.sp.n + ' · ' + Math.round(b.pv * 100) + '% · flèche ' + Math.round(deg * 100), 1.2);
       if (f.fg && typeof forgeFleche === 'function') forgeFleche(f, b, dgJ);   // (§171)
+      if (f.perce > 0) { f.perce--; (f.vues || (f.vues = new Set())).add(b); continue; }   // (§173) l'arc long bandé à fond : elle traverse
       return true;                                      // la flèche est perdue dans la bête
     }
   }
@@ -4143,6 +4145,7 @@ function emitFleches(view, out) {
     emitLimb(arr, av, .055, .055, [126, 96, 66], view, out, cle, rang);
     emitLimb([f.x - u[0] * .06, f.y - u[1] * .06, f.z - u[2] * .06], av, .1, .1, [202, 210, 226], view, out, cle, rang);
   }
+  if (typeof forgeEmit === 'function') forgeEmit(view, out);   // (§173) le chakram, les javelots, les billes
 }
 
 // ============================================================
@@ -8739,6 +8742,7 @@ function majFeux() {
     pousse(c.x, c.y, c.z + .6, vacille(RAYON.feu, 3));
     if (c === P.camp && aModule('portail') && palierCamp(nivCamp()) >= 2) { const q = lieuModule(c, 'portail'); pousse(q[0], q[1], c.z + 1.1, RAYON.arche); }
   }
+  if (typeof forgeLueurs === 'function' && campIci() && !djIci()) forgeLueurs(pousse, vacille);   // (§173) le foyer et la lanterne de la forge
   if (PortailIle) pousse(PortailIle.x, PortailIle.y, PortailIle.z + 1.2, RAYON.arche);
   if (Escouade && Escouade.k > 0) pousse(Escouade.x, Escouade.y, Escouade.z + 1.35, RAYON.arche * 1.6 * Escouade.k);
   for (const b of beasts) if (b.tame && !b.dead) pousse(b.x, b.y, b.z + .6, RAYON.compagne);
@@ -12679,8 +12683,10 @@ function porterCoup(b, c, deg) {
   if (c === P) {
     if (P.invincible) return false;                  // l'outil de test « invincible »
     if (P.hurt > 0) return false;                   // encore sonné : ce coup-là ne compte pas
+    const par = typeof forgeSubi === 'function' ? forgeSubi() : 1;   // (§172) la parade de la rapière, du bâton
+    if (!par) { P.hurt = .35; return true; }
     P.hurt = 1.0; P.dernierCoup = t;
-    let dg = degSubi(deg) * (1 - ((porte('armure') || {}).red || 0));
+    let dg = degSubi(deg) * (1 - ((porte('armure') || {}).red || 0)) * par;
     if (P.bonusPv > 0) { const a = Math.min(P.bonusPv, dg); P.bonusPv -= a; dg -= a; }   // la vie en plus prend le coup d'abord
     P.pv = Math.max(0, P.pv - dg);
     if (egideActive() && b.sp && !b.tame && b.pv > 0 && !b.dead) toucherSort(b, P.egide.m, P.egide.deg);   // l'égide rend sa matière
@@ -23856,6 +23862,7 @@ const secousseCam = () => { const d = t - (P.secousse ?? -99); return d < .32 ? 
 // de cristal ; le marteau-pilon frappe le sol quoi qu'il arrive, en souffle de vapeur et en onde.
 function coupArme(A) {
   const a = objet(A.arme); if (!a) return;
+  if (a.fg && typeof forgeLance === 'function' && forgeLance(A, a)) return;   // (§173) une arme qu'on lance part au lieu de frapper
   const pose = poseGeste(A.g, A.coup), tip = pointeArme(P, pose, A.arme, 1), base = armeBase(A.arme);
   if (base === 'marteau') {
     P.pilon = t; P.secousse = t; P.secousseK = 1; SON.jouer('pilon', {}, tip[0], tip[1], tip[2]);
@@ -23913,7 +23920,7 @@ function attaquerUp() {
   if (P.arc === null) return;
   const p = Math.min(1, P.arc / ARC_TEMPS); P.arc = null;
   P.decoche = t; P.decocheK = p; P.garde = t + GARDE_T;
-  SON.jouer(armeDe(P) === 'arbalete' ? 'carreau' : 'decoche', { k: p }, P.x, P.y, P.z + .6);
+  SON.jouer(armeBase(armeDe(P)) === 'arbalete' ? 'carreau' : 'decoche', { k: p }, P.x, P.y, P.z + .6);
   annoncer('decoche', 0, Math.round(p * 100) / 100);
   tirerFleche(p);
   if (typeof forgeRafale === 'function') forgeRafale(p);   // (§171) l'arc court forgé : deux flèches de plus
