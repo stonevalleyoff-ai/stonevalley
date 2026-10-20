@@ -5339,3 +5339,6 @@ Assistants : `fgBalayage` et `fgFrappable` (ni gardiens, ni bâtiments, ni bête
 **Pas vérifié** : les autres joueurs ne voient pas les projectiles lancés (seuls leurs effets sur les bêtes passent).
 
 **À déposer** : `forge.js`, `index.html`, `sw.js` (`stone-valley-140`), `LISEZ-MOI.md`.
+
+### §173 bis — Correctif : la case Forge
+La case **Forge** manquait dans Campement → Camp : `modforge` n'était pas dans la liste `CASES_VOLET.camp`. Elle est maintenant placée entre la table d'alchimie et la bibliothèque. Le texte de l'établi cite aussi la forge parmi les modules. `sw.js` passe en `stone-valley-141`.

@@ -7479,7 +7479,7 @@ function pageJournal() {
 let confirmeCamp = 0;
 let voletCamp = 'camp';
 const VOLETS_CAMP = [['camp', 'Camp', 'ongletCamp'], ['portail', 'Portail', 'portail'], ['journal', 'Journal', 'ongletJournal']];
-const CASES_VOLET = { camp: ['repos', 'modetabli', 'coffre', 'ameliorer', 'modcuisine', 'modsoin', 'modalchimie', 'modbiblio', 'moddefense', 'modules', 'reprendre', 'compagnes', 'pillage'], portail: ['portail', 'gardees', 'rentrer', 'exploration'] };
+const CASES_VOLET = { camp: ['repos', 'modetabli', 'coffre', 'ameliorer', 'modcuisine', 'modsoin', 'modalchimie', 'modforge', 'modbiblio', 'moddefense', 'modules', 'reprendre', 'compagnes', 'pillage'], portail: ['portail', 'gardees', 'rentrer', 'exploration'] };
 const choixVolet = { camp: 'repos', portail: 'portail' };
 const ongletDe = id => id === 'alchimie' ? (voletCamp = 'camp', 'camp') : id === 'biblio' ? 'grimoire' : id === 'cuisine' ? 'sac' : id === 'journal' ? (voletCamp = id, 'camp') : id;   // (§144) la cuisine : sa fenêtre ; le garde-manger et les plats, au sac   // (§143) la magie : l'onglet Grimoire, et la fenêtre du pupitre   // (§140) l'alchimie : dans la fenêtre de la table
 function pageCampement() {
@@ -7598,8 +7598,8 @@ function voletCases(volet) {
   const choisit = proche && pc && choixPortail(nivCamp()) > 1;   // au portail du campement, passé le premier niveau : des îles au choix
   const A = [
     caseMod('etabli', 'modetabli', 'ongletEtabli', { court: 'bien plus à fabriquer', le: 'l\'établi', il: 'il',
-      creer: ['la plupart des fabrications : ' + fabNiv(1), 'les autres modules se créent grâce à lui : coffre, portail, cuisine, table de soin, défense', 'il s\'améliore deux fois : les objets d\'éclat, puis ceux de ferraille', 'à la main, sans lui : ' + fabNiv(0)],
-      sait: n => [1, 2, 3].filter(k => k <= n).map(k => 'niveau ' + k + ' : ' + fabNiv(k)).concat('la création des modules : coffre, portail, cuisine, table de soin, défense'),
+      creer: ['la plupart des fabrications : ' + fabNiv(1), 'les autres modules se créent grâce à lui : coffre, portail, cuisine, table de soin, forge, défense', 'il s\'améliore deux fois : les objets d\'éclat, puis ceux de ferraille', 'à la main, sans lui : ' + fabNiv(0)],
+      sait: n => [1, 2, 3].filter(k => k <= n).map(k => 'niveau ' + k + ' : ' + fabNiv(k)).concat('la création des modules : coffre, portail, cuisine, table de soin, forge, défense'),
       niv: n => [fabNiv(n)] }),
     caseMod('cuisine', 'modcuisine', 'marmite', { court: 'la marmite du campement', le: 'la cuisine', il: 'elle',
       creer: ['une marmite au campement : on y cuisine avec deux ingrédients', 'elle s\'améliore deux fois : trois ingrédients, puis quatre', 'le feu de camp seul ne cuisine pas ; la marmite portable (établi) cuisine partout, à deux ingrédients'],
