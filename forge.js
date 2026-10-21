@@ -13,73 +13,97 @@
 //  se donne à un équipier. L'identifiant d'une arme forgée est son code et sa justesse : le jeu, et ceux d'en
 //  face, la reconstruisent d'après lui (forgeObjet).
 //  Phase A : la forge, ses gestes, les fiches, et six armes (dague, épée, lance, hache, marteau, arc court) ;
-//  les vingt-trois autres sont décrites ici (FG_TYPES) et viendront avec leurs mécaniques.
+//  les vingt-trois autres sont venues ensuite : B la mêlée (§172), C le lancer (§173), D la magie (§174), E la poudre (§175).
 //  index.html appelle, s'ils existent : forgeInit, forgeObjet (objet), forgeBase, forgeGeom (geomArme),
 //  forgeAvant / forgeApres (coupArme), forgeFleche (impactFleche), forgeChargeDown / forgeChargeUp et
 //  forgeRafale (attaquerDown / attaquerUp), forgeAction, forgeDecor (marmiteDecor), forgeCaseCamp, forgeBatir,
-//  forgeSauve / forgeLue, forgeRecue ; donjon.js : forgeMaj (à chaque image).
+//  forgeSauve / forgeLue, forgeRecue, forgeSortTouche (toucherSort), forgeOs (le rendu WebGL) ; donjon.js : forgeMaj
+//  (à chaque image), forgeFeu (djEstFusil, djPoseFusil, djTirDistant), forgeTirDown / forgeTirUp, forgeHud.
 // ============================================================
 const FG = { projs: [], vol: {}, jav: {}, modes: {}, pile: { n: 0, t: -9 }, riposte: 0, el: null, en: null, choix: 0, vue: 'forger', h: {}, msg: '', msgT: 0, souffle: false, gauche: false, droite: false,
   lieu: null, lieuK: '', zones: [], traits: [], buff: null, aura: null, serie: 0, serieT: -9, charge: null, rafale: [], riposteVu: -1,
-  fiche: null, lu: '', anim: { coup: -9, pli: -9, verse: -9, plonge: -9 } };
+  fiche: null, lu: '', anim: { coup: -9, pli: -9, verse: -9, plonge: -9 }, runes: {}, runesT: {}, sortCtx: null, feu: {}, feuTenu: null, auraT: new Map(), ombre: null, ombresJ: new Map(), griffes: [], griffeSens: 1, rafT: 0, magDit: -9 };
 // ---------- les vingt-neuf armes ----------
 // anim : le geste et la garde empruntés ; deg, cad, port : la base ; chauffe : la couleur juste (0 à 1) ; trempe : les
 // secondes au bain (eau) ; meca : ce qu'elle fait de propre ; ph : la phase où elle arrive (A : maintenant).
 const FG_TYPES = [
-  { id: 'dague', n: 'Dague', f: 1, anim: 'lame', deg: .46, cad: .22, port: 1.45, long: .26, chauffe: .6, trempe: 3, ph: 'A', meca: 'très rapide ; dans le dos, trois fois les dégâts' },
-  { id: 'epee', n: 'Épée', f: 1, anim: 'epee', seq: ['epee', 'epee2', 'epee'], deg: .7, cad: .38, port: 1.85, long: .36, chauffe: .64, trempe: 4, ph: 'A', meca: 'trois coups en série : le troisième frappe une fois et demie plus fort' },
-  { id: 'lance', n: 'Lance', f: 1, anim: 'lance', deg: .6, cad: .46, port: 2.6, long: .58, chauffe: .6, trempe: 4, ph: 'A', meca: 'longue portée ; l\'estoc traverse et touche aussi la bête de derrière' },
-  { id: 'hache', n: 'Hache', f: 1, anim: 'gourdin', deg: .92, cad: .52, port: 1.7, long: .37, chauffe: .66, trempe: 5, ph: 'A', meca: 'fend boucliers et carapaces ; fait saigner' },
-  { id: 'marteau', n: 'Marteau', f: 0, anim: 'marteau', deg: 1.7, cad: .66, port: 1.9, long: .36, chauffe: .7, trempe: 6, ph: 'A', meca: 'lourd ; l\'onde du choc étourdit tout autour' },
-  { id: 'arccourt', n: 'Arc court', f: 0, anim: 'arc', arc: 1, deg: .55, cad: 0, port: 0, long: .2, chauffe: .52, trempe: 3, ph: 'A', meca: 'une rafale de trois flèches' },
+  { id: 'dague', n: 'Dague', f: 1, anim: 'lame', deg: .46, cad: .22, port: 1.45, long: .26, chauffe: .6, trempe: 3, us: 2.2, ph: 'A', meca: 'très rapide ; dans le dos, trois fois les dégâts' },
+  { id: 'epee', n: 'Épée', f: 1, anim: 'epee', seq: ['epee', 'epee2', 'epee'], deg: .7, cad: .38, port: 1.85, long: .36, chauffe: .64, trempe: 4, us: 1.3, ph: 'A', meca: 'trois coups en série : le troisième frappe une fois et demie plus fort' },
+  { id: 'lance', n: 'Lance', f: 1, anim: 'lance', deg: .68, cad: .46, port: 2.6, long: .58, chauffe: .6, trempe: 4, us: 1.1, ph: 'A', meca: 'longue portée ; l\'estoc traverse et touche aussi la bête de derrière' },
+  { id: 'hache', n: 'Hache', f: 1, anim: 'gourdin', deg: .92, cad: .52, port: 1.7, long: .37, chauffe: .66, trempe: 5, us: 1, ph: 'A', meca: 'fend boucliers et carapaces ; fait saigner' },
+  { id: 'marteau', n: 'Marteau', f: 0, anim: 'marteau', deg: 1.7, cad: .66, port: 1.9, long: .36, chauffe: .7, trempe: 6, us: .75, ph: 'A', meca: 'lourd ; l\'onde du choc étourdit tout autour' },
+  { id: 'arccourt', n: 'Arc court', f: 0, anim: 'arc', arc: 1, deg: .48, cad: 0, port: 0, long: .2, chauffe: .52, trempe: 3, us: 1.9, ph: 'A', meca: 'une rafale de trois flèches' },
   // phase B : la mêlée nouvelle (§172)
-  { id: 'rapiere', n: 'Rapière', f: 1, anim: 'lame', deg: .5, cad: .26, port: 2.1, long: .42, chauffe: .62, trempe: 3.5, ph: 'B', meca: 'estocs précis (un sur cinq porte double) ; frappez juste avant d\'être touché : la parade, puis une riposte qui porte deux fois et demie' },
-  { id: 'sabre', n: 'Sabre', f: 0, anim: 'epee', deg: .72, cad: .36, port: 1.9, long: .38, chauffe: .66, trempe: 4, ph: 'B', meca: 'le coup dégainé : maintenir, lâcher, et la fente traverse tout sur trois pas et demi' },
-  { id: 'griffes', n: 'Griffes', f: 1, anim: 'lame', deg: .32, cad: .2, port: 1.25, long: .18, chauffe: .6, trempe: 3, ph: 'B', meca: 'chaque coup qui porte accélère et renforce le suivant, cinq fois' },
-  { id: 'fleau', n: 'Fléau', f: 0, anim: 'gourdin', deg: .85, cad: .55, port: 2.2, long: .42, chauffe: .68, trempe: 5, ph: 'B', meca: 'la boule balaie devant vous, et l\'élan monte coup après coup' },
-  { id: 'espadon', n: 'Espadon', f: 0, anim: 'epee', deg: 1.15, cad: .72, port: 2.3, long: .5, chauffe: .68, trempe: 6, ph: 'B', meca: 'un balayage lent, tout autour de vous' },
-  { id: 'faux', n: 'Faux', f: 1, anim: 'epee', deg: .78, cad: .6, port: 2.4, long: .6, chauffe: .62, trempe: 5, ph: 'B', meca: 'un grand arc devant vous, qui vole la vie de chaque cible' },
-  { id: 'hallebarde', n: 'Hallebarde', f: 1, anim: 'lance', seq: ['lance', 'lance'], deg: .82, cad: .56, port: 2.6, long: .62, chauffe: .66, trempe: 5, ph: 'B', meca: 'un balayage, puis le crochet qui tire la bête à vous' },
-  { id: 'baton', n: 'Bâton', f: 0, anim: 'lance', deg: .45, cad: .32, port: 2.2, long: .45, chauffe: .5, trempe: 3, ph: 'B', meca: 'repousse loin ; frappez juste avant d\'être touché : il tourne et amortit le coup' },
-  { id: 'epeefouet', n: 'Épée-fouet', f: 1, anim: 'epee', deg: .6, cad: .42, port: 1.9, long: .38, chauffe: .64, trempe: 4.5, ph: 'B', meca: 'maintenir, lâcher : la lame se déroule en fouet (portée 4, elle tire) ou se referme' },
+  { id: 'rapiere', n: 'Rapière', f: 1, anim: 'lame', deg: .5, cad: .26, port: 2.1, long: .42, chauffe: .62, trempe: 3.5, us: 1.8, ph: 'B', meca: 'estocs précis (un sur cinq porte double) ; frappez juste avant d\'être touché : la parade, puis une riposte qui porte deux fois et demie' },
+  { id: 'sabre', n: 'Sabre', f: 0, anim: 'epee', deg: .72, cad: .36, port: 1.9, long: .38, chauffe: .66, trempe: 4, us: 1.35, ph: 'B', meca: 'le coup dégainé : maintenir, lâcher, et la fente traverse tout sur trois pas et demi' },
+  { id: 'griffes', n: 'Griffes', f: 1, anim: 'lame', deg: .29, cad: .2, port: 1.25, long: .18, chauffe: .6, trempe: 3, us: 3.6, ph: 'B', meca: 'chaque coup qui porte accélère et renforce le suivant, cinq fois' },
+  { id: 'fleau', n: 'Fléau', f: 0, anim: 'gourdin', deg: .8, cad: .55, port: 2.2, long: .42, chauffe: .68, trempe: 5, us: 0.95, ph: 'B', meca: 'la boule balaie devant vous, et l\'élan monte coup après coup' },
+  { id: 'espadon', n: 'Espadon', f: 0, anim: 'epee', deg: 1.15, cad: .72, port: 2.3, long: .5, chauffe: .68, trempe: 6, us: .75, ph: 'B', meca: 'un balayage lent, tout autour de vous' },
+  { id: 'faux', n: 'Faux', f: 1, anim: 'epee', deg: .78, cad: .6, port: 2.4, long: .6, chauffe: .62, trempe: 5, us: 0.9, ph: 'B', meca: 'un grand arc devant vous, qui vole la vie de chaque cible' },
+  { id: 'hallebarde', n: 'Hallebarde', f: 1, anim: 'lance', seq: ['lance', 'lance'], deg: .82, cad: .56, port: 2.6, long: .62, chauffe: .66, trempe: 5, us: 0.95, ph: 'B', meca: 'un balayage, puis le crochet qui tire la bête à vous' },
+  { id: 'baton', n: 'Bâton', f: 0, anim: 'lance', deg: .48, cad: .32, port: 2.2, long: .45, chauffe: .5, trempe: 3, us: 1.5, ph: 'B', meca: 'repousse loin ; frappez juste avant d\'être touché : il tourne et amortit le coup' },
+  { id: 'epeefouet', n: 'Épée-fouet', f: 1, anim: 'epee', deg: .64, cad: .42, port: 1.9, long: .38, chauffe: .64, trempe: 4.5, us: 1.2, ph: 'B', meca: 'maintenir, lâcher : la lame se déroule en fouet (portée 4, elle tire) ou se referme' },
   // phase C : le lancer, la distance
-  { id: 'chakram', n: 'Chakram', f: 0, anim: 'lame', lance: 1, deg: .62, cad: .42, port: 1.3, long: .2, chauffe: .6, trempe: 3.5, ph: 'C', meca: 'lancé, il file sur dix pas, rebondit jusqu\'à trois fois de bête en bête, puis revient dans la main ; maintenir, lâcher : cinq rebonds, plus fort' },
-  { id: 'javelots', n: 'Javelots', f: 0, anim: 'lance', lance: 1, deg: .85, cad: .5, port: 1.8, long: .5, chauffe: .6, trempe: 4, ph: 'C', meca: 'trois en main : lancés, ils se plantent ; maintenir, lâcher (ou la main vide) : ils reviennent, et frappent au retour' },
-  { id: 'arclong', n: 'Arc long', f: 0, anim: 'arc', arc: 1, vK: 1.25, perce: 3, deg: 1.05, cad: 0, port: 0, long: .26, chauffe: .54, trempe: 3.5, ph: 'C', meca: 'tire plus loin ; bandé à fond, la flèche traverse jusqu\'à trois bêtes' },
-  { id: 'arbaletef', n: 'Arbalète', f: 1, anim: 'arbalete', arc: 1, vK: 1.45, deg: 1.35, cad: 0, port: 0, long: .3, chauffe: .64, trempe: 4.5, ph: 'C', meca: 'un carreau lourd qui repousse ; la bête adossée à un mur ou un tronc y est clouée (étourdie trois secondes, une fois et demie les dégâts)' },
-  { id: 'fronde', n: 'Fronde', f: 1, anim: 'gourdin', lance: 1, deg: .42, cad: .36, port: 1.2, long: .3, chauffe: .5, trempe: 2.5, ph: 'C', meca: 'des billes qui rebondissent sur le sol et ricochent de bête en bête ; maintenir, lâcher : trois billes en éventail' },
+  { id: 'chakram', n: 'Chakram', f: 0, anim: 'lame', lance: 1, deg: .95, cad: .42, port: 1.3, long: .2, chauffe: .6, trempe: 3.5, us: .75, ph: 'C', meca: 'lancé, il file sur dix pas, rebondit jusqu\'à trois fois de bête en bête, puis revient dans la main ; maintenir, lâcher : cinq rebonds, plus fort' },
+  { id: 'javelots', n: 'Javelots', f: 0, anim: 'lance', lance: 1, deg: .76, cad: .5, port: 1.8, long: .5, chauffe: .6, trempe: 4, us: 1.5, ph: 'C', meca: 'trois en main : lancés, ils se plantent ; maintenir, lâcher (ou la main vide) : ils reviennent, et frappent au retour' },
+  { id: 'arclong', n: 'Arc long', f: 0, anim: 'arc', arc: 1, vK: 1.25, perce: 3, deg: 1.15, cad: 0, port: 0, long: .26, chauffe: .54, trempe: 3.5, us: .75, ph: 'C', meca: 'tire plus loin ; bandé à fond, la flèche traverse jusqu\'à trois bêtes' },
+  { id: 'arbaletef', n: 'Arbalète', f: 1, anim: 'arbalete', arc: 1, vK: 1.45, deg: 1.35, cad: 0, port: 0, long: .3, chauffe: .64, trempe: 4.5, us: .75, ph: 'C', meca: 'un carreau lourd qui repousse ; la bête adossée à un mur ou un tronc y est clouée (étourdie trois secondes, une fois et demie les dégâts)' },
+  { id: 'fronde', n: 'Fronde', f: 1, anim: 'gourdin', lance: 1, deg: .42, cad: .36, port: 1.2, long: .3, chauffe: .5, trempe: 2.5, us: 1.5, ph: 'C', meca: 'des billes qui rebondissent sur le sol et ricochent de bête en bête ; maintenir, lâcher : trois billes en éventail' },
   // phase D : la magie
-  { id: 'batonmage', n: 'Bâton de mage', f: 0, anim: 'lance', deg: .4, ph: 'D', meca: 'charge un sort plus gros' },
-  { id: 'baguette', n: 'Baguette', f: 1, anim: 'lame', deg: .25, ph: 'D', meca: 'des sorts rapides et moins chers, en rafale' },
-  { id: 'orbe', n: 'Orbe', f: 0, anim: 'gourdin', deg: .3, ph: 'D', meca: 'un sort tourne autour de vous et part seul' },
-  { id: 'lamerunique', n: 'Lame runique', f: 1, anim: 'epee', deg: .62, ph: 'D', meca: 'les coups la remplissent ; elle libère le sort de l\'âme' },
+  { id: 'batonmage', n: 'Bâton de mage', f: 0, anim: 'lance', magie: 1, deg: .4, cad: .4, port: 2.2, long: .58, chauffe: .55, trempe: 3.5, us: .6, ph: 'D', meca: 'lance le sort tenu en main ; maintenir, lâcher : il grossit (trois paliers, plus fort, plus large, plus cher) ; sans sort, il frappe' },
+  { id: 'baguette', n: 'Baguette', f: 1, anim: 'lame', magie: 1, deg: .25, cad: .22, port: 1.3, long: .26, chauffe: .5, trempe: 2.5, us: 1.2, ph: 'D', meca: 'lance le sort tenu en main, trois fois plus vite et pour six dixièmes du prix, un peu moins fort ; maintenir : la rafale' },
+  { id: 'orbe', n: 'Orbe', f: 0, anim: 'gourdin', magie: 1, deg: .3, cad: .4, port: 1.4, long: .2, chauffe: .58, trempe: 3, us: .75, ph: 'D', meca: 'le sort tenu en main tourne autour de vous (trois au plus), puis part seul vers la bête qui vous menace ; maintenir, lâcher : la salve' },
+  { id: 'lamerunique', n: 'Lame runique', f: 1, anim: 'epee', magie: 1, deg: .7, cad: .4, port: 1.9, long: .38, chauffe: .66, trempe: 4.5, us: 1.25, ph: 'D', meca: 'chaque coup remplit ses runes ; pleine, un coup chargé libère le sort tenu en main, sans mana, ou l\'âme de la lame tout autour' },
   // phase E : la poudre
-  { id: 'pistolet', n: 'Pistolet à silex', f: 0, anim: 'arbalete', deg: 1.3, ph: 'E', meca: 'un coup fort, long à recharger ; on en tient deux' },
-  { id: 'tromblon', n: 'Tromblon', f: 0, anim: 'arbalete', deg: .9, ph: 'E', meca: 'une gerbe de plombs en cône, qui vous repousse' },
-  { id: 'mousquet', n: 'Mousquet', f: 0, anim: 'arbalete', deg: 1.8, ph: 'E', meca: 'long, précis, perçant ; la fumée, le rechargement' },
-  { id: 'revolver', n: 'Revolver', f: 0, anim: 'arbalete', deg: .8, ph: 'E', meca: 'six coups rapides, puis le barillet' },
-  { id: 'canon', n: 'Canon à main', f: 0, anim: 'arbalete', deg: 2.2, ph: 'E', meca: 'un obus en cloche qui éclate' },
+  { id: 'pistolet', n: 'Pistolet à silex', f: 0, anim: 'arbalete', feu: 1, deg: 1.5, cad: 2.2, port: 0, long: .2, chauffe: .64, trempe: 3.5, us: .6, ph: 'E', meca: 'une paire : deux coups forts, puis on recharge les deux, longuement' },
+  { id: 'tromblon', n: 'Tromblon', f: 0, anim: 'arbalete', feu: 1, deg: .9, cad: 1.7, port: 0, long: .32, chauffe: .66, trempe: 4, us: .6, ph: 'E', meca: 'une gerbe de neuf plombs en cône, terrible de près, qui vous repousse ; un coup, puis on recharge' },
+  { id: 'mousquet', n: 'Mousquet', f: 0, anim: 'arbalete', feu: 1, deg: 2.4, cad: 2.6, port: 0, long: .5, chauffe: .62, trempe: 4.5, us: .6, ph: 'E', meca: 'long et précis : la balle porte à trente pas et traverse jusqu\'à trois bêtes ; la fumée, puis un long rechargement' },
+  { id: 'revolver', n: 'Revolver', f: 0, anim: 'arbalete', feu: 1, deg: .7, cad: 2, port: 0, long: .24, chauffe: .66, trempe: 4, us: 1.2, ph: 'E', meca: 'six coups rapides (maintenir : ils s\'enchaînent), puis on recharge le barillet' },
+  { id: 'canon', n: 'Canon à main', f: 0, anim: 'arbalete', feu: 1, deg: 2.6, cad: 3, port: 0, long: .36, chauffe: .7, trempe: 6, us: .6, ph: 'E', meca: 'un obus en cloche qui éclate à deux pas et demi, et vous repousse ; un coup, puis on recharge' },
 ];
-const FG_PHASE = 'C', fgDispo = T => T.ph <= FG_PHASE;
+const FG_PHASE = 'E', fgDispo = T => T.ph <= FG_PHASE;
 // Les plans : ceux de la phase A sont à la forge ; les autres se trouvent (coffres du Centre et des Cercles), et se gardent.
 const fgConnu = T => fgDispo(T) && (T.ph === 'A' || essai || ((typeof P !== 'undefined' && P.forgePlans) || []).includes(T.id));
 // Un coffre d'en bas : parfois un plan qu'on n'a pas. Il est appris sur-le-champ, et ne se perd pas à la mort.
-const FG_PLAN_K = { centre: { petit: .06, garde: .25, grand: .6 }, cercles: { petit: .05, garde: .35, scelle: .3 } };
+const FG_PLAN_K = { centre: { petit: .035, garde: .16, grand: .45 }, cercles: { petit: .03, garde: .22, scelle: .25 } };   // (§179) plus rares
+const FG_PLAN_P = { B: 1, C: 1, D: .7, E: .55 };                    // (§179) le poids d'un plan au tirage : la magie et la poudre se font attendre
 function forgePlanCoffre(taille, src) {
   const k = (FG_PLAN_K[src] || {})[taille] || 0; if (!(Math.random() < k)) return '';
   const L = FG_TYPES.filter(T => fgDispo(T) && !fgConnu(T)); if (!L.length) return '';
-  const T = L[Math.random() * L.length | 0]; fgEtat(); P.forgePlans.push(T.id); Sauve.sale = true;
+  let x = Math.random() * L.reduce((a, T) => a + (FG_PLAN_P[T.ph] || 1), 0), T = L[0];
+  for (const U of L) { x -= FG_PLAN_P[U.ph] || 1; if (x <= 0) { T = U; break; } }
+  fgEtat(); P.forgePlans.push(T.id); Sauve.sale = true;
   return 'plan : ' + T.n.toLowerCase();
 }
 // ---------- les matières de la charge (dans l'ordre du code) ----------
 // tr : le tranchant ; du : la dureté ; p : le poids ; ch : la chauffe juste ; q : ce que coûte une portion
 const FG_MAT = [
-  { id: 'ferraille', n: 'ferraille', alli: 'acier', tr: .55, du: .62, p: .6, ch: .64, q: 8, c: [150, 154, 166] },
-  { id: 'pierre', n: 'pierre', alli: 'pierre', tr: .25, du: .48, p: .9, ch: .56, q: 10, c: [134, 130, 122] },
-  { id: 'os', n: 'os', alli: 'os', tr: .42, du: .3, p: .25, ch: .44, q: 6, c: [224, 214, 190] },
-  { id: 'eclat', n: 'éclat', alli: 'éclat', tr: .92, du: .36, p: .3, ch: .72, q: 6, c: [126, 224, 236] },
+  { id: 'ferraille', n: 'ferraille', alli: 'acier', tr: .55, du: .62, p: .6, ch: .64, q: 12, c: [150, 154, 166] },
+  { id: 'pierre', n: 'pierre', alli: 'pierre', tr: .25, du: .48, p: .9, ch: .56, q: 14, c: [134, 130, 122] },
+  { id: 'os', n: 'os', alli: 'os', tr: .42, du: .3, p: .25, ch: .44, q: 9, c: [224, 214, 190] },
+  { id: 'eclat', n: 'éclat', alli: 'éclat', tr: .92, du: .36, p: .3, ch: .72, q: 9, c: [126, 224, 236] },
   { id: 'ferdamne', n: 'fer damné', alli: 'fer damné', ingr: 1, tr: .78, du: .95, p: .72, ch: .8, q: 1, c: [86, 42, 44] },
+  // (§177) le Korlaz : une dose au plus, hors des deux à quatre portions ; il ne change pas l'alliage (il l'assombrit) : il y loge une ombre
+  { id: 'spore', n: 'Korlaz', alli: 'Korlaz', dose: 1, q: 12, c: [40, 30, 52] },
 ];
+// (§177) les pigments de l'Achromie (P.pigments, « couleur:rang ») : posés à la fin de la forge, ils donnent à l'arme une aura et une
+// traînée à leur couleur ; plus le pigment est rare, plus l'aura est vive. Le code les porte : 0 rien, 1 à 20 couleur × rang, 21 la nacre.
+const FG_PIG_RGB = {
+  rouge: [[178, 74, 48], [196, 36, 56], [232, 66, 48], [220, 20, 70], [156, 34, 132]],
+  jaune: [[204, 150, 56], [246, 178, 10], [255, 206, 60], [232, 170, 28], [255, 220, 110]],
+  vert: [[112, 146, 92], [72, 182, 172], [24, 210, 96], [70, 214, 130], [20, 176, 116]],
+  bleu: [[78, 98, 168], [20, 128, 255], [92, 40, 210], [40, 104, 196], [130, 196, 255]],
+};
+const FG_PIG = [null];
+for (const c of ['rouge', 'jaune', 'vert', 'bleu']) for (let r = 1; r <= 5; r++) FG_PIG.push({ k: c + ':' + r, c, r, rgb: FG_PIG_RGB[c][r - 1] });
+FG_PIG.push({ k: 'prisme:6', c: 'prisme', r: 6, rgb: null });
+const fgPigNom = g => typeof grNomPigment === 'function' ? grNomPigment(g.c, g.r) : g.k;
+const fgArc = h => { const f = n => { const k = (n + h * 12) % 12; return Math.round(255 * (.62 - .38 * Math.max(-1, Math.min(k - 3, 9 - k, 1)))); }; return [f(0), f(8), f(4)]; };   // l'arc-en-ciel (h de 0 à 1)
+const fgPigRgb = (g, h) => g.rgb || fgArc(((h ?? (typeof t === 'number' ? t * .25 : 0)) % 1 + 1) % 1);
+const fgHex = c => '#' + c.map(v => Math.max(0, Math.min(255, v | 0)).toString(16).padStart(2, '0')).join('');
+const fgPigDe = id => { const L = fgLireId(id); return L && L.R.pig ? FG_PIG[L.R.pig] : null; };
+const fgPigDispo = i => FG_PIG[i] ? (essai ? 9 : ((P.pigments || {})[FG_PIG[i].k] | 0)) : 0;
+const fgTot = ch => ch.reduce((a, q, k) => a + (FG_MAT[k] && FG_MAT[k].dose ? 0 : q), 0);   // les portions (le Korlaz n'en est pas une)
 const FG_BAINS = [
   { id: 'eau', n: 'eau', t: 0, cout: {}, d: 'dure : la compétence porte sur le coup lui-même' },
   { id: 'huile', n: 'huile', t: 2.5, fam: 'graine', nb: 2, d: 'souple : elle se répand au sol, en zone' },
@@ -147,38 +171,40 @@ function fgEncode(R) {
   let v = 0n; const pose = (x, n) => { v = (v << BigInt(n)) | BigInt(Math.max(0, x | 0) & ((1 << n) - 1)); };
   pose(R.type, 5); for (let k = 0; k < 5; k++) pose(R.ch[k], 3); pose(R.coups - 6, 4); pose(R.plis, 3); pose(R.bain, 3); pose(R.mont, 2);
   for (let k = 0; k < 3; k++) pose(R.ame[k] ? fgHache(R.ame[k]) : 0, 10);
-  let s = ''; for (let k = 0; k < 13; k++) { s = FG_ALPH[Number(v & 31n)] + s; v >>= 5n; }
+  v |= BigInt((R.ch[5] ? 1 : 0) | (Math.max(0, Math.min(FG_PIG.length - 1, R.pig | 0)) << 1)) << 62n;   // (§177) le Korlaz, le pigment
+  const n = v >> 65n ? 14 : 13;                                     // une arme d'avant garde son code de treize signes
+  let s = ''; for (let k = 0; k < n; k++) { s = FG_ALPH[Number(v & 31n)] + s; v >>= 5n; }
   return s;
 }
 function fgDecode(s) {
-  if (typeof s !== 'string' || !/^[0-9a-hjkmnp-tv-z]{13}$/.test(s)) return null;
+  if (typeof s !== 'string' || !/^[0-9a-hjkmnp-tv-z]{13,14}$/.test(s) || (s.length === 14 && s[0] === '0')) return null;
   let v = 0n; for (const c of s) v = (v << 5n) | BigInt(FG_ALPH.indexOf(c));
   const lit = n => { const x = Number(v & BigInt((1 << n) - 1)); v >>= BigInt(n); return x; };
   const ame = []; for (let k = 0; k < 3; k++) ame.unshift(lit(10));
   const mont = lit(2), bain = lit(3), plis = lit(3), coups = lit(4) + 6, ch = []; for (let k = 0; k < 5; k++) ch.unshift(lit(3));
-  const type = lit(5);
-  if (!FG_TYPES[type] || bain >= FG_BAINS.length || plis > 5) return null;
-  const tot = ch.reduce((a, b) => a + b, 0); if (tot < 2 || tot > 4) return null;
+  const type = lit(5), ex = Number(v), pig = ex >> 1; ch.push(ex & 1);
+  if (!FG_TYPES[type] || bain >= FG_BAINS.length || plis > 5 || pig >= FG_PIG.length) return null;
+  const tot = fgTot(ch); if (tot < 2 || tot > 4) return null;
   const A = []; for (const h of ame) if (h) { const id = fgIngrDeH(h); if (!id) return null; A.push(id); }
-  return { type, ch, coups, plis, bain, mont, ame: A };
+  return { type, ch, coups, plis, bain, mont, ame: A, pig };
 }
 const fgCodeAffiche = c => 'FG-' + c.slice(0, 4).toUpperCase() + '-' + c.slice(4, 8).toUpperCase() + '-' + c.slice(8).toUpperCase();
-const fgCodeLu = s => { const c = String(s || '').toLowerCase().replace(/^fg/, '').replace(/[^0-9a-z]/g, '').replace(/[ilo]/g, m => ({ i: '1', l: '1', o: '0' })[m]); return c.length === 13 ? c : null; };
+const fgCodeLu = s => { const c = String(s || '').toLowerCase().replace(/^fg/, '').replace(/[^0-9a-z]/g, '').replace(/[ilo]/g, m => ({ i: '1', l: '1', o: '0' })[m]); return c.length === 13 || (c.length === 14 && c[0] !== '0') ? c : null; };
 // L'identifiant d'une arme forgée : « fg », son code, et sa justesse (deux chiffres en base 36)
 const fgIdDe = (code, j) => 'fg' + code + '_' + Math.max(0, Math.min(100, j | 0)).toString(36).padStart(2, '0');
 const FG_LUS = new Map();
 function fgLireId(id) {
-  if (typeof id !== 'string' || id.length !== 18 || !id.startsWith('fg') || id[15] !== '_') return null;
+  if (typeof id !== 'string' || (id.length !== 18 && id.length !== 19) || !id.startsWith('fg') || id[id.length - 3] !== '_') return null;
   let L = FG_LUS.get(id); if (L !== undefined) return L;
-  const code = id.slice(2, 15), j = parseInt(id.slice(16), 36), R = fgDecode(code);
+  const code = id.slice(2, -3), j = parseInt(id.slice(-2), 36), R = fgDecode(code);
   L = R && j >= 0 && j <= 100 ? { code, R, j } : null; FG_LUS.set(id, L); return L;
 }
 // ---------- ce que la recette donne ----------
 function fgAlliage(R) {
-  const n = R.ch.reduce((a, b) => a + b, 0) || 1, A = { tr: 0, du: 0, p: 0, ch: 0, c: [0, 0, 0] };
-  R.ch.forEach((q, k) => { const M = FG_MAT[k], f = q / n; A.tr += M.tr * f; A.du += M.du * f; A.p += M.p * f; A.ch += M.ch * f; for (let i = 0; i < 3; i++) A.c[i] += M.c[i] * f; });
-  A.c = A.c.map(v => v | 0);
-  const ord = R.ch.map((q, k) => [q, k]).filter(x => x[0]).sort((a, b) => b[0] - a[0]);
+  const n = fgTot(R.ch) || 1, A = { tr: 0, du: 0, p: 0, ch: 0, c: [0, 0, 0] };
+  R.ch.forEach((q, k) => { const M = FG_MAT[k], f = q / n; if (!M || M.dose) return; A.tr += M.tr * f; A.du += M.du * f; A.p += M.p * f; A.ch += M.ch * f; for (let i = 0; i < 3; i++) A.c[i] += M.c[i] * f; });
+  A.korlaz = !!R.ch[5]; A.c = A.c.map(v => (A.korlaz ? v * .72 + 6 : v) | 0);
+  const ord = R.ch.map((q, k) => [q, k]).filter(x => x[0] && !FG_MAT[x[1]].dose).sort((a, b) => b[0] - a[0]);
   A.nom = FG_MAT[ord[0][1]].alli + (ord[1] ? ' ' + fgDe(FG_MAT[ord[1][1]].alli) : '');
   A.eclat = R.ch[3] > 0; A.damne = R.ch[4] > 0;
   return A;
@@ -192,7 +218,7 @@ function fgStats(R, j) {
   const deg = T.deg * (.8 + .45 * A.tr) * (1 + .12 * A.du) * (1 + .035 * R.plis) * (L > 1 ? 1 + (L - 1) * .5 : 1 - (1 - L) * .3) * (.72 + .45 * jj) * (j >= 97 ? 1.05 : 1);
   const cad = T.cad * (.88 + .3 * A.p) * (L > 1 ? 1 + (L - 1) * .4 : 1);
   const port = T.port ? T.port * (.86 + .16 * L) : 0;
-  const usure = Math.round((2000 + 1400 * A.du + [0, 600, 200, 0, -200][R.bain] + 120 * R.plis) * (j >= 97 ? 2 : 1));
+  const usure = Math.round((2000 + 1400 * A.du + [0, 600, 200, 0, -200][R.bain] + 120 * R.plis) * (j >= 97 ? 2 : 1) * (T.us || 1));   // (§179) us : une arme rapide encaisse plus de coups
   return { deg: Math.round(deg * 100) / 100, cad: Math.round(cad * 1000) / 1000, port: Math.round(port * 100) / 100, usure, L };
 }
 function fgAme(R) {
@@ -226,9 +252,10 @@ function forgeObjet(id) {
     get cad() { return S.cad * fgCadK(id, T.id); }, get port() { return T.id === 'epeefouet' && FG.modes[id] ? 4 : S.port; },
     get deg() { const I = (typeof P !== 'undefined' && P.forge && P.forge[id]) || null; return Math.round(S.deg * (I && I.u >= S.usure ? .6 : 1) * 100) / 100; },
     get d() { const I = (P.forge && P.forge[id]) || null, u = I ? Math.min(1, I.u / S.usure) : 0;
-      return 'dégâts ' + Math.round(this.deg * 100) + ' · ' + T.meca + ' · ' + (x => x[0].toLowerCase() + x.slice(1))(fgCompTxt(C)) + ' · forgée ' + j + ' %' + (j >= 97 ? ' (chef-d\'œuvre)' : '')
+      return 'dégâts ' + Math.round(this.deg * 100) + (T.magie ? ' · les sorts ×' + fgFocale(this, T).toFixed(2).replace('.', ',') : '') + (T.feu ? ' · recharge ' + this.cad.toFixed(1).replace('.', ',') + ' s · sans munitions' : '') + ' · ' + T.meca + ' · ' + (x => x[0].toLowerCase() + x.slice(1))(fgCompTxt(C)) + (R.ch[5] ? (fgDistanceT(T) ? ' · une ombre de Korlaz vous suit et se bat à vos côtés' : ' · le Korlaz : chaque coup lacère la cible de trois griffes noires, même de loin') : '') + (R.pig && FG_PIG[R.pig] ? ' · teintée ' + fgDe(fgPigNom(FG_PIG[R.pig])) + ' : son aura' : '') + ' · forgée ' + j + ' %' + (j >= 97 ? ' (chef-d\'œuvre)' : '')
         + ' · usure ' + Math.round(u * 100) + ' %' + (u >= 1 ? ' : émoussée, à réparer' : '') + (I && I.f ? ' · forgée par ' + I.f : '') + ' · ' + fgCodeAffiche(code); } };
   if (T.arc) O.arc = 1; if (T.vK) O.vK = T.vK; if (T.perce) O.perce = T.perce;
+  if (T.feu) { O.arc = 1; O.fusil = 1; }                            // (§175) les armes à feu : le geste et la pose des fusils du Centre
   if (I0(id)) O.n = I0(id);
   OBJETS.push(O);
   // le geste, la garde, l'arme rangée : ceux de sa base ; la longueur suit les coups
@@ -239,7 +266,7 @@ function forgeObjet(id) {
   if (ARRET_ARME[b] !== undefined) ARRET_ARME[id] = ARRET_ARME[b];
   if (RECUL_ARME[b] !== undefined) RECUL_ARME[id] = RECUL_ARME[b] * (.8 + .5 * A.p);
   LONG_ARME[id] = (T.long || LONG_ARME[b] || .35) * S.L;
-  COUL_TRAINEE[id] = C ? FG_ELEM[C.el].hex : '#' + A.c.map(v => Math.min(255, v + 40).toString(16).padStart(2, '0')).join('');
+  COUL_TRAINEE[id] = R.pig && FG_PIG[R.pig] ? fgHex(fgPigRgb(FG_PIG[R.pig], .55)) : C ? FG_ELEM[C.el].hex : '#' + A.c.map(v => Math.min(255, v + 40).toString(16).padStart(2, '0')).join('');
   if (typeof DESSINS === 'object') { DESSINS[id] = d => fgDessin(d, R); if (typeof poserIcone === 'function') try { poserIcone(id); } catch (e) { /* plus tard */ } }
   return O;
 }
@@ -248,11 +275,42 @@ const I0 = id => typeof P !== 'undefined' && P.forge && P.forge[id] && P.forge[i
 // ============================================================
 //  L'ARME EN MAIN : sa forme vient de la recette (la longueur des coups, l'alliage, les plis, l'âme, la monture)
 // ============================================================
+// (§177) l'arme en main, puis son aura : le fil luit de son pigment, et des lueurs s'en échappent
 function forgeGeom(id, F, J, B) {
+  const n0 = B.length; if (!fgGeomBase(id, F, J, B)) return false;
+  const L = fgLireId(id), pg = L && L.R.pig ? FG_PIG[L.R.pig] : null;
+  if (pg && B.length > n0) fgAura(id, J, B, n0, pg);
+  if (L && L.R.ch[5] && B.length > n0) fgKorlazFume(id, J, B, n0);
+  return true;
+}
+function fgAura(id, J, B, n0, pg) {
+  const r = pg.r, pc = fgPigRgb(pg);
+  if (r >= 2) for (let i = n0; i < B.length; i++) { const c = B[i].c; if (B[i].pig || (c && c[0] === pc[0] && c[1] === pc[1] && c[2] === pc[2])) B[i].lum = 1; }
+  if (!J || !Number.isFinite(J.x)) return;
+  const cle = (J === P ? 'P' : J.u || 'j') + id, rate = [0, 5, 8, 12, 16, 22, 28][r], der = FG.auraT.get(cle) ?? 0;
+  if (t - der < 1 / rate || parts.length > 1400) return;
+  FG.auraT.set(cle, t);
+  const f = J.faceS ?? J.face ?? 0, cf = Math.cos(f), sf = Math.sin(f), zs = J.z + (J.selle || 0);
+  const put = v => [J.x + v[0] * cf - v[1] * sf, J.y + v[0] * sf + v[1] * cf, zs + v[2]];
+  for (let n = 0; n < (r >= 5 ? 2 : 1); n++) {
+    const o = B[n0 + (Math.random() * (B.length - n0) | 0)], q = put(mixv(o.a, o.b, Math.random())), c = fgPigRgb(pg, Math.random());
+    parts.push({ x: q[0] + (Math.random() - .5) * .06, y: q[1] + (Math.random() - .5) * .06, z: q[2], vx: (Math.random() - .5) * .25, vy: (Math.random() - .5) * .25, vz: .2 + Math.random() * .35, g: -.1,
+      life: .45 + .08 * r + Math.random() * .3, age: 0, col: fgHex(r >= 4 && Math.random() < .25 ? c.map(v => v + (255 - v) * .6) : c), luit: 1, tl: .03 + .006 * r });
+  }
+}
+// traineeArme (index.html) : la traînée d'une arme teintée prend son pigment, luit, et dure un peu plus (la nacre passe par toutes les couleurs)
+function forgeTrainee(id) {
+  const g = fgPigDe(id); if (!g) return null;
+  const base = g.rgb ? fgHex(g.rgb) : null, clair = g.rgb ? fgHex(g.rgb.map(v => v + (255 - v) * .55)) : null;
+  return { c: (k, s) => base ? (g.r >= 4 && (s + k) % 3 === 0 ? clair : base) : fgHex(fgArc(((t * .6 + k * .12 + s * .07) % 1 + 1) % 1)), k: 1 + .16 * g.r, w: 1 + .1 * g.r };
+}
+function fgGeomBase(id, F, J, B) {
   const L = fgLireId(id); if (!L) return false;
   const R = L.R, T = FG_TYPES[R.type], A = fgAlliage(R), C = fgAme(R), M = FG_MONT[R.mont].c, lg = fgLong(R), or = L.j >= 97;
-  const lame = A.eclat ? A.c.map(v => Math.min(255, v + 18)) : A.c, fil = C ? FG_ELEM[C.el].c : A.c.map(v => Math.min(255, v + 60)), sombre = A.c.map(v => v * .55 | 0);
+  const pg = R.pig ? FG_PIG[R.pig] : null;
+  const lame = A.eclat ? A.c.map(v => Math.min(255, v + 18)) : A.c, fil = pg ? fgPigRgb(pg) : C ? FG_ELEM[C.el].c : A.c.map(v => Math.min(255, v + 60)), sombre = A.c.map(v => v * .55 | 0);
   const deco = or ? [255, 214, 120] : A.damne ? [150, 40, 30] : [150, 146, 140];
+  if (T.feu) return fgGeomFeu(id, T, F, J, B, { lame, fil, M, deco, sombre, lg });
   if (T.arc && T.anim === 'arbalete') {                             // l'arbalète : son fût de monture, son arc d'acier, ses poulies
     const n0 = B.length; geomArme('arbalete', F, J, B);
     for (let i = n0; i < B.length && i < n0 + 7; i++) { const k = i - n0; B[i].c = k < 2 ? M : k === 2 ? lame : k % 2 ? deco : lame; }
@@ -266,7 +324,7 @@ function forgeGeom(id, F, J, B) {
       B.push({ a: o[k], b: q, w: .026, h: .022, c: ext > .05 ? lame : fil }); if (ext > .05) B.push({ a: q, b: v3.add(q, v3.mul(d, .025)), w: .03, h: .03, c: fil }); }
     return true;
   }
-  const pose = (a, b, w, h, c) => B.push({ a, b, w, h, c }), u = F.u, at = k => v3.add(F.o, v3.mul(u, k));
+  const pose = (a, b, w, h, c) => B.push(c === fil && pg ? { a, b, w, h, c, pig: 1 } : c === lame ? { a, b, w, h, c, bl: 1 } : { a, b, w, h, c }), u = F.u, at = k => v3.add(F.o, v3.mul(u, k));
   let v = v3.cross(u, [0, 1, 0]); if (v3.len(v) < .2) v = v3.cross(u, [1, 0, 0]); v = nrm(v); if (v[2] < 0) v = v3.mul(v, -1);
   const vv = (p, k) => v3.add(p, v3.mul(v, k));
   const veines = (a0, a1, larg) => { for (let k = 0; k < R.plis; k++) { const o = (k / Math.max(1, R.plis - 1) - .5) * larg * .6; pose(vv(at(a0), o), vv(at(a1), o), .006, larg * .2 + .012, sombre); } };
@@ -374,6 +432,34 @@ function forgeGeom(id, F, J, B) {
     pose(at(-.05), at(.05), .03, .03, M); pose(at(-.06), at(-.04), .036, .036, deco);
     for (const o of [-.012, .012]) pose(vv(at(.04), o * .5), vv(at(.3), o * 2), .006, .006, [206, 186, 146]);
     pose(at(.29), at(.35), .05, .022, [120, 86, 56]); pose(at(.3), at(.335), .03, .03, lame); pose(at(.31), at(.325), .032, .006, fil);
+  } else if (T.magie) {                                             // (§174) la magie : la pierre de l'arme luit de la phrase tenue en main
+    const poseL = (a, b, w, h, c) => B.push({ a, b, w, h, c, lum: 1 });
+    const ph = J === P ? fgPhraseMain() : null, pc = ph ? ph.m.col : fil, ch = J === P && FG.charge && FG.charge.a && FG.charge.a.id === id ? t - FG.charge.t0 : 0;
+    if (T.id === 'batonmage') {                                     // la hampe, la tête fourchue, le cristal qui gonfle au palier
+      const niv = ch >= 1.6 ? 3 : ch >= 1 ? 2 : ch >= .5 ? 1 : 0, Hc = .58 + .04 * lg, r = .036 + .012 * niv + (niv ? .006 * Math.sin(t * 14) : 0);
+      pose(at(-.34), at(.52), .026, .026, M); pose(at(-.36), at(-.3), .032, .032, deco); pose(at(.1), at(.14), .032, .032, deco);
+      for (const o of [-1, 1]) { pose(vv(at(.5), o * .012), vv(at(Hc - .02), o * .05), .014, .014, deco); pose(vv(at(Hc - .02), o * .05), vv(at(Hc + .05), o * .02), .012, .012, deco); }
+      poseL(at(Hc - r), at(Hc + r), r * 1.6, r * 1.6, pc);
+      for (let k = 0; k < Math.min(3, R.plis); k++) pose(at(.3 + k * .05), at(.312 + k * .05), .03, .03, fil);
+    } else if (T.id === 'baguette') {                               // le manche, la tige fine, la pointe
+      const e = .2 + .12 * lg;
+      pose(at(-.05), at(-.03), .03, .03, deco); pose(at(-.03), at(.06), .024, .024, M); pose(at(.06), at(.075), .03, .03, deco);
+      pose(at(.075), at(e), .014, .014, lame); pose(vv(at(.09), .006), vv(at(e - .02), .004), .004, .004, fil);
+      poseL(at(e), at(e + .03 + (FG.charge && ch > .3 ? .012 : 0)), .024, .024, pc);
+    } else if (T.id === 'orbe') {                                   // la poignée, le berceau, la sphère
+      const C0 = at(.15 + .02 * lg), r = .06 + .012 * lg + .005 * Math.sin(t * 3);
+      pose(at(-.05), at(.06), .03, .03, M); pose(at(-.06), at(-.04), .036, .036, deco);
+      for (const o of [-1, 1]) pose(vv(at(.06), o * .015), vv(at(.12), o * .055), .014, .014, deco);
+      pose(at(.06), at(.09), .04, .04, deco);
+      poseL(v3.add(C0, v3.mul(u, -r)), v3.add(C0, v3.mul(u, r)), r * 1.7, r * 1.7, pc);
+    } else {                                                        // la lame runique : une épée large, cinq runes qui s'allument
+      const e = .06 + .3 * lg, plein = J === P ? FG.runes[id] || 0 : 0;
+      pose(at(-.065), at(-.035), .038, .038, deco); pose(at(-.035), at(.05), .026, .026, M);
+      pose(vv(at(.055), -.07), vv(at(.055), .07), .028, .032, deco);
+      pose(at(.06), at(e), .056, .016, lame); pose(at(e), at(e + .06), .03, .014, lame);
+      for (let k = 0; k < 5; k++) { const s0 = .08 + (e - .1) * k / 5, s1 = s0 + (e - .1) / 5 * .6;
+        (k < Math.round(plein * 5) ? poseL : pose)(at(s0), at(s1), .022, .019, k < Math.round(plein * 5) ? (plein >= 1 ? [255, 250, 230] : fil) : sombre); }
+    }
   } else {                                                          // les armes des phases suivantes : une lame simple
     pose(at(-.04), at(.05), .026, .026, M); pose(at(.05), at(.3), .045, .014, lame);
   }
@@ -382,7 +468,7 @@ function forgeGeom(id, F, J, B) {
 // La vignette du sac : la forme, l'alliage, le fil de l'âme.
 function fgDessin(d, R) {
   const T = FG_TYPES[R.type], A = fgAlliage(R), C = fgAme(R), M = FG_MONT[R.mont].c;
-  const lame = A.c, fil = C ? FG_ELEM[C.el].c : A.c.map(v => Math.min(255, v + 60)), sombre = A.c.map(v => v * .55 | 0);
+  const lame = A.c, fil = R.pig && FG_PIG[R.pig] ? fgPigRgb(FG_PIG[R.pig], .1) : C ? FG_ELEM[C.el].c : A.c.map(v => Math.min(255, v + 60)), sombre = A.c.map(v => v * .55 | 0);
   switch (T.id) {
     case 'dague': d.ligne(2, 14, 5, 11, M, 2); d.ligne(3, 9, 7, 13, sombre, 2); d.ligne(6, 10, 11, 5, lame, 2); d.ligne(7, 9, 11, 5, fil); d.net(12, 4, fil); break;
     case 'epee': d.ligne(2, 14, 4, 12, M, 2); d.ligne(2, 10, 6, 14, sombre, 2); d.ligne(5, 11, 13, 3, lame, 2); d.ligne(6, 10, 13, 3, fil); d.net(14, 2, fil); break;
@@ -404,6 +490,15 @@ function fgDessin(d, R) {
     case 'arclong': d.arc(2, 8, 8, -1.35, 1.35, lame, 2); d.ligne(4, 1, 4, 15, [230, 226, 214]); d.net(5, 0, fil); d.net(5, 15, fil); d.rect(9, 7, 10, 9, M); break;
     case 'arbaletef': d.ligne(3, 13, 11, 5, M, 2); d.ligne(7, 2, 14, 9, lame, 2); d.ligne(7, 2, 9, 7, [230, 226, 214]); d.ligne(9, 7, 14, 9, [230, 226, 214]); d.ligne(8, 8, 13, 3, fil); d.net(7, 2, fil); d.net(14, 9, fil); break;
     case 'fronde': d.rect(2, 12, 4, 14, M); d.ligne(4, 12, 9, 5, [206, 186, 146]); d.ligne(4, 13, 11, 7, [206, 186, 146]); d.rect(9, 4, 12, 7, [120, 86, 56]); d.net(10, 5, lame); d.net(11, 5, fil); break;
+    case 'batonmage': d.ligne(2, 15, 11, 6, M, 2); d.ligne(11, 6, 11, 3, sombre); d.ligne(11, 6, 14, 6, sombre); d.rect(12, 2, 14, 4, fil); d.net(13, 1, [255, 250, 230]); d.net(5, 12, lame); break;
+    case 'baguette': d.rect(2, 12, 4, 14, M); d.net(5, 11, sombre); d.ligne(5, 11, 12, 4, lame); d.rect(12, 3, 13, 4, fil); d.net(14, 2, [255, 250, 230]); d.net(11, 2, fil); d.net(14, 5, fil); break;
+    case 'orbe': d.rect(3, 12, 5, 15, M); d.ligne(4, 11, 6, 9, sombre); d.ligne(6, 12, 8, 10, sombre); d.arc(10, 6, 4, 0, 6.2832, fil, 2); d.rect(9, 4, 11, 7, fil); d.net(9, 4, [255, 250, 230]); break;
+    case 'lamerunique': d.ligne(2, 14, 4, 12, M, 2); d.ligne(2, 10, 6, 14, sombre, 2); d.ligne(5, 11, 13, 3, lame, 3); d.net(7, 9, fil); d.net(9, 7, fil); d.net(11, 5, fil); d.net(14, 2, lame); break;
+    case 'pistolet': for (const o of [0, 3]) { d.rect(2 + o, 10 - o, 3 + o, 13 - o, M); d.ligne(3 + o, 9 - o, 10 + o, 9 - o, lame, 2); d.net(4 + o, 7 - o, sombre); } d.net(13, 6, fil); break;
+    case 'tromblon': d.ligne(1, 13, 6, 10, M, 2); d.net(6, 9, sombre); d.ligne(6, 9, 12, 5, lame, 2); d.rect(12, 2, 14, 5, lame); d.net(14, 2, fil); d.net(15, 4, fil); break;
+    case 'mousquet': d.ligne(1, 14, 5, 11, M, 2); d.ligne(5, 11, 15, 2, lame); d.ligne(5, 12, 12, 6, M); d.net(6, 10, sombre); d.net(9, 7, fil); d.net(12, 4, fil); break;
+    case 'revolver': d.rect(3, 10, 5, 14, M); d.rect(5, 7, 8, 10, lame); d.net(6, 8, sombre); d.ligne(8, 8, 14, 8, lame, 2); d.net(14, 7, fil); d.net(6, 6, sombre); break;
+    case 'canon': d.rect(2, 10, 4, 13, M); d.ligne(4, 10, 11, 5, lame, 3); d.rect(11, 3, 14, 6, sombre); d.net(13, 4, fil); d.net(7, 6, fil); break;
     default: d.ligne(3, 13, 12, 4, lame, 2); d.net(12, 4, fil);
   }
 }
@@ -498,7 +593,7 @@ function forgeAvant(A, pr, a) {
   if (T.id === 'hache' && pr.sp && pr.sp.roi && typeof roiDegK === 'function') { const r = roiDegK(pr); if (r > 0 && r < 1) k /= r; }   // brise-garde : le bouclier, la pierre ne protègent plus
   if (T.id === 'rapiere') { if (FG.riposte > t) { k *= 2.5; FG.riposte = 0; A.riposte = true; burst(pr.x, pr.y, (pr.z || 0) + .9, 14, '#ffffff'); say('riposte', .9); }
     else if (Math.random() < .2) { k *= 2; burst(pr.x, pr.y, (pr.z || 0) + .9, 8, '#e8f0ff'); } }
-  if (T.id === 'griffes' || T.id === 'fleau') k *= 1 + (T.id === 'griffes' ? .06 : .12) * fgPile();
+  if (T.id === 'griffes' || T.id === 'fleau') k *= 1 + (T.id === 'griffes' ? .06 : .09) * fgPile();
   if (T.id === 'hallebarde' && (P.combo | 0) === 1) { k *= 1.2; A.crochet = true; }
   if (A.charge) k *= 1.5;
   return k;
@@ -553,7 +648,7 @@ function forgeApres(A, pr, dg, tue, a) {
   }
   if (T.id === 'hache' && !tue) pr.fgSaigne = { fin: t + 3, dps: .05 * a.deg };
   if (T.id === 'griffes' || T.id === 'fleau') { FG.pile.n = t - FG.pile.t < 1.25 ? Math.min(5, FG.pile.n + 1) : 1; FG.pile.t = t; }
-  if (T.id === 'fleau') { const port = a.port + .2 * fgPile(); fgBalayage(pr, a, 2.6, .7, port); fgArcVisuel(2.6, port, '#d8c8a8'); }
+  if (T.id === 'fleau') { const port = a.port + .2 * fgPile(); fgBalayage(pr, a, 2.6, .55, port); fgArcVisuel(2.6, port, '#d8c8a8'); }
   if (T.id === 'espadon') { fgBalayage(pr, a, 6.29, .8, a.port); fgArcVisuel(6.28, a.port, '#f0ece0'); P.secousse = t; P.secousseK = .25; }
   if (T.id === 'faux') { const n = 1 + fgBalayage(pr, a, 2.8, .85, a.port); P.pv = Math.min(1, P.pv + .025 * n); fgArcVisuel(2.8, a.port, '#ff6a80'); }
   if (T.id === 'hallebarde') {
@@ -571,6 +666,7 @@ function forgeApres(A, pr, dg, tue, a) {
     if (!tue) pr.etourdi = Math.max(pr.etourdi || 0, .5);
     for (let k = 0; k < 20; k++) { const an = k / 20 * 6.2832; parts.push({ x: pr.x + Math.cos(an) * .4, y: pr.y + Math.sin(an) * .4, z: (pr.z || 0) + .1, vx: Math.cos(an) * 4.5, vy: Math.sin(an) * 4.5, vz: .4, g: 2, life: .4, age: 0, col: '#d8c8a8', tl: .08 }); }
   }
+  if (T.id === 'lamerunique') fgRunes(a, A, pr, pw);
   if (C && fgDeclenche(C.decl, A, tue)) fgCompetence(C, pr, pw);
   if (FG.buff && FG.buff.fin > t && !tue) fgStatut(pr, FG.buff.el, FG.buff.pw * .5);
 }
@@ -601,12 +697,500 @@ function forgeChargeUp() {
   if (charge && ty === 'sabre') { attaquer(c.a, cibleContact(c.a.port + 1.5)); fgFente(c.a); if (P.anim && P.anim.k === 'arme') { P.anim.fait = true; P.anim.charge = true; } return true; }
   if (charge && ty === 'javelots') { forgeRappel(c.a.id); return true; }
   if (charge && ty === 'epeefouet') { FG.modes[c.a.id] = !FG.modes[c.a.id]; SON.jouer('fouet', {}, P.x, P.y, P.z + 1); say(FG.modes[c.a.id] ? 'la lame se déroule · portée 4' : 'la lame se referme', 1.2); }
+  if (ty === 'baguette' && c.raf) return true;                       // (§174) la rafale s'arrête au lâcher
+  if (ty === 'batonmage' || ty === 'baguette' || ty === 'orbe') {     // (§179) la phrase n'est pas prête : pas de geste perdu, le sort partira au prochain appui
+    const s = fgPhraseMain();
+    if (s && t < (sortPret[s.k] || 0) && !(ty === 'orbe' && fgOrbes(c.a.id).length && t - c.t0 >= .5)) { FG.magDit = Math.min(FG.magDit, t - 1.6); fgDitMagie(nomPhrase(s) + ' · encore ' + (sortPret[s.k] - t).toFixed(1).replace('.', ',') + ' s', .8); return true; }
+  }
+  if (charge && ty === 'orbe' && fgOrbes(c.a.id).length) { attaquer(c.a, null); if (P.anim && P.anim.k === 'arme') P.anim.fait = true; fgSalve(c.a.id); return true; }
+  if (ty === 'batonmage' || ty === 'baguette' || ty === 'orbe') {     // (§179) le sort part au lâcher, sans attendre le milieu du geste
+    const held = t - c.t0, A = { charge: held >= .5, niv: ty === 'batonmage' ? fgNivBaton(held) : 0 };
+    attaquer(c.a, null);
+    if (fgMagie(A, c.a, FG_TYPES[L.R.type])) { if (P.anim && P.anim.k === 'arme') P.anim.fait = true; if (A.charge) burst(P.x, P.y, P.z + 1, 14, '#ffd27d'); return true; }
+    if (held >= .5 && P.anim && P.anim.k === 'arme') { P.anim.charge = true; if (ty === 'batonmage') P.anim.niv = A.niv; }
+    return true;                                                      // pas de sort (rien en main, pas de mana) : le geste frappe, au milieu
+  }
   attaquer(c.a, cibleContact(c.a.port));
-  if (t - c.t0 >= .5 && P.anim && P.anim.k === 'arme') { P.anim.charge = true; burst(P.x, P.y, P.z + 1, 14, '#ffd27d'); }
+  if (t - c.t0 >= .5 && P.anim && P.anim.k === 'arme') { P.anim.charge = true; if (ty === 'batonmage') P.anim.niv = fgNivBaton(t - c.t0); burst(P.x, P.y, P.z + 1, 14, '#ffd27d'); }
   return true;
 }
 // L'arc court : deux flèches de plus, juste derrière la première
 function forgeRafale(p) { const a = porte('arme'), L = a && a.fg && fgLireId(a.id); if (L && FG_TYPES[L.R.type].id === 'arccourt') FG.rafale.push({ t: t + .12, p: p * .9 }, { t: t + .24, p: p * .9 }); }
+
+// ============================================================
+//  LA MAGIE FORGÉE (§174, phase D) : le bâton de mage, la baguette, l'orbe, la lame runique.
+//  Elles lancent la phrase tenue en main (le volet Magie : « Tenir »), contre les éclats du sac, avec le délai de
+//  la phrase : rien de neuf à apprendre, le grimoire et le mana restent ce qu'ils sont. La focale (les dégâts de
+//  l'arme sur ceux de son type : ce que la forge y a mis) multiplie le sort ; l'âme de l'arme s'y ajoute, comme
+//  à un coup (forgeSortTouche, appelé par toucherSort). Sans phrase en main, l'arme frappe, faiblement.
+// ============================================================
+const FG_BATON = [[.5, 1.6, 1.15, 1.5], [1, 2.2, 1.3, 2], [1.6, 3, 1.5, 3]];   // le palier : tenu (s), dégâts, ampleur, prix
+const FG_ORBES = 3, FG_ORBE_VIE = 25, FG_ORBE_R = 10, FG_RUNE = .15;
+function fgFocale(a, T) { return Math.max(.5, (a.deg || T.deg) / T.deg); }
+function fgPhraseMain() { const k = typeof P !== 'undefined' && P.sortMain; return k && typeof sortInscrit === 'function' && sortInscrit(k) ? phraseDe(k) : null; }
+const fgNivBaton = h => h >= FG_BATON[2][0] ? 3 : h >= FG_BATON[1][0] ? 2 : h >= FG_BATON[0][0] ? 1 : 0;
+const fgDitMagie = (m, d = 1.6) => { if (t - FG.magDit > 2.5) { FG.magDit = t; say(m, d); } };
+const fgOrbes = id => FG.projs.filter(p => p.k === 'orbe' && p.id === id && p.etat === 'tourne');
+// Lancer une phrase par l'arme : mod.deg, mod.amp (l'ampleur), mod.cout et mod.del (facteurs), mod.libre (sans
+// mana ni délai), mod.orbe (elle se pose en sphère), mod.gros (le trait grossit), mod.charge, mod.ame (l'âme sûre).
+function fgLancerPhrase(a, s0, mod) {
+  if (!s0 || P.pv <= 0 || P.effroi > t) return 'non';
+  if (s0.f.id === 'piege' && typeof djIci === 'function' && djIci()) return 'non';
+  if (!mod.libre && t < (sortPret[s0.k] || 0)) return 'attente';
+  const cs = mod.libre ? 0 : Math.max(1, Math.round(coutPhrase(s0) * (mod.cout || 1)));
+  if (manaDispo() < cs) return 'mana';
+  const s = Object.assign({}, s0, { deg: s0.deg * (mod.deg || 1), amp: s0.amp * (mod.amp || 1) });
+  SON.jouer('sort', mod.gros ? { vol: 1 } : { vol: .7 });
+  if (!mod.libre) { const p = instabilite(s); if (p > 0) { const de = Math.random(); if (de < p) { sortRate(s, cs, de < p / 2); return 'rate'; } } }
+  FG.sortCtx = { id: a.id, t, charge: !!mod.charge, ame: !!mod.ame, vus: new Set() };
+  const n0 = TIRS.length;
+  if (!(mod.orbe ? fgOrbePose(a, s) : SORT_FAIT[s.f.id](s))) return 'non';
+  if (mod.gros) for (let i = n0; i < TIRS.length; i++) if (TIRS[i].sortM) TIRS[i].gros = mod.gros;
+  if (cs) payerMana(cs);
+  if (!mod.libre) sortPret[s0.k] = t + s.del * (mod.del || 1);
+  casesSig = '';
+  if (effet('invisible')) { P.effets.invisible = t; say('vous redevenez visible', 1.6); }
+  fgUser(a.id, 1);
+  FG.serie = t - FG.serieT < 1.4 ? FG.serie + 1 : 1; FG.serieT = t;
+  return 'ok';
+}
+// forgeLance : au moment du coup, le bâton, la baguette et l'orbe lancent au lieu de frapper
+function fgMagie(A, a, T) {
+  if (T.id === 'lamerunique') return false;                         // elle frappe : ses runes se remplissent (forgeApres)
+  const s = fgPhraseMain(), fk = fgFocale(a, T);
+  if (!s) { fgDitMagie('aucun sort en main · volet Magie : « Tenir » une phrase du grimoire', 2.6); return false; }
+  let mod, palier = 0;
+  if (T.id === 'batonmage') {
+    let n = A.charge ? A.niv || 1 : 0;
+    if (!essai) while (n > 0 && manaDispo() < Math.max(1, Math.round(coutPhrase(s) * FG_BATON[n - 1][3]))) n--;   // le plus haut palier qu'on peut payer
+    const N = FG_BATON[n - 1]; palier = n;
+    mod = { deg: fk * (N ? N[1] : 1), amp: N ? N[2] : 1, cout: N ? N[3] : 1, gros: n, charge: n > 0 };
+  } else if (T.id === 'baguette') mod = { deg: .55 * fk, cout: .6, del: .35, charge: !!A.charge };
+  else {                                                            // l'orbe : trait, onde et piège tournent ; le mur et l'égide partent tout de suite
+    if (['trait', 'onde', 'piege'].includes(s.f.id)) {
+      if (fgOrbes(a.id).length >= FG_ORBES) { fgSalve(a.id); return true; }
+      mod = { deg: fk, del: .5, orbe: true, charge: !!A.charge };
+    } else mod = { deg: fk, charge: !!A.charge };
+  }
+  const r = fgLancerPhrase(a, s, mod);
+  if (r === 'ok') { if (T.id !== 'baguette' || t - FG.magDit > 4) fgDitMagie(nomPhrase(s) + (palier ? ' · palier ' + FG_ROM[palier] : '') + (mod.orbe ? ' · la sphère tourne' : ''), 1.2); return true; }
+  if (r === 'rate') return true;
+  if (r === 'attente') { fgDitMagie(nomPhrase(s) + ' · encore ' + Math.max(1, Math.ceil(sortPret[s.k] - t)) + ' s', 1); return true; }   // (§179) le geste, sans le coup
+  else if (r === 'mana') fgDitMagie('pas assez de mana : il faut ' + eclats(Math.max(1, Math.round(coutPhrase(s) * (mod.cout || 1)))) + ' dans le sac', 1.8);
+  return false;                                                     // le sort ne part pas : l'arme frappe
+}
+// La baguette tenue : la rafale, au rythme de la phrase (le tiers de son délai, trois dixièmes de seconde au moins)
+function fgMajMagie(dt) {
+  const c = FG.charge, a = c && c.a, L = a && a.fg && fgLireId(a.id), ty = L && FG_TYPES[L.R.type].id;
+  if (ty === 'baguette' && t - c.t0 >= .3 && t >= FG.rafT && porte('arme') === a) {
+    const s = fgPhraseMain();
+    if (s && t >= (sortPret[s.k] || 0) && manaDispo() >= Math.max(1, Math.round(coutPhrase(s) * .6)) && !(P.anim && P.anim.k === 'arme')) {
+      c.raf = true; FG.rafT = t + Math.max(.3, s.del * .35); lancerAttaque(a, cibleContact(a.port));
+    }
+  }
+  if (ty === 'batonmage' && t - c.t0 >= .5) {                       // le bâton tenu : chaque palier s'entend, et la lueur monte
+    const n = fgNivBaton(t - c.t0), s = fgPhraseMain(), hex = s ? hexSort(s.m.col) : '#ffd27d';
+    if (n > (c.niv || 0)) { c.niv = n; SON.jouer('tic', { vol: .4 + .2 * n }, P.x, P.y, P.z + 1); burst(P.x + Math.cos(P.face) * .5, P.y + Math.sin(P.face) * .5, P.z + 1.4, 6 + 6 * n, hex); }
+    if (Math.random() < dt * 10 * n) { const an = Math.random() * 6.28, r = .7 - .15 * n;
+      parts.push({ x: P.x + Math.cos(an) * r, y: P.y + Math.sin(an) * r, z: P.z + .6 + Math.random() * .8, vx: -Math.cos(an) * r * 2, vy: -Math.sin(an) * r * 2, vz: .4, g: 0, life: .4, age: 0, col: hex, luit: 1, tl: .05 + .015 * n }); }
+  }
+  for (const id in FG.runes) if (FG.runes[id] > 0 && t - (FG.runesT[id] || 0) > 10) FG.runes[id] = Math.max(0, FG.runes[id] - dt * .05);   // laissées, elles s'éteignent
+  const ar = porte('arme'), Lr = ar && ar.fg && FG.runes[ar.id] >= 1 && fgLireId(ar.id);
+  if (Lr && Math.random() < dt * 6) { const C = fgAme(Lr.R); parts.push({ x: P.x + (Math.random() - .5) * .6, y: P.y + (Math.random() - .5) * .6, z: P.z + .7 + Math.random() * .6, vx: 0, vy: 0, vz: .5, g: 0, life: .5, age: 0, col: C ? FG_ELEM[C.el].hex : '#fff4d0', luit: 1, tl: .05 }); }
+}
+// L'orbe : la phrase posée en sphère, qui tourne autour de vous
+function fgOrbePose(a, s) {
+  const L = fgOrbes(a.id); if (L.length >= FG_ORBES) return false;
+  const a0 = L.length ? L[L.length - 1].a0 + 2.094 : P.face;
+  FG.projs.push({ k: 'orbe', id: a.id, etat: 'tourne', s, a0, t0: t, age: 0, x: P.x, y: P.y, z: P.z + 1.3, vx: 0, vy: 0, vz: 0, cible: null, ch: !!FG.sortCtx && FG.sortCtx.charge, c: s.m.col, c2: s.m.col2 || null, hex: hexSort(s.m.col), ile: canalIle() });
+  burst(P.x, P.y, P.z + 1.2, 10, hexSort(s.m.col));
+  return true;
+}
+const fgMenace = o => fgVisable(o) && typeof prenable === 'function' && prenable(o) && (typeof beteHostile !== 'function' || beteHostile(o));
+function fgOrbeCible(p, R, toutes, prises) {
+  let c = null, dc = R * R;
+  for (const b of beasts) if ((toutes ? fgVisable(b) && prenable(b) : fgMenace(b)) && Math.abs((b.z || 0) - P.z) < 5 && !(prises && prises.has(b))) {
+    const d2 = (b.x - p.x) ** 2 + (b.y - p.y) ** 2; if (d2 < dc) { dc = d2; c = b; } }
+  return c;
+}
+// la salve : toutes les sphères partent, chacune vers une bête (la visée d'abord), même celles qui ne menacent pas
+function fgSalve(id) {
+  const L = fgOrbes(id), vise = fgVise(FG_ORBE_R + 4, 1.2), prises = new Set(); let n = 0;
+  for (const p of L) { let c = vise && !prises.has(vise) ? vise : fgOrbeCible({ x: P.x, y: P.y }, FG_ORBE_R + 4, true, prises); if (!c) c = vise || [...prises][0];
+    if (!c) continue; prises.add(c); p.etat = 'part'; p.cible = c; p.age = 0; n++; }
+  if (n) { SON.jouer('elan', { arme: 'lame', dur: .3 }, P.x, P.y, P.z + 1); say(n > 1 ? 'la salve · ' + n + ' sphères' : 'la sphère part', 1); }
+  else say('aucune bête à portée des sphères', 1.2);
+}
+function fgOrbe(p, dt) {
+  if (p.etat === 'tourne') {
+    if (t - p.t0 > FG_ORBE_VIE || P.pv <= 0) { burst(p.x, p.y, p.z, 6, p.hex); return true; }
+    const an = p.a0 + (t - p.t0) * 2.6; p.x = P.x + Math.cos(an) * 1.15; p.y = P.y + Math.sin(an) * 1.15; p.z = P.z + 1.3 + Math.sin(t * 3 + p.a0) * .08;
+    if (t - p.t0 > .8 && (p.cherche = (p.cherche || 0) - dt) <= 0) { p.cherche = .2; const c = fgOrbeCible(P, FG_ORBE_R); if (c) { p.etat = 'part'; p.cible = c; p.age = 0; SON.jouer('elan', { arme: 'lame', dur: .2, vol: .5 }, p.x, p.y, p.z); } }
+    if (Math.random() < .3) parts.push({ x: p.x, y: p.y, z: p.z, vx: 0, vy: 0, vz: 0, g: 0, life: .25, age: 0, col: p.hex, luit: 1, tl: .05 });
+    return false;
+  }
+  if (p.age > 3) { burst(p.x, p.y, p.z, 8, p.hex); return true; }  // elle s'épuise en route
+  if (p.cible && !fgVisable(p.cible)) p.cible = fgOrbeCible(p, 6, true);
+  let tx, ty, tz; if (p.cible) { const cc = centreBete(p.cible); tx = cc[0]; ty = cc[1]; tz = cc[2]; } else { tx = p.x + p.vx; ty = p.y + p.vy; tz = p.z + p.vz; }
+  const dx = tx - p.x, dy = ty - p.y, dz = tz - p.z, d = Math.hypot(dx, dy, dz) || 1, v = 13, kk = Math.min(1, dt * 9);
+  p.vx += (dx / d * v - p.vx) * kk; p.vy += (dy / d * v - p.vy) * kk; p.vz += (dz / d * v - p.vz) * kk;   // elle vire vers sa cible, sans casser net
+  p.x += p.vx * dt; p.y += p.vy * dt; p.z += p.vz * dt;
+  if (Math.random() < .8) parts.push({ x: p.x, y: p.y, z: p.z, vx: 0, vy: 0, vz: 0, g: 0, life: .3, age: 0, col: p.hex, luit: 1, tl: .07 });
+  const sol = fgSol(p.x, p.y);
+  if (p.cible && (d < .5 || toucheBete(p.cible, p.x, p.y, p.z))) { fgOrbeFrappe(p, p.cible); return true; }
+  for (const b of beasts) if (b !== p.cible && fgVisable(b) && prenable(b) && toucheBete(b, p.x, p.y, p.z)) { fgOrbeFrappe(p, b); return true; }
+  if (sol > p.z || p.x < 1 || p.y < 1 || p.x >= WS - 1 || p.y >= WS - 1) { fgOrbeFrappe(p, null); return true; }
+  return false;
+}
+// l'impact : un trait ou un piège frappent la bête ; une onde éclate en anneau autour d'elle
+function fgOrbeFrappe(p, o) {
+  const s = p.s, x = o ? o.x : p.x, y = o ? o.y : p.y, z = o ? o.z || 0 : fgSol(p.x, p.y);
+  FG.sortCtx = { id: p.id, t, charge: p.ch, ame: false, vus: new Set() };
+  if (s.f.id === 'onde') {
+    const R = 2.6 * s.amp; let n = 0;
+    for (const q of beasts) if (prenable(q) && Math.abs((q.z || 0) - z) < 3 && (q.x - x) ** 2 + (q.y - y) ** 2 < R * R) { toucherSort(q, s.m.id, s.deg); if (s.m.feu && n < 3) brasierSort(q.x, q.y); n++; }
+    anneauSort(x, y, z, s.m.col, R, 20); P.secousse = t; P.secousseK = .15;
+  } else if (o && prenable(o)) { toucherSort(o, s.m.id, s.deg); if (s.m.feu) brasierSort(o.x, o.y); }
+  else if (s.m.feu) brasierSort(x, y);
+  burst(p.x, p.y, p.z, 12, p.hex); if (p.c2) burst(p.x, p.y, p.z, 6, hexSort(p.c2));
+}
+// La lame runique : chaque coup remplit ses runes (un coup chargé, deux fois plus) ; pleine, un coup chargé les vide
+function fgRunes(a, A, pr, pw) {
+  const id = a.id, avant = FG.runes[id] || 0; FG.runesT[id] = t;
+  if (avant >= 1 && A.charge) { FG.runes[id] = 0; fgLiberer(a, pr, pw); return; }
+  FG.runes[id] = Math.min(1, avant + FG_RUNE * (A.charge ? 2 : 1));
+  if (avant < 1 && FG.runes[id] >= 1) { SON.jouer('rare', { vol: .5 }, P.x, P.y, P.z + 1); burst(P.x, P.y, P.z + 1.1, 16, COUL_TRAINEE[id] || '#fff4d0'); say('la lame runique est pleine · maintenir, lâcher : elle libère le sort', 2.4); }
+}
+function fgLiberer(a, pr, pw) {
+  const L = fgLireId(a.id), T = L && FG_TYPES[L.R.type], C = L && fgAme(L.R), fk = T ? fgFocale(a, T) : 1, s = fgPhraseMain();
+  P.secousse = t; P.secousseK = .45; SON.jouer('explosion', { vol: .5 }, P.x, P.y, P.z + 1);
+  if (s && fgLancerPhrase(a, s, { libre: true, deg: 1.6 * fk, amp: 1.2, charge: true, ame: true, gros: 2 }) === 'ok') { say(nomPhrase(s) + ' · libéré par les runes', 1.6); return; }
+  // sans phrase : l'âme de la lame éclate tout autour (trois pas)
+  const hex = C ? FG_ELEM[C.el].hex : COUL_TRAINEE[a.id] || '#fff4d0'; let n = 0;
+  for (const o of beasts) if (fgFrappable(o) && Math.abs((o.z || 0) - P.z) < 2.5 && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < 9) {
+    fgDegats(o, degJoueur(a.deg, o) * 1.6, 'chassé'); if (C && o.pv > 0 && !o.dead) fgStatut(o, C.el, pw * 1.5); n++; }
+  if (pr && !n && pr.pv > 0 && !pr.dead && C) fgStatut(pr, C.el, pw * 1.5);
+  for (let k = 0; k < 28; k++) { const an = k / 28 * 6.2832; parts.push({ x: P.x + Math.cos(an) * .5, y: P.y + Math.sin(an) * .5, z: P.z + .6, vx: Math.cos(an) * 6, vy: Math.sin(an) * 6, vz: .5, g: .5, life: .45, age: 0, col: hex, luit: 1, tl: .09 }); }
+  say((C ? 'l\'âme ' + fgDe(FG_ELEM[C.el].n.toLowerCase()) : 'les runes') + ' éclate' + (n ? ' · ' + n + ' bête' + (n > 1 ? 's' : '') : ''), 1.6);
+}
+// toucherSort (index.html) : une bête touchée par un sort parti d'une arme forgée reçoit aussi son âme
+function forgeSortTouche(o, dg) {
+  const X = FG.sortCtx; if (!X || t - X.t > 3 || !o || X.vus.has(o) || X.vus.size >= 6) return;
+  X.vus.add(o);
+  const L = fgLireId(X.id); if (!L) return;
+  const C = fgAme(L.R), tue = !(o.pv > 0) || !!o.dead;
+  if (C && (X.ame || fgDeclenche(C.decl, { charge: X.charge, dos: fgDerriere(o) }, tue))) fgCompetence(C, o, fgPuiss(L) * (X.ame ? 1.5 : 1));
+  if (FG.buff && FG.buff.fin > t && !tue) fgStatut(o, FG.buff.el, FG.buff.pw * .5);
+}
+
+// ============================================================
+//  LES ARMES À FEU (§175, phase E) : le pistolet à silex, le tromblon, le mousquet, le revolver, le canon à main.
+//  Pas de munitions : on recharge. Elles prennent le geste et la pose des fusils du Centre (djEstFusil, donjon.js) ;
+//  le tir est un trait (djVisee, djRayon), sauf l'obus du canon, qui vole en cloche (FG.projs). La recharge, c'est le
+//  « cad » de l'arme : la forge le règle (un alliage lourd recharge plus lentement). Le dernier coup avant la recharge
+//  compte comme un coup chargé, pour l'âme.
+// ============================================================
+const FG_FEU = {   // n : les coups avant la recharge ; coup : entre deux coups ; portee ; ecart : l'imprécision ; fort : le recul de l'arme ; recul : celui du tireur
+  pistolet: { n: 2, coup: .3, portee: 16, ecart: .02, c: [255, 214, 150], son: 'tir', trait: .14, fort: .5 },
+  tromblon: { n: 1, coup: 0, portee: 7.5, plombs: 9, cone: .3, c: [255, 196, 120], son: 'tir', trait: .1, fort: .9, long: 1, recul: 7 },
+  mousquet: { n: 1, coup: 0, portee: 32, ecart: 0, perce: 3, c: [255, 238, 205], son: 'tir', trait: .3, fort: 1, long: 1, recul: 2, fumee: 1 },
+  revolver: { n: 6, coup: .2, portee: 18, ecart: .035, c: [255, 222, 160], son: 'tir', trait: .1, fort: .35, auto: 1 },
+  canon: { n: 1, coup: 0, portee: 24, obus: 1, R: 2.6, c: [255, 160, 80], son: 'tir', trait: .1, fort: 1, long: 1, recul: 5 },
+};
+// djEstFusil, djPoseFusil, djTirDistant (donjon.js) : ce qu'il faut savoir d'une arme à feu forgée, ou null
+function forgeFeu(id) { const L = fgLireId(id), T = L && FG_TYPES[L.R.type]; return T && T.feu ? FG_FEU[T.id] : null; }
+function fgFeuEtat(id, F) {
+  const S = FG.feu[id] || (FG.feu[id] = { n: F.n, rech: 0, der: -9 });
+  if (S.rech && t >= S.rech) { S.n = F.n; S.rech = 0; if (porte('arme') && porte('arme').id === id) { SON.jouer('clank', { vol: .5 }, P.x, P.y, P.z + .8); fgDitMagie(F.n > 1 ? 'rechargé · ' + F.n + ' coups' : 'rechargé', 1); } }
+  return S;
+}
+// ACTION enfoncée (djTirDown la passe ici) : un coup, si l'arme est chargée ; maintenu, le revolver enchaîne
+function forgeTirDown(a) {
+  const F = forgeFeu(a.id); if (!F) return;
+  const S = fgFeuEtat(a.id, F);
+  if (S.rech) { if (S.n > 0) S.rech = 0; else { FG.magDit = -9; fgDitMagie('rechargement · encore ' + Math.max(.1, S.rech - t).toFixed(1).replace('.', ',') + ' s', .9); return; } }   // une recharge entamée s'interrompt pour tirer
+  if (S.n <= 0) { if (!S.rech) S.rech = t + a.cad; return; }        // (§179) vide : on recharge, on ne tire plus
+  if (F.auto) FG.feuTenu = a;
+  if (t - S.der < F.coup) return;
+  fgTirFeu(a, F, S);
+}
+function forgeTirUp(a) { FG.feuTenu = null; }
+// à chaque image : le revolver tenu, et la recharge qui part seule (vide ; ou entamé et laissé deux secondes)
+function fgMajFeu() {
+  const a = porte('arme'), F = a && a.fg && forgeFeu(a.id); if (!F) { FG.feuTenu = null; return; }
+  const S = fgFeuEtat(a.id, F);
+  if (FG.feuTenu === a && !S.rech && S.n > 0 && t - S.der >= F.coup) fgTirFeu(a, F, S);
+  if (!S.rech && S.n < F.n && (S.n <= 0 ? t - S.der >= Math.max(.25, F.coup) : t - S.der > 2 && FG.feuTenu !== a)) {
+    S.rech = t + a.cad * (S.n > 0 ? .5 + .5 * (F.n - S.n) / F.n : 1); SON.jouer('cliquet', { k: .5, vol: .6 }, P.x, P.y, P.z + .8);
+  }
+}
+function fgTirFeu(a, F, S) {
+  if (P.effroi > t || P.pv <= 0) return;
+  const L = fgLireId(a.id), T = FG_TYPES[L.R.type];
+  S.n--; S.der = t; const dernier = S.n <= 0;
+  if (dernier) { S.rech = t + a.cad; FG.feuTenu = null; SON.jouer('cliquet', { k: .5, vol: .6 }, P.x, P.y, P.z + .8); }   // (§179) la recharge part dès le dernier coup
+  P.anim = null; P.arc = null; P.tirW0 = poidsGeste(P); P.tir0 = t; P.decoche = t; P.decocheK = 1; P.garde = t + GARDE_T; P.agiteT = t;
+  annoncer('decoche', 0, 1); if (typeof iaNote === 'function') iaNote('coup');
+  const V = djVisee(F.portee);
+  if (V.c) P.face = P.faceS = Math.atan2(V.c.y - P.y, V.c.x - P.x);
+  const sd = [-V.d[1], V.d[0], 0], o = T.id === 'pistolet' ? V.o.map((q, k) => q + sd[k] * (S.n % 2 ? .06 : -.06)) : V.o;   // la paire : la main droite, puis la gauche
+  SON.jouer(F.son, { vol: 1 }, P.x, P.y, P.z + .6);
+  burst(o[0], o[1], o[2], F.long ? 10 : 6, '#ffe2a0');
+  for (let k = 0; k < (F.fumee ? 14 : F.long ? 7 : 4); k++) parts.push({ x: o[0] + V.d[0] * .1, y: o[1] + V.d[1] * .1, z: o[2], vx: V.d[0] * (1 + Math.random() * 1.5) + (Math.random() - .5) * .6, vy: V.d[1] * (1 + Math.random() * 1.5) + (Math.random() - .5) * .6,
+    vz: .3 + Math.random() * .4, g: -.15, life: F.fumee ? 1.8 + Math.random() : .8 + Math.random() * .5, age: 0, col: k % 3 ? '#d8d4cc' : '#b8b2a8', tl: F.fumee ? .16 : .1 });
+  if (F.recul) { P.vx -= Math.cos(P.faceS) * F.recul; P.vy -= Math.sin(P.faceS) * F.recul; P.recul = Math.max(P.recul || 0, F.recul > 4 ? .22 : .1); P.secousse = t; P.secousseK = F.recul > 4 ? .6 : .3; }   // le recul : sans frottement un instant
+  if (dernier && F.n > 1) say('à recharger', .8);
+  if (F.obus) return fgLancerObus(a, o, V, dernier);
+  const touches = new Map(), pgF = fgPigDe(a.id);                     // bête → { dg, d } : les plombs s'additionnent ; le pigment teinte le trait
+  const coup = (d, k) => {
+    let o2 = o, reste = F.portee, ign = null;
+    for (let n = 0; n < (F.perce || 1); n++) {
+      const r = djRayon(o2, d, reste, ign);
+      DJ.traits.push({ a: o2, b: r.p, c: (pgF ? fgPigRgb(pgF) : F.c).map(v => v / 255), w: (F.plombs ? 1.4 : F.long ? 2.8 : 2.2) * (pgF ? 1.25 : 1), t0: t, dur: F.trait * (pgF ? 1.6 : 1) });
+      if (r.b) { const b = r.b, q = touches.get(b) || { dg: 0, d }; q.dg += degJoueur(a.deg, b) * k * (F.plombs ? 1 - .5 * r.s / F.portee : 1); touches.set(b, q);
+        burst(r.p[0], r.p[1], r.p[2], F.plombs ? 3 : 8, '#ffb0a0'); ign = b; o2 = r.p.map((v, i) => v + d[i] * .6); reste -= r.s + .6; if (reste <= 0) break; continue; }
+      if (r.loin) frapperLoin(r.loin, a.deg * k);
+      else if (r.mur) burst(r.p[0], r.p[1], r.p[2], F.plombs ? 2 : 6, '#c8b89a');
+      break;
+    }
+  };
+  const ecarte = (d, ang, el) => { const c = Math.cos(ang), s = Math.sin(ang); return nrm([d[0] * c - d[1] * s, d[0] * s + d[1] * c, d[2] + el]); };
+  if (F.plombs) for (let i = 0; i < F.plombs; i++) coup(ecarte(V.d, (i / (F.plombs - 1) - .5) * F.cone * 2 + (Math.random() - .5) * .08, (Math.random() - .5) * .1), .3);
+  else coup(F.ecart ? ecarte(V.d, (Math.random() - .5) * 2 * F.ecart, (Math.random() - .5) * F.ecart) : V.d, 1);
+  for (const [b, q] of touches) if (fgVisable(b)) { const kb = F.plombs ? 6 : F.perce ? 2 : 1.5; fgBlesse(b, q.dg, q.d[0] * kb, q.d[1] * kb, a.id, dernier, q.d[0], q.d[1]); }
+}
+// Le canon : l'obus part à 55° et retombe sur la bête visée (ou à dix pas devant) ; il éclate au premier contact
+function fgLancerObus(a, o, V, dernier) {
+  const c = V.c || fgVise(FG_FEU.canon.portee, .6), el = .96, ce = Math.cos(el), te = Math.tan(el);
+  let tx, ty, tz;
+  if (c) { const q = centreBete(c); tx = q[0]; ty = q[1]; tz = c.z || 0; P.face = P.faceS = Math.atan2(ty - P.y, tx - P.x); }
+  else { tx = P.x + Math.cos(P.faceS) * 10; ty = P.y + Math.sin(P.faceS) * 10; tz = fgSol(tx, ty); }
+  const d = Math.max(1.5, Math.hypot(tx - o[0], ty - o[1])), dz = tz - o[2], den = 2 * ce * ce * (d * te - dz);
+  const v = den > 0 ? Math.min(25, Math.sqrt(ARC_G * d * d / den)) : 25, f = Math.atan2(ty - o[1], tx - o[0]);
+  FG.projs.push({ k: 'obus', id: a.id, x: o[0], y: o[1], z: o[2], vx: Math.cos(f) * ce * v, vy: Math.sin(f) * ce * v, vz: Math.sin(el) * v, age: 0, deg: a.deg, R: FG_FEU.canon.R, ch: dernier,
+    cx: tx, cy: ty, cz: tz, vol: d / (ce * v), ile: canalIle() });
+}
+function fgObus(p, dt) {
+  if (p.age > 6) return true;
+  const n = Math.max(1, Math.ceil(Math.hypot(p.vx, p.vy, p.vz) * dt / .2)), h = dt / n;
+  for (let s = 0; s < n; s++) {
+    p.vz -= ARC_G * h; const nx = p.x + p.vx * h, ny = p.y + p.vy * h, nz = p.z + p.vz * h;
+    let boum = nx < 1 || ny < 1 || nx >= WS - 1 || ny >= WS - 1 || nz < -6 || fgSol(nx, ny) > nz || (p.age > .15 && typeof floreTouche === 'function' && floreTouche(nx, ny, nz));
+    if (!boum && p.age > .1) for (const b of beasts) if (fgVisable(b) && toucheBete(b, nx, ny, nz)) { boum = true; break; }
+    if (boum) { fgEclat(p, p.x, p.y, Math.max(p.z, fgSol(p.x, p.y))); return true; }
+    p.x = nx; p.y = ny; p.z = nz;
+  }
+  if (Math.random() < .7) parts.push({ x: p.x, y: p.y, z: p.z, vx: 0, vy: 0, vz: .2, g: -.1, life: .5, age: 0, col: Math.random() < .3 ? '#ffc060' : '#9a948c', luit: 0, tl: .07 });
+  return false;
+}
+function fgEclat(p, x, y, z) {
+  SON.jouer('explosion', {}, x, y, z); P.secousse = t; P.secousseK = Math.max(.3, 1 - Math.hypot(P.x - x, P.y - y) / 14);
+  burst(x, y, z + .2, 30, '#ffb45a'); burst(x, y, z + .4, 16, '#6a6058'); burst(x, y, z + .1, 10, '#fff0c0');
+  for (let k = 0; k < 18; k++) { const an = k / 18 * 6.2832; parts.push({ x: x + Math.cos(an) * .3, y: y + Math.sin(an) * .3, z: z + .15, vx: Math.cos(an) * p.R * 2.2, vy: Math.sin(an) * p.R * 2.2, vz: .5, g: 1, life: .45, age: 0, col: '#ffcf80', luit: 1, tl: .09 }); }
+  for (const b of beasts) {
+    if (!fgVisable(b) || Math.abs((b.z || 0) - z) > 3) continue;
+    const dd = Math.hypot(b.x - x, b.y - y); if (dd > p.R) continue;
+    const k = 1 - .6 * dd / p.R, ux = (b.x - x) / (dd || 1), uy = (b.y - y) / (dd || 1);
+    fgBlesse(b, degJoueur(p.deg, b) * k, ux * 7 * k, uy * 7 * k, p.id, p.ch, ux, uy);
+  }
+}
+// Le bandeau (djHud) : les coups en main, ou la recharge
+function forgeHud() {
+  const a = typeof porte === 'function' ? porte('arme') : null, F = a && a.fg && forgeFeu(a.id); if (!F) return '';
+  const S = fgFeuEtat(a.id, F);
+  if (S.rech) return ` · RECHARGE <b style="color:#ffb070">${Math.max(.1, S.rech - t).toFixed(1).replace('.', ',')} s</b>`;
+  return ` · ${F.n > 2 ? 'BARILLET' : 'CHARGÉ'} <b style="color:#ffe2a0">${'●'.repeat(S.n)}${'○'.repeat(F.n - S.n)}</b>`;
+}
+// L'arme en main (forgeGeom) : sur le cadre des fusils du Centre (l'origine, l'axe, le côté, le haut)
+function fgGeomFeu(id, T, F, J, B, K) {
+  const pose = (a, b, w, h, c) => B.push({ a, b, w, h, c }), { lame, fil, M, deco, sombre, lg } = K;
+  const A = F.arb || F, u = nrm(A.u || [1, 0, 0]), sd = A.side || nrm(v3.len(v3.cross(u, [0, 0, 1])) > .2 ? v3.cross(u, [0, 0, 1]) : [0, -1, 0]);
+  const up = nrm(v3.cross(sd, u)), cote = (p, k) => v3.add(p, v3.mul(sd, k)), haut = (p, k) => v3.add(p, v3.mul(up, k));
+  const S = J === P ? FG.feu[id] : null, Fe = FG_FEU[T.id], charges = S ? (S.rech ? 0 : S.n) : Fe.n;
+  if (T.id === 'pistolet' || T.id === 'revolver') {
+    const paire = T.id === 'pistolet' ? [-.045, .045] : [0], e = (T.id === 'pistolet' ? .2 : .17) + .05 * lg;
+    paire.forEach((o, k) => {
+      const at = q => cote(v3.add(A.o, v3.mul(u, q)), o);
+      pose(cote(A.o, o), v3.add(haut(cote(A.o, o), -.075), v3.mul(u, -.035)), .03, .036, M);                 // la crosse
+      pose(at(-.03), at(.05), .036, .05, T.id === 'revolver' ? lame : deco);                                 // la platine, la carcasse
+      pose(at(.03), at(e), .024, .026, lame); pose(at(e - .015), at(e + .008), .032, .032, deco);             // le canon, sa bouche
+      if (T.id === 'revolver') { pose(at(.0), at(.055), .058, .058, sombre); for (let i = 0; i < 6; i++) { const an = i * 1.047; pose(v3.add(at(.056), v3.add(v3.mul(sd, Math.cos(an) * .017), v3.mul(up, Math.sin(an) * .017))), v3.add(at(.06), v3.add(v3.mul(sd, Math.cos(an) * .017), v3.mul(up, Math.sin(an) * .017))), .009, .009, i < charges ? fil : sombre); } }
+      pose(haut(at(-.03), .03), haut(at(-.05), charges > (T.id === 'pistolet' ? k : 0) ? .06 : .035), .012, .012, charges > k || T.id === 'revolver' ? deco : sombre);   // le chien : armé, ou tombé
+    });
+    return true;
+  }
+  const at = q => v3.add(A.o, v3.mul(u, q));
+  if (T.id === 'tromblon') {
+    pose(at(-.24), at(-.03), .045, .07, M); pose(A.o, v3.add(haut(A.o, -.07), v3.mul(u, -.02)), .028, .03, M);
+    pose(at(-.04), at(.05), .05, .055, deco); pose(at(.04), at(.3 + .06 * lg), .042, .042, lame);
+    const b0 = .3 + .06 * lg; pose(at(b0), at(b0 + .05), .062, .062, lame); pose(at(b0 + .05), at(b0 + .09), .085, .085, deco);
+    pose(haut(at(.1), .028), haut(at(.12), .028), .046, .01, fil);
+  } else if (T.id === 'mousquet') {
+    const e = .62 + .1 * lg;
+    pose(at(-.27), at(-.05), .042, .07, M); pose(at(-.05), at(.35), .034, .042, M); pose(A.o, v3.add(haut(A.o, -.07), v3.mul(u, -.02)), .026, .028, M);
+    pose(haut(at(-.04), .025), haut(at(e), .025), .022, .022, lame); pose(haut(at(e - .02), .025), haut(at(e + .01), .025), .03, .03, deco);
+    for (const q of [.16, .34]) pose(at(q), at(q + .018), .046, .06, deco);
+    pose(haut(at(-.03), .045), haut(at(.02), charges ? .075 : .05), .012, .012, charges ? deco : sombre);
+    pose(haut(at(.06), -.012), haut(at(e - .06), -.012), .008, .008, fil);                                     // la baguette de bourrage
+  } else {                                                                                                     // le canon à main
+    pose(A.o, v3.add(haut(A.o, -.08), v3.mul(u, -.03)), .034, .036, M); pose(at(-.12), at(-.02), .05, .06, M);
+    pose(at(-.06), at(.3 + .04 * lg), .1, .1, lame); pose(at(.28 + .04 * lg), at(.34 + .04 * lg), .125, .125, deco);
+    pose(at(.02), at(.05), .108, .108, fil); pose(haut(at(-.05), .05), haut(at(-.07), .085), .014, .014, charges ? [255, 190, 90] : sombre);   // la mèche
+  }
+  return true;
+}
+
+// ============================================================
+//  L'OMBRE DE KORLAZ (§177) : une arme forgée avec une dose de Korlaz porte une petite ombre bestiale. Tant qu'on la tient,
+//  l'ombre flotte derrière votre épaule en perdant des lambeaux de fumée. Une bête vous menace (ou vous l'avez désignée) : elle
+//  fond dessus et la frappe de tous côtés, d'un bond à l'autre, comme un ninja, puis revient. Elle n'est pas une bête : ni les
+//  bêtes ni les joueurs ne peuvent la viser ni la toucher. Ceux d'en face la voient flotter près de vous.
+// ============================================================
+const FG_OMBRE = { r: 8, coups: 6, pas: .1, k: .12, repos: 1.8, v: 16 };   // r : sa portée ; coups par assaut ; pas : entre deux bonds ; k : chaque coup, sur les dégâts de l'arme
+const fgKorlaz = id => { const L = fgLireId(id); return !!(L && L.R.ch[5]); };
+// (§178) à distance (arcs, arbalète, lancer, poudre, bâton, baguette, orbe) : l'ombre ; au contact (le reste, la lame runique comprise) : les griffes
+const fgDistanceT = T => !!(T && (T.arc || T.lance || T.feu || (T.magie && T.id !== 'lamerunique')));
+const fgOmbreDe = id => { const L = fgLireId(id); return !!(L && L.R.ch[5] && fgDistanceT(FG_TYPES[L.R.type])); };
+const fgGriffeDe = id => { const L = fgLireId(id); return !!(L && L.R.ch[5] && !fgDistanceT(FG_TYPES[L.R.type])); };
+const fgAngVers = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= 6.2832; while (d < -Math.PI) d += 6.2832; return a + d * Math.min(1, k); };
+function fgOmbreChez(J, O) {                                        // au repos : derrière l'épaule gauche, et qui flotte
+  const f = (J.faceS ?? J.face ?? 0) + 2.3;
+  return [J.x + Math.cos(f) * .95, J.y + Math.sin(f) * .95, J.z + (J.selle || 0) + 1.1 + Math.sin(t * 2.6 + O.ph) * .1];
+}
+function fgOmbreFumee(O, n) {
+  for (let i = 0; i < n; i++) { const v = Math.random();
+    parts.push({ x: O.x + (Math.random() - .5) * .22, y: O.y + (Math.random() - .5) * .22, z: O.z + (Math.random() - .5) * .18, vx: (Math.random() - .5) * .3, vy: (Math.random() - .5) * .3, vz: .2 + Math.random() * .35, g: -.2,
+      life: .55 + Math.random() * .5, age: 0, col: v < .18 ? '#9a6cff' : v < .6 ? '#1a1224' : '#2e2244', luit: v < .18 ? 1 : 0, tl: .045 + Math.random() * .04 }); }
+}
+function fgOmbreCible() {
+  const vc = typeof CIB !== 'undefined' && CIB.verrou ? CIB.o : null;
+  if (vc && vc.sp && fgVisable(vc) && prenable(vc) && Math.hypot(vc.x - P.x, vc.y - P.y) < FG_OMBRE.r + 2) return vc;
+  let c = null, dc = FG_OMBRE.r ** 2;
+  for (const b of beasts) if (fgMenace(b) && Math.abs((b.z || 0) - P.z) < 4) { const d2 = (b.x - P.x) ** 2 + (b.y - P.y) ** 2; if (d2 < dc) { dc = d2; c = b; } }
+  return c;
+}
+function fgOmbreVers(O, q, v, dt) {                                 // avancer vers q : rend la distance qui restait
+  const dx = q[0] - O.x, dy = q[1] - O.y, dz = q[2] - O.z, d = Math.hypot(dx, dy, dz) || 1, s = Math.min(d, v * dt);
+  O.x += dx / d * s; O.y += dy / d * s; O.z += dz / d * s; if (Math.hypot(dx, dy) > .05) O.f = fgAngVers(O.f, Math.atan2(dy, dx), dt * 14);
+  return d;
+}
+function fgOmbreFrappe(O, c) {
+  const D = FG_OMBRE, sz = c.sp.sz || 1, R = .55 + .3 * sz, an = O.b0 + O.n * 2.39996 + (Math.random() - .5) * .5, q = centreBete(c);
+  const x0 = O.x, y0 = O.y, z0 = O.z;
+  O.x = c.x + Math.cos(an) * R; O.y = c.y + Math.sin(an) * R; O.z = q[2] + (Math.random() - .35) * .45 * sz; O.f = Math.atan2(c.y - O.y, c.x - O.x);
+  for (let k = 0; k <= 7; k++) { const f = k / 7;                    // le sillage du bond
+    parts.push({ x: x0 + (O.x - x0) * f, y: y0 + (O.y - y0) * f, z: z0 + (O.z - z0) * f, vx: 0, vy: 0, vz: 0, g: 0, life: .16 + f * .12, age: 0, col: k % 2 ? '#7c4ce6' : '#1a1224', luit: k % 2, tl: .065 }); }
+  const a2 = O.f + 1.5708;                                           // la griffure, en travers
+  for (let k = -2; k <= 2; k++) parts.push({ x: q[0] + Math.cos(a2) * k * .07 - Math.cos(O.f) * .12, y: q[1] + Math.sin(a2) * k * .07 - Math.sin(O.f) * .12, z: q[2] + k * .07,
+    vx: Math.cos(O.f) * 2.2, vy: Math.sin(O.f) * 2.2, vz: 0, g: 0, life: .14, age: 0, col: '#d2b0ff', luit: 1, tl: .04 });
+  const a = objet(O.a);
+  fgDegats(c, degJoueur((a ? a.deg : .5) * D.k, c) * robuste(c), 'ombre');
+  SON.jouer('touche', { arme: 'lame', vol: .35 }, c.x, c.y, (c.z || 0) + .5);
+  if (++O.n >= D.coups || !fgVisable(c)) { O.e = 'retour'; O.cd = D.repos; }
+}
+function fgMajOmbre(dt) {
+  const a = porte('arme'), tient = !!(a && a.fg && fgOmbreDe(a.id) && P.pv > 0), D = FG_OMBRE;
+  let O = FG.ombre;
+  if (!tient) { if (O) { O.vie -= dt * 2.5; if (O.vie <= 0) FG.ombre = null; else fgOmbreFumee(O, 1); } }
+  else {
+    const ile = canalIle();
+    if (!O || O.ile !== ile) { O = FG.ombre = { x: 0, y: 0, z: 0, e: 'suit', vie: 0, cd: 1, f: P.faceS || 0, n: 0, c: null, tf: 0, b0: 0, ph: Math.random() * 6, ile, a: a.id };
+      const h = fgOmbreChez(P, O); O.x = h[0]; O.y = h[1]; O.z = h[2]; fgOmbreFumee(O, 14); }
+    O.a = a.id; O.vie = Math.min(1, O.vie + dt * 2);
+    if (O.e === 'suit') {
+      const h = fgOmbreChez(P, O), k = Math.min(1, dt * 5); O.x += (h[0] - O.x) * k; O.y += (h[1] - O.y) * k; O.z += (h[2] - O.z) * k; O.f = fgAngVers(O.f, P.faceS || 0, dt * 6);
+      if ((O.cd -= dt) <= 0) { O.cd = .25; const c = fgOmbreCible(); if (c) { O.e = 'fond'; O.c = c; SON.jouer('elan', { arme: 'lame', dur: .15, vol: .4 }, O.x, O.y, O.z); } }
+    } else if (O.e === 'fond') {
+      const c = O.c;
+      if (!fgVisable(c) || Math.hypot(c.x - P.x, c.y - P.y) > D.r + 6) O.e = 'retour';
+      else { const d = fgOmbreVers(O, centreBete(c), D.v, dt); fgOmbreFumee(O, 1);
+        if (d < .9 + (c.sp.sz || 1) * .3) { O.e = 'frappe'; O.n = 0; O.tf = 0; O.b0 = Math.atan2(O.y - c.y, O.x - c.x); } }
+    } else if (O.e === 'frappe') {
+      const c = O.c;
+      if (!fgVisable(c)) { O.e = 'retour'; O.cd = D.repos * .5; }
+      else if ((O.tf -= dt) <= 0) { O.tf = D.pas; fgOmbreFrappe(O, c); }
+    } else if (fgOmbreVers(O, fgOmbreChez(P, O), 12, dt) < .4) O.e = 'suit';
+    if (Math.random() < dt * (O.e === 'suit' ? 14 : 24)) fgOmbreFumee(O, 1);
+  }
+  // l'ombre des autres : elle flotte près d'eux (leurs assauts ne passent pas)
+  if (typeof Autres !== 'undefined' && Autres.size) {
+    const vus = new Set();
+    for (const j of Autres.values()) {
+      if (!(j.pv > 0) || !j.arme || !fgOmbreDe(j.arme) || (j.x - P.x) ** 2 + (j.y - P.y) ** 2 > 3600) continue;
+      vus.add(j.u); let Q = FG.ombresJ.get(j.u);
+      if (!Q) { FG.ombresJ.set(j.u, Q = { x: j.x, y: j.y, z: j.z + 1, vie: 0, ph: Math.random() * 6, e: 'suit', f: j.faceS || 0 }); }
+      const h = fgOmbreChez(j, Q), k = Math.min(1, dt * 5); Q.vie = Math.min(1, Q.vie + dt * 2);
+      Q.x += (h[0] - Q.x) * k; Q.y += (h[1] - Q.y) * k; Q.z += (h[2] - Q.z) * k; Q.f = fgAngVers(Q.f, j.faceS || 0, dt * 6);
+      if (Math.random() < dt * 10) fgOmbreFumee(Q, 1);
+    }
+    for (const u of [...FG.ombresJ.keys()]) if (!vus.has(u)) FG.ombresJ.delete(u);
+  } else if (FG.ombresJ.size) FG.ombresJ.clear();
+}
+// (§178) LES GRIFFES DE KORLAZ : une arme de contact forgée avec du Korlaz lacère la cible (désignée, ou celle que le jeu vous
+// montre), à chaque coup, même de loin (douze pas) : trois grandes lacérations noires, tracées en travers d'elle, de gauche à
+// droite, puis de droite à gauche au coup suivant. Elles portent ensemble 40 % des dégâts de l'arme.
+const FG_GRIFFE = { r: 12, k: .4, dur: .16 };
+function fgGriffe(a) {
+  const c = typeof cibleVue === 'function' ? cibleVue() : null;
+  if (!c || !c.sp || c.tame || !fgVisable(c) || !prenable(c) || c.sp.pnj || c.sp.villageois) return;
+  if (Math.hypot(c.x - P.x, c.y - P.y) > FG_GRIFFE.r || Math.abs((c.z || 0) - P.z) > 6) return;
+  FG.griffeSens = -(FG.griffeSens || -1);                                // à droite, puis à gauche
+  FG.griffes.push({ c, t0: t, sens: FG.griffeSens, f: 0, sz: Math.max(.7, Math.min(2.4, c.sp.sz || 1)) });
+  SON.jouer('elan', { arme: 'lame', dur: .14, vol: .7 }, c.x, c.y, (c.z || 0) + .6);
+  fgDegats(c, degJoueur(a.deg * FG_GRIFFE.k, c) * robuste(c), 'griffé'); c.alarm = 1;
+  if (c.pv > 0 && !c.dead) SON.jouer('touche', { arme: 'lame', vol: .5 }, c.x, c.y, (c.z || 0) + .6);
+}
+// le tracé : trois traits parallèles, en diagonale, dans le plan qui fait face au joueur ; chacun se dessine en 0,16 s
+function fgMajGriffes() {
+  for (let i = FG.griffes.length - 1; i >= 0; i--) {
+    const G = FG.griffes[i], c = G.c, k = Math.min(1, (t - G.t0) / FG_GRIFFE.dur);
+    if (!c || beasts.indexOf(c) < 0) { FG.griffes.splice(i, 1); continue; }
+    const q = centreBete(c), dx = c.x - P.x, dy = c.y - P.y, dd = Math.hypot(dx, dy) || 1, ux = dx / dd, uy = dy / dd, sx = -uy, sy = ux;
+    const W = .62 * G.sz, H = .5 * G.sz, ec = .22 * G.sz, ox = q[0] - ux * .35 * G.sz, oy = q[1] - uy * .35 * G.sz;
+    for (let l = -1; l <= 1; l++) {
+      const off = l * ec, pt = f => { const u = (f * 2 - 1) * G.sens; return [ox + sx * (u * W + off * .5), oy + sy * (u * W + off * .5), q[2] + (-f * 2 + 1) * H + off]; };
+      for (let f = G.f; f < k; f += .03) {                          // un trait net : fin aux deux bouts, large au milieu, un fil violet au cœur
+        const p0 = pt(Math.min(1, f + Math.random() * .03)), mince = 1 - Math.abs(f * 2 - 1);
+        parts.push({ x: p0[0], y: p0[1], z: p0[2], vx: ux * -.08, vy: uy * -.08, vz: -.03, g: .15, life: .55 + .25 * mince, age: 0, col: Math.random() < .6 ? '#050308' : '#140d1e', luit: 0, tl: (.022 + .038 * mince) * Math.min(1.4, G.sz) });
+        if (Math.random() < .5) parts.push({ x: p0[0] - ux * .02, y: p0[1] - uy * .02, z: p0[2], vx: 0, vy: 0, vz: 0, g: 0, life: .3, age: 0, col: '#7a34b8', luit: 1, tl: .014 + .01 * mince });
+      }
+    }
+    G.f = k;
+    if (k >= 1) { burst(q[0], q[1], q[2], 6, '#1a1224'); FG.griffes.splice(i, 1); }
+  }
+}
+// (§178) une arme au Korlaz perd des particules noires par la lame (forgeGeom)
+function fgKorlazFume(id, J, B, n0) {
+  if (!J || !Number.isFinite(J.x)) return;
+  const cle = (J === P ? 'P' : J.u || 'j') + id + 'k', der = FG.auraT.get(cle) ?? 0;
+  if (t - der < 1 / 22 || parts.length > 1400) return;
+  FG.auraT.set(cle, t);
+  const L = []; for (let i = n0; i < B.length; i++) if (B[i].bl) L.push(B[i]);
+  const o = L.length ? L[Math.random() * L.length | 0] : B[n0 + (Math.random() * (B.length - n0) | 0)];
+  const f = J.faceS ?? J.face ?? 0, cf = Math.cos(f), sf = Math.sin(f), zs = J.z + (J.selle || 0), v = mixv(o.a, o.b, Math.random());
+  const x = J.x + v[0] * cf - v[1] * sf, y = J.y + v[0] * sf + v[1] * cf, z = zs + v[2], vi = Math.random() < .14;
+  parts.push({ x, y, z, vx: (Math.random() - .5) * .18, vy: (Math.random() - .5) * .18, vz: .12 + Math.random() * .3, g: -.12, life: .6 + Math.random() * .5, age: 0,
+    col: vi ? '#8a5ae8' : Math.random() < .5 ? '#08060c' : '#1c1428', luit: vi ? 1 : 0, tl: vi ? .025 : .035 + Math.random() * .03 });
+}
+// son dessin : un petit corps sombre, une tête aux oreilles pointues, deux yeux qui luisent (rouges à l'assaut), des pattes griffues,
+// une queue de fumée qui ondule
+function fgOmbreOs(O, E) {
+  const s = Math.max(.05, O.vie) * .78, f = O.f || 0, c = Math.cos(f), n = Math.sin(f);   // petite : un peu plus qu'une tête
+  const Q = (a, b, h) => [O.x + (c * a - n * b) * s, O.y + (n * a + c * b) * s, O.z + h * s];
+  const noir = [16, 11, 24], corps = [28, 19, 40], pale = [48, 34, 70], fur = O.e === 'frappe' || O.e === 'fond', oeil = fur ? [255, 80, 130] : [196, 136, 255];
+  const res = Math.sin(t * 9 + O.ph) * .015;
+  E(O, Q(-.13, 0, 0), Q(.1, 0, .02), .27 * s, (.24 + res) * s, corps);
+  E(O, Q(.06, 0, .12), Q(.22, 0, .15), .2 * s, .17 * s, noir);
+  for (const sg of [-1, 1]) {
+    E(O, Q(.11, sg * .06, .21), Q(.05, sg * .1, .36), .05 * s, .035 * s, noir);
+    E(O, Q(.222, sg * .045, .17), Q(.238, sg * .045, .17), .042 * s, .032 * s, oeil, 1);
+    const g = fur ? Math.sin(t * 30 + sg) * .05 : 0;
+    E(O, Q(.05, sg * .12, -.04), Q(.16 + g, sg * .15, -.12), .045 * s, .04 * s, noir);
+    E(O, Q(.16 + g, sg * .15, -.12), Q(.21 + g, sg * .16, -.15), .03 * s, .02 * s, pale);
+  }
+  let pr = Q(-.12, 0, 0);
+  for (let k = 1; k <= 4; k++) { const q = Q(-.12 - .11 * k, Math.sin(t * 5 + O.ph + k) * .05 * k, -.04 * k + Math.cos(t * 4 + k) * .02); E(O, pr, q, (.18 - .035 * k) * s, (.16 - .03 * k) * s, k < 3 ? corps : pale); pr = q; }
+}
 
 // ---------- à chaque image : les brûlures, les poisons, les zones, les auras, les traits, la rafale ----------
 function forgeMaj(dt) {
@@ -648,7 +1232,8 @@ function forgeMaj(dt) {
   }
   for (let k = FG.rafale.length - 1; k >= 0; k--) if (FG.rafale[k].t <= t) { const r = FG.rafale.splice(k, 1)[0];
     if (essai || P.fleches > 0) { tirerFleche(r.p); SON.jouer('decoche', { k: r.p }, P.x, P.y, P.z + .6); } }
-  if (FG.charge && t - FG.charge.t0 >= .5 && Math.random() < dt * 20) parts.push({ x: P.x + (Math.random() - .5) * .5, y: P.y + (Math.random() - .5) * .5, z: P.z + .8 + Math.random() * .5, vx: 0, vy: 0, vz: .6, g: 0, life: .35, age: 0, col: '#ffd27d', luit: 1, tl: .05 });
+  fgMajMagie(dt); fgMajFeu(); fgMajOmbre(dt); if (FG.griffes.length) fgMajGriffes();
+  if (FG.charge && t - FG.charge.t0 >= .5 && !FG.charge.raf && Math.random() < dt * 20) parts.push({ x: P.x + (Math.random() - .5) * .5, y: P.y + (Math.random() - .5) * .5, z: P.z + .8 + Math.random() * .5, vx: 0, vy: 0, vz: .6, g: 0, life: .35, age: 0, col: '#ffd27d', luit: 1, tl: .05 });
 }
 
 // ============================================================
@@ -822,9 +1407,39 @@ function fgStyle() {
     + '.fg-arme{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:9px;background:rgba(255,255,255,.035);}.fg-arme .ic{width:30px;height:30px;}.fg-arme div{flex:1;min-width:0;}.fg-arme small{display:block;color:#c4a688;font-size:10.5px;}'
     + '.fg-us{height:5px;border-radius:3px;background:rgba(255,255,255,.1);margin-top:3px;}.fg-us i{display:block;height:5px;border-radius:3px;background:#c9a65e;}.fg-code{display:flex;gap:6px;align-items:center;}'
     + '.fg-code input{flex:1;background:rgba(0,0,0,.3);border:1px solid rgba(240,190,140,.3);border-radius:8px;color:#fff0dc;padding:7px 9px;font:inherit;font-family:ui-monospace,monospace;text-transform:uppercase;}'
-    + '@media (max-width:640px){.fg-corps{gap:8px;padding:8px;}.fg-g{flex:1 1 100%;flex-direction:row;flex-wrap:wrap;}.fg-g .fg-p{flex:1 1 30%;}.fg-m canvas{width:252px;height:168px;}.fg-jauge,.fg-jt,.fg-ctl,.fg-ings{width:252px;}.fg-b{min-width:74px;}}';
+    + '.fg-pigs{display:flex;flex-wrap:wrap;gap:5px;width:100%;}.fg-pg{display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:9px;border:1px solid rgba(240,190,140,.22);background:rgba(255,214,170,.05);color:#e6ddd0;font:inherit;font-size:11.5px;cursor:pointer;}'
+    + '.fg-pg i{width:14px;height:14px;border-radius:4px;box-shadow:0 0 6px rgba(255,255,255,.2);}.fg-pg i.ic{width:22px;height:22px;border-radius:0;box-shadow:none;margin:0;}.fg-pg small{color:#c4a688;font-size:10px;}.fg-pg.on{border-color:#ffb878;background:rgba(255,160,90,.14);color:#ffe0c0;}'
+    + '.fg-b.meule{flex:1 1 40%;min-height:64px;font-size:22px;}'
+    + '.fg-mat.dose{background:rgba(120,90,160,.12);box-shadow:inset 3px 0 0 #7a5aa8;}'
+    + '.fg-vue{display:flex;flex-direction:column;align-items:center;gap:6px;}.fg-gd{display:none;}'
+    // (§176) au téléphone : la fenêtre prend l'écran, l'en-tête reste en haut, le reste défile ; les plans en bandeau
+    + '@media (max-width:640px),(max-height:500px){#forge-ui{left:0;top:0;right:0;bottom:0;transform:none;width:auto;height:auto;max-height:none;border-radius:0;border:0;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box;background-color:#21150f;'
+    + 'padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);}'
+    + '#forge-ui .cu-tete{flex:none;padding:6px 10px;gap:8px;}#forge-ui .cu-x{width:40px;height:36px;flex:none;}.fg-ong button{padding:7px 11px;}'
+    + '.fg-corps,.fg-autre{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;}'
+    + '.fg-b{min-height:44px;}.fg-b.mini{min-width:42px;min-height:38px;font-size:16px;}.fg-mat{padding:4px 6px;}'
+    + '.fg-g{flex:none;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;scrollbar-width:none;padding:1px 1px 3px;}.fg-g::-webkit-scrollbar{display:none;}.fg-g .fg-h,.fg-g .fg-note{display:none;}'
+    + '.fg-g .fg-p{flex:0 0 auto;width:76px;flex-direction:column;gap:3px;padding:6px 4px;text-align:center;font-size:11px;line-height:1.15;}.fg-g .fg-p small{display:none;}.fg-g .fg-p .ic{width:30px;height:30px;}'
+    + '.fg-gd{display:block;font-size:12px;line-height:1.35;color:#d8c4aa;}.fg-gd b{color:#ffcf9a;}'
+    + '.fg-corps.fg-travail .fg-g,.fg-corps.fg-travail .fg-gd{display:none;}'
+    + '.fg-corps:not(.fg-travail) .fg-d>.fg-h:first-child,.fg-corps:not(.fg-travail) .fg-d>.fg-h:first-child+.fg-note{display:none;}}'
+    // debout : une colonne (le bandeau, la description, la pièce, les gestes, la recette) ; l'en-tête sur trois lignes
+    + '@media (max-width:640px){#forge-ui .cu-tete{flex-wrap:wrap;row-gap:6px;}#forge-ui .cu-x{order:1;margin-left:auto;}'
+    + '.fg-ong{order:2;flex:1 1 100%;margin-left:0;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;}.fg-ong::-webkit-scrollbar{display:none;}.fg-ong button{flex:1 0 auto;}'
+    + '#forge-ui .fg-res{order:3;flex:1 1 100%;margin-left:0;justify-content:space-between;gap:4px;font-size:11.5px;}'
+    + '.fg-corps{display:flex;flex-direction:column;flex-wrap:nowrap;gap:8px;padding:8px 10px;align-items:stretch;}'
+    + '.fg-m{width:100%;margin:0;}.fg-vue{width:100%;}.fg-m canvas{width:100%;max-width:440px;height:auto;aspect-ratio:3/2;}'
+    + '.fg-jauge,.fg-jt,.fg-ctl,.fg-ings{width:100%;max-width:440px;}.fg-d{flex:none;min-width:0;}.fg-ings{max-height:none;}}'
+    // couché : la pièce à gauche (elle reste en vue), tout le reste à droite, qui défile
+    + '@media (max-height:500px) and (min-width:641px){.fg-corps{display:grid;grid-template-columns:auto minmax(0,1fr);grid-template-rows:repeat(5,max-content) 1fr;column-gap:12px;row-gap:6px;padding:8px 10px;align-items:start;}'
+    + '.fg-m{display:contents;}.fg-vue{grid-column:1;grid-row:1/7;position:sticky;top:0;}.fg-vue canvas{height:calc(100dvh - 118px);max-height:300px;min-height:150px;width:auto;aspect-ratio:3/2;}'
+    + '.fg-jauge,.fg-jt{width:100%;}.fg-g{grid-column:2;grid-row:1;min-width:0;}.fg-gd{grid-column:2;grid-row:2;}.fg-ctl{grid-column:2;grid-row:3;width:100%;justify-content:flex-start;}'
+    + '.fg-msg{grid-column:2;grid-row:4;text-align:left;}.fg-d{grid-column:2;grid-row:5;min-width:0;}.fg-ings{width:100%;max-height:none;}}';
   document.head.appendChild(st);
 }
+// (§176) les gestes qui partent au toucher (le soufflet, la meule, le tempo du marteau, la couleur, la charge) ; les autres au clic
+const FG_TEMPO = /^(souffle|gauche|droite|frapper|plier|retirer|plonger|enclume|aufeu|c[+-]:)/;
+const fgTel = () => typeof matchMedia === 'function' && matchMedia('(max-width:640px), (max-height:500px)').matches;
 function basculerForge() { if (fgOuverte()) fermerForge(); else ouvrirForge(); }
 function ouvrirForge() {
   if (!fgPres(3)) return;
@@ -834,15 +1449,17 @@ function ouvrirForge() {
   if (!FG.el) {
     const el = FG.el = document.createElement('div'); el.id = 'forge-ui'; el.className = 'ui'; el.setAttribute('role', 'dialog'); el.setAttribute('aria-label', 'La forge');
     el.innerHTML = `<div class="cu-tete">${img('forge')}<b>Forge</b><span class="fg-niv"></span><span class="fg-ong"></span><span class="cu-res fg-res"></span><button class="cu-x" data-fg="x" aria-label="Fermer">✕</button></div>`
-      + `<div class="fg-corps"><div class="fg-g"></div><div class="fg-m"><canvas width="${FG_W}" height="${FG_H}" aria-hidden="true"></canvas><div class="fg-jauge"></div><div class="fg-jt"></div><div class="fg-ctl"></div><div class="fg-msg"></div></div><div class="fg-d"></div></div><div class="fg-autre"></div>`;
-    el.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.button > 0) return; const b = e.target.closest('[data-fg]'); if (!b || b.disabled) return; if (b.tagName !== 'INPUT') e.preventDefault(); fgGeste(b.dataset.fg, true); });
+      + `<div class="fg-corps"><div class="fg-g"></div><div class="fg-gd"></div><div class="fg-m"><div class="fg-vue"><canvas width="${FG_W}" height="${FG_H}" aria-hidden="true"></canvas><div class="fg-jauge"></div><div class="fg-jt"></div></div><div class="fg-ctl"></div><div class="fg-msg"></div></div><div class="fg-d"></div></div><div class="fg-autre"></div>`;
+    el.addEventListener('pointerdown', e => { e.stopPropagation(); if (e.button > 0) return; const b = e.target.closest('[data-fg]'); if (!b || b.disabled) return; if (b.tagName !== 'INPUT') e.preventDefault(); if (FG_TEMPO.test(b.dataset.fg)) fgGeste(b.dataset.fg, true); });
+    el.addEventListener('input', e => { if (e.target.classList.contains('fg-grave') && FG.en) FG.en.grave = String(e.target.value || '').slice(0, 24); });
+    el.addEventListener('click', e => { const b = e.target.closest('[data-fg]'); if (!b || b.disabled || FG_TEMPO.test(b.dataset.fg) || b.tagName === 'INPUT') return; fgGeste(b.dataset.fg, true); });   // (§176) au clic : un doigt qui fait défiler ne choisit rien
     addEventListener('pointerup', () => { FG.souffle = FG.gauche = FG.droite = false; });
     addEventListener('pointercancel', () => { FG.souffle = FG.gauche = FG.droite = false; });
     document.body.appendChild(el);
     FG.cv = el.querySelector('canvas'); FG.cx = FG.cv.getContext('2d'); FG.cx.imageSmoothingEnabled = false;
   }
   FG.el.hidden = false; FG.h = {}; FG.ui = { etin: [], vap: [] }; FG.tt = fgNow();
-  if (!FG.ch) FG.ch = [0, 0, 0, 0, 0];
+  if (!FG.ch || FG.ch.length < FG_MAT.length) FG.ch = FG_MAT.map((M, k) => (FG.ch && FG.ch[k]) || 0);
   if (typeof K === 'object') for (const kk in K) K[kk] = false;
   rendreForge();
   clearInterval(FG.tic); FG.tic = setInterval(() => { if (!fgOuverte()) return; if (!fgPres(3.2) || (typeof sacOuvert !== 'undefined' && sacOuvert)) return fermerForge(); rendreForge(); }, 200);
@@ -884,24 +1501,26 @@ function fgGeste(g, appui) {
   if (g.startsWith('fc:')) { FG.fiche = { code: g.slice(3) }; return rendreForge(); }
   if (g === 'fermefiche') { FG.fiche = null; return rendreForge(); }
   if (g.startsWith('rep:')) return fgReparer(g.slice(4));
+  if (g.startsWith('pg:')) { if (E && E.etape === 'monture') { const i = +g.slice(3) | 0; E.pig = i && fgPigDispo(i) > 0 ? i : 0; if (E.pig) fgDire('teintée ' + fgDe(fgPigNom(FG_PIG[E.pig])) + ' · le pigment part dans l\'arme', 2); } return rendreForge(); }
   if (g.startsWith('don:')) return fgDonner(g.slice(4));
   if (g === 'lire') { const inp = FG.el.querySelector('.fg-code input'), c = fgCodeLu(inp && inp.value); if (!c || !fgDecode(c)) { fgDire('ce code ne se lit pas : FG- suivi de treize signes', 2.6); return rendreForge(); }
     FG.fiche = { code: c }; fgEtat(); if (!P.forgeLu[c]) P.forgeLu[c] = []; Sauve.sale = true; return rendreForge(); }
   if (g.startsWith('dech:')) return fgDechiffrer(g.slice(5));
   if (g === 'copier') { const c = FG.fiche && fgCodeAffiche(FG.fiche.code); try { navigator.clipboard.writeText(c); fgDire('code copié · ' + c, 2.4); } catch (e) { fgDire(c, 4); } return rendreForge(); }
   if (g.startsWith('p:')) { if (E) { fgDire('une pièce est en cours : finissez-la, ou abandonnez-la', 2.4); return rendreForge(); } const i = +g.slice(2); if (FG_TYPES[i] && fgConnu(FG_TYPES[i])) FG.choix = i; return rendreForge(); }
-  if (g.startsWith('c+:') || g.startsWith('c-:')) { if (E) return; const k = +g.slice(3), tot = FG.ch.reduce((a, b) => a + b, 0);
-    if (g[1] === '+') { if (tot >= 4) fgDire('quatre portions au plus', 1.6); else FG.ch[k]++; } else if (FG.ch[k] > 0) FG.ch[k]--; return rendreForge(); }
+  if (g.startsWith('c+:') || g.startsWith('c-:')) { if (E) return; const k = +g.slice(3), tot = fgTot(FG.ch); if (!FG_MAT[k]) return;
+    if (g[1] === '+') { if (FG_MAT[k].dose) { if (FG.ch[k] >= 1) fgDire('une dose de Korlaz, pas plus', 1.6); else { FG.ch[k] = 1; fgDire(fgDistanceT(FG_TYPES[FG.choix]) ? 'une ombre logera dans l\'arme' : 'la lame griffera, même de loin', 1.8); } } else if (tot >= 4) fgDire('quatre portions au plus', 1.6); else FG.ch[k]++; }
+    else if (FG.ch[k] > 0) FG.ch[k]--; return rendreForge(); }
   if (g === 'abandon') { if (!E) return; if (!(FG.abandon > now)) { FG.abandon = now + 3; fgDire('abandonner ? appuyez encore : la pièce est perdue', 3); return rendreForge(); }
     FG.en = null; FG.abandon = 0; fgDire('la pièce part au rebut', 2); return rendreForge(); }
   if (g === 'aufeu') {
     if (!E) {                                                   // la charge : on paie, la pièce naît au feu
-      const tot = FG.ch.reduce((a, b) => a + b, 0);
+      const tot = fgTot(FG.ch);
       if (tot < 2) { fgDire('au moins deux portions', 1.8); return rendreForge(); }
       if (!fgChargeOk(FG.ch)) { fgDire('il manque de quoi charger le creuset', 2); return rendreForge(); }
       if (!essai) { payer(fgCoutCharge(FG.ch)); if (FG.ch[4]) oterIngr('ferdamne', FG.ch[4]); }
       FG.en = { type: FG.choix, ch: FG.ch.slice(), temp: .15, feu: true, etape: 'chauffe', coups: 0, plis: 0, ame: [], bain: -1, plonge: false, trempeT: 0, mont: -1,
-        pen: { chauffe: 0, frappe: 0, plis: 0, ame: 0, trempe: 0, affut: 0 }, def: {}, bat0: now, chauffeFaite: false, aff: { a: 0, v: 0, t: 0, hors: 0 } };
+        pen: { chauffe: 0, frappe: 0, plis: 0, ame: 0, trempe: 0, affut: 0 }, def: {}, bat0: now, chauffeFaite: false, aff: fgAffNeuf() };
       SON.jouer('clank', { vol: .6 }); fgDire('au feu · soufflez, et sortez-la à la bonne couleur', 3); return rendreForge();
     }
     if (E.plonge || E.etape === 'affut' || E.etape === 'monture') return;
@@ -971,14 +1590,44 @@ function fgGeste(g, appui) {
     if (!E.plonge) return;
     const c = fgTrempe(fgRecette(E)), d = Math.abs(E.trempeT - c);
     E.pen.trempe += Math.min(15, Math.max(0, d - fgTol()) * 5); if (d > fgTol()) fgDefaut(E, 'trempe', E.trempeT < c ? 'retirée trop tôt' : 'laissée trop longtemps');
-    E.plonge = false; E.etape = 'affut'; E.aff = { a: 0, v: 0, t: 0, hors: 0 }; SON.jouer('ramasse');
+    E.plonge = false; E.etape = 'affut'; E.aff = fgAffNeuf(); SON.jouer('ramasse'); fgDire('à la meule : gardez la lame dans le vert, contre la meule qui la tire', 3.2);
     fgDire('l\'affûtage : gardez l\'angle dans la bande (◀ ▶), cinq secondes', 3); return rendreForge();
   }
   if (g.startsWith('m:')) { if (E.etape !== 'monture') return; const i = +g.slice(2); if (!fgMontOk(i)) { fgDire('il manque ' + FG_MONT[i].nb + ' ' + (PLURIEL[FG_MONT[i].res] || FG_MONT[i].res), 1.8); return rendreForge(); } E.mont = i; return rendreForge(); }
   if (g === 'finir') return fgFinir();
   rendreForge();
 }
-const fgRecette = E => ({ type: E.type, ch: E.ch, coups: Math.max(6, Math.min(21, E.coups)), plis: Math.min(5, E.plis), bain: Math.max(0, E.bain), mont: Math.max(0, E.mont), ame: E.ame.slice(0, 3) });
+// (§177) à la monture : un pigment de l'Achromie, ou rien
+function fgPigChoix(E) {
+  const L = FG_PIG.map((g, i) => [g, i]).filter(([g, i]) => g && fgPigDispo(i) > 0);
+  if (!L.length) return '<div class="fg-note" style="width:100%">Aucun pigment : l\'Achromie en donne un par île rendue à ses couleurs. Posé ici, il donne à l\'arme son aura et sa traînée.</div>';
+  const pc = g => g.rgb ? 'rgb(' + g.rgb.join(',') + ')' : 'linear-gradient(135deg,#e04848,#d8b030,#40a060,#4868e0)';
+  return `<div class="fg-h" style="width:100%">Le pigment · l'aura et la traînée</div><div class="fg-pigs"><button class="fg-pg${E.pig ? '' : ' on'}" data-fg="pg:0"><i style="background:rgba(255,255,255,.08)"></i>sans</button>`
+    + L.map(([g, i]) => `<button class="fg-pg${E.pig === i ? ' on' : ''}" data-fg="pg:${i}" title="${ESC(fgPigNom(g))}">${typeof icPigment === 'function' ? img(icPigment(g.k)) : `<i style="background:${pc(g)}"></i>`}${ESC(fgPigNom(g))}${essai ? '' : '<small>' + fgPigDispo(i) + '</small>'}</button>`).join('') + '</div>';
+}
+// (§177) L'AFFÛTAGE, revu. Avant : une dérive minuscule et une commande qui accélérait sans freiner, si bien que ne rien
+// toucher valait mieux qu'agir. Maintenant la meule tire la lame d'un côté puis de l'autre (une dérive qui change, à peine
+// plus faible que la main) ; ◀ ▶ la poussent tout de suite, et elle s'arrête quand on lâche. Le fil ne se fait que dans le
+// vert : il faut y tenir 2,6 s en tout (8 s au plus). Hors du vert, la faute compte, d'autant plus qu'on s'en éloigne.
+const fgAffNeuf = () => ({ a: 0, v: 0, t: 0, hors: 0, fil: 0, ph: Math.random() * 6.28 });
+const fgAffZone = () => .2 * fgTol();
+function fgAffMaj(E, dt) {
+  const A = E.aff, z = fgAffZone();
+  if (A.fil === undefined) Object.assign(A, fgAffNeuf(), { a: A.a || 0 });
+  const tire = .62 * Math.sin(A.t * 1.25 + A.ph) + .34 * Math.sin(A.t * 2.7 + A.ph * 1.7), main = (FG.droite ? 1 : 0) - (FG.gauche ? 1 : 0);
+  A.v += (tire + main * 1.4 - A.v) * Math.min(1, dt * 9);
+  A.a += A.v * dt; if (Math.abs(A.a) >= 1) { A.a = Math.sign(A.a); A.v = 0; }
+  A.t += dt;
+  const ec = Math.abs(A.a);
+  if (ec <= z) { A.fil += dt / 2.6; if (Math.random() < dt * 30) fgEtincelles(1, .9); }
+  else { A.hors += dt * (.6 + 1.6 * (ec - z) / (1 - z)); if (Math.random() < dt * 14) fgEtincelles(1, .2); }
+  if (A.fil >= 1 || A.t >= 8) {
+    E.pen.affut += Math.min(18, A.hors * 6 + (1 - Math.min(1, A.fil)) * 14); E.etape = 'monture';
+    if (A.hors > .8 || A.fil < 1) fgDefaut(E, 'affut', A.fil < 1 ? 'le fil inachevé' : 'affûtée de travers');
+    fgDire(A.fil >= 1 ? 'le fil est fait · la monture : le manche, la garde, le pigment' : 'le temps de la meule est passé · la monture', 2.6); rendreForge();
+  }
+}
+const fgRecette = E => ({ type: E.type, ch: E.ch, coups: Math.max(6, Math.min(21, E.coups)), plis: Math.min(5, E.plis), bain: Math.max(0, E.bain), mont: Math.max(0, E.mont), ame: E.ame.slice(0, 3), pig: E.pig | 0 });
 // ---------- la boucle : la chaleur, la trempe, la meule ; le dessin ----------
 function fgBoucle() {
   if (!fgOuverte()) return;
@@ -990,12 +1639,7 @@ function fgBoucle() {
       E.temp += FG.souffle ? .3 * dt * (1.12 - E.temp) * 2.2 : (.42 - E.temp) * .18 * dt;
       if (E.temp > .93) { E.pen.chauffe += 5 * dt; if (!E.def['brûlée au feu']) fgDefaut(E, 'chauffe', 'brûlée au feu'); }
     } else E.temp = Math.max(.04, E.temp - .03 * dt);
-    if (E.etape === 'affut') {
-      const A = E.aff; A.v += (Math.random() - .5) * 4 * dt + (FG.droite ? 2.6 : 0) * dt - (FG.gauche ? 2.6 : 0) * dt; A.v *= Math.pow(.4, dt);
-      A.a = Math.max(-1, Math.min(1, A.a + A.v * dt)); A.t += dt; if (Math.abs(A.a) > .22) A.hors += dt;
-      if (Math.random() < dt * 25) fgEtincelles(1, .8);
-      if (A.t >= 5) { E.pen.affut += Math.min(15, A.hors * 5); E.etape = 'monture'; if (A.hors > .6) fgDefaut(E, 'affut', 'affûtée de travers'); fgDire('la monture : le manche et la garde', 2.4); rendreForge(); }
-    }
+    if (E.etape === 'affut') fgAffMaj(E, dt);
   }
   fgDessiner(now);
   if (FG.en) fgJauge(now);
@@ -1046,7 +1690,9 @@ function fgDessiner(now) {
     if (E.etape === 'affut') {                                                             // la meule
       const a = now * 14; c.fillStyle = '#8c8880'; c.beginPath(); c.arc(98, 52, 12, 0, 6.2832); c.fill(); R(97, 40, 2, 24, '#6c6862');
       R(92 + Math.cos(a) * 9, 52 + Math.sin(a) * 9, 2, 2, '#b8b4ac');
-      R(20, 8, 128, 6, '#2c2c34'); R(84 - 128 * .11, 8, 128 * .22, 6, '#3c6a3c'); R(84 + E.aff.a * 62 - 1, 5, 3, 12, '#fff');
+      const A = E.aff, z = fgAffZone();
+      R(20, 8, 128, 6, '#2c2c34'); R(84 - 64 * z, 8, 128 * z, 6, Math.abs(A.a) <= z ? '#4f9a4a' : '#3c6a3c'); R(84 + A.a * 64 - 1, 5, 3, 12, '#fff');
+      R(20, 16, 128, 2, '#2c2c34'); R(20, 16, 128 * Math.min(1, A.fil), 2, '#ffd27d');
     }
   }
   for (let k = FG.ui.etin.length - 1; k >= 0; k--) { const s = FG.ui.etin[k]; s.l -= 1 / 60; if (s.l <= 0) { FG.ui.etin.splice(k, 1); continue; } s.x += s.vx / 60; s.y += s.vy / 60; s.vy += 160 / 60; R(s.x, s.y, 1, 1, s.c); }
@@ -1100,7 +1746,12 @@ function fgJauge(now) {
   const E = FG.en, el = FG.el; if (!el || !E) return;
   const J = el.querySelector('.fg-jauge'), T = el.querySelector('.fg-jt'), n = FG_NIV(), Rr = fgRecette(E);
   let h, tx;
-  if (E.plonge || (E.etape === 'trempe' && E.bain >= 0)) {
+  if (E.etape === 'affut') {                                         // (§177) la meule : la lame, la bande verte, le fil qui se fait
+    const A = E.aff, z = fgAffZone(), dans = Math.abs(A.a) <= z;
+    h = `<u style="left:${(50 - 50 * z).toFixed(1)}%;width:${(100 * z).toFixed(1)}%;border-color:${dans ? '#b8f0a0' : '#ffe9b0'}"></u><i style="left:${(50 + 50 * A.a).toFixed(1)}%"></i>`;
+    tx = `<span>le fil · ${Math.round(Math.min(1, A.fil) * 100)} %</span><span>${dans ? 'tenez-la dans le vert' : A.a < 0 ? 'elle part à gauche : ▶' : 'elle part à droite : ◀'}</span>`;
+    J.style.background = 'linear-gradient(90deg,#4a2420,#6a4a3a 32%,#3e6a3a 44%,#4e8a46 50%,#3e6a3a 56%,#6a4a3a 68%,#4a2420)';
+  } else if (E.plonge || (E.etape === 'trempe' && E.bain >= 0)) {
     const c = fgTrempe(Rr), k = Math.min(1, E.trempeT / (c * 1.8));
     h = `<i style="left:${(k * 100).toFixed(1)}%"></i>` + (n >= 2 ? `<s style="left:${(c / (c * 1.8) * 100).toFixed(1)}%"></s>` : '');
     tx = `<span>trempe · ${FG_BAINS[E.bain].n}</span><span>${n >= 2 ? E.trempeT.toFixed(1) + ' s / ' + c + ' s' : E.plonge ? (E.trempeT / c < .85 ? 'la vapeur monte' : E.trempeT / c < 1.15 ? 'la vapeur s\'apaise' : 'plus de vapeur') : ''}</span>`;
@@ -1128,16 +1779,19 @@ function rendreForge() {
   el.querySelector('.fg-corps').style.display = forger ? '' : 'none'; el.querySelector('.fg-autre').style.display = forger ? 'none' : '';
   if (!forger) { pose('.fg-autre', fgAutre() + `<div class="fg-msg">${now < FG.msgT ? ESC(FG.msg) : ''}</div>`); return; }
   const ti = E ? E.type : FG.choix, T = FG_TYPES[ti];
+  el.querySelector('.fg-corps').classList.toggle('fg-travail', !!E);
+  pose('.fg-gd', E ? '' : `<b>${ESC(T.n)}</b> · ${ESC(T.meca)}`);
   const venir = FG_TYPES.filter(x => !fgDispo(x)), cache = FG_TYPES.filter(x => fgDispo(x) && !fgConnu(x));
   pose('.fg-g', `<div class="fg-h">Les plans</div>` + FG_TYPES.map((x, i) => fgConnu(x) ? `<button class="fg-p${i === ti ? ' on' : ''}" data-fg="p:${i}"${E && i !== ti ? ' disabled' : ''}>${img('fgt_' + x.id)}<span><b>${x.n}</b><small>${ESC(x.meca)}</small></span></button>` : '').join('')
     + (cache.length ? `<div class="fg-h">À trouver</div>` + cache.map(x => `<button class="fg-p" disabled>${img('fgt_' + x.id)}<span><b>${x.n}</b><small>plan à trouver : coffres du Centre et des Cercles</small></span></button>`).join('') : '')
-    + `<div class="fg-note">${venir.length} plans viendront : ${venir.map(x => x.n.toLowerCase()).join(', ')}.</div>`);
+    + (venir.length ? `<div class="fg-note">${venir.length} plans viendront : ${venir.map(x => x.n.toLowerCase()).join(', ')}.</div>` : ''));
+  if (FG.gVu !== ti && fgTel()) { const g = el.querySelector('.fg-g'), b = g.querySelector('.fg-p.on'); if (b && g.clientWidth) { FG.gVu = ti; g.scrollLeft = b.offsetLeft - g.offsetLeft - (g.clientWidth - b.offsetWidth) / 2; } }   // (§176) le plan choisi, au milieu du bandeau
   // au milieu : ce qu'on peut faire, à cet instant
   const B = (g, t, sous, cl = '', dis = false) => `<button class="fg-b ${cl}" data-fg="${g}"${dis ? ' disabled' : ''}>${t}${sous ? `<small>${sous}</small>` : ''}</button>`;
   let ctl = '';
   if (!E) {
-    const tot = FG.ch.reduce((a, b) => a + b, 0), cout = fgCoutCharge(FG.ch);
-    ctl = FG_MAT.map((M, k) => `<div class="fg-mat">${img(M.ingr ? icIngr(M.id) : M.id)}<span>${M.n} <small>· ${M.q} par portion · ${fgDispoMat(k)} en réserve</small></span>${B('c-:' + k, '−', '', 'mini')}<em>${FG.ch[k]}</em>${B('c+:' + k, '+', '', 'mini')}</div>`).join('')
+    const tot = fgTot(FG.ch), cout = fgCoutCharge(FG.ch);
+    ctl = FG_MAT.map((M, k) => `<div class="fg-mat${M.dose ? ' dose' : ''}">${img(M.ingr ? icIngr(M.id) : M.id)}<span>${M.n} <small>· ${M.dose ? M.q + ' spores la dose · une au plus · ' + (fgDistanceT(FG_TYPES[FG.choix]) ? 'une ombre qui se bat' : 'des griffes, même de loin') : M.q + ' par portion'} · ${fgDispoMat(k)} en réserve</small></span>${B('c-:' + k, '−', '', 'mini')}<em>${FG.ch[k]}</em>${B('c+:' + k, '+', '', 'mini')}</div>`).join('')
       + B('aufeu', 'AU FEU', tot < 2 ? 'deux à quatre portions' : (ditCoutTxt(cout, FG.ch[4]) || 'la charge'), 'prim', tot < 2 || !fgChargeOk(FG.ch));
   } else if (E.plonge) ctl = B('retirer', 'RETIRER', 'Espace');
   else if (E.feu) ctl = B('souffle', 'SOUFFLET', 'maintenir · Espace', 'prim') + B('enclume', 'SUR L\'ENCLUME', E.chauffeFaite ? 'reprendre le travail' : 'à la bonne couleur');
@@ -1148,9 +1802,10 @@ function rendreForge() {
     ctl = `<div class="fg-ings">${L.length ? L.map(id => `<button class="fg-in${INGR[id].r > 1 ? ' r' + Math.min(5, INGR[id].r) : ''}" data-fg="i:${id}" title="${ESC(INGR[id].n + ' · ' + FG_ELEM[fgElemDe(id)].n)}"${E.ame.length >= Math.max(1, n) ? ' disabled' : ''}>${img(icIngr(id))}<b>${essai ? '∞' : qteIngr(id)}</b></button>`).join('') : '<span class="fg-note">aucun ingrédient au sac</span>'}</div>`
       + B('aufeu', 'AU FEU', 'réchauffer') + B('suite', 'SUITE', E.ame.length ? 'la trempe' : 'sans âme');
   } else if (E.etape === 'trempe') ctl = FG_BAINS.map((b, i) => B('b:' + i, b.n.toUpperCase(), fgBainTxt(i), E.bain === i ? 'prim' : '', !fgBainOk(i))).join('') + B('plonger', 'PLONGER', 'la pièce chaude', 'prim', E.bain < 0) + B('aufeu', 'AU FEU', 'réchauffer');
-  else if (E.etape === 'affut') ctl = B('gauche', '◀', 'maintenir') + B('droite', '▶', 'maintenir');
+  else if (E.etape === 'affut') ctl = B('gauche', '◀', 'maintenir · ←', 'meule') + B('droite', '▶', 'maintenir · →', 'meule');
   else if (E.etape === 'monture') ctl = FG_MONT.map((m, i) => B('m:' + i, m.n.toUpperCase(), m.nb + ' ' + (PLURIEL[m.res] || m.res), E.mont === i ? 'prim' : '', !fgMontOk(i))).join('')
-    + (n >= 3 ? `<input class="fg-grave" maxlength="24" placeholder="gravure : un nom (facultatif)" style="width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(220,190,150,.3);border-radius:8px;color:#fff0dc;padding:6px 8px;font:inherit">` : '')
+    + fgPigChoix(E)
+    + (n >= 3 ? `<input class="fg-grave" maxlength="24" placeholder="gravure : un nom (facultatif)" value="${ESC(E.grave || '')}" style="width:100%;background:rgba(0,0,0,.3);border:1px solid rgba(220,190,150,.3);border-radius:8px;color:#fff0dc;padding:6px 8px;font:inherit">` : '')
     + B('finir', 'FINIR', 'l\'arme est prête', 'prim', E.mont < 0);
   if (E) ctl += B('abandon', 'abandonner', '', 'mini');
   if (!(E && E.etape === 'monture' && el.querySelector('.fg-grave') === document.activeElement)) pose('.fg-ctl', ctl);
@@ -1169,7 +1824,7 @@ function rendreForge() {
     + li('ame', 'Âme', E && io >= 4 ? (E.ame.length ? E.ame.map(nomI).join(', puis ') : 'rien') + (E.pen.ame ? ' <i>−' + E.pen.ame + '</i>' : '') : '<small>l\'élément</small>')
     + li('trempe', 'Trempe', E && io >= 5 ? (E.bain >= 0 ? FG_BAINS[E.bain].n + (n >= 2 ? ' · ' + fgTrempe(Rr) + ' s' : '') : 'le bain ?') + (E.pen.trempe ? ' <i>−' + Math.round(E.pen.trempe) + '</i>' : '') : '<small>la forme</small>')
     + li('affut', 'Affûtage', E && io >= 6 ? (io > 6 ? 'fait' : 'en cours') + (E.pen.affut ? ' <i>−' + Math.round(E.pen.affut) + '</i>' : '') : '<small>à la meule</small>')
-    + li('monture', 'Monture', E && io >= 7 ? (E.mont >= 0 ? FG_MONT[E.mont].n : 'à choisir') : '<small>le manche</small>') + `</ul>`
+    + li('monture', 'Monture', E && io >= 7 ? (E.mont >= 0 ? FG_MONT[E.mont].n : 'à choisir') + (E.pig && FG_PIG[E.pig] ? ' · ' + ESC(fgPigNom(FG_PIG[E.pig])) : '') : '<small>le manche, le pigment</small>') + `</ul>`
     + (E ? `<div class="fg-just">Justesse en cours : <b>${fgJustesse(E)} %</b>${fgJustesse(E) >= 97 ? ' · chef-d\'œuvre' : ''}</div>`
       + (Object.keys(E.def).length ? `<div class="fg-note">${Object.entries(E.def).map(([m, k]) => ESC(m) + (k > 1 ? ' ×' + k : '')).join(' · ')}</div>` : '')
       + (io >= 4 ? `<div class="fg-h">Ce que fera l'âme</div><div class="fg-note">${ESC(fgCompTxt(C))}${E.bain < 0 ? ' <small>(la forme dépend du bain)</small>' : ''}</div>` : '') : '')
@@ -1218,7 +1873,7 @@ function fgFicheHtml(code, id) {
     ['chauffe', 'Chauffe', fgCouleurNom(fgCible(R)) + ' (' + Math.round(fgCible(R) * 100) + ')', 2], ['coups', 'Martelage', R.coups + ' coups, sur le battement', 2],
     ['plis', 'Plis', R.plis + (R.plis ? ', la lame encore chaude' : ''), 2],
     ['ame', 'Âme', R.ame.length ? R.ame.map((x, i) => (i ? 'puis ' : '') + (INGR[x] ? INGR[x].n.toLowerCase() : x)).join(', ') + (R.ame.length > 1 ? ' : dans cet ordre' : '') : 'rien', 3],
-    ['trempe', 'Trempe', FG_BAINS[R.bain].n + ', ' + fgTrempe(R) + ' s (±' + fgTol() + ')', 2], ['monture', 'Monture', FG_MONT[R.mont].n, 1],
+    ['trempe', 'Trempe', FG_BAINS[R.bain].n + ', ' + fgTrempe(R) + ' s (±' + fgTol() + ')', 2], ['monture', 'Monture', FG_MONT[R.mont].n + (R.pig && FG_PIG[R.pig] ? ' · teintée ' + fgDe(fgPigNom(FG_PIG[R.pig])) : ''), 1],
     ['comp', 'Compétence', fgCompTxt(C), 3], ['eviter', 'À éviter', fgEviter(R), 3]];
   return `<div class="fg-fiche"><h4>${ESC(fgNom(R))}${I && I.f ? ' · forgée par ' + ESC(I.f) : ''}<br>${fgCodeAffiche(code)}</h4>`
     + L.map(([k, tt, v, nv]) => voit(k, nv) ? `<div class="fl"><b>${tt}</b><span>${ESC(v)}</span></div>`
@@ -1268,22 +1923,25 @@ function fgFinir() {
   const E = FG.en; if (!E || E.etape !== 'monture') return;
   if (E.mont < 0) { fgDire('choisissez la monture', 1.6); return rendreForge(); }
   if (!fgMontOk(E.mont)) { fgDire('il manque de quoi monter l\'arme', 1.8); return rendreForge(); }
-  if (!essai) payer({ [FG_MONT[E.mont].res]: FG_MONT[E.mont].nb });
+  if (E.pig && fgPigDispo(E.pig) <= 0) E.pig = 0;
+  if (!essai) { payer({ [FG_MONT[E.mont].res]: FG_MONT[E.mont].nb }); if (E.pig) { const k = FG_PIG[E.pig].k; P.pigments[k] = (P.pigments[k] | 0) - 1; if (P.pigments[k] <= 0) delete P.pigments[k]; } }
   const R = fgRecette(E), code = fgEncode(R), j = fgJustesse(E), id = fgIdDe(code, j), C = fgAme(R), S = fgStats(R, j);
-  const gr = FG_NIV() >= 3 && FG.el.querySelector('.fg-grave') ? String(FG.el.querySelector('.fg-grave').value || '').replace(/[<>]/g, '').trim().slice(0, 24) : '';
+  const gr = FG_NIV() >= 3 ? String((FG.el.querySelector('.fg-grave') || {}).value || E.grave || '').replace(/[<>]/g, '').trim().slice(0, 24) : '';
   fgEtat(); const deja = !!P.objets[id], av = P.forge[id];
   P.objets[id] = 1; P.forge[id] = { u: 0, f: typeof pseudo === 'function' ? String(pseudo()).slice(0, 18) : '', n: gr || (deja && av && av.n) || '' };
   const O = objet(id); if (O) O.n = P.forge[id].n || fgNom(R).split(' · ')[0];
   const cn = P.forgeCarnet[code] || (P.forgeCarnet[code] = { n: 0, j: 0, nom: '' }); cn.n++; cn.j = Math.max(cn.j, j); cn.nom = fgNom(R); cn.f = 1;
   if (typeof rangerRaccourci === 'function') rangerRaccourci(id);
   const defs = Object.entries(E.def);
-  FG.en = null; FG.ch = [0, 0, 0, 0, 0]; Sauve.sale = true; if (typeof majSac === 'function') majSac();
+  FG.en = null; FG.ch = FG_MAT.map(() => 0); Sauve.sale = true; if (typeof majSac === 'function') majSac();
   SON.jouer(j >= 97 ? 'rare' : 'niveau');
   const L = fgLieu0(); if (L) burst(L.x, L.y, L.z + 1, j >= 97 ? 60 : 30, j >= 97 ? '#ffd27d' : '#ffb060');
   if (typeof montrerBilan === 'function') montrerBilan(`<div class="ab-fiole">${img(id)}</div><div class="ab-v">${j >= 97 ? '★ Chef-d\'œuvre' : 'Arme forgée'}</div>`
     + `<div class="ab-n">${ESC(O ? O.n : '')} · ${ESC(fgNom(R).split(' · ')[1])}</div><div class="ab-j"><i style="width:${j}%"></i></div>`
     + `<div class="ab-s">justesse ${j} % · dégâts ${O ? Math.round(O.deg * 100) : '?'} · tient ${S.usure} coups avant de s'émousser</div>`
     + (defs.length ? `<div class="ab-g">${defs.map(([m, k]) => `<span class="ab-p mal"><b>✗</b>${ESC(m)}${k > 1 ? ' ×' + k : ''}</span>`).join('')}</div>` : `<div class="ab-g"><span class="ab-p bon"><b>✓</b>chaque geste juste</span></div>`)
+    + (R.ch[5] ? `<div class="ab-s">${fgDistanceT(FG_TYPES[R.type]) ? 'une ombre de Korlaz loge dans l\'arme : tenue en main, elle vous suit et se bat à vos côtés' : 'le Korlaz griffe : chaque coup lacère la cible de trois griffes noires, même de loin'}</div>` : '')
+    + (R.pig && FG_PIG[R.pig] ? `<div class="ab-s">teintée ${ESC(fgDe(fgPigNom(FG_PIG[R.pig])))} : son aura, sa traînée</div>` : '')
     + `<div class="ab-eff">${ESC(fgCompTxt(C))}</div><div class="ab-s">${fgCodeAffiche(code)}${deja ? ' · vous l\'aviez déjà : la voici remise à neuf' : ''}</div><button class="ab-ok" data-ab="ok">Continuer</button>`, j >= 97 ? 'or' : 'ok');
   rendreForge();
 }
@@ -1370,7 +2028,8 @@ function fgHausse(c, z0, v0, e0) {
 // coupArme (index.html) : au moment du coup, une arme qu'on lance part au lieu de frapper
 function forgeLance(A, a) {
   const L = fgLireId(a.id); if (!L) return false;
-  const T = FG_TYPES[L.R.type]; if (!T.lance) return false;
+  const T = FG_TYPES[L.R.type]; if (L.R.ch[5] && !fgDistanceT(T)) fgGriffe(a);   // (§178) le Korlaz au contact : les griffes
+  if (T.magie) return fgMagie(A, a, T); if (!T.lance) return false;
   const R = L.R, Al = fgAlliage(R), Cm = fgAme(R), col = Al.c, cf = Cm ? FG_ELEM[Cm.el].c : Al.c.map(v => Math.min(255, v + 60)), cm = FG_MONT[R.mont].c;
   const ch = !!A.charge, ile = canalIle(), hex = COUL_TRAINEE[a.id] || '#e8e0d0';
   P.agiteT = t; if (typeof iaNote === 'function') iaNote('coup');
@@ -1416,6 +2075,8 @@ function fgMajProjs(dt) {
     if (p.ile !== ile) { FG.projs.splice(i, 1); if (p.k === 'chak') FG.vol[p.id] = 0; continue; }
     if (p.k === 'chak') { if (fgChak(p, dt)) { FG.projs.splice(i, 1); FG.vol[p.id] = 0; } }
     else if (p.k === 'jav') { if (fgJavMaj(p, dt)) { FG.projs.splice(i, 1); FG.jav[p.id] = Math.min(3, fgJav(p.id) + 1); } }
+    else if (p.k === 'orbe') { if (fgOrbe(p, dt)) FG.projs.splice(i, 1); }
+    else if (p.k === 'obus') { if (fgObus(p, dt)) FG.projs.splice(i, 1); }
     else if (fgBille(p, dt)) FG.projs.splice(i, 1);
   }
 }
@@ -1489,7 +2150,7 @@ function fgBille(p, dt) {
     const nx = p.x + p.vx * h, ny = p.y + p.vy * h, nz = p.z + p.vz * h;
     if (nx < 1 || ny < 1 || nx >= WS - 1 || ny >= WS - 1 || nz < -6) return true;
     for (const b of beasts) if (fgVisable(b) && !p.vu.has(b) && toucheBete(b, nx, ny, nz)) {
-      p.vu.add(b); fgBlesse(b, degJoueur(p.deg, b) * Math.pow(.85, p.n), p.vx * .1, p.vy * .1, p.id, false, p.vx, p.vy); p.n++;
+      p.vu.add(b); fgBlesse(b, degJoueur(p.deg, b) * Math.pow(.75, p.n), p.vx * .1, p.vy * .1, p.id, false, p.vx, p.vy); p.n++;
       if (p.n > 3) return true;
       let nb = null, dn = 5; for (const o of beasts) if (fgVisable(o) && !p.vu.has(o)) { const q = Math.hypot(o.x - b.x, o.y - b.y); if (q < dn) { dn = q; nb = o; } }
       p.x = nx; p.y = ny; p.z = nz;
@@ -1508,13 +2169,29 @@ function fgBille(p, dt) {
   }
   return p.rebond > 0 && Math.hypot(p.vx, p.vy, p.vz) < 1.5;
 }
-// emitFleches (index.html) : dessiner les projectiles forgés, comme les flèches
-function forgeEmit(view, out) {
+// Les projectiles forgés, en tronçons (E(p, a, b, l, h, couleur, luit)) : forgeEmit les dessine sans carte graphique
+// (emitFleches), le rendu WebGL les reprend tels quels (§174 : il ne les dessinait pas).
+function forgeOs(E) {
   for (const p of FG.projs) {
-    const cle = view.kEnt && view.kEnt(p.x, p.y), rang = rangSol(p.z, false), E = (a, b, w, h, c) => emitLimb(a, b, w, h, c, view, out, cle, rang);
-    if (p.k === 'chak') { const a0 = t * 24; for (let k = 0; k < 8; k++) { const a1 = a0 + k * .785, a2 = a1 + .785; E([p.x + Math.cos(a1) * .2, p.y + Math.sin(a1) * .2, p.z], [p.x + Math.cos(a2) * .2, p.y + Math.sin(a2) * .2, p.z], .05, .035, k & 1 ? p.c : p.cf); } }
+    if (p.k === 'chak') { const a0 = t * 24; for (let k = 0; k < 8; k++) { const a1 = a0 + k * .785, a2 = a1 + .785; E(p, [p.x + Math.cos(a1) * .2, p.y + Math.sin(a1) * .2, p.z], [p.x + Math.cos(a2) * .2, p.y + Math.sin(a2) * .2, p.z], .05, .035, k & 1 ? p.c : p.cf); } }
     else if (p.k === 'jav') { const u = p.u || [1, 0, 0], q = p.etat === 'sol' || p.etat === 'bete' ? .25 : 0, at = k => [p.x + u[0] * (k + q), p.y + u[1] * (k + q), p.z + u[2] * (k + q)];
-      E(at(-.85), at(-.1), .045, .045, p.cm); E(at(-.12), at(.05), .07, .03, p.c); E(at(.02), at(.08), .035, .025, p.cf); }
-    else E([p.x - .05, p.y, p.z], [p.x + .05, p.y, p.z], .1, .1, p.c);
+      E(p, at(-.85), at(-.1), .045, .045, p.cm); E(p, at(-.12), at(.05), .07, .03, p.c); E(p, at(.02), at(.08), .035, .025, p.cf); }
+    else if (p.k === 'orbe') { const r = p.etat === 'part' ? .15 : .12 + .015 * Math.sin(t * 6 + p.a0);   // la sphère, son cœur blanc, sa seconde matière
+      E(p, [p.x - r * .5, p.y, p.z], [p.x + r * .5, p.y, p.z], r, r, p.c, 1);
+      if (p.c2) E(p, [p.x, p.y - r * .35, p.z + r * .3], [p.x, p.y + r * .35, p.z + r * .3], r * .5, r * .5, p.c2, 1);
+      E(p, [p.x - r * .2, p.y, p.z], [p.x + r * .2, p.y, p.z], r * .45, r * .45, [255, 250, 236], 1); }
+    else if (p.k === 'obus') { const v = Math.hypot(p.vx, p.vy, p.vz) || 1, u = [p.vx / v, p.vy / v, p.vz / v];   // l'obus, sa mèche, et le cercle où il tombera
+      E(p, [p.x - u[0] * .12, p.y - u[1] * .12, p.z - u[2] * .12], [p.x + u[0] * .12, p.y + u[1] * .12, p.z + u[2] * .12], .2, .2, [52, 48, 44]);
+      E(p, [p.x - u[0] * .12, p.y - u[1] * .12, p.z - u[2] * .12], [p.x - u[0] * .2, p.y - u[1] * .2, p.z - u[2] * .2], .05, .05, [255, 200, 90], 1);
+      if (p.cx !== undefined) { const k = Math.min(1, p.age / (p.vol || 1)), R = p.R * (.92 + .08 * Math.sin(t * (10 + 14 * k)));
+        for (let i = 0; i < 12; i++) { const a0 = i * Math.PI / 6, a1 = a0 + Math.PI / 6;
+          E(p, [p.cx + Math.cos(a0) * R, p.cy + Math.sin(a0) * R, p.cz + .05], [p.cx + Math.cos(a1) * R, p.cy + Math.sin(a1) * R, p.cz + .05], .07, .02, [255, 140 - 70 * k, 50], 1); } } }
+    else E(p, [p.x - .05, p.y, p.z], [p.x + .05, p.y, p.z], .1, .1, p.c);
   }
+  if (FG.ombre && FG.ombre.vie > 0) fgOmbreOs(FG.ombre, E);           // (§177) les ombres de Korlaz
+  for (const Q of FG.ombresJ.values()) if (Q.vie > 0) fgOmbreOs(Q, E);
+}
+function forgeEmit(view, out) {
+  let q = null, cle, rang;
+  forgeOs((p, a, b, w, h, c, lum) => { if (p !== q) { q = p; cle = view.kEnt && view.kEnt(p.x, p.y); rang = rangSol(p.z, false); } emitLimb(a, b, w, h, c, view, out, cle, rang, lum ? 1 : undefined); });
 }

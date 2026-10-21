@@ -5342,3 +5342,293 @@ Assistants : `fgBalayage` et `fgFrappable` (ni gardiens, ni bâtiments, ni bête
 
 ### §173 bis — Correctif : la case Forge
 La case **Forge** manquait dans Campement → Camp : `modforge` n'était pas dans la liste `CASES_VOLET.camp`. Elle est maintenant placée entre la table d'alchimie et la bibliothèque. Le texte de l'établi cite aussi la forge parmi les modules. `sw.js` passe en `stone-valley-141`.
+
+## §174 — La Forge (phase D) : les armes de mage
+Quatre plans de plus dorment dans les coffres du Centre et des Cercles (`FG_PHASE = 'D'`). Ces armes lancent **la phrase tenue en main** (volet Magie : « Tenir »), payée en éclats du sac, avec le délai de la phrase. Le grimoire, les tomes, les accords et l'instabilité restent ce qu'ils sont.
+- **La focale** : les dégâts de l'arme divisés par ceux de son type (ce que la forge y a mis : alliage, plis, justesse, usure). Elle multiplie les sorts lancés par l'arme. La fiche l'affiche : « les sorts ×1,38 ».
+- **L'âme de l'arme** s'ajoute au sort comme à un coup : son déclencheur (chaque, série, charge, dos, tuer, riposte) est testé sur chaque bête touchée, six au plus (`forgeSortTouche`, appelé à la fin de `toucherSort`).
+- Chaque sort lancé use l'arme d'un point et compte dans la série.
+- **Sans phrase en main**, l'arme frappe (faiblement) et le dit. Si le sort n'est pas prêt ou si le mana manque, elle frappe aussi.
+
+**Les quatre armes** :
+- **Bâton de mage** : un appui lance la phrase. Maintenir puis lâcher la grossit, en trois paliers (0,5 s, 1 s, 1,6 s) :
+  - dégâts ×1,6 / ×2,2 / ×3 ; ampleur ×1,15 / ×1,3 / ×1,5 ; prix ×1,5 / ×2 / ×3 ;
+  - chaque palier s'entend, le cristal gonfle et la lueur converge vers vous ;
+  - s'il manque des éclats, le plus haut palier qu'on peut payer part ;
+  - le trait grossi se voit plus large et luit (`f.gros`, dans les deux rendus).
+- **Baguette** : la phrase coûte 6 dixièmes du prix, se relance 3 fois plus vite (délai ×0,35), et frappe à ×0,7. Maintenir : la rafale, au rythme du délai (0,3 s au moins). Elle s'arrête au lâcher, ou quand le mana manque.
+- **Orbe** : un trait, une onde ou un piège se posent en sphère, qui tourne autour de vous (3 au plus, 25 s). Le délai est réduit de moitié.
+  - Après 0,8 s, la sphère part seule vers la bête **qui vous menace** (`beteHostile`) à moins de 10 pas, et vire pour la suivre.
+  - Un trait ou un piège frappent la bête. Une onde éclate en anneau de 2,6 pas autour d'elle.
+  - Maintenir puis lâcher, ou un appui quand trois sphères tournent : **la salve**. Toutes partent, vers la bête visée d'abord, même une bête paisible.
+  - Le mur et l'égide partent tout de suite, comme d'habitude.
+- **Lame runique** : une épée. Chaque coup qui porte remplit ses runes (15 %, 30 % chargé ; 5 runes s'allument sur la lame). Pleine, elle le dit et luit. Le coup chargé suivant **libère** :
+  - avec une phrase en main, elle part sans mana ni délai, ×1,6 et la focale, et l'âme de la lame touche sûrement (×1,5) ;
+  - sans phrase, l'âme éclate à 3 pas autour de vous (×1,6 et son élément).
+  
+  Laissées 10 s sans coup, les runes s'éteignent doucement.
+
+**Technique.**
+- `forgeLance` passe la main à `fgMagie` ; `fgLancerPhrase` reprend `lancerPhrase` avec ses facteurs.
+- Les sphères vivent dans `FG.projs` (`fgOrbe`).
+- `forgeOs` décrit en tronçons tous les projectiles forgés. `forgeEmit` les dessine sans carte graphique, et le rendu WebGL les dessine maintenant aussi : **le chakram, les javelots et les billes n'y étaient pas visibles** (oubli de la phase C, corrigé).
+- Les os du héros acceptent `lum` (ce qui luit de soi-même), dans les deux rendus : le cristal du bâton, la pointe de la baguette, la sphère de l'orbe, les runes.
+
+**Vérifié** (navigateur sans écran, aucune erreur) :
+- bâton : l'appui (prix normal), le palier III (prix ×3, la bête abattue, la compétence « sur un coup chargé » déclenchée) ;
+- baguette : la rafale (dix traits en trois secondes, trois éclats chacun) ;
+- orbe : deux sphères qui tournent sans bête, puis qui partent seules quand une bête menaçante arrive ;
+- lame runique : les runes pleines en sept coups, la libération sans phrase (l'âme éclate, la bête brûle) et avec une onde (zéro éclat) ;
+- les quatre armes en main, les sphères et les traits grossis dans le rendu WebGL.
+
+**Pas vérifié** : les autres joueurs ne voient pas les sphères de l'orbe (les traits, les ondes et leurs effets passent comme avant).
+
+**À déposer** : `forge.js`, `index.html`, `sw.js` (`stone-valley-142`), `LISEZ-MOI.md`.
+
+## §175 — La Forge (phase E) : les armes à feu
+Les cinq derniers plans dorment dans les coffres du Centre et des Cercles (`FG_PHASE = 'E'` : les 29 armes sont là, et la forge ne dit plus « … plans viendront »).
+- **Pas de munitions** : on recharge. Le temps de recharge est le « cad » de l'arme. La forge le règle : un alliage lourd recharge plus lentement. La fiche l'affiche (« recharge 2,8 s · sans munitions »).
+- La recharge part seule quand l'arme est vide. Si l'arme a été entamée puis laissée 2 s, elle part aussi, et elle est plus courte. Tirer interrompt une recharge entamée.
+- Le bandeau montre les coups en main (« CHARGÉ ●○ », « BARILLET ●●●○○○ ») ou la recharge en cours.
+- Les armes à feu prennent le geste, la pose (épaulée au tir, à la hanche en garde) et la bretelle des fusils du Centre. `djEstFusil` les reconnaît par `forgeFeu`.
+- Le tir est un trait (`djVisee`, `djRayon`), avec la flamme de bouche et la fumée. La visée est la même que pour les fusils du Centre : la bête désignée, sinon celle qui est devant.
+- L'âme de l'arme agit à l'impact, comme pour une flèche. Le dernier coup avant la recharge compte comme un coup chargé.
+
+**Les cinq armes** :
+- **Pistolet à silex** : une paire. Deux coups forts (main droite, puis gauche), puis on recharge les deux, longuement (2,6 s de base). Les chiens s'abattent à chaque coup.
+- **Tromblon** : 9 plombs en cône (±0,3 rad), portée 7,5 pas. Chaque plomb pèse ×0,24, moins de loin ; les plombs s'additionnent sur une même bête, qui est rejetée. Le tireur est repoussé (environ 1,7 pas). Un coup, puis 2 s de recharge.
+- **Mousquet** : portée 32 pas, aucun écart. La balle traverse jusqu'à 3 bêtes. Un gros nuage de fumée, puis 3,2 s de recharge.
+- **Revolver** : 6 coups, un toutes les 0,2 s. Maintenir les enchaîne. Puis on recharge le barillet (2,4 s). Les 6 chambres se vident sur l'arme.
+- **Canon à main** : l'obus part à 55° et retombe sur la bête visée (ou à 10 pas devant). Un cercle au sol, qui bat de plus en plus vite, montre où il tombera. Il éclate au premier contact, à 2,6 pas : ×1 au centre, ×0,4 au bord, et les bêtes sont rejetées. Il ne blesse pas le tireur. Le tireur est repoussé. 3,6 s de recharge.
+
+**Technique.**
+- `forge.js` : `FG_FEU` (les réglages), `forgeTirDown` / `forgeTirUp` (appelés par `djTirDown` / `djTirUp`), `fgTirFeu`, l'obus (`fgLancerObus`, `fgObus`, `fgEclat`, dans `FG.projs`), `forgeHud` (ajouté à `djHud`), `fgGeomFeu` (l'arme en main, sur le cadre des fusils du Centre).
+- `donjon.js` : `djEstFusil` reconnaît les armes à feu forgées. `djPoseFusil` prend leur recul ; les armes longues s'épaulent comme le fusil d'arpenteur. `djTirDistant` montre le coup des autres joueurs (pour le canon : le bruit et la fumée).
+- `index.html` : l'arme à feu forgée n'a pas de carquois, seulement la bretelle.
+- Le recul pousse le joueur sans frottement un court instant (`P.recul`).
+
+**Vérifié** (navigateur sans écran, aucune erreur) :
+- pistolet : deux coups, la bête abattue, la recharge, puis « CHARGÉ ●● » ;
+- tromblon : la gerbe sur la première bête, le recul de 1,75 pas ;
+- mousquet : trois bêtes en ligne touchées, pas la quatrième ;
+- revolver : maintenu, il vide le barillet, puis recharge ;
+- canon : l'obus monte à près de 15 pas de haut, puis éclate (deux bêtes touchées, moins celle du bord) ;
+- les icônes et les formes des 29 armes ; la pose épaulée identique à celle du rayon de sentinelle.
+
+**Pas vérifié** :
+- sans carte graphique, le trait de la balle ne se dessine pas (comme pour les fusils du Centre) : on voit la flamme, la fumée et l'impact ;
+- la fenêtre de la forge avec les 29 plans (seulement la liste, par le code).
+
+**À déposer** : `forge.js`, `donjon.js`, `index.html`, `sw.js` (`stone-valley-143`), `LISEZ-MOI.md`.
+
+## §176 — La fenêtre de la Forge au téléphone
+Au téléphone, la fenêtre était mal agencée :
+- debout, il fallait descendre de 1 700 pixels sous la liste des plans pour trouver la pièce et ses gestes ;
+- les onglets s'empilaient et poussaient la croix de fermeture hors de l'écran ;
+- couché, les boutons étaient coupés en bas et la recette se trouvait tout au fond.
+
+**Au téléphone** (largeur ≤ 640 px, ou hauteur ≤ 500 px) :
+- **La fenêtre prend tout l'écran**, opaque, en respectant les bords arrondis et l'encoche (`safe-area`).
+- **L'en-tête reste fixe** et seul le corps défile : la croix est toujours à portée.
+- **Les plans forment un bandeau horizontal** de vignettes (icône et nom) qu'on fait glisser du doigt. Le plan choisi se place au milieu, et sa description s'affiche juste dessous.
+- **Pendant le travail**, le bandeau disparaît (on ne peut pas changer de plan en cours de route) : la pièce et ses gestes montent en haut.
+- **Debout** :
+  - l'en-tête tient sur trois lignes (le titre et la croix, les onglets, les réserves) ;
+  - puis une seule colonne : le bandeau, la pièce (toute la largeur), la jauge, les gestes, la recette.
+- **Couché** :
+  - la pièce et sa jauge restent à gauche, toujours visibles ;
+  - à droite défilent le bandeau, les gestes et la recette.
+- **Des cibles plus grandes au doigt** : les boutons font au moins 44 px de haut, et les « − / + » de la charge 42 × 38 px.
+
+**Le toucher.**
+- Les gestes qui demandent du tempo partent dès qu'on touche l'écran, comme avant : le soufflet, la meule, frapper, plier, sortir du bain, plonger, sur l'enclume, au feu, la charge.
+- Tous les autres (choisir un plan, les onglets, réparer, donner, déchiffrer, les ingrédients d'âme, le bain, la monture, finir) partent **au clic**. Un doigt qui fait défiler la liste ne déclenche donc plus rien par mégarde.
+
+L'ordinateur garde sa mise en page : la pièce est seulement enveloppée dans un `.fg-vue`, sans aucun changement visible.
+
+**Vérifié** (navigateur sans écran, en 390 × 844 et 844 × 390, en simulant le toucher) :
+- la charge, le feu, l'âme, les onglets Mes armes, Lire un code et Carnet ;
+- un vrai toucher sur un plan et sur « + » ;
+- la mise en page de l'ordinateur, inchangée ;
+- aucune erreur.
+
+**À déposer** : `forge.js`, `index.html`, `sw.js` (`stone-valley-144`), `LISEZ-MOI.md`.
+
+## §177 — La Forge : le Korlaz, les pigments, l'affûtage revu
+**Le Korlaz dans la charge.**
+- Une sixième ligne s'ajoute à la charge : **Korlaz**. Une dose au plus, qui coûte 12 spores de Korlaz (celles que rapporte la roche rongée).
+- La dose ne compte pas dans les deux à quatre portions et ne change pas l'alliage, qu'elle assombrit seulement.
+- Elle loge dans la lame **une ombre** : tant qu'on tient l'arme en main, l'ombre est là.
+  - **Son allure** : une petite bête sombre qui flotte derrière l'épaule gauche. Elle a une tête aux oreilles pointues et deux yeux violets qui luisent (rouges à l'assaut). Ses pattes sont griffues, sa queue faite de quatre lambeaux de fumée qui ondulent, et elle perd sans cesse des volutes sombres piquées d'étincelles violettes.
+  - **Au combat** : quand une bête vous menace à moins de 8 pas (ou celle que vous avez désignée), l'ombre fond sur elle à 16 pas par seconde. Elle la frappe 6 fois, en bondissant chaque fois d'un autre côté (l'angle d'or : jamais deux fois au même endroit), avec un sillage violet et une griffure en travers. Puis elle revient et souffle 1,8 s.
+  - **Ses dégâts** : chaque coup vaut 12 % des dégâts de l'arme. Une bête qu'elle abat donne son butin, comme les vôtres.
+  - **Intouchable** : ce n'est pas une bête. Ni les bêtes ni les joueurs ne peuvent la viser ni la toucher.
+  - Les autres joueurs voient l'ombre flotter près de vous, mais pas ses assauts.
+
+**Les pigments de l'Achromie** (ils étaient « gardés pour plus tard »).
+- À la monture, on peut poser un pigment, ou rien. Il part dans l'arme quand on la finit.
+- Il donne à l'arme **son aura** :
+  - le fil de la lame prend la couleur du pigment, et luit dès le rang 2 ;
+  - des lueurs s'échappent de l'arme, en main ou rangée : 5 par seconde au rang 1, jusqu'à 22 au rang 5, avec des éclats clairs dès le rang 4 ;
+  - la nacre prismatique passe par toutes les couleurs.
+- Il donne aussi **sa traînée** : le sillage des coups prend sa couleur, luit, et dure et s'élargit avec le rang. La nacre y fait courir l'arc-en-ciel. Le trait d'une arme à feu teintée prend sa couleur, plus large et plus long.
+- Chacun des 21 pigments a sa teinte : cinabre, garance, lapis-lazuli, malachite…
+- La fiche, la description et le bilan le disent.
+
+**Le code des armes.** Le Korlaz et le pigment passent dans le code (dans des bits libres, puis dans un 14ᵉ signe si besoin). Une arme d'avant garde son code de 13 signes et son identifiant, inchangés. Un code de 14 signes se lit aussi à la forge.
+
+**L'affûtage, revu.** Il marchait mal : la lame dérivait à peine, et ◀ ▶ l'accéléraient sans la freiner. Mieux valait ne rien toucher qu'agir.
+- **La meule tire la lame** d'un côté puis de l'autre, avec une force qui change sans cesse, un peu plus faible que la main.
+- **◀ ▶ (ou ← →) la poussent aussitôt**, et elle s'arrête quand on lâche.
+- **Le fil ne se fait que dans le vert** : il faut y tenir la lame 2,6 s en tout, 8 s au plus. Hors du vert, la faute grandit avec l'écart, jusqu'à −18.
+- La grande jauge sous la pièce devient la bande de la meule pendant l'affûtage. Elle montre la zone verte, la lame, le pourcentage du fil et un conseil (« elle part à gauche : ▶ »). Les deux boutons sont larges.
+
+**Vérifié** (navigateur sans écran, aucune erreur) :
+- les codes : une arme d'avant garde le même code et le même nom ; le Korlaz et les pigments 3, 17 et 21 font l'aller-retour, sur 13 ou 14 signes, et se relisent au clavier ;
+- la dose (une au plus, hors des portions, 12 spores au coût) ;
+- l'ombre : au repos, puis l'assaut complet (fondre, six bonds, revenir) sur une bête menaçante ;
+- l'aura et la traînée (cinabre) ;
+- l'affûtage : sans les mains, −18 ; avec un pilote qui ramène la lame au vert, aucune faute ;
+- au téléphone, le choix du pigment au doigt, puis le pigment consommé à la fin.
+
+**À déposer** : `forge.js`, `index.html`, `sw.js` (`stone-valley-145`), `LISEZ-MOI.md`.
+
+## §178 — Le Korlaz : l'ombre à distance, les griffes au contact, la lame qui fume
+La dose de Korlaz ne fait plus la même chose selon l'arme. La forge l'annonce dès la charge ; la fiche et le bilan le disent aussi.
+- **Les armes à distance** (arcs, arbalète, chakram, javelots, fronde, armes à feu, bâton de mage, baguette, orbe) gardent **l'ombre** du §177. Les armes de contact n'en ont plus.
+- **Les armes de contact** (toutes les autres, la lame runique comprise) **griffent** :
+  - **Quand** : à chaque coup, même dans le vide, la cible est lacérée. C'est la bête désignée, ou celle que le jeu montre en haut de l'écran. Elle doit être à moins de 12 pas : de loin, ou en plus du coup quand on la touche.
+  - **L'image** : trois grandes lacérations noires, parallèles, tracées en diagonale en travers de la bête (en 0,16 s), avec un fil violet au cœur. Elles sont fines aux deux bouts, larges au milieu, et à la taille de la bête.
+  - **Le sens** : elles vont **vers la droite, puis vers la gauche** au coup suivant, et ainsi de suite.
+  - **Les dégâts** : 40 % de ceux de l'arme, en une fois. Une bête abattue ainsi donne son butin.
+  - Les compagnes, les villageois et les bêtes apprivoisées ne sont jamais griffés.
+- **Toute arme au Korlaz perd des particules noires par la lame**, en main comme rangée : 22 par seconde, quelques-unes d'un violet qui luit. Elles naissent sur les tronçons de la lame, et montent en se dissipant.
+
+**Vérifié** (navigateur sans écran, aucune erreur) :
+- épée au Korlaz, cible désignée à 6 pas : chaque coup la griffe (−12 % de vie), le sens alterne, et aucune ombre ne vient ;
+- l'arc court au Korlaz : l'ombre, et pas de griffes ;
+- les trois lacérations, de près ;
+- la lame qui fume.
+
+**À déposer** : `forge.js`, `sw.js` (`stone-valley-146`), `index.html` (seulement le numéro de version), `LISEZ-MOI.md`.
+
+## §179 — La Forge (phase F) : l'équilibrage
+**Le banc d'essai.** Les 29 armes ont été mesurées dans le jeu lui-même (le monde avancé pas à pas, sans attendre l'écran), dans les mêmes conditions :
+- **l'arme** : forgée « acier de pierre » (2 ferraille + 1 pierre), 12 coups, 2 plis, trempe à l'eau, monture de bois, justesse 85 %, sans âme ;
+- **les cibles** : trois Cotonniers figés, dont la vie est remise à neuf à chaque pas ;
+- **les deux mesures** : une seule bête (au contact, ou à 7 pas pour les armes à distance), puis trois bêtes groupées ;
+- **le tir** : l'appui est répété dès que l'arme est prête ; les arcs sont bandés à fond ; le sort tenu est un trait de braise.
+- **l'unité** : la vie d'un Cotonnier ôtée par seconde, à l'exploration 1.
+
+**Ce que le banc a trouvé.**
+- **Un vrai défaut des armes à feu** : vide, une arme pouvait encore tirer pendant un quart de seconde, à chaque image (le mousquet faisait 98, le canon 90). Pire, le revolver tenu ne rechargeait jamais. Désormais, une arme vide ne tire plus ; la recharge part dès le dernier coup et lâche la gâchette du revolver.
+- **Le bâton de mage tapé faisait moins qu'un sort lancé à mains nues** (0,64 contre 0,74). Le sort attendait le milieu du geste, et un sort pas encore prêt faisait frapper le bâton à vide. Maintenant :
+  - le sort du bâton, de la baguette et de l'orbe part **au lâcher** ;
+  - un appui avant que la phrase soit prête ne fait rien (« encore 0,4 s »), au lieu de gâcher un geste ;
+  - le bâton bat un peu plus vite (0,4 s).
+- **L'usure était injuste** : une arme rapide s'émoussait cinq fois plus vite qu'une lente (les griffes en 8 min de combat, le marteau en 43). Chaque arme a maintenant son coefficient `us` (0,6 à 3,6), qui multiplie les coups qu'elle encaisse. Toutes tiennent environ 30 minutes de combat continu. Le bilan de la forge dit donc plus de coups pour une dague que pour un marteau.
+
+**Les réglages** (`FG_TYPES`) :
+- **Contact** :
+  - lance 0,6 → 0,68 ;
+  - bâton 0,45 → 0,48 ;
+  - épée-fouet 0,6 → 0,64 ;
+  - lame runique 0,62 → 0,7 ;
+  - griffes 0,32 → 0,29 ;
+  - fléau 0,85 → 0,8, son balayage ×0,7 → ×0,55, et chaque élan +12 % → +9 %.
+- **Distance** :
+  - arc court 0,55 → 0,48 (la rafale reste) ;
+  - arc long 1,05 → 1,15 ;
+  - chakram 0,62 → 0,95 ;
+  - javelots 0,85 → 0,76 ;
+  - fronde : chaque ricochet perd 25 % au lieu de 15 %.
+- **Magie** : la baguette frappe à ×0,55 au lieu de ×0,7.
+- **Poudre** :
+  - pistolet : 1,5 de dégâts, 2,2 s de recharge ;
+  - tromblon : plombs ×0,3, 1,7 s ;
+  - mousquet : 2,4 et 2,6 s ;
+  - revolver : 0,7 et 2 s ;
+  - canon : 2,6 et 3 s.
+
+**Après** (une bête · trois bêtes) :
+- **Contact, une cible** : griffes 2,5 · épée 1,9 · rapière 1,8 · dague 1,8 (×3 dans le dos) · sabre 1,8 · hache 1,6 (+ saignement) · lame runique 1,6 · épée-fouet 1,4 · bâton 1,3 · lance 1,3 (1,4 en ligne).
+- **Contact, de zone** : marteau 2,2 · 3,6 ; fléau 1,9 · 3,4 ; espadon 1,5 · 4,0 ; faux 1,3 · 3,4 (+ vie) ; hallebarde 1,5 · 2,6.
+- **Distance** : javelots 1,7 · arbalète 1,7 · revolver 1,6 · arc court 1,5 · arc long 1,4 · pistolet 1,4 · fronde 1,2 · 2,8 · chakram 1,1 · 2,0 · mousquet 1,2 (traverse trois bêtes) · canon 0,8 · 1,6 (à 10 pas) · tromblon 1,2 à 3 pas, 0,6 à 5 pas (de près, c'est l'arme la plus vive).
+- **Magie, sort de cristal** : bâton 0,86 et baguette 1,34, contre 0,70 à mains nues. Le bâton dépense le même mana, la baguette 1,55 fois plus. Le bâton chargé triple ses dégâts.
+- **Les armes d'ailleurs, pour comparer** : épée de pierre 1,4 · lame d'éclat 2,1 · marteau-pilon 2,7 · arc 0,8 · arbalète à poulies 1,1 · lame de soufre (le Roi) 2,1 · fouet de chaînes (le Roi) 0,8 · rayon de sentinelle (le Centre) 0,7 · fusil d'arpenteur (le Centre) 0,7 à 7 pas.
+
+Une arme forgée moyenne vaut donc une arme de base d'un rang au-dessus. Un bon alliage (de l'éclat) et un chef-d'œuvre la portent au-delà de la lame d'éclat et de la lame de soufre, d'environ 15 %.
+- **Le Korlaz** : les griffes seules, à 6 pas, valent 0,8 ; au contact, elles ajoutent 37 % à l'épée. L'ombre ajoute 10 % à l'arc court.
+
+**La charge coûte un peu plus** :
+- ferraille 8 → 12 par portion ;
+- pierre 10 → 14 ;
+- os 6 → 9 ;
+- éclat 6 → 9.
+
+Le fer damné et le Korlaz ne changent pas. Une arme de trois portions coûte ainsi 35 à 40 ressources, avec la monture : moins qu'une lame d'éclat (76), pour mieux, mais il faut la forger.
+
+**Les plans sont plus rares** :
+- au Centre : petit coffre 6 % → 3,5 %, coffre du gardien 25 % → 16 %, grand coffre 60 % → 45 % ;
+- aux Cercles : 5 % → 3 %, 35 % → 22 %, scellé 30 % → 25 % ;
+- au tirage, les plans de magie pèsent 0,7 et ceux de la poudre 0,55 (contre 1 pour les autres) : ils se font attendre.
+
+Selon le nombre de coffres, il faut compter à peu près une dizaine de descentes pour les 23 plans, au lieu de cinq.
+
+**Vérifié** : les deux passes du banc (avant, après), sans erreur ; les armes de mage (le banc, et les essais du §174).
+
+**À déposer** : `forge.js`, `sw.js` (`stone-valley-147`), `index.html` (le numéro de version), `LISEZ-MOI.md`.
+
+## §180 — Des vignettes pour les pigments, les graines et les plants
+**Les pigments ont leur vignette**, comme les ingrédients.
+- **Le dessin** : un godet de terre, un tas de poudre à la couleur du pigment (chacun des 21 a sa teinte) et deux grains tombés à côté. Au rang 3, un éclat brille ; au rang 4, une étoile ; au rang 5, la lèvre du godet est dorée. La nacre prismatique fait un tas en bandes de toutes les couleurs.
+- **Au sac** : ils ont leur rangée, « Pigments », sous les graines et plants. Chaque vignette est bordée de sa rareté, avec son nombre et son nom.
+- **Ailleurs** : on les retrouve au Journal (carnet des pigments), et à la forge pour le choix du pigment à la monture.
+- `icPigment('rouge:3')` donne `pig_rouge_3`, et `rareIcone` lit la rareté dans le nom de la vignette.
+
+**Les graines, les plants et les boutures récoltés ont leur vignette dans les petits gains.**
+- Au sac, elles en avaient déjà une ; mais le petit « +1 » qui monte au-dessus du personnage, et le journal des gains, ne savaient pas la trouver d'après le nom (« plant de bouleau », « graine de lys d'écume »…). Le texte restait donc sans image.
+- `gainIcone` connaît maintenant tous ces noms, et ceux des pigments. Il sait aussi lire « pigment : cinabre (rare) ».
+
+**Vérifié** (navigateur sans écran, aucune erreur) : la rangée des pigments au sac ; les vignettes des petits gains pour un plant, une graine rare, une graine commune, un pigment, la nacre.
+
+**À déposer** : `index.html`, `achromie.js`, `forge.js`, `sw.js` (`stone-valley-148`), `LISEZ-MOI.md`.
+
+## §181 — Le sac, refait : plus chaleureux, rangé, et l'appui long
+**L'allure** (tout le sac, tous ses onglets) :
+- **Des tons de cuir et de bois** : un brun profond, une lueur ambrée dans les coins, le rail plus sombre, un texte crème, l'or un peu plus chaud. Les survols, les sélections, les boutons, les jauges et les champs de saisie suivent : plus aucun bleu froid.
+- **Les titres de catégorie sont plus grands** : 15,5 px au lieu de 12, en gras, crème doré.
+- **Sur la page Sac**, chaque titre a sa vignette (la tunique, la ceinture, les baies, le bois, l'établi, le plat, le carré, la nacre) et un compte en pastille.
+
+**La page Sac, rangée en cartes** (aux coins arrondis, à peine éclairées) :
+- **à gauche, ce qu'on porte et ce qui sert tout de suite** : Sur vous (huit emplacements, quatre par ligne), Cases du bord droit, Réserves, Matières ;
+- **à droite, ce qu'on a** : Objets, Soins, Plats, Garde-manger, Graines et plants, Pigments.
+
+Les longues notes sont devenues une ligne chacune.
+
+**La fiche de l'objet choisi est dans un tiroir**, en bas de la page, toujours en vue.
+- Avant, elle était sous la grille des objets : au téléphone, il fallait descendre la chercher. Maintenant :
+  - sur ordinateur, les deux colonnes défilent au-dessus du tiroir ;
+  - au téléphone, le tiroir reste collé en bas, plus compact (la description en trois lignes).
+- Une croix le ferme. Quand rien n'est choisi, il tient en une ligne : « Touchez un objet : il s'affiche ici · appui long sur une vignette : ce qu'elle est ».
+
+**L'appui long** (une demi-seconde, au doigt ou à la souris) sur n'importe quelle vignette du sac ouvre une bulle :
+- **Son contenu** : la vignette en grand, le nom à la couleur de sa rareté, sa sorte, ce qu'elle fait, et quelques lignes.
+  - **Objets** : dégâts, portée, cadence ou recharge, niveau, récolte, protection, porté ou non.
+  - **Denrées** : rareté, sorte, effet en cuisine, se mange cru ou non, combien au sac.
+  - **Graines et plants** : la plante, la taille d'emplacement, combien au sac.
+  - **Pigments** : à quoi ils servent.
+  - **Matières** : où les trouver, au sac et au coffre.
+  - **Réserves**, **plats**, **soins**, **emplacements vides**.
+  - **Ailleurs dans le sac** (Fabrication, Compagnes…), la bulle dit au moins le nom.
+- **Son comportement** :
+  - la vignette s'enfonce un peu pendant qu'on appuie, puis une petite vibration au téléphone ;
+  - la bulle reste quand on lève le doigt, jusqu'au prochain appui ou au défilement ;
+  - **l'appui long ne choisit, ne mange et ne sème rien** ; le menu du navigateur ne s'ouvre pas.
+
+**Vérifié** (navigateur sans écran, ordinateur 1100 × 720 et téléphone 390 × 844, au toucher et à la souris, aucune erreur) :
+- la page Sac, avec et sans objet choisi ;
+- les onglets Fabrication, Campement et Réglages ;
+- l'appui long sur une denrée (la bulle, et elle n'est pas mangée), un pigment, une matière.
+
+**À déposer** : `index.html`, `sw.js` (`stone-valley-149`), `LISEZ-MOI.md`.

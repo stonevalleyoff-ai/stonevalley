@@ -103,7 +103,7 @@
   #journal h2,#compvol h2{margin:0;flex:1;font-size:15px;font-weight:800;color:#ffd27d;letter-spacing:.2px;}
   #journal .fermer,#compvol .fermer{width:34px;height:34px;border:0;border-radius:8px;background:none;color:#aab4c8;font-size:16px;cursor:pointer;}
   #journal .fermer:hover,#journal .fermer:focus-visible,#compvol .fermer:hover,#compvol .fermer:focus-visible{color:#ffd27d;outline:none;background:rgba(255,255,255,.05);}
-  #journal .filtres{display:flex;gap:5px;padding:6px 10px 8px;border-bottom:1px solid rgba(190,205,230,.12);}
+  #journal .filtres{display:flex;gap:5px;padding:6px 10px 8px;border-bottom:1px solid rgba(255,220,180,.12);}
   #journal .filtres button{font:700 12px/1 "Nunito",system-ui,sans-serif;padding:6px 10px;border-radius:14px;cursor:pointer;
     border:1px solid rgba(190,205,230,.2);background:rgba(255,255,255,.03);color:#aab4c8;}
   #journal .filtres button[aria-pressed="true"]{background:rgba(255,210,125,.15);border-color:rgba(255,210,125,.5);color:#ffd27d;}
@@ -338,11 +338,11 @@
   #sac .obj .ingr{display:flex;flex-wrap:wrap;gap:2px 9px;margin-top:3px;} #sac .ingr span{display:inline-flex;align-items:center;gap:3px;}
   #sac .ingr img{width:14px;height:14px;image-rendering:pixelated;} #sac .ingr .manque{color:#ff9a7a;}
   #sac .obj.epi{background:rgba(255,210,125,.06);border-radius:8px;}
-  #sac .obj button.epingle{padding:6px 8px;color:#8d9ab4;} #sac .obj button.epingle[aria-pressed="true"]{color:#ffd27d;border-color:rgba(255,210,125,.55);}
+  #sac .obj button.epingle{padding:6px 8px;color:#b3a28c;} #sac .obj button.epingle[aria-pressed="true"]{color:#ffd27d;border-color:rgba(255,210,125,.55);}
   #sac .tuiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:8px;margin-top:14px;}
   #sac .tuile{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 4px 8px;border-radius:10px;
     background:#161b27;border:1px solid var(--trait);color:var(--texte);font-size:12px;font-weight:600;cursor:pointer;text-align:center;}
-  #sac .tuile .ic{width:32px;height:32px;} #sac .tuile:hover{background:#1c2232;}
+  #sac .tuile .ic{width:32px;height:32px;} #sac .tuile:hover{background:#2c231b;}
   #sac .tuile.choisie{border-color:var(--or);box-shadow:inset 0 0 0 1px var(--or);} #sac .tuile.eteinte{opacity:.5;}
   #sac .tuile .irr{position:absolute;top:3px;right:7px;color:var(--braise);font-size:12px;}
   #sac .genre.irr{color:var(--braise);border-color:var(--braise);} #sac .note.irr{color:var(--braise);}
@@ -352,14 +352,14 @@
   #sac .pl img{width:18px;height:18px;image-rendering:pixelated;} #sac .pl input{width:100%;accent-color:#ffd27d;margin:0;}
   #sac .tp-champs{display:flex;flex-wrap:wrap;align-items:flex-end;gap:8px;margin-top:8px;}
   #sac .tp-champs label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--texte2);}
-  #sac .tp-champs input{width:9.5em;padding:6px 8px;border-radius:8px;border:1px solid var(--trait);background:#121622;color:var(--texte);font:inherit;font-size:13px;}
+  #sac .tp-champs input{width:9.5em;padding:6px 8px;border-radius:8px;border:1px solid var(--trait);background:#1e1813;color:var(--texte);font:inherit;font-size:13px;}
   #sac .tp-champs label:nth-child(2) input{width:5em;}
   #sac .tp-info{margin-top:7px;font-size:12px;color:var(--texte2);line-height:1.4;}
   #sac .tp-info b{color:var(--or);font-weight:700;}
   #sac .tp-viser{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}
   #sac .tp-viser span{width:100%;font-size:11px;color:var(--texte2);}
   #sac .obj .tp-viser button{padding:5px 9px;font-size:12px;border-radius:14px;}
-  #sac .pl button{padding:4px 0;border-radius:7px;font-size:15px;line-height:1;background:#1c2230;border:1px solid var(--trait);color:var(--texte);cursor:pointer;}
+  #sac .pl button{padding:4px 0;border-radius:7px;font-size:15px;line-height:1;background:#2a2119;border:1px solid var(--trait);color:var(--texte);cursor:pointer;}
   #sac .pl button:disabled{opacity:.35;cursor:default;}
   #sac .servi-a{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0;}
   #hudtxt .guide{color:#ffd27d;font-size:12.5px;line-height:1.35;}
@@ -377,9 +377,9 @@
   #retour button{font:inherit;font-size:13px;border-radius:9px;padding:8px 14px;cursor:pointer;border:1px solid rgba(190,205,230,.28);background:rgba(30,36,52,.9);color:#cfd6e4;}
   #retour button.principal{background:#d9a441;border-color:#d9a441;color:#1a1408;font-weight:600;}
   #retour .etat{font-size:12px;color:#8fd0a8;min-height:16px;margin-top:6px;}
-  #sac{pointer-events:auto;inset:0;z-index:10;display:none;background:rgba(8,10,16,.72);
-    --nuit:#10131c;--rail:#0c0f16;--trait:#1f2432;--roche:#2b303c;--roche-b:#07090e;
-    --texte:#e3e8f3;--texte2:#8b95aa;--or:#ffd27d;--pousse:#9fd08a;--braise:#ef8a6f;--lien:#e8404e;
+  #sac{pointer-events:auto;inset:0;z-index:10;display:none;background:rgba(14,10,7,.72);
+    --nuit:#1a1511;--rail:#15100c;--trait:#3a3027;--roche:#3b3129;--roche-b:#130e0a;
+    --texte:#f3e9db;--texte2:#b9a891;--or:#ffcf7a;--pousse:#9fd08a;--braise:#ef8a6f;--lien:#e8404e;
     font-size:13px;line-height:1.5;color:var(--texte);}
   #sac.on{display:flex;}
   #sac button{font:inherit;color:inherit;cursor:pointer;}
@@ -391,7 +391,7 @@
   #sac h3{margin:12px 0 7px;font-size:12px;font-weight:600;color:var(--texte2);}
   /* Presque opaque, pas tout à fait : un calque plein écran totalement opaque fait cesser au
      navigateur de dessiner le jeu dessous, et la reprise à la fermeture a pu figer l'image. */
-  .sac-cadre{display:flex;flex:1;min-width:0;min-height:0;background:rgba(16,19,28,.97);}
+  .sac-cadre{display:flex;flex:1;min-width:0;min-height:0;background:radial-gradient(120% 80% at 0% 0%,rgba(160,96,40,.15),transparent 60%),radial-gradient(90% 70% at 100% 100%,rgba(120,70,30,.12),transparent 65%),linear-gradient(180deg,rgba(38,29,22,.97),rgba(27,21,16,.97));}
   @media (min-width:1040px) and (min-height:620px){
     #sac.on{align-items:center;justify-content:center;}
     .sac-cadre{flex:0 1 980px;height:min(640px,calc(100% - 48px));border:1px solid var(--trait);
@@ -403,7 +403,7 @@
     border-radius:9px;background:none;color:var(--texte2);font-size:11px;line-height:1.2;}
   .sac-rail button .ic{width:32px;height:32px;opacity:.5;}
   .sac-rail button:hover .ic{opacity:.8;}
-  .sac-rail button.on{background:#191e2b;color:var(--texte);box-shadow:inset 3px 0 0 var(--or);}
+  .sac-rail button.on{background:#2b2119;color:var(--texte);box-shadow:inset 3px 0 0 var(--or);}
   .sac-rail button.on .ic{opacity:1;}
   #sac .sac-rail button:focus-visible{outline-offset:-2px;}
   .sac-rail .fermer{margin-top:auto;font-size:17px;padding:10px 0;}
@@ -414,7 +414,7 @@
   .volets button{display:flex;align-items:center;justify-content:center;gap:7px;padding:6px 14px 6px 9px;border-radius:999px;background:none;
     border:1px solid var(--trait);color:var(--texte2);font-size:13px;font-weight:650;white-space:nowrap;}
   .volets button .ic{width:20px;height:20px;opacity:.6;}
-  .volets button:hover{background:#1c2232;} .volets button.on{border-color:var(--or);color:var(--or);background:rgba(255,210,125,.1);}
+  .volets button:hover{background:#2c231b;} .volets button.on{border-color:var(--or);color:var(--or);background:rgba(255,210,125,.1);}
   .volets button.on .ic{opacity:1;}
   @media (max-width:640px){ .volets{gap:4px;padding:7px 8px 8px;} .volets button{flex:1;min-width:0;padding:6px 4px;gap:4px;font-size:12px;} .volets button .ic{width:18px;height:18px;} }
   @media (max-width:520px){ .volets{gap:3px;padding:7px 6px 8px;} .volets button{padding:7px 2px;font-size:11.5px;} #sac .volets button .ic{display:none !important;} .volets button span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;} }   /* six volets : sans vignette sur un téléphone */
@@ -427,7 +427,7 @@
   .vies .ic.eteint{filter:grayscale(1) brightness(.45);}
   .jauge{display:flex;align-items:center;gap:6px;}
   .jauge .ic{width:16px;height:16px;}
-  .barre{display:block;width:78px;height:7px;background:#070910;border-radius:2px;overflow:hidden;
+  .barre{display:block;width:78px;height:7px;background:#110d0a;border-radius:2px;overflow:hidden;
     box-shadow:inset 0 0 0 1px #1d2230;}
   .barre i{display:block;height:100%;}
   .barre.vie i{background:linear-gradient(#f08a96,#c8404e);}
@@ -494,7 +494,7 @@
   .vide-texte{display:flex;flex-direction:column;align-items:flex-start;gap:8px;color:var(--texte2);}
   .filtres{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 6px;}
   .filtres button{border-radius:999px;padding:3px 11px;font-size:12px;background:none;border:1px solid var(--trait);color:var(--texte2);}
-  .filtres button.on{background:#20263a;border-color:#4a5372;color:var(--texte);}
+  .filtres button.on{background:#33281e;border-color:#7a6450;color:var(--texte);}
   .recettes{list-style:none;margin:0;padding:0;}
   .recette{display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;align-items:center;width:100%;
     text-align:left;background:none;border:0;border-radius:7px;padding:5px 8px 5px 6px;}
@@ -532,7 +532,7 @@
   #sac .biblio .filtres button.inconnu{opacity:.5;}
   #voile-spore{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0;transition:opacity .45s;background:radial-gradient(circle at 50% 54%,rgba(54,82,40,0) 7%,rgba(40,62,30,.82) 24%,rgba(26,42,22,.97) 46%);}
   #voile-spore.on{opacity:1;}
-  #sac .champ-nom{display:block;width:100%;max-width:260px;margin-top:6px;background:rgba(12,16,26,.7);border:1px solid rgba(190,205,230,.28);color:#cfd6e4;border-radius:8px;font:inherit;font-size:13px;padding:6px 9px;}
+  #sac .champ-nom{display:block;width:100%;max-width:260px;margin-top:6px;background:rgba(24,18,13,.7);border:1px solid rgba(255,220,180,.26);color:#eadccb;border-radius:8px;font:inherit;font-size:13px;padding:6px 9px;}
   #sac .obj.sortg{align-items:flex-start;} #sac .obj.sortg .gestes.cases{margin-top:6px;flex-wrap:wrap;}
   #sac .alch h4{margin:8px 0 5px;font-size:11.5px;font-weight:600;color:var(--texte2);}
   #sac .alch .fin h4{margin:14px 0 2px;font-size:12.5px;color:var(--texte);}
@@ -545,7 +545,7 @@
   #sac .obj .d::first-letter{text-transform:uppercase;}
   #sac .obj button{flex:none;border-radius:7px;padding:7px 13px;font-size:12.5px;font-weight:650;
     background:#1b2130;border:1px solid #394154;white-space:nowrap;}
-  #sac .obj button:hover{background:#232a3a;}
+  #sac .obj button:hover{background:#372b21;}
   #sac .obj button:disabled{opacity:.38;cursor:default;}
   #sac .obj button.alerte{background:#2a1618;border-color:var(--braise);color:var(--braise);}
   #sac .dgr{color:var(--braise);font-weight:600;} #sac .obj.ile{align-items:flex-start;} #sac .obj.ile .d i{font-style:normal;opacity:.7;}
@@ -582,15 +582,15 @@
   .ordres{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;}
   .ordres label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--texte2);min-width:0;}
   #sac .ordres select{width:100%;min-width:0;max-width:100%;text-overflow:ellipsis;}
-  #sac .ordres select{font:inherit;font-size:13px;font-weight:600;color:var(--texte);background:#161b27;
+  #sac .ordres select{font:inherit;font-size:13px;font-weight:600;color:var(--texte);background:#241c15;
     border:1px solid var(--trait);border-radius:8px;padding:7px 9px;touch-action:manipulation;
     -webkit-user-select:auto;user-select:auto;cursor:pointer;}
   #sac .ordres select:focus{outline:none;border-color:var(--or);box-shadow:inset 0 0 0 1px var(--or);}
   #sac .roles button{display:flex;align-items:center;gap:6px;border-radius:8px;padding:5px 12px 5px 7px;font-size:13px;
     font-weight:600;background:#161b27;border:1px solid var(--trait);color:var(--texte2);}
   #sac .roles button .ic{width:20px;height:20px;}
-  #sac .roles button:hover{background:#1d2333;color:var(--texte);}
-  #sac .roles button.on{background:#20263a;border-color:var(--or);color:var(--texte);box-shadow:inset 0 0 0 1px var(--or);}
+  #sac .roles button:hover{background:#2e241b;color:var(--texte);}
+  #sac .roles button.on{background:#33281e;border-color:var(--or);color:var(--texte);box-shadow:inset 0 0 0 1px var(--or);}
   .btn.discret{background:none;border-color:transparent;color:var(--texte2);}
   .btn.discret:hover{background:none;color:var(--braise);border-color:#4a3036;}
   .btn.alerte{background:#2a1618;border-color:var(--braise);color:var(--braise);}
@@ -607,7 +607,7 @@
   #sac .ajout-ami{display:flex;gap:8px;align-items:stretch;}
   #sac .ajout-ami input{flex:1;min-width:0;max-width:220px;padding:8px 11px;border-radius:8px;border:1px solid var(--trait);
     background:#121622;color:var(--texte);font:inherit;font-size:16px;font-weight:700;letter-spacing:4px;text-transform:uppercase;}
-  #sac .ajout-ami input::placeholder{font-size:13px;font-weight:400;letter-spacing:.3px;text-transform:none;color:#5d6679;}
+  #sac .ajout-ami input::placeholder{font-size:13px;font-weight:400;letter-spacing:.3px;text-transform:none;color:#7d6d5a;}
   #sac .ajout-ami input:focus{outline:none;border-color:var(--or);box-shadow:inset 0 0 0 1px var(--or);}
   #sac .amis .obj{padding:10px 2px;}
   #sac .amis .obj > div:first-child{min-width:0;}
@@ -615,7 +615,7 @@
   #sac .amis .gestes-ligne{display:flex;flex:none;gap:6px;align-items:center;}
   #sac .obj button.principal{background:var(--or);border-color:var(--or);color:#2a1d05;}   /* « Y aller », « Sortir »… : lisibles partout */
   #sac .obj button.principal:hover{background:#ffdd9a;}
-  #sac .obj button.principal:disabled{background:#161b27;border-color:#2c3344;color:#687186;}
+  #sac .obj button.principal:disabled{background:#241c15;border-color:#2c3344;color:#8a7a66;}
   #sac .amis .obj button.principal:hover{background:#ffdd9a;}
   #sac .amis .obj button.discret{background:none;border-color:transparent;color:var(--texte2);}
   #sac .amis .obj button.discret:hover{color:var(--braise);border-color:#4a3036;}
@@ -629,7 +629,7 @@
      rail passaient en 13 px, et le texte des boutons dorés, clair sur l'or, ne se lisait plus */
   #sac .sac-rail button{font-size:11px;line-height:1.2;}
   #sac .btn.principal{color:#2a1d05;}
-  #sac .btn.principal:disabled{color:#687186;}
+  #sac .btn.principal:disabled{color:#8a7a66;}
   #sac .btn.alerte{color:var(--braise);}
   #sac .btn.discret{color:var(--texte2);}
   #sac .btn.discret:hover{color:var(--braise);}
@@ -640,7 +640,7 @@
   .sac-rail button{flex:none;padding:3px 0;position:relative;}
   /* le filet entre les deux groupes d'onglets */
   .sac-rail button.groupe{margin-top:9px;}
-  .sac-rail button.groupe::before{content:'';position:absolute;left:14px;right:14px;top:-6px;height:1px;background:#2c3345;}
+  .sac-rail button.groupe::before{content:'';position:absolute;left:14px;right:14px;top:-6px;height:1px;background:#3d3127;}
   @media (max-width:640px){
     .sac-cadre{flex-direction:column;}
     /* deux lignes de quatre, noms en entier, sur toute la largeur : la croix monte dans l'en-tête */
@@ -650,13 +650,13 @@
     .sac-rail button .ic{width:24px;height:24px;}
     #sac .sac-rail button{font-size:11px;}
     .sac-rail button span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-    .sac-rail button.on{background:#1d2334;color:var(--or);box-shadow:inset 0 -2px 0 var(--or);}
+    .sac-rail button.on{background:#2d2219;color:var(--or);box-shadow:inset 0 -2px 0 var(--or);}
     .sac-rail button.groupe{margin-top:0;}
     .sac-rail button.groupe::before{display:none;}
     .sac-rail .fermer{display:none;}
     .fermer-tete{display:grid;place-items:center;flex:none;width:34px;height:34px;margin:-4px -8px -4px 0;border:0;border-radius:8px;
       background:none;color:var(--texte2);font-size:18px;line-height:1;}
-    .fermer-tete:hover{background:#191e2b;color:var(--texte);}
+    .fermer-tete:hover{background:#2b2119;color:var(--texte);}
     .sac-tete{padding:9px 14px 9px 16px;}
     .sac-tete h2{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
     .sac-corps.deux,.sac-corps.etabli{display:block;overflow:auto;padding-bottom:18px;}
@@ -695,6 +695,67 @@
     .sac-rail button.groupe::before{display:none;}
     .sac-rail .fermer{grid-column:1 / -1;grid-row:6;align-self:end;margin:0;}
   }
+
+  /* (§181) LE SAC, PLUS CHALEUREUX : des tons de cuir et de bois ; des titres plus grands, chacun sa vignette ; des cartes ;
+     la fiche de l'objet choisi dans un tiroir, toujours en vue ; un appui long sur une vignette dit ce qu'elle est. */
+  @media (min-width:1040px) and (min-height:620px){ .sac-cadre{border-color:rgba(255,200,140,.22) !important;box-shadow:0 30px 80px rgba(0,0,0,.55),0 0 90px rgba(255,140,60,.08) !important;} }
+  .sac-rail{background:linear-gradient(180deg,#1f1811,#16110d);border-color:rgba(255,214,170,.1);}
+  .sac-tete{border-bottom-color:rgba(255,214,170,.12);} .sac-tete h2{color:#ffe2b8;letter-spacing:.3px;}
+  #sac h3{display:flex;align-items:center;gap:8px;margin:18px 0 10px;font-size:15.5px;font-weight:750;color:#f6dcb4;letter-spacing:.2px;line-height:1.25;}
+  #sac h3 .ic{width:22px;height:22px;}
+  #sac h3 .compte{font-size:11.5px;font-weight:650;color:var(--texte2);background:rgba(255,220,180,.08);border:1px solid rgba(255,220,180,.13);border-radius:999px;padding:0 8px;line-height:1.55;}
+  .sac-carte{background:linear-gradient(180deg,rgba(255,232,200,.055),rgba(255,232,200,.022));border:1px solid rgba(255,214,170,.1);border-radius:14px;
+    padding:2px 12px 12px;margin:0 0 12px;box-shadow:inset 0 1px 0 rgba(255,240,220,.05),0 4px 14px rgba(0,0,0,.18);}
+  .sac-carte>h3:first-child{margin:10px 0 9px;}
+  .sac-carte .note{font-size:11.5px;line-height:1.4;color:#a8987f;margin:7px 2px 0;}
+  .sac-carte .btn{margin-top:4px;}
+  .case{border-radius:8px;}
+  #sac .case{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;}
+  #sac .case.appui{transform:scale(.93);filter:brightness(1.18);transition:transform .3s ease-out,filter .3s;}
+  .sacs .equip{grid-template-columns:repeat(4,max-content);gap:8px 12px;}
+  .sacs .emplacement > span{max-width:5.4em;}
+  .sac-corps.sacs{display:grid;grid-template-columns:minmax(250px,40%) minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;gap:0 16px;overflow:hidden;padding:12px 16px 0;}
+  .sac-corps.sacs>.col{min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;padding:2px 2px 12px;}
+  .sac-dock{grid-column:1/-1;position:relative;max-height:min(36vh,250px);overflow:auto;margin:0 -16px;padding:12px 56px 12px 16px;
+    border-top:1px solid rgba(255,214,170,.18);background:linear-gradient(180deg,rgba(52,40,30,.98),rgba(38,30,23,.98));box-shadow:0 -10px 24px rgba(0,0,0,.25);}
+  .sac-dock .fiche{margin:0;padding:0;border:0;}
+  .sac-dock .fiche.calme{font-size:12.5px;color:var(--texte2);} .sac-dock .fiche.calme b{color:#f6dcb4;}
+  .sac-dock .case.grande{--t:72px;} .sac-dock .case.grande .ic{width:56px;height:56px;}
+  .sac-dock .fiche-texte h4{color:#ffe2b8;}
+  .dock-x{position:absolute;top:10px;right:12px;width:32px;height:32px;border-radius:9px;border:1px solid var(--trait);background:rgba(0,0,0,.18);color:var(--texte2);font-size:15px;line-height:1;}
+  .dock-x:hover{color:var(--texte);background:rgba(255,220,180,.08);}
+  @media (max-width:640px){
+    .sac-corps.sacs{display:block;overflow:auto;padding:10px 10px 0;}
+    .sac-corps.sacs>.col{overflow:visible;padding:0;}
+    .sacs .equip{grid-template-columns:repeat(4,minmax(0,1fr));justify-items:center;}
+    .sac-dock{position:sticky;bottom:0;z-index:3;margin:4px -10px 0;max-height:34vh;border-radius:16px 16px 0 0;padding:10px 50px 12px 12px;}
+    .sac-dock .fiche{gap:10px;} .sac-dock .case.grande{--t:56px;} .sac-dock .case.grande .ic{width:42px;height:42px;}
+    .sac-dock .fiche-texte h4{font-size:15px;}
+    .sac-dock .fiche-texte>p:first-of-type+p,.sac-dock .fiche-texte>p:not(.note){display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+    .sac-carte{padding:2px 10px 10px;}
+  }
+  @media (max-height:440px){ .sac-dock{max-height:42vh;} #sac h3{font-size:14.5px;margin:12px 0 8px;} }
+  /* la bulle de l'appui long */
+  #sac .recette:hover,#sac .lien-ligne:hover{background:#2a2119;} #sac .recette.choisie,#sac .lien-ligne.choisie{background:#33281e;}
+  #sac .progres{background:#3a2f25;} #sac .barre{box-shadow:inset 0 0 0 1px #3a2f25;}
+  #sac .obj button{background:#2e241b;border-color:#5a4836;} #sac .roles button{background:#241c15;}
+  #sac .code-ami{background:#211a14;} #sac .ajout-ami input{background:#1e1813;}
+  #sac .btn{background:#2e241b;border-color:#5a4836;} #sac .btn:hover{background:#3a2d22;}
+  #sac .btn.principal{background:var(--or);border-color:var(--or);color:#2a1d05;} #sac .btn.principal:hover{background:#ffdd9a;}
+  #sac .btn.principal:disabled{background:#241c15;border-color:#3d3127;color:#8a7a66;}
+  #sac .btn[aria-pressed="true"]{border-color:var(--or);color:var(--or);background:rgba(255,207,122,.12);}
+  #sac-info{position:fixed;z-index:12;left:0;top:0;width:min(300px,calc(100vw - 16px));padding:12px 14px;border-radius:14px;box-sizing:border-box;
+    background:linear-gradient(180deg,#3b2d21,#2a2018);border:1px solid rgba(255,206,150,.35);color:#f3e9db;font-size:13px;line-height:1.45;
+    box-shadow:0 14px 40px rgba(0,0,0,.55),0 0 0 1px rgba(0,0,0,.3);pointer-events:none;opacity:0;transform:translateY(6px) scale(.97);transition:opacity .14s,transform .14s;}
+  #sac-info.vu{opacity:1;transform:none;}
+  #sac-info .tete{display:flex;gap:11px;align-items:center;}
+  #sac-info .ic{display:block;width:44px;height:44px;flex:none;background-repeat:no-repeat;background-size:100% 100%;image-rendering:pixelated;
+    border-radius:8px;background-color:rgba(0,0,0,.25);box-shadow:inset 0 0 0 1px rgba(255,220,180,.12);}
+  #sac-info b.t{display:block;font-size:15px;color:#ffe2b8;line-height:1.25;}
+  #sac-info small{display:block;color:#c4b096;font-size:11.5px;margin-top:1px;}
+  #sac-info p{margin:8px 0 0;color:#e8dac6;display:-webkit-box;-webkit-line-clamp:7;-webkit-box-orient:vertical;overflow:hidden;}
+  #sac-info .ligs{margin-top:8px;display:grid;grid-template-columns:auto 1fr;gap:2px 12px;font-size:12px;}
+  #sac-info .ligs span{color:#b9a891;} #sac-info .ligs em{font-style:normal;color:#ffe9c8;font-weight:650;text-align:right;}
 </style>
 </head>
 <body>
@@ -3654,7 +3715,7 @@ function geomArme(id, F, J, B) {
 // Le fourreau reste à la hanche, le carquois dans le dos, la sangle en travers de la poitrine.
 function accessoiresArme(id, J, hip, neck, B) {
   const pose = (a, b, w, h, c) => B.push({ a, b, w, h, c });
-  if (id && id.startsWith('fg')) id = armeBase(id);                // (§171) le fourreau, le carquois de sa base
+  if (id && id.startsWith('fg')) id = typeof forgeFeu === 'function' && forgeFeu(id) ? 'laser' : armeBase(id);   // (§171) le fourreau, le carquois de sa base (§175 : une arme à feu, la bretelle seule)
   if (id === 'epee' || id === 'lame' || id === 'soufre') {
     const R = RANGEES[id](hip, neck), cuir = id === 'lame' ? [58, 54, 70] : [96, 66, 42];
     pose(v3.add(R.o, v3.mul(R.u, .05)), v3.add(R.o, v3.mul(R.u, .37)), .062, .036, cuir);
@@ -7152,7 +7213,7 @@ function caseObjet(id, o = {}) {
   const nb = o.nb !== undefined ? `<b class="nb">${o.nb}</b>` : '';
   const attr = o.attr || '';
   const etiquette = o.label ? ` aria-label="${ESC(o.label)}" title="${ESC(o.label)}"` : '';
-  return o.inerte ? `<span class="${cl}"${etiquette}>${img(o.icone || id)}${nb}</span>`
+  return o.inerte ? `<span class="${cl}"${attr}${etiquette}>${img(o.icone || id)}${nb}</span>`
     : `<button class="${cl}"${attr}${etiquette}>${img(o.icone || id)}${nb}</button>`;
 }
 const maintenantSac = () => performance.now() / 1000;
@@ -7174,9 +7235,9 @@ function pageSac() {
   const reserves = [['baies', 'Baies', P.baies, P.baies], ['fleches', 'Flèches', P.fleches, P.fleches], ['baume', 'Baumes', P.baumes, P.baumes], ...(P.encre > 0 ? [['encre', 'Encre', P.encre, P.encre + ' éclat' + (P.encre > 1 ? 's' : '') + ' d\'encre']] : []),
     ['lien', 'Liens', liensLibres() + '/' + P.liens, `${liensLibres()} libre${liensLibres() > 1 ? 's' : ''} sur ${P.liens}`]]
     .map(([ic, n, v, l]) =>
-    `<div class="emplacement">${caseObjet(ic, { inerte: true, nb: v, label: `${n} : ${l}` })}<span>${n}</span></div>`).join('');
+    `<div class="emplacement">${caseObjet(ic, { inerte: true, nb: v, label: `${n} : ${l}`, attr: ` data-info="v:${ic}"` })}<span>${n}</span></div>`).join('');
   const matieres = Object.keys(RES).filter(r => r !== 'spore' || essai || P.sac.spore > 0).map(r =>
-    `<div class="emplacement">${caseObjet(r, { inerte: true, nb: essai ? '∞' : P.sac[r], label: `${RES[r]} : ${essai ? 'illimité' : P.sac[r]}` })}`
+    `<div class="emplacement">${caseObjet(r, { inerte: true, nb: essai ? '∞' : P.sac[r], label: `${RES[r]} : ${essai ? 'illimité' : P.sac[r]}`, attr: ` data-info="r:${r}"` })}`
     + `<span>${r === 'spore' ? 'spore' : RES[r]}</span></div>`).join('');
   const possedes = OBJETS.filter(o => !enSerie(o) && P.objets[o.id]);
   const grille = possedes.length
@@ -7203,32 +7264,52 @@ function pageSac() {
       + (barres() > 1 ? `<p class="note" style="margin:6px 2px 0">Le bouton au-dessus des cases, ou T, passe d'une barre à l'autre.</p>` : '')
     : `<p class="note" style="margin:2px 2px 8px">Il faut une ceinture pour ouvrir les cases du bord droit.</p>`
       + `<button class="btn" data-voirrecette="ceinture">Voir la fabrication</button>`;
-  return `<div class="sac-corps deux">`
-    + `<div class="col"><h3>Porté</h3><div class="equip">${equip}</div>`
-    + `<h3>Cases du bord droit</h3>${cases}`
-    + `<h3>Réserves</h3><div class="rangee">${reserves}</div>`
-    + (() => { const L = INGR_GARDE().filter(id => sacIngr(id) > 0 && !(INGR[id].fam === 'graine' && graineIngr(id.slice(2))));
-        return L.length ? `<h3>Garde-manger</h3><div class="rangee">` + L.map(id =>
-          `<div class="emplacement">${caseObjet(icIngr(id), { nb: sacIngr(id), attr: ` data-cru="${id}"`, label: INGR[id].n + (id === 'nectar' ? ' : boire' : INGR[id].fam === 'viande' ? ' : à cuire' : ' : manger cru') })}<span class="${clRar(INGR[id].r)}">${ESC(INGR[id].court)}</span></div>`).join('')
-          + `</div>${legendeRare()}<p class="note" style="margin:4px 2px 0">Un appui : on mange cru (la viande, jamais) ; le nectar se boit (ou N) : +35 % de vie. Pour cuisiner : onglet Campement, volet Cuisine, près d'un feu.</p>` : ''; })()
+  const garde = (() => { const L = INGR_GARDE().filter(id => sacIngr(id) > 0 && !(INGR[id].fam === 'graine' && graineIngr(id.slice(2))));
+    return L.length ? carteSac('plat', 'Garde-manger', L.reduce((a, id) => a + sacIngr(id), 0), `<div class="rangee">` + L.map(id =>
+      `<div class="emplacement">${caseObjet(icIngr(id), { nb: sacIngr(id), attr: ` data-cru="${id}"`, label: INGR[id].n + (id === 'nectar' ? ' : boire' : INGR[id].fam === 'viande' ? ' : à cuire' : ' : manger cru') })}<span class="${clRar(INGR[id].r)}">${ESC(INGR[id].court || INGR[id].n)}</span></div>`).join('')
+      + `</div><p class="note">Un appui : manger cru (la viande se cuit) · le nectar se boit (N).</p>`) : ''; })();
+  const nObj = possedes.length;
+  return `<div class="sac-corps sacs">`
+    + `<div class="col">`
+    + carteSac('tunique', 'Sur vous', '', `<div class="equip">${equip}</div>`)
+    + carteSac('ceinture', 'Cases du bord droit', '', cases)
+    + carteSac('baies', 'Réserves', '', `<div class="rangee">${reserves}</div>`)
+    + carteSac('bois', 'Matières', '', `${noteReserve()}<div class="rangee">${matieres}</div>`)
+    + `</div><div class="col">`
+    + carteSac('ongletEtabli', 'Objets', nObj || '', grille)
+    + (grilleSoins() ? `<section class="sac-carte">${grilleSoins()}</section>` : '')
+    + (grillePlats() ? `<section class="sac-carte">${grillePlats()}</section>` : '')
+    + garde
     + blocGraines()                                    // (§130) graines et plants
+    + blocPigmentsSac()                                // (§180) les pigments de l'Achromie
     + `</div>`
-    + `<div class="col"><h3>Matières</h3>${noteReserve()}<div class="rangee">${matieres}</div>`
-    + `<h3>Objets</h3>${grille}${grilleSoins()}${grillePlats()}${ficheSac()}</div></div>`;
+    + `<div class="sac-dock">${ficheSac()}${choixSac ? `<button class="dock-x" data-choix="${ESC(choixSac)}" aria-label="Fermer la fiche" title="Fermer">✕</button>` : ''}</div>`   // (§181) la fiche, toujours en vue
+    + `</div>`;
 }
+// (§181) Une carte du sac : un titre, sa vignette, un compte ; puis ce qu'elle tient.
+const carteSac = (ic, titre, compte, corps) => `<section class="sac-carte"><h3>${img(ic)}<span>${titre}</span>${compte !== '' && compte !== undefined ? `<span class="compte">${compte}</span>` : ''}</h3>${corps}</section>`;
 // (§130) Graines et plants, au garde-manger du sac : chacune son icône (le sachet, le plant en motte, la bouture),
 // bordée de sa rareté. Un appui la choisit pour semer ; un second appui mange celles qui se mangent.
 function blocGraines() {
   const L = grainesDispo(); if (!L.length) return '';
-  return `<h3>Graines et plants</h3><div class="rangee">` + L.map(k => { const G = graineInfo(k), ing = graineIngr(k), ch = k === P.graineSel;
+  return carteSac('carre', 'Graines et plants', L.reduce((a, k) => a + stockGraine(k), 0), `<div class="rangee">` + L.map(k => { const G = graineInfo(k), ing = graineIngr(k), ch = k === P.graineSel;
     return `<div class="emplacement">${caseObjet(icGraine(k), { nb: stockGraine(k), choisie: ch, rar: ing ? INGR[ing].r : G.r, attr: ` data-graine="${k}"`,
       label: nomGraine(k) + ' · emplacement ' + TAILLE_N[G.ta] + (ch ? ' · choisie pour semer' + (ing ? ' · un appui de plus : manger cru' : '') : ' · la choisir pour semer') })}`
       + `<span class="${clRar(G.r)}">${ESC(ing ? INGR[ing].court : (G.pl ? G.n : G.n.toLowerCase()))}</span></div>`; }).join('')
-    + `</div><p class="note" style="margin:4px 2px 0">Un appui choisit la graine à semer : ACTION devant un emplacement libre de sa taille, dans un carré de culture. `
-    + `Pignons, glands, graines d'herbe haute et cônes de cyprès se mangent aussi : un second appui sur la graine choisie la mange crue.</p>`;
+    + `</div><p class="note">Un appui : la choisir pour semer (ACTION au carré de culture) · un second : manger celles qui se mangent.</p>`);
+}
+// (§180) Les pigments, au sac : chacun sa vignette (le godet, la poudre), bordée de sa rareté.
+function blocPigmentsSac() {
+  const L = Object.entries(P.pigments || {}).filter(([k, n]) => n > 0 && /^[a-z]+:[1-6]$/.test(k)).map(([k, n]) => { const [c, r] = k.split(':'); return { k, c, r: +r || 1, n }; })
+    .sort((a, b) => b.r - a.r || a.c.localeCompare(b.c));
+  if (!L.length) return '';
+  const nom = o => typeof grNomPigment === 'function' ? grNomPigment(o.c, o.r) : o.k;
+  return carteSac('pig_prisme_6', 'Pigments', L.reduce((a, o) => a + o.n, 0), `<div class="rangee">` + L.map(o => `<div class="emplacement">${caseObjet(icPigment(o.k), { inerte: true, nb: o.n, rar: o.r, attr: ` data-info="p:${o.k}"`,
+      label: nom(o) + ' · pigment ' + (o.c === 'prisme' ? 'prismatique' : o.c) + ' · à poser à la forge, à la monture' })}<span class="${clRar(o.r)}">${ESC(nom(o))}</span></div>`).join('')
+    + `</div><p class="note">Gagnés à l'Achromie · à la forge, à la monture : l'aura et la traînée d'une arme.</p>`);
 }
 function ficheSac() {
-  if (!choixSac) return possedeRien() ? '' : `<div class="fiche calme">Toucher un objet pour le voir ici.</div>`;
+  if (!choixSac) return `<div class="fiche calme">Touchez un objet : il s'affiche ici · <b>appui long</b> sur une vignette : ce qu'elle est.</div>`;
   if (estPlat(choixSac)) return fichePlat(choixSac);
   if (estSoin(choixSac)) return ficheSoin(choixSac);
   if (choixSac.startsWith('vide:')) {
@@ -8288,7 +8369,7 @@ function clicSac(b) {
 function montrerFiche() {
   if (typeof matchMedia !== 'function' || !matchMedia('(max-width:640px)').matches) return;
   const f = document.getElementById('sac-fiche');
-  if (!f || !f.scrollIntoView) return;
+  if (!f || !f.scrollIntoView || f.closest('.sac-dock')) return;   // (§181) la fiche du sac est dans son tiroir, toujours en vue
   const doux = !matchMedia('(prefers-reduced-motion: reduce)').matches;
   f.scrollIntoView({ block: 'start', behavior: doux ? 'smooth' : 'auto' });
 }
@@ -9501,8 +9582,11 @@ function gainIcone(seg) {
     add('nectar d\'oglodon', 'nectar'); add('baume de relève', 'baume'); add('spores de korlaz', 'spore');
     for (const id in INGR) add(INGR[id].n, icIngr(id));
     add('nectar', 'nectar');
+    for (const k in FLORE) if (graineInfo(k) && !graineIngr(k)) add(nomGraine(k), icGraine(k));   // (§180) graines, plants, boutures
+    if (typeof FLORE_RARES !== 'undefined') for (const pl of FLORE_RARES) add(nomGraine(pl.id), icGraine(pl.id));
+    if (typeof GR_PIGMENTS !== 'undefined') { for (const c in GR_PIGMENTS) GR_PIGMENTS[c].forEach((nm, i) => add(nm, 'pig_' + c + '_' + (i + 1))); add('nacre prismatique', 'pig_prisme_6'); add('pigment', 'pig_rouge_1'); }
   }
-  const n = m[1].toLowerCase(), id = NOMS_IC.get(n) || NOMS_IC.get(n.replace(/s$/, '')) || NOMS_IC.get(n.split(' ')[0]);
+  const n = m[1].toLowerCase().replace(/^pigment\s*:\s*/, '').replace(/\s*\([^)]*\)\s*$/, ''), id = NOMS_IC.get(n) || NOMS_IC.get(n.replace(/s$/, '')) || NOMS_IC.get(n.split(' ')[0]);
   const u = id && icone(id);
   return u ? `<img class="ic" src="${u}" alt="">` : '';
 }
@@ -9734,6 +9818,109 @@ document.getElementById('sac').addEventListener('click', e => {
   const b = e.target.closest('button');
   if (b && !b.disabled) clicSac(b);
 });
+// ============================================================
+//  (§181) L'APPUI LONG : une vignette tenue une demi-seconde dit ce qu'elle est (son nom, sa rareté, sa sorte, ce qu'elle
+//  fait, combien on en a). La bulle reste après qu'on a levé le doigt, jusqu'au prochain appui ; l'appui long ne choisit
+//  ni ne mange rien. Les vignettes portent ce qu'elles sont : data-choix (objet, plat, soin, case vide), data-cru
+//  (denrée), data-graine, data-recette, ou data-info (r: matière, v: réserve, p: pigment).
+// ============================================================
+const RES_OU = { fibre: 'les herbes hautes et les buissons ; les bêtes abattues', bois: 'les arbres', pierre: 'la roche et les filons, à la pioche ; les automates',
+  os: 'les bêtes abattues', eclat: 'les druses de cristal, les automates ; c\'est aussi le mana des sorts', ferraille: 'les automates, les coffres du Centre', spore: 'la roche rongée du Korlaz' };
+const EMP_NOM = { soin: 'soin', camp: 'campement', munition: 'munition', ceinture: 'ceinture', baume: 'soin des compagnes', lien: 'lien', seau: 'outil du jardin' };
+const majP = x => String(x || '').replace(/^./, c => c.toUpperCase());
+function infoObjet(id) {
+  const o = objet(id); if (!o) return null;
+  const E = EMPLACEMENTS.find(e => e.id === o.emp), porte_ = P.equip[o.emp] === id || (o.cur && curioPortee(o.id)), r = o.cur && CURIO[o.id] ? CURIO[o.id].r : 1;
+  const L = [];
+  if (o.emp === 'arme') { L.push(['Dégâts', Math.round(o.deg * 100)]); L.push(o.arc ? ['Tir', 'à distance'] : ['Portée', nombre(o.port)]); if (o.cad) L.push([o.fusil && o.fg ? 'Recharge' : 'Cadence', nombre(o.cad) + ' s']); }
+  if (o.emp === 'outil') L.push(['Niveau', o.niv], ['Récolte', '×' + nombre(o.rend)]);
+  if (o.emp === 'armure') L.push(['Dégâts reçus', '−' + Math.round(o.red * 100) + ' %']);
+  if (o.emp === 'soin') L.push(['En réserve', P.soins[o.id] | 0]);
+  return { ic: id, t: nomRare(o.n, r), s: (o.cur ? 'curiosité · ' + NOM_RARE[r] : E ? E.n.toLowerCase() : EMP_NOM[o.emp] || 'objet') + (porte_ ? ' · porté' : ''), p: o.cur ? texteCurio(CURIO[o.id]) : o.d, l: L };
+}
+function infoDenree(id) {
+  const I = INGR[id]; if (!I) return null;
+  const r = I.r || 1, L = [['Rareté', NOM_RARE[Math.min(6, r)]], ['Sorte', (NOM_ETAPE[I.fam] || 'denrée').toLowerCase()]];
+  if (I.tag && EFFETS[I.tag]) L.push(['En cuisine', EFFETS[I.tag]]);
+  if (I.fam !== 'demon') L.push(['Cru', id === 'nectar' ? 'se boit : +35 % de vie' : I.fam === 'viande' ? 'jamais : à cuire' : 'se mange']);
+  L.push(['Au sac', sacIngr(id)]);
+  return { ic: icIngr(id), t: nomRare(I.n, r), s: (NOM_ETAPE[I.fam] || 'denrée').toLowerCase() + ' · ' + NOM_RARE[Math.min(6, r)], p: '', l: L };
+}
+function infoGraine(k) {
+  const G = graineInfo(k); if (!G) return null;
+  const sorte = G.sp && G.sp.res === 'bois' ? 'plant' : G.sp && G.sp.res === 'baies' ? 'bouture' : 'graine', L = [];
+  if (G.pl) L.push(['Plante', G.pl.rang + (G.pl.port === 'vive' ? ', vive' : G.pl.port === 'geante' ? ', géante' : '')]);
+  L.push(['Emplacement', TAILLE_N[G.ta]], ['Au sac', stockGraine(k)]);
+  return { ic: icGraine(k), t: nomRare(majP(nomGraine(k)), G.r), s: sorte + ' · ' + NOM_RARE[Math.min(6, G.r)],
+    p: 'Se sème dans un carré de culture, au campement' + (graineIngr(k) ? ' ; se mange aussi' : '') + '.', l: L };
+}
+function infoPigment(k) {
+  const [c, r0] = String(k).split(':'), r = +r0 || 1, nom = typeof grNomPigment === 'function' ? grNomPigment(c, r) : k;
+  return { ic: icPigment(k), t: nomRare(majP(nom), r), s: 'pigment ' + (c === 'prisme' ? 'prismatique' : c) + ' · ' + NOM_RARE[Math.min(6, r)],
+    p: 'Gagné à l\'Achromie. À la forge, posé à la monture, il donne à l\'arme une aura et une traînée à sa couleur' + (r > 1 ? ', d\'autant plus vives qu\'il est rare' : '') + '.',
+    l: [['Au sac', (P.pigments || {})[k] | 0]] };
+}
+function infoMatiere(r) {
+  if (!RES[r]) return null;
+  const L = [['Au sac', essai ? 'illimité' : P.sac[r] | 0]];
+  if (typeof reserveCommune === 'function' && reserveCommune()) L.push(['Au coffre', (reserveDe(r) || {})[r] | 0]);
+  return { ic: r, t: ESC(majP(RES[r])), s: 'matière', p: RES_OU[r] ? 'Où la trouver : ' + RES_OU[r] + '.' : '', l: L };
+}
+function infoReserve(ic) {
+  const T = { baies: ['Baies', 'nourrissent les compagnes (G) ; se mangent aussi', P.baies], fleches: ['Flèches', 'pour l\'arc et l\'arbalète ; se fabriquent par lots', P.fleches],
+    baume: ['Baumes', 'relèvent une compagne assommée', P.baumes], encre: ['Encre', 'un éclat d\'encre inscrit un sort au grimoire', P.encre | 0],
+    lien: ['Liens', 'chacun retient une compagne', liensLibres() + ' libre' + (liensLibres() > 1 ? 's' : '') + ' sur ' + P.liens] }[ic];
+  return T ? { ic, t: T[0], s: 'réserve', p: majP(T[1]) + '.', l: [['En réserve', T[2]]] } : null;
+}
+function infoPlat(id) { const ef = effetPlat(id), n = partsPlat(id); return { ic: icPlat(id), t: nomRare(nomPlat(id), qPlat(id)), s: 'plat · ' + n + ' part' + (n > 1 ? 's' : ''), p: ef ? 'Mangé : ' + ef + '.' : '', l: [] }; }
+function infoCase(c) {
+  const d = c.dataset || {}, ic = ((c.querySelector('.ic') || {}).className || '').match(/ic-(\S+)/), v = d.info;
+  if (v) { const k = v.slice(0, v.indexOf(':')), x = v.slice(v.indexOf(':') + 1);
+    const I = k === 'r' ? infoMatiere(x) : k === 'v' ? infoReserve(x) : k === 'p' ? infoPigment(x) : k === 'i' ? infoDenree(x) : k === 'o' ? infoObjet(x) : null; if (I) return I; }
+  if (d.cru) return infoDenree(d.cru);
+  if (d.graine) return infoGraine(d.graine);
+  const ch = d.choix ?? d.recette;
+  if (ch) {
+    if (ch.startsWith('vide:')) { const E = EMPLACEMENTS.find(e => e.id === ch.slice(5)); return E ? { ic: E.fantome, t: E.n, s: 'emplacement libre', p: E.vide + '.', l: [] } : null; }
+    if (estPlat(ch)) return infoPlat(ch);
+    if (estSoin(ch)) return infoObjet(ch.slice(5));
+    return infoObjet(ch);
+  }
+  const lab = c.getAttribute('aria-label') || c.getAttribute('title');
+  return lab ? { ic: ic ? ic[1] : '', t: ESC(majP(lab.split(' : ')[0])), s: '', p: lab.includes(' : ') ? majP(lab.split(' : ').slice(1).join(' : ')) : '', l: [] } : null;
+}
+function montrerInfo(c) {
+  const I = infoCase(c); if (!I) return;
+  let b = document.getElementById('sac-info');
+  if (!b) { b = document.createElement('div'); b.id = 'sac-info'; b.setAttribute('role', 'tooltip'); document.body.appendChild(b); }
+  if (I.ic) poserIcone(I.ic);
+  b.innerHTML = `<div class="tete">${I.ic ? img(I.ic) : ''}<div><b class="t">${I.t}</b>${I.s ? `<small>${ESC(I.s)}</small>` : ''}</div></div>`
+    + (I.p ? `<p>${ESC(I.p)}</p>` : '') + (I.l && I.l.length ? `<div class="ligs">${I.l.map(([k, x]) => `<span>${ESC(k)}</span><em>${ESC(String(x))}</em>`).join('')}</div>` : '');
+  b.classList.remove('vu'); b.style.display = 'block';
+  const R = c.getBoundingClientRect(), w = b.offsetWidth, h = b.offsetHeight, W = innerWidth, H = innerHeight;
+  let y = R.top - h - 10; if (y < 8) y = Math.min(H - h - 8, R.bottom + 10);
+  const x = Math.max(8, Math.min(W - w - 8, R.left + R.width / 2 - w / 2));
+  b.style.left = Math.round(x) + 'px'; b.style.top = Math.round(Math.max(8, y)) + 'px';
+  requestAnimationFrame(() => b.classList.add('vu'));
+}
+function cacherInfo() { const b = document.getElementById('sac-info'); if (b && b.style.display !== 'none') { b.classList.remove('vu'); b.style.display = 'none'; } }
+{
+  const sacEl = document.getElementById('sac'), AL = { tm: 0, tm2: 0, el: null, x: 0, y: 0, fait: false };
+  const fin = () => { clearTimeout(AL.tm); clearTimeout(AL.tm2); if (AL.el) AL.el.classList.remove('appui'); AL.el = null; };
+  sacEl.addEventListener('pointerdown', e => {
+    cacherInfo(); AL.fait = false;
+    const c = e.target.closest && e.target.closest('.case'); if (!c || e.button > 0) return;
+    fin(); AL.el = c; AL.x = e.clientX; AL.y = e.clientY;
+    AL.tm2 = setTimeout(() => { if (AL.el === c) c.classList.add('appui'); }, 160);
+    AL.tm = setTimeout(() => { if (AL.el !== c) return; AL.fait = true; c.classList.remove('appui'); montrerInfo(c); try { if (navigator.vibrate) navigator.vibrate(12); } catch (er) { /* rien */ } }, 480);
+  });
+  sacEl.addEventListener('pointermove', e => { if (AL.el && Math.hypot(e.clientX - AL.x, e.clientY - AL.y) > 10) fin(); });
+  addEventListener('pointerup', fin); addEventListener('pointercancel', fin);
+  sacEl.addEventListener('click', e => { if (AL.fait) { AL.fait = false; e.preventDefault(); e.stopPropagation(); } }, true);   // l'appui long ne choisit, ne mange rien
+  sacEl.addEventListener('contextmenu', e => { if (e.target.closest && e.target.closest('.case')) e.preventDefault(); });
+  sacEl.addEventListener('scroll', cacherInfo, true);
+  addEventListener('pointerdown', e => { if (!sacEl.contains(e.target)) cacherInfo(); }, true);
+}
 { // manche virtuel
   const el = document.getElementById('stick'), kn = document.getElementById('knob');
   let id = null;
@@ -13405,6 +13592,7 @@ function emitTirs(view, out) {
       }
       continue;
     }
+    if (f.gros) { const w = .1 + .06 * f.gros, l = .3 + .12 * f.gros; emitLimb([f.x - u[0] * l, f.y - u[1] * l, f.z - u[2] * l], [f.x, f.y, f.z], w, w, f.c, view, out, cle, rang, 1); continue; }   // (§174)
     emitLimb([f.x - u[0] * .3, f.y - u[1] * .3, f.z - u[2] * .3], [f.x, f.y, f.z], .07, .07, f.c, view, out, cle, rang);
   }
   // les barrières laser : les bornes, puis les rayons en tronçons d'une case
@@ -18264,6 +18452,27 @@ function dessinGraine(d, kind, c, rare) {
 for (const k in FLORE) { const sp = FLORE[k]; if (tailleFlore(sp) && !(INGR['p_' + k] && INGR['p_' + k].fam === 'graine'))
   DESSINS['graine_' + k] = d => dessinGraine(d, sp.res === 'bois' ? 'plant' : sp.res === 'baies' ? 'bouture' : 'sachet', sp.haut || [140, 170, 110], false); }
 if (typeof FLORE_RARES !== 'undefined') for (const pl of FLORE_RARES) DESSINS['graine_' + pl.id] = d => dessinGraine(d, 'sachet', (pl.pal && pl.pal[3]) || [200, 120, 200], true);
+// (§180) Les pigments de l'Achromie : un godet de terre, un tas de poudre à leur couleur, des grains tombés à côté ; plus rares,
+// un éclat qui brille, puis une lèvre dorée ; la nacre prismatique, en bandes de toutes les couleurs.
+const icPigment = k => 'pig_' + String(k).replace(':', '_');
+function dessinPigment(d, c, r) {
+  const terre = [150, 108, 76], terreF = [100, 70, 48], bord = r >= 5 ? [226, 190, 98] : [180, 138, 100];
+  d.rect(3, 11, 12, 13, terre); d.rect(4, 14, 11, 14, terreF); d.ligne(2, 10, 13, 10, bord);
+  if (c === 'prisme') {
+    const B = [[228, 72, 72], [236, 176, 52], [76, 182, 100], [76, 112, 236], [176, 92, 226]];
+    [[6, 9, 4], [5, 10, 5], [4, 11, 6], [4, 11, 7], [3, 12, 8], [3, 12, 9]].forEach(([a, b, y], i) => d.ligne(a, y, b, y, B[i % 5]));
+    d.net(7, 3, [255, 255, 255]); d.net(12, 3, [255, 255, 255]); d.net(11, 2, [255, 240, 200]); d.net(13, 4, [255, 240, 200]); d.net(2, 12, B[0]); d.net(13, 12, B[3]);
+    return;
+  }
+  const col = (typeof FG_PIG_RGB !== 'undefined' && FG_PIG_RGB[c] && FG_PIG_RGB[c][r - 1]) || (typeof GR_PIG_RGB !== 'undefined' && GR_PIG_RGB[c]) || [150, 150, 150];
+  const clair = col.map(v => Math.min(255, v + (255 - v) * .5) | 0), fonce = col.map(v => v * .62 | 0);
+  d.disque(7.5, 8.4, 3.7, col); d.rect(4, 9, 11, 10, col); d.ligne(5, 10, 10, 10, fonce);
+  d.net(6, 6, clair); d.net(7, 5, clair); d.net(5, 7, clair); d.net(10, 8, fonce); d.net(9, 9, fonce);
+  d.net(2, 12, col); d.net(13, 12, fonce);
+  if (r >= 3) d.net(12, 3, [255, 255, 255]);
+  if (r >= 4) { d.net(11, 3, [255, 246, 214]); d.net(13, 3, [255, 246, 214]); d.net(12, 2, [255, 246, 214]); d.net(12, 4, [255, 246, 214]); }
+}
+if (typeof GR_PIGMENTS !== 'undefined') { for (const c in GR_PIGMENTS) for (let r = 1; r <= 5; r++) DESSINS['pig_' + c + '_' + r] = d => dessinPigment(d, c, r); DESSINS.pig_prisme_6 = d => dessinPigment(d, 'prisme', 6); }
 DESSINS.plat = d => { d.rect(2, 9, 13, 10, [150, 120, 90]); d.rect(3, 11, 12, 12, [120, 92, 66]); d.rect(5, 13, 10, 13, [96, 72, 52]); d.disque(8, 8, 4, [196, 130, 80]); d.net(6, 7, [230, 180, 120]); d.net(9, 6, [120, 170, 90]); d.ligne(6, 4, 7, 1, [236, 236, 236]); d.ligne(10, 4, 9, 1, [236, 236, 236]); };
 DESSINS.carre = d => {                              // (§119) un carré de terre, bordé de planches, deux pousses
   d.rect(2, 4, 13, 13, [108, 80, 56]); d.ligne(3, 7, 12, 7, [80, 58, 40]); d.ligne(3, 10, 12, 10, [80, 58, 40]);
@@ -18315,7 +18524,7 @@ const rareVariante = s => { const v = s && lireVariante(s); return v ? (v.taille
 const rareBete = b => !b || !b.sp ? 1 : b.sp.plante ? (b.pl ? rareIngr(b.pl.ingr) : 1) : Math.max(rareEspece(b.sp), rareVariante(b.variante));
 function rareIcone(ic) {                                 // ce que porte une vignette, d'après son nom
   ic = String(ic || '');
-  return ic.startsWith('cu_') ? (CURIO[ic] ? CURIO[ic].r : 1) : ic.startsWith('ingr_') ? rareIngr(ic.slice(5)) : ic.startsWith('poisson_') ? rareIngr(ic.slice(8)) : ic.startsWith('bete_') ? rareEspece(specById[ic.slice(5)]) : ic.startsWith('graine_') ? ((graineInfo(ic.slice(7)) || { r: 1 }).r) : ic === 'nectar' ? rareIngr('nectar') : 1;
+  return ic.startsWith('cu_') ? (CURIO[ic] ? CURIO[ic].r : 1) : ic.startsWith('ingr_') ? rareIngr(ic.slice(5)) : ic.startsWith('poisson_') ? rareIngr(ic.slice(8)) : ic.startsWith('bete_') ? rareEspece(specById[ic.slice(5)]) : ic.startsWith('graine_') ? ((graineInfo(ic.slice(7)) || { r: 1 }).r) : ic.startsWith('pig_') ? (+ic.split('_')[2] || 1) : ic === 'nectar' ? rareIngr('nectar') : 1;
 }
 const qPlat = id => { const k = prochainPlat(id), r = P.recettes[lirePlat(id).cle]; return k >= 0 ? P.plats[k].q : r ? r.q : 1; };
 const legendeRare = () => `<p class="legende-rare">Rareté : ` + [1, 2, 3, 4, 5].map(r => nomRare(NOM_RARE[r], r)).join(' · ') + `</p>`;
@@ -19457,6 +19666,7 @@ function toucherSort(o, m, deg) {
   }
   frapperSort(o, dg);
   if (M.id === 'sang' || (M.mix && M.mix.includes('sang'))) boireSang(o, dg);
+  if (typeof forgeSortTouche === 'function') forgeSortTouche(o, dg);   // (§174) un sort parti d'une arme forgée : son âme
   return true;
 }
 // Le Sang boit : près d'un tiers du coup revient en vie (au plus 12 % d'un coup), et un filet rouge remonte vers vous.
@@ -22191,7 +22401,7 @@ function emitHero(view, out, J) {
   const cle = view.kEnt && view.kEnt(J.x, J.y), rang = rangSol(J.z, false);
   // une clé pour tout le corps, puis face par face : sans cela un bras passe à travers le buste
   for (const b of bones) emitLimb(put(b.a), put(b.b), b.w, b.h,
-    flash ? [255, 150, 130] : (J.teinte ? teindre(b.c, J.teinte) : b.c), view, out, cle, rang);
+    b.lum ? b.c : flash ? [255, 150, 130] : (J.teinte ? teindre(b.c, J.teinte) : b.c), view, out, cle, rang, b.lum ? 1 : undefined);
   // deux yeux : ils passent par la même liste, sinon ils traversent les collines
   for (const sd of [-1, 1]) {
     const e = put([0.098, sd * 0.048, 0.655]);
@@ -23851,9 +24061,10 @@ function traineeArme(J, A) {
   const prev = A.pt; A.pt = pts;
   if (!prev) return;
   const col = COUL_TRAINEE[A.arme] || '#eeeeee', luit = A.arme === 'lame' || A.arme === 'soufre', n = epee ? 6 : 3;
+  const pg = typeof forgeTrainee === 'function' && String(A.arme).startsWith('fg') ? forgeTrainee(A.arme) : null;   // (§177) une arme teintée : sa traînée
   for (let k = 0; k < F.length; k++) for (let s = 1; s <= n; s++) {
     const q = mixv(prev[k], pts[k], s / n);
-    parts.push({ x: q[0], y: q[1], z: q[2], vx: 0, vy: 0, vz: 0, g: 0, life: (epee ? .17 : .14) * (1 - k * .12), age: 0, col, tl: (epee ? .055 : .05) * (1 - k * .15), luit });
+    parts.push({ x: q[0], y: q[1], z: q[2], vx: 0, vy: 0, vz: 0, g: 0, life: (epee ? .17 : .14) * (1 - k * .12) * (pg ? pg.k : 1), age: 0, col: pg ? pg.c(k, s) : col, tl: (epee ? .055 : .05) * (1 - k * .15) * (pg ? pg.w : 1), luit: pg ? 1 : luit });
   }
 }
 const secousseCam = () => { const d = t - (P.secousse ?? -99); return d < .32 ? (1 - d / .32) ** 2 * .07 * (P.secousseK ?? 1) : 0; };
@@ -25285,8 +25496,8 @@ void main() { o = uC; }`;
     const put = v => [J.x + v[0] * cf - v[1] * sf, J.y + v[0] * sf + v[1] * cf, zs + v[2]];
     const flash = J.hurt > 0 && (t * 14 | 0) % 2;
     const hp = L_FIXE + 256 * horizAt(J.x, J.y);
-    for (const b of bones) boite(T, put(b.a), put(b.b), b.w, b.h,
-      flash ? [255, 150, 130] : (J.teinte ? teindre(b.c, J.teinte) : b.c), 0, kCouleur(b.c, 'corps'), hp, 0, 0, 0, undefined, 4);
+    for (const b of bones) boite(T, put(b.a), put(b.b), b.w, b.h,   // b.lum : ce qui luit d'elle-même (§174 : la pierre d'une arme de mage)
+      b.lum ? b.c : flash ? [255, 150, 130] : (J.teinte ? teindre(b.c, J.teinte) : b.c), b.lum ? 1 : 0, b.lum ? 0 : kCouleur(b.c, 'corps'), b.lum ? L_FIXE : hp, 0, 0, 0, undefined, 4);
     for (const sd of [-1, 1]) {
       const e = put([.098, sd * .048, .655]);
       panneau(e[0], e[1], e[2], .075, .075, 42 / 255, 36 / 255, 54 / 255, 1, 0);
@@ -25770,6 +25981,7 @@ void main() { o = uC; }`;
       if (f.glu) { boite(TD, [f.x - .11, f.y, f.z], [f.x + .11, f.y, f.z], .22, .22, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.spore) { boite(TD, [f.x - .07, f.y, f.z], [f.x + .07, f.y, f.z], .15, .15, f.c, 0, 0, L_FIXE, 0, 0, 0); continue; }
       if (f.obus) { boite(TD, [f.x - u[0] * .13, f.y - u[1] * .13, f.z - u[2] * .13], [f.x + u[0] * .13, f.y + u[1] * .13, f.z + u[2] * .13], .2, .2, [58, 52, 46], 0, 0, L_FIXE, 0, 0, 0); continue; }
+      if (f.gros) { const w = .1 + .06 * f.gros, l = .3 + .12 * f.gros; boite(TD, [f.x - u[0] * l, f.y - u[1] * l, f.z - u[2] * l], [f.x, f.y, f.z], w, w, f.c, 1, 0, L_FIXE, 0, 0, 0); boite(TD, [f.x - u[0] * .1, f.y - u[1] * .1, f.z - u[2] * .1], [f.x + u[0] * .05, f.y + u[1] * .05, f.z + u[2] * .05], w * .55, w * .55, [255, 250, 236], 1, 0, L_FIXE, 0, 0, 0); continue; }   // (§174) le trait grossi au bâton
       boite(TD, [f.x - u[0] * .3, f.y - u[1] * .3, f.z - u[2] * .3], [f.x, f.y, f.z], .07, .07, f.c, 0, 0, L_FIXE, 0, 0, 0);
     }
     for (const l of LASERS) if ((l.ax - ex) ** 2 + (l.ay - ey) ** 2 < r2)
@@ -25784,6 +25996,7 @@ void main() { o = uC; }`;
       boite(TD, [f.x - v[0] * .06, f.y - v[1] * .06, f.z - v[2] * .06], av, .1, .1, [202, 210, 226], 0, 0, L_FIXE, 0, 0, 0);
     }
     if (SAT.vu) for (const [A, B, w, h, c, lum] of osSatellite()) boite(TD, A, B, w, h, c, lum ? 1 : 0, 0, L_FIXE, 0, 0, 0);   // (§156)
+    if (typeof forgeOs === 'function') forgeOs((p, A, B, w, h, c, lum) => boite(TD, A, B, w, h, c, lum ? 1 : 0, 0, L_FIXE, 0, 0, 0));   // (§174) chakram, javelots, billes, sphères
     if (TD.ni) {
       gl.bindVertexArray(dyn.va);
       gl.bindBuffer(gl.ARRAY_BUFFER, dyn.vb); gl.bufferData(gl.ARRAY_BUFFER, TD.f.subarray(0, TD.nv * PV), gl.STREAM_DRAW);
@@ -26754,7 +26967,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-130', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-149', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }

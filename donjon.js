@@ -687,7 +687,7 @@ const DJ_FUSILS = {
   laser: { cad: .42, portee: 18, chauffe: .17, deg: .5, c: [120, 214, 255], son: 'laser', trait: .12 },
   sniper: { cad: 2.2, portee: 36, visee: 1.1, deg: 2.2, degMin: .45, c: [255, 64, 50], son: 'tir', trait: .2 },
 };
-function djEstFusil(id) { return !!id && !!DJ_FUSILS[id]; }
+function djEstFusil(id) { return !!id && (!!DJ_FUSILS[id] || (typeof forgeFeu === 'function' && !!forgeFeu(id))); }   // (§175) et les armes à feu forgées
 function djObjets() {
   return [
     { id: 'laser', n: 'Rayon de sentinelle', emp: 'arme', deg: .5, port: 0, arc: 1, fusil: 1, offert: 1, donjon: 1, cout: {}, cad: .42,
@@ -712,8 +712,9 @@ function djPoseFusil(J, id, k, r, ts) {
     return ts < .15 ? melerPose(garde(), V, lisse01(ts / .15)) : V;
   }
   if (r < TIR_FIN) {                                        // le coup vient de partir
-    const V = djEpaule(id, 0), fort = id === 'sniper' ? 1 : .35;
-    const ru = r < .03 ? r / .03 : Math.max(0, 1 - (r - .03) / (id === 'sniper' ? .3 : .12));
+    const FF = !DJ_FUSILS[id] && typeof forgeFeu === 'function' ? forgeFeu(id) : null;   // (§175) le recul d'une arme forgée
+    const V = djEpaule(FF && FF.long ? 'sniper' : id, 0), fort = id === 'sniper' ? 1 : FF ? FF.fort : .35;
+    const ru = r < .03 ? r / .03 : Math.max(0, 1 - (r - .03) / (fort > .6 ? .3 : .12));
     const dm = v3.add(v3.mul(V.arb.u, -.05 * ru * fort), [0, 0, .02 * ru * fort]);
     V.g = v3.add(V.g, dm); V.m2 = v3.add(V.m2, dm); V.arb.o = v3.add(V.arb.o, dm);
     V.arb.u = nrm(v3.add(V.arb.u, [0, 0, .25 * ru * fort])); V.u = V.arb.u;
@@ -818,7 +819,7 @@ function djTirer(id, q) {
 }
 // ACTION enfoncée, ACTION lâchée (le jeu les route ici pour ces deux armes).
 function djTirDown(a) {
-  const F = DJ_FUSILS[a.id]; if (!F) return;
+  const F = DJ_FUSILS[a.id]; if (!F) return a.fg && typeof forgeTirDown === 'function' ? forgeTirDown(a) : undefined;   // (§175)
   if (t - DJ.dernierTir < F.cad) { if (a.id === 'sniper') say('rechargement', .8); return; }
   if (a.id === 'laser') {
     if (t < DJ.surchauffe) { say('surchauffe · le rayon refroidit', 1); return; }
@@ -834,6 +835,7 @@ function djTirDown(a) {
   SON.jouer('vise', { vol: .5 }, P.x, P.y, P.z + .6);
 }
 function djTirUp(a) {
+  if (a.fg && typeof forgeTirUp === 'function') return forgeTirUp(a);   // (§175)
   if (a.id !== 'sniper' || P.arc === null) return;
   const q = Math.min(1, P.arc / DJ_FUSILS.sniper.visee); P.arc = null;
   P.decoche = t; P.decocheK = q; P.garde = t + GARDE_T; DJ.dernierTir = t;
@@ -861,8 +863,9 @@ function djTraits() {
 }
 // Le coup d'un autre joueur : on l'entend, et son trait passe — sans rien blesser ici.
 function djTirDistant(j) {
-  const F = DJ_FUSILS[j.arme]; if (!F) return false;
+  const F = DJ_FUSILS[j.arme] || (typeof forgeFeu === 'function' && forgeFeu(j.arme)); if (!F) return false;
   const f = j.faceS ?? j.face ?? 0, o = [j.x + Math.cos(f) * .45, j.y + Math.sin(f) * .45, j.z + .55];
+  if (F.obus) { SON.jouer(F.son, { vol: .8 }, j.x, j.y, j.z + .6); burst(o[0], o[1], o[2], 8, '#ffe2a0'); return true; }   // (§175) l'obus d'un autre : le coup, la fumée
   const r = djRayon(o, [Math.cos(f), Math.sin(f), 0], F.portee);
   DJ.traits.push({ a: o, b: r.p, c: F.c.map(v => v / 255), w: 2.4, t0: t, dur: F.trait });
   SON.jouer(F.son, { vol: .8 }, j.x, j.y, j.z + .6);
@@ -872,7 +875,7 @@ function djTirDistant(j) {
 function djHud() {
   const pa = typeof roiHud === 'function' ? roiHud() : '';    // (§164) les pactes portés
   const a = typeof porte === 'function' ? porte('arme') : null;
-  if (!a || a.id !== 'laser') return pa;
+  if (!a || a.id !== 'laser') return pa + (typeof forgeHud === 'function' ? forgeHud() : '');   // (§175) les coups d'une arme à feu forgée
   const n = Math.round(Math.min(1, DJ.chaleur) * 6), chaud = t < DJ.surchauffe;
   return pa + ` · CHALEUR <b style="color:${chaud ? '#ff7a5a' : '#8fe3ff'}">${'█'.repeat(n).padEnd(6, '·')}</b>`;
 }

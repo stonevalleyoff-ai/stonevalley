@@ -704,11 +704,13 @@ function blocPigments() {
   if (!L.length) return h + '<p class="note" style="margin:2px 2px 8px">Une île frappée d\'Achromie, rendue à ses couleurs, en donne un : un seul par île, plus rare à mesure qu\'on s\'enfonce.</p>';
   for (const o of L) {
     const fond = o.c === 'prisme' ? 'linear-gradient(135deg,#e04848,#d8b030,#40a060,#4868e0)' : 'rgb(' + (GR_PIG_RGB[o.c] || [128, 128, 128]).join(',') + ')';
-    h += `<div class="obj" style="gap:10px"><span class="case" style="background:${fond};border-radius:6px"></span><div style="flex:1;min-width:0">`
+    const vg = typeof caseObjet === 'function' && typeof icPigment === 'function' ? caseObjet(icPigment(o.c + ':' + o.r), { inerte: true, rar: o.r, label: grNomPigment(o.c, o.r) })   // (§180) sa vignette
+      : `<span class="case" style="background:${fond};border-radius:6px"></span>`;
+    h += `<div class="obj" style="gap:10px">${vg}<div style="flex:1;min-width:0">`
       + `<div class="n">${typeof nomRare === 'function' ? nomRare(grNomPigment(o.c, o.r), o.r) : grNomPigment(o.c, o.r)}</div>`
       + `<div class="d">pigment ${o.c === 'prisme' ? 'prismatique' : o.c}${o.n > 1 ? ' · ' + o.n : ''}</div></div></div>`;
   }
-  return h + '<p class="note" style="margin:2px 2px 8px">Gardés pour plus tard.</p>';
+  return h + '<p class="note" style="margin:2px 2px 8px">À la forge, posé à la monture, un pigment donne à l\'arme son aura et sa traînée.</p>';
 }
 
 // ---------- leurs volumes ----------
