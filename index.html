@@ -8073,6 +8073,7 @@ function pageBeta() {
   h += sect('monde',
     carte('lampe', 'L\'heure ' + essaiDit, dj ? 'sous terre, il ne fait jamais nuit' : 'il est ' + Math.floor(horloge * 24) + ' h', gestes(btn('aube', 'Aube', off(dj)) + btn('midi', 'Midi', off(dj)) + btn('soir', 'Soir', off(dj)) + btn('minuit', 'Minuit', off(dj))))
     + carte('boussole', 'Le temps qu\'il fait ' + essaiDit, dj ? 'ni pluie ni vent sous terre' : METEO[Meteo.vers].n, gestes(btn('meteo', 'Le suivant', off(dj))))
+    + carte('os', 'Les bêtes en formes ' + essaiDit, formesActives ? 'galets, dômes et prismes, à moins de ' + formesDist() + ' cases' : 'en pavés, comme avant le §188', gestes(btn('formes', formesActives ? 'Revoir les pavés' : 'Remettre les formes')), formesActives ? 'actif' : '')
     + carte('ferraille', 'Escouade d\'automates', dj ? 'pas sous terre' : Escouade ? 'déjà là · ' + escHud().replace(/<[^>]+>/g, '').replace(' · ', '') : 'la prochaine dans ' + Math.ceil(Math.max(0, escAttente) / 60) + ' min',
       gestes(btn('escouade', 'Faire venir', off(dj || Escouade))))
     + carte('lien', 'Nomades du Seuil', NM.car ? (NM.car.hostile ? 'elle se défend' : NM.car.depart ? 'elle repart' : 'sur l\'île · ' + NM.car.gens.map(g => g.nm.nom).join(', ')) : 'aucune caravane',
@@ -8304,6 +8305,7 @@ function outilBeta(k) {
   else if (k === 'vyStade') { if (P.vyrel) { const s0 = vyStade(); P.vyrel.duree = s0 >= 2 ? 1501 : 601; P.vyrel.trouble = t + 2; say('Vyrel · stade ' + ['', 'I', 'II', 'III'][vyStade()], 1.6); } }
   else if (k === 'vyNon') { if (typeof guerirVyrel === 'function') guerirVyrel(); }
   else if (k === 'vyMasque') { P.objets.masque_bec = 1; P.equip.accessoire = P.equip.accessoire === 'masque_bec' ? null : 'masque_bec'; say(P.equip.accessoire ? 'masque à bec mis' : 'masque à bec ôté', 1.4); }
+  else if (k === 'formes') { formesActives = !formesActives; say(formesActives ? 'les bêtes en formes' : 'les bêtes en pavés · essai', 1.4); }
   else if (k === 'aube' || k === 'soir') { horloge = k === 'aube' ? .26 : .76; say((k === 'aube' ? 'l\'aube' : 'le soir') + ' · essai', 1.4); }
   if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; P.baumes += 5; P.encre += 5; for (const o of OBJETS) if (o.emp === 'soin') P.soins[o.id] = (P.soins[o.id] | 0) + 3;
     for (const id in INGR) if (INGR[id].src === 'denree') P.denrees[id] = (P.denrees[id] || 0) + 3; else if (INGR[id].src === 'poisson') P.poissons[id] = (P.poissons[id] || 0) + 3;
@@ -8679,7 +8681,7 @@ const SPEC = [
   { id:'vesseron',   n:'Vesseron',             fam:'tellurien', corps:'myconide', biome:11, diet:'h', sz:1.2, spd:1.6, vue:11, peur:.6, herd:1, cap:14, mat:90,
     shell:[152,74,172], dark:[96,48,110], leg:[226,214,198], oeil:[40,26,50], bio:[11], lueur:1.5, anneau:1,
     lien:.85, travail:{ fibre:1, bois:.8 }, metier:'cueille la fibre et abat les champignons géants', grimpe:0 },
-  { id:'cerf',       n:'Cerf de verre',        fam:'tellurien', corps:'cerf',     biome:12, diet:'h', sz:1.4, spd:3.6, vue:20, peur:1, herd:1, cap:8, mat:130,
+  { id:'cerf',       n:'Cerf de verre',        fam:'tellurien', corps:'cerf',     biome:12, diet:'h', sz:1.55, spd:3.6, vue:20, peur:1, herd:1, cap:8, mat:130,
     shell:[226,244,252], dark:[96,140,176], leg:[132,176,204], oeil:[30,50,80], bois:[150,250,255], bio:[12], dur:.9, lueur:2, anneau:1.3,
     lien:.2, travail:{ eclat:.6, fibre:.6 }, metier:'détache les éclats des druses', grimpe:0, bond:2, sauteur:1 },   // (§148) un sauteur, comme le félin
   { id:'salamandre', n:'Salamandre de braise', fam:'tellurien', corps:'saurien',  biome:13, diet:'o', sz:1.25, spd:2.8, vue:16, peur:.1, herd:0, cap:4, mat:140,
@@ -8718,7 +8720,7 @@ const DOUX_ESPECES = [
   { id:'cotonnier',    n:'Cotonnier',    fam:'doux', corps:'cotonnier', diet:'h', sz:1.5, masse:.62, curiosite:.8, spd:2.7, vue:14, peur:1, herd:1, cap:30, mat:50,
     shell:[238,232,220], dark:[150,138,128], leg:[112,100,92], oeil:[28,24,22], bio:[2,4,1], duvet:1,
     lien:1, travail:{ fibre:1.1 }, metier:'file son duvet : de la fibre, sans rien couper', grimpe:0 },
-  { id:'carillonneur', n:'Carillonneur', fam:'doux', corps:'carillon', diet:'h', sz:1.25, spd:2.9, vue:18, peur:.85, herd:1, cap:16, mat:110,
+  { id:'carillonneur', n:'Carillonneur', fam:'doux', corps:'carillon', diet:'h', sz:1.35, spd:2.9, vue:18, peur:.85, herd:1, cap:16, mat:110,
     shell:[204,190,164], dark:[146,128,104], leg:[156,140,118], oeil:[40,34,30], corne:[208,170,98], bio:[4,5,2], bond:2, carillon:1,
     lien:.6, travail:{ bois:1 }, metier:'abat le bois mort d\'un coup de cornes, et tinte quand un chasseur approche', grimpe:0 },
   { id:'oglodon',      n:'Oglodon',      fam:'doux', corps:'oglodon', diet:'h', sz:1.35, spd:2.2, vue:12, peur:.35, herd:1, cap:12, mat:130,
@@ -8785,7 +8787,7 @@ SPEC.push(...VOLANTS, ...BOSSES, ...HORREURS, ...(typeof ETATS_SPEC !== 'undefin
 // Le cerf des cerisiers (un Tellurien, ses bois fleurissent), le renard des pétales (trois queues ; leur bout blanc
 // luit la nuit) et le lentigrade-cerisier (un Doux, qui porte un cerisier en fleur sur le dos).
 const CERISAIE_SPEC = [
-  { id:'sika', n:'Cerf des cerisiers', fam:'tellurien', corps:'cerf', biome:23, diet:'h', sz:1.3, spd:3.3, vue:18, peur:.85, herd:1, cap:7, mat:120,
+  { id:'sika', n:'Cerf des cerisiers', fam:'tellurien', corps:'cerf', biome:23, diet:'h', sz:1.4, spd:3.3, vue:18, peur:.85, herd:1, cap:7, mat:120,
     shell:[246,238,232], dark:[214,188,192], leg:[226,206,204], oeil:[40,30,36], bois:[112,84,80], fleurBois:[255,178,206], bio:[23], dur:1, lueur:1.2, anneau:.9,
     lien:.45, travail:{ fibre:1, baies:1 }, metier:'cueille les fleurs et les cerises', grimpe:0, bond:2, sauteur:1 },   // (§148) un sauteur, comme le félin
   { id:'renard', n:'Renard des pétales', corps:'felin', renard:1, queues:3, biome:23, diet:'h', sz:.85, spd:3.4, vue:20, peur:.9, herd:0, cap:4, mat:100,
@@ -10731,6 +10733,44 @@ function emitLimb(A, B, w, h, base, view, out, cle, rang, uni, tex, texA, ref, F
 // graphique (boite) comme pour le canvas (emitLimb). L'éclairement est celui des pavés : le dessus à 1, le dessous à 0,5,
 // les flancs à 0,8 ou 0,6 selon leur axe — une face penchée prend le mélange.
 const formeDe = F => !!F && (F.fin !== undefined || F.pans > 4 || !!F.boule);
+// (§188) Les gabarits : chaque forme (prisme à n pans, boule à n bandes) est calculée une fois dans un repère type —
+// ses points (a, b : la section ; t : le long de l'axe ; e : le bout B), ses faces, déjà enroulées comme BOXF. À chaque
+// image, on ne fait plus que placer ses points dans un tampon : rien n'est alloué, même pour toute une faune.
+const FORME_G = new Map(), FORME_P = new Float64Array(3 * 256);
+const FORME_R = { n: 0, F: null, capB: -1, ux: 0, uy: 0, uz: 1, L: 0 };
+function gabaritForme(F) {
+  const boule = !!F.boule, n = boule ? Math.max(3, Math.min(6, F.boule === true ? 4 : F.boule | 0)) : F.pans > 4 ? Math.min(12, F.pans | 0) : 4;
+  const e = F.rond > 0 && F.rond < 1 ? Math.round(F.rond * 20) / 20 : 1, cle = (boule ? 'b' : 'p') + n + (e < 1 ? 'r' + e : '');
+  const sp = x => e === 1 ? x : Math.sign(x) * Math.abs(x) ** e;        // (§188) rond < 1 : la forme gonfle vers sa boîte (un galet, pas une bille)
+  let G = FORME_G.get(cle); if (G) return G;
+  const Q = [], FA = []; let capB = -1;
+  if (boule) {
+    const nm = n * 2; Q.push([0, 0, -1, 0]); const R = [];
+    for (let i = 1; i < n; i++) { const ph = -Math.PI / 2 + Math.PI * i / n, cp = Math.cos(ph), ring = [];
+      for (let j = 0; j < nm; j++) { const th = 2 * Math.PI * (j + (i % 2) * .5) / nm; ring.push(Q.push([sp(Math.cos(th)) * sp(cp), sp(Math.sin(th)) * sp(cp), sp(Math.sin(ph)), 0]) - 1); } R.push(ring); }
+    const p1 = Q.push([0, 0, 1, 0]) - 1, last = R[R.length - 1];
+    for (let j = 0; j < nm; j++) { const k = (j + 1) % nm; FA.push([0, R[0][j], R[0][k]]);
+      for (let i = 0; i < R.length - 1; i++) FA.push([R[i][j], R[i + 1][j], R[i + 1][k], R[i][k]]); FA.push([last[j], p1, last[k]]); }
+  } else {
+    const off = Math.PI / n, k4 = n === 4 ? Math.SQRT2 : 1;
+    for (let z = 0; z < 2; z++) for (let j = 0; j < n; j++) { const th = off + 2 * Math.PI * j / n; Q.push([sp(Math.cos(th)) * k4, sp(Math.sin(th)) * k4, z, z]); }
+    for (let j = 0; j < n; j++) { const k = (j + 1) % n; FA.push([j, k, n + k, n + j]); }
+    FA.push(Array.from({ length: n }, (_, j) => j)); capB = FA.push(Array.from({ length: n }, (_, j) => n + j)) - 1;
+  }
+  let cx = 0, cy = 0, cz = 0; for (const q of Q) { cx += q[0]; cy += q[1]; cz += q[2]; } cx /= Q.length; cy /= Q.length; cz /= Q.length;
+  for (const f of FA) {                                  // l'enroulement de BOXF : la normale (p1 - p0) × (p2 - p0) rentre
+    const A0 = Q[f[0]], B0 = Q[f[1]], C0 = Q[f[2]], ex = B0[0] - A0[0], ey = B0[1] - A0[1], ez = B0[2] - A0[2], gx = C0[0] - A0[0], gy = C0[1] - A0[1], gz = C0[2] - A0[2];
+    const nx = ey * gz - ez * gy, ny = ez * gx - ex * gz, nz = ex * gy - ey * gx;
+    let mx = 0, my = 0, mz = 0; for (const i of f) { mx += Q[i][0]; my += Q[i][1]; mz += Q[i][2]; }
+    if (nx * (mx / f.length - cx) + ny * (my / f.length - cy) + nz * (mz / f.length - cz) > 0) f.reverse();
+  }
+  // (§189) un flanc de prisme commence par ses deux points de base : quand le bout se réduit à une pointe (fin 0),
+  // ses deux points du bout se confondent, et la normale prise sur les trois premiers serait nulle — la face sautait
+  if (!boule) for (const f of FA) if (f.length === 4 && f.some(i => i < n) && f.some(i => i >= n)) while (!(f[0] < n && f[1] < n)) f.push(f.shift());
+  G = { boule, Q, F: FA, capB, nv: FA.reduce((s2, f) => s2 + f.length, 0), ni: FA.reduce((s2, f) => s2 + (f.length - 2) * 3, 0) };
+  FORME_G.set(cle, G); return G;
+}
+// Place les points d'une forme dans FORME_P ; rend FORME_R (le gabarit, et l'axe)
 function geoForme(A, B, w, h, ref, F) {
   let dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2], L = Math.hypot(dx, dy, dz);
   if (L < 1e-6) { dx = 0; dy = 0; dz = 1; L = 0; }
@@ -10740,53 +10780,34 @@ function geoForme(A, B, w, h, ref, F) {
   else if (Math.abs(uz) < .92) { rx = uy; ry = -ux; rz = 0; } else { rx = 0; ry = uz; rz = -uy; }
   const rl = Math.hypot(rx, ry, rz) || 1; rx /= rl; ry /= rl; rz /= rl;
   const sx = uy * rz - uz * ry, sy = uz * rx - ux * rz, sz = ux * ry - uy * rx;
-  const hw = w / 2, hh = h / 2, P = [], FA = [];
-  const pt = (E, a, b) => P.push([E[0] + rx * a + sx * b, E[1] + ry * a + sy * b, E[2] + rz * a + sz * b]) - 1;
-  if (F.boule) {
-    const nb = Math.max(3, F.boule === true ? 4 : F.boule | 0), nm = nb * 2, C = [(A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2], hl = L ? L / 2 : (hw + hh) / 2;
-    const pole = q => P.push([C[0] + ux * hl * q, C[1] + uy * hl * q, C[2] + uz * hl * q]) - 1;
-    const p0 = pole(-1), R = [];
-    for (let i = 1; i < nb; i++) {
-      const ph = -Math.PI / 2 + Math.PI * i / nb, cp = Math.cos(ph), sp = Math.sin(ph), E = [C[0] + ux * hl * sp, C[1] + uy * hl * sp, C[2] + uz * hl * sp], ring = [];
-      for (let j = 0; j < nm; j++) { const th = 2 * Math.PI * (j + (i % 2) * .5) / nm; ring.push(pt(E, Math.cos(th) * hw * cp, Math.sin(th) * hh * cp)); }
-      R.push(ring);
-    }
-    const p1 = pole(1), last = R[R.length - 1];
-    for (let j = 0; j < nm; j++) {
-      const k = (j + 1) % nm;
-      FA.push([p0, R[0][j], R[0][k]]);
-      for (let i = 0; i < R.length - 1; i++) FA.push([R[i][j], R[i + 1][j], R[i + 1][k], R[i][k]]);
-      FA.push([last[j], p1, last[k]]);
-    }
+  const G = gabaritForme(F), Q = G.Q, P = FORME_P, hw = w / 2, hh = h / 2;
+  if (G.boule) {
+    const Cx = (A[0] + B[0]) / 2, Cy = (A[1] + B[1]) / 2, Cz = (A[2] + B[2]) / 2, hl = L ? L / 2 : (hw + hh) / 2;
+    for (let i = 0; i < Q.length; i++) { const q = Q[i], a = q[0] * hw, b = q[1] * hh, c = q[2] * hl, o = i * 3;
+      P[o] = Cx + ux * c + rx * a + sx * b; P[o + 1] = Cy + uy * c + ry * a + sy * b; P[o + 2] = Cz + uz * c + rz * a + sz * b; }
   } else {
-    const n = F.pans > 4 ? F.pans | 0 : 4, off = Math.PI / n, k4 = n === 4 ? Math.SQRT2 : 1;   // le pavé : ses coins aux angles, comme boite
-    const fin = F.fin === undefined ? [1, 1] : Array.isArray(F.fin) ? F.fin : [F.fin, F.fin], RA = [], RB = [];
-    for (let j = 0; j < n; j++) { const th = off + 2 * Math.PI * j / n, c = Math.cos(th) * k4, s = Math.sin(th) * k4; RA.push(pt(A, c * hw, s * hh)); RB.push(pt(B, c * hw * fin[0], s * hh * fin[1])); }
-    for (let j = 0; j < n; j++) { const k = (j + 1) % n; FA.push([RA[j], RA[k], RB[k], RB[j]]); }
-    FA.push(RA.slice()); if (fin[0] > .02 || fin[1] > .02) FA.push(RB.slice());
+    const fin = F.fin === undefined ? null : Array.isArray(F.fin) ? F.fin : [F.fin, F.fin];
+    for (let i = 0; i < Q.length; i++) { const q = Q[i], E = q[3] ? B : A, fa = q[3] && fin ? fin[0] : 1, fb = q[3] && fin ? fin[1] : 1, a = q[0] * hw * fa, b = q[1] * hh * fb, o = i * 3;
+      P[o] = E[0] + rx * a + sx * b; P[o + 1] = E[1] + ry * a + sy * b; P[o + 2] = E[2] + rz * a + sz * b; }
   }
-  let cx = 0, cy = 0, cz = 0; for (const p of P) { cx += p[0]; cy += p[1]; cz += p[2]; } cx /= P.length; cy /= P.length; cz /= P.length;
-  for (const f of FA) {                                  // l'enroulement de BOXF : la normale (p1 - p0) × (p2 - p0) rentre
-    const a = P[f[0]], b = P[f[1]], c = P[f[2]], ex = b[0] - a[0], ey = b[1] - a[1], ez = b[2] - a[2], gx = c[0] - a[0], gy = c[1] - a[1], gz = c[2] - a[2];
-    const nx = ey * gz - ez * gy, ny = ez * gx - ex * gz, nz = ex * gy - ey * gx;
-    let mx = 0, my = 0, mz = 0; for (const i of f) { mx += P[i][0]; my += P[i][1]; mz += P[i][2]; }
-    if (nx * (mx / f.length - cx) + ny * (my / f.length - cy) + nz * (mz / f.length - cz) > 0) f.reverse();
-  }
-  return { P, F: FA, ux, uy, uz, L };
+  const R = FORME_R; R.n = Q.length; R.F = G.F; R.G = G; R.ux = ux; R.uy = uy; R.uz = uz; R.L = L;
+  R.capB = !G.boule && F.fin !== undefined && (Array.isArray(F.fin) ? Math.max(F.fin[0], F.fin[1]) : F.fin) <= .02 ? G.capB : -1;   // une pointe : pas de face au bout
+  return R;
 }
 // l'éclairement d'une face, d'après sa normale sortante : celui des pavés, mêlé pour les faces penchées
 const ombreForme = (nx, ny, nz) => { const z2 = nz * nz, hz = nx * nx + ny * ny; return z2 * (nz > 0 ? 1 : .5) + (1 - z2) * (hz ? (nx * nx * .8 + ny * ny * .6) / hz : .7); };
 function emitForme(A, B, w, h, base, view, out, cle, rang, uni, tex, texA, ref, F) {
-  const G = geoForme(A, B, w, h, ref, F), P = G.P;
-  for (const f of G.F) {
-    const p0 = P[f[0]], p1 = P[f[1]], p2 = P[f[2]];
+  const G = geoForme(A, B, w, h, ref, F), P = FORME_P, pt = i => [P[i * 3], P[i * 3 + 1], P[i * 3 + 2]];
+  for (let q = 0; q < G.F.length; q++) {
+    if (q === G.capB) continue;
+    const f = G.F[q], p0 = pt(f[0]), p1 = pt(f[1]), p2 = pt(f[2]);
     const n = v3.norm(v3.cross(v3.sub(p2, p0), v3.sub(p1, p0)));
     if (!n[0] && !n[1] && !n[2]) continue;
     let cx = 0, cy = 0, cz = 0;
-    for (const i of f) { cx += P[i][0]; cy += P[i][1]; cz += P[i][2]; }
+    for (const i of f) { cx += P[i * 3]; cy += P[i * 3 + 1]; cz += P[i * 3 + 2]; }
     cx /= f.length; cy /= f.length; cz /= f.length;
     if (!view.vis(n, cx, cy, cz)) continue;
-    const pts = view.poly(f.map(i => P[i]));
+    const pts = view.poly(f.map(pt));
     if (!pts) continue;
     const dist = view.dist(cx, cy, cz), sh = uni || ombreForme(n[0], n[1], n[2]);
     out.push({ d: cle == null ? dist : cle, d2: cle == null ? 0 : rang, d3: dist, pts,
@@ -16564,12 +16585,45 @@ function varier(f, B) {
   }
   return O;
 }
+// (§188) LES CRÉATURES EN FORMES. Sans reprendre chaque dessin, chaque os d'une bête prend la forme que sa mesure suggère :
+// une masse (corps, tête, ventre, croupe) devient une boule ; un membre long (patte, cou, queue, corne, bec) un prisme à
+// six pans qui s'effile vers son bout ; un œil, un point qui luit, une petite boule. Ce qui est plat (plaques, ailes,
+// oreilles, carapaces, nageoires) ou très fin (antennes, fils, veines) reste un pavé, comme ce qui a déjà sa forme ou son
+// grain. Les machines, les bâtiments, la flore, les gens et les mages gardent leurs blocs. De près seulement : au-delà de
+// FORMES_DIST cases, les pavés d'avant (une bête lointaine n'a que quelques pixels).
+const FORMES_DIST = 26;
+let formesActives = true;                                                 // un essai de l'onglet Bêta peut les couper, le temps d'une partie
+const formesDist = () => { try { return G3.ok && !G3.perdu ? FORMES_DIST : 14; } catch (e) { return 14; } };   // le canvas de secours peine plus : plus près
+const formesPour = f => { const sp = f.sp; return !!sp && !sp.pnj && !sp.villageois && !sp.batiment && !sp.plante && !sp.donjon && !sp.vyrel && !sp.vyMere && !sp.illusion && !f.pnjSuit
+  && !(typeof automate === 'function' && automate(sp)) && sp.corps !== 'mage' && sp.corps !== 'cercle' && sp.corps !== 'araignon' && sp.corps !== 'tisseuse'; };
+function formesAuto(f, B) {
+  if (!formesActives || !formesPour(f) || (f.x - P.x) ** 2 + (f.y - P.y) ** 2 > formesDist() ** 2) return B;
+  let mx = 0; for (const o of B) if (o && o.w) { const m = Math.max(o.w, o.h); if (Math.min(o.w, o.h) >= .5 * m && m > mx) mx = m; }   // l'épaisseur du tronc
+  return B.map(o => formeOs(o, echB(f) || 1, mx));
+}
+function formeOs(o, k, mx) {
+  if (!o || !o.a || !o.b || o.boule || o.pans || o.fin !== undefined || o.tex) return o;
+  const w = o.w, h = o.h, m = Math.max(w, h), n = Math.min(w, h), L = Math.hypot(o.b[0] - o.a[0], o.b[1] - o.a[1], o.b[2] - o.a[2]) * k;
+  if (n < .028) return o;                                                // un fil, une antenne, une veine
+  if (m < .1 && L < m * (o.luit ? 1.6 : .6) && n > .6 * m) return Object.assign({}, o, { boule: 3 });   // un œil, un point qui luit
+  if (n < .5 * m) {                                                      // plat : une plaque, une aile, une oreille
+    if (m >= .55 * mx && L < 1.5 * m && n > .2 * m) return Object.assign({}, o, { boule: m > .22 ? 4 : 3, rond: .5, w: w * 1.08, h: h * 1.15 });   // une grande carapace : un dôme
+    return L > 2.4 * m ? Object.assign({}, o, { fin: .72 }) : o;         // longue, elle s'effile
+  }
+  if (m >= .55 * mx && L < 3.2 * m) {                                    // une masse : tronc, croupe, tête ; un galet, pas une bille,
+    const a = o.a, b = o.b, e = .08;                                     // un rien plus long et plus gros, pour rester soudé à ses voisins
+    return Object.assign({}, o, { boule: m > .22 ? 4 : 3, rond: .62, w: w * 1.1, h: h * 1.1, a: [a[0] - (b[0] - a[0]) * e, a[1] - (b[1] - a[1]) * e, a[2] - (b[2] - a[2]) * e], b: [b[0] + (b[0] - a[0]) * e, b[1] + (b[1] - a[1]) * e, b[2] + (b[2] - a[2]) * e] });
+  }
+  if (L < 1.1 * m) return o;                                             // un petit bloc trapu (un anneau de queue, une touffe) : il reste pavé
+  if (L < 1.7 * m) return Object.assign({}, o, { pans: 6, rond: .55 });   // un petit bloc long (un pied, un museau) : arrondi
+  return Object.assign({}, o, { pans: 6, rond: .8, fin: L > 4 * m ? .66 : L > 2.5 * m ? .8 : .92 });   // un membre, qui s'effile
+}
 function foeBones(f) {
   const B0 = osDeBase(f), B = f.variante ? varier(f, B0) : B0;
   if (f.etat === 'furie' && f.sp.oeil) for (let i = 0; i < B.length; i++) if (memeCouleur(B[i].c, f.sp.oeil) || memeCouleur(B[i].c, f.variante ? OEIL_ROBE[(lireVariante(f.variante) || {}).robe] : null))
     B[i] = Object.assign({}, B[i], { c: [255, 40, 30], luit: true });   // la fureur de la brume : les yeux rouges, qui luisent
-  if (typeof vyrelOs === 'function' && f.sp && (f.sp.vyMere || (f.comp && f.comp.vyrel) || (typeof ETAT !== 'undefined' && ETAT.id === 'vyrel'))) return vyrelOs(f, B);   // (§184) malade du Vyrel
-  return B;
+  if (typeof vyrelOs === 'function' && f.sp && (f.sp.vyMere || (f.comp && f.comp.vyrel) || (typeof ETAT !== 'undefined' && ETAT.id === 'vyrel'))) return formesAuto(f, vyrelOs(f, B));   // (§184) malade du Vyrel
+  return formesAuto(f, B);                                               // (§188) en formes
 }
 // Le carnet : chaque variante croisée, une fois pour toutes — on la compte ensuite.
 function noterVariante(b) {
@@ -16941,44 +16995,123 @@ function osTellurien(f) {
     }
     return B;
   }
-  // le cerf
-  const bz = .46 + envolee(f) * .02 - dk * .3;
+  return osCerf(f, B, dk, v, ph);                                      // (§189) le cerf : deux physiques, deux bêtes
+}
+// (§189) LES CERFS, refaits en formes. Deux espèces, deux physiques :
+//  - le Cerf de verre, un grand cerf de montagne : poitrail profond, garrot haut, cou épais que
+//    borde une crinière d'aiguilles de cristal, une crête de cristaux sur l'échine, et une ramure
+//    de cristal qui luit, large, à dix cors ; un éperon de cristal derrière chaque boulet.
+//  - le Cerf des cerisiers, un sika : plus ramassé, la croupe ronde, la robe semée de taches
+//    couleur de pétale, le miroir blanc cerclé de sombre, une raie sur l'échine, une courte
+//    crinière sombre, et des bois de bois vivant, à huit cors, qui fleurissent.
+// Les largeurs suivent la taille de la bête (K), comme ses os : il garde ses proportions.
+function osCerf(f, B, dk, v, ph) {
+  const sp = f.sp, K = echB(f), sika = !!sp.fleurBois, vif = 1 - dk;
+  const fo = (F, a, b, w, h, c, luit) => { const o = { a, b, w: w * K, h: h * K, c }; if (luit) o.luit = true; B.push(Object.assign(o, F)); };
+  const bo = (a, b, w, h, c, r = .6, n = 4, luit) => fo({ boule: n, rond: r }, a, b, w, h, c, luit);   // un galet
+  const pr = (a, b, w, h, c, fin = 1, luit, n = 6, r = .8) => fo(fin === 1 ? { pans: n, rond: r } : { pans: n, rond: r, fin }, a, b, w, h, c, luit);   // un prisme qui s'effile
+  const pe = (a, b, w, h, c, fin = 1) => fo(fin === 1 ? {} : { fin }, a, b, w, h, c);   // une plaque
   const broute = f.etat === 'brouter' && v < .3 && !f.dead, alerte = (f.alarm || 0) > .2;
-  add([-.22, 0, bz], [.18, 0, bz + .02], .19, .18, sp.shell);                         // le corps
-  add([-.18, 0, bz - .07], [.12, 0, bz - .06], .15, .05, sp.dark);                    // le ventre
-  add([-.23, 0, bz + .05], [-.29, 0, bz + (alerte ? .15 : .08)], .06, .05, [236, 250, 250]);   // la queue, dressée à l'alerte
-  const cou0 = [.16, 0, bz + .06];
-  const tete = broute ? [.36, 0, .12] : alerte ? [.27, 0, bz + .42] : [.31, 0, bz + .30];
-  const nuq = [cou0[0] + (tete[0] - cou0[0]) * .75, 0, cou0[2] + (tete[2] - cou0[2]) * .8];
-  const mus = broute ? [.44, 0, .05] : [tete[0] + .12, 0, tete[2] - .05];
-  add(cou0, nuq, .09, .09, sp.shell); add(nuq, tete, .09, .09, sp.shell); add(tete, mus, .07, .07, sp.shell);
-  add([mus[0] - .015, 0, mus[2]], [mus[0] + .01, 0, mus[2] - .005], .045, .045, sp.dark);   // le mufle
-  for (const s of [-1, 1]) {
-    add([tete[0] + .03, s * .04, tete[2] + .02], [tete[0] + .045, s * .04, tete[2] + .025], .03, .03, sp.oeil);
-    add([tete[0] - .02, s * .04, tete[2] + .04], [tete[0] - .05, s * (alerte ? .08 : .11), tete[2] + (alerte ? .11 : .06)], .03, .015, sp.shell);   // les oreilles
-    // les bois de cristal : un merrain, trois andouillers
-    const b0 = [tete[0], s * .03, tete[2] + .05], b1 = [tete[0] - .06, s * .12, tete[2] + .22], b2 = [tete[0] - .12, s * .16, tete[2] + .36];
-    add(b0, b1, .035, .035, sp.bois); add(b1, b2, .028, .028, sp.bois);
-    add(b1, [b1[0] + .07, b1[1] + s * .02, b1[2] + .10], .022, .022, sp.bois);
-    add(mixP(b1, b2, .5), [b2[0] + .02, b2[1] + s * .07, b2[2] - .02], .02, .02, sp.bois);
-    add(b2, [b2[0] + .04, b2[1] - s * .01, b2[2] + .08], .018, .018, sp.bois);
-    if (sp.fleurBois) for (const q of [b1, b2, [b1[0] + .07, b1[1] + s * .02, b1[2] + .1], [b2[0] + .02, b2[1] + s * .07, b2[2] - .02], [b2[0] + .04, b2[1] - s * .01, b2[2] + .08]])
-      add(q, [q[0] + .012, q[1], q[2] + .02], .055, .05, sp.fleurBois);   // le cerf des cerisiers (§112) : ses bois fleurissent
+  const marche = Math.min(1, v / .8) * vif, pas = Math.sin(ph) * marche;
+  const g = 1 + .022 * Math.sin(t * 1.7 + (f.bob || 0)) * vif;          // il respire
+  const bz = (sika ? .44 : .5) + envolee(f) * .02 - dk * .3 + Math.abs(pas) * .012;
+  const poil = sp.shell, fonce = sp.dark, jambe = sp.leg, bois = sp.bois, blanc = [244, 250, 252];
+  // ---- le tronc : la croupe, le ventre qui respire, le poitrail, le garrot ----
+  const W = sika ? .25 : .29;                                           // la largeur du tronc
+  bo([-.33, 0, bz + .02], [-.1, 0, bz + .04], W * .94, sika ? .26 : .28, poil);                     // la croupe
+  bo([-.2, 0, bz - .01], [.1, 0, bz], W * g, (sika ? .26 : .29) * g, poil, .55, 5);                 // le ventre
+  bo([0, 0, bz + .04], [.24, 0, bz + .07], W, sika ? .29 : .34, poil);                              // le poitrail
+  bo([.02, 0, bz + (sika ? .12 : .15)], [.18, 0, bz + (sika ? .13 : .17)], W * .6, sika ? .09 : .13, poil);   // le garrot
+  bo([-.2, 0, bz - .09], [.1, 0, bz - .08], W * .78, .14, fonce);                                    // le dessous, plus sombre
+  bo([.14, 0, bz - .06], [.25, 0, bz - .03], W * .7, .2, sika ? fonce : poil.map((x, i) => x * .7 + fonce[i] * .3), .85, 3);   // le bas du poitrail
+  if (sika) {
+    pe([-.3, 0, bz + .155], [-.1, 0, bz + .155], .035, .02, fonce); pe([-.1, 0, bz + .145], [.12, 0, bz + .17], .035, .02, fonce, .7);   // la raie de l'échine
+    // la robe tachetée : deux rangs de taches couleur de pétale sur chaque flanc
+    for (const s of [-1, 1]) for (let i = 0; i < 7; i++) {
+      const x = -.27 + i * .062, z = bz + (i % 2 ? .1 : .04), y = s * (W * .5 - .012);
+      bo([x, y, z], [x, y + s * .02, z], .042, .036, sp.fleurBois, 1, 3);
+    }
+    bo([-.322, 0, bz + .03], [-.336, 0, bz + .03], .2, .19, fonce, 1, 3);                           // le miroir, cerclé de sombre
+    bo([-.33, 0, bz + .03], [-.345, 0, bz + .03], .16, .15, blanc, 1, 3);
+  } else {
+    // la crête de l'échine : des cristaux qui montent du dos, plus grands au garrot
+    for (let i = 0; i < 5; i++) {
+      const x = -.27 + i * .1, zb = bz + [.15, .14, .12, .17, .21][i], k = [.08, .1, .09, .13, .15][i];
+      pr([x, 0, zb], [x - .05, 0, zb + k], .05, .045, bois, 0, true);
+      if (i % 2 === 0) for (const s of [-1, 1]) pr([x + .03, s * .05, zb - .02], [x - .01, s * .1, zb + k * .55], .032, .03, bois, 0, true);
+    }
   }
-  add([tete[0] + .01, 0, tete[2] + .06], [tete[0] + .03, 0, tete[2] + .09], .045, .045, sp.pierre);   // la pierre natale, au front
-  // le trot en diagonale, pieds posés : le genou pointe devant, le jarret derrière
-  const R = repere(f);
-  // Le bond : à l'envol, les antérieurs se replient sous le poitrail et les postérieurs, tendus
-  // derrière, poussent encore ; à la descente, les antérieurs se tendent vers le sol et les
-  // postérieurs se ramènent sous le ventre.
-  const desc = Math.max(0, Math.min(1, .5 - (f.vz || 0) / 14));
+  // la queue : courte, blanche dessous ; dressée à l'alerte, elle bat au pas
+  const qz = alerte ? .15 : sika ? .02 : .04, qy = Math.sin(t * 5 + (f.bob || 0)) * .015 * marche;
+  pr([-.33, 0, bz + .09], [-.39, qy, bz + qz], sika ? .055 : .065, .05, alerte ? blanc : poil, .6);
+  if (sika) pe([-.335, 0, bz + .11], [-.39, qy, bz + qz + .015], .015, .02, fonce, .5);
+  // ---- le cou et la tête ----
+  const cou0 = [.17, 0, bz + .1];
+  const tete = broute ? [.37, 0, .13] : alerte ? [.28, 0, bz + .44] : [.33, 0, bz + .32 + pas * .012];
+  const nuq = [cou0[0] + (tete[0] - cou0[0]) * .78, 0, cou0[2] + (tete[2] - cou0[2]) * .82];
+  const mus = broute ? [.46, 0, .06] : [tete[0] + .13, 0, tete[2] - .055];
+  pr(cou0, nuq, sika ? .14 : .18, sika ? .16 : .21, poil, .74, false, 8, .7);                       // le cou, épais à l'épaule
+  pr(nuq, tete, sika ? .11 : .13, sika ? .12 : .14, poil, .9, false, 8, .7);
+  const cm = (k, dz) => { const p = mixP(cou0, nuq, k); return [p[0], 0, p[2] + dz]; };
+  if (sika) {                                                           // une courte crinière sombre sous la gorge
+    for (const k of [.25, .5, .75]) { const p = cm(k, -.06); pr(p, [p[0] + .015, 0, p[2] - .07], .07, .04, fonce, .3); }
+  } else {                                                              // la crinière de cristal : des aiguilles qui pendent sous le cou
+    for (const k of [.15, .38, .6, .82]) { const p = cm(k, -.07); pr(p, [p[0] + .02, 0, p[2] - .1 - k * .03], .05, .045, bois, 0, true);
+      for (const s of [-1, 1]) pr([p[0], s * .04, p[2] + .02], [p[0] - .01, s * .1, p[2] - .05], .03, .028, bois, 0, true); }
+  }
+  bo([tete[0] - .06, 0, tete[2] + .005], [tete[0] + .065, 0, tete[2] + .02], sika ? .132 : .152, sika ? .135 : .155, poil, .6, 4);   // le crâne
+  pr([tete[0] + .03, 0, tete[2] - .005], mus, sika ? .095 : .112, sika ? .1 : .112, poil, .72, false, 8, .7);   // le chanfrein, qui s'effile
+  bo([mus[0] - .02, 0, mus[2] + .002], [mus[0] + .012, 0, mus[2] - .004], .06, .055, fonce, .7, 3);    // le mufle
+  bo([mus[0] - .06, 0, mus[2] - .035], [mus[0] - .005, 0, mus[2] - .035], .05, .025, fonce, .7, 3);   // la mâchoire
+  for (const s of [-1, 1]) {
+    bo([tete[0] + .03, s * .064, tete[2] + .03], [tete[0] + .05, s * .064, tete[2] + .033], .036, .036, sp.oeil, 1, 3);   // les yeux
+    pe([tete[0] + .055, s * .05, tete[2] + .02], [tete[0] + .085, s * .045, tete[2] + .005], .014, .01, fonce);           // le larmier
+    const oz = alerte ? .13 : .07, oy = alerte ? .1 : sika ? .15 : .13;
+    pe([tete[0] - .03, s * .05, tete[2] + .055], [tete[0] - .06, s * oy, tete[2] + oz], sika ? .07 : .058, .02, poil, .4);   // les oreilles
+    pe([tete[0] - .028, s * .052, tete[2] + .06], [tete[0] - .055, s * (oy - .01), tete[2] + oz + .004], sika ? .045 : .036, .012, fonce, .35);
+    const R0 = [tete[0] - .01, s * .04, tete[2] + .07];
+    bo(R0, [R0[0], s * .05, R0[2] + .02], .055, .055, sika ? fonce : bois, .6, 3, !sika);              // la meule
+    if (sika) {
+      // les bois vivants : un merrain, quatre cors, et des fleurs aux pointes
+      const b1 = [tete[0] - .05, s * .1, tete[2] + .16], b2 = [tete[0] - .09, s * .15, tete[2] + .26], b3 = [tete[0] - .08, s * .13, tete[2] + .34];
+      pr(R0, b1, .034, .034, bois, .85); pr(b1, b2, .03, .03, bois, .85); pr(b2, b3, .026, .026, bois, .7);
+      const cors = [[mixP(R0, b1, .35), [R0[0] + .09, s * .08, R0[2] + .07]], [b1, [b1[0] + .08, b1[1] + s * .02, b1[2] + .09]],
+        [b2, [b2[0] + .06, b2[1] + s * .04, b2[2] + .07]], [b2, [b2[0] - .05, b2[1] + s * .03, b2[2] + .06]]];
+      for (const [a, b] of cors) pr(a, b, .022, .022, bois, .3);
+      for (const q of [b3, ...cors.map(c => c[1]), mixP(b1, b2, .5)]) {
+        bo([q[0] - .01, q[1], q[2] - .01], [q[0] + .015, q[1], q[2] + .015], .05, .05, sp.fleurBois, .9, 3);
+        bo([q[0] + .01, q[1] + s * .022, q[2] - .02], [q[0] + .028, q[1] + s * .022, q[2]], .036, .036, [255, 226, 236], .9, 3);
+      }
+      pe(mixP(b1, b2, .5), [b1[0] - .02, b1[1] + s * .07, b1[2] + .04], .04, .01, [126, 176, 98], .3);   // une feuille
+    } else {
+      // la ramure de cristal, en lyre : le merrain s'ouvre, puis se referme ; dix cors, une couronne au sommet
+      const b1 = [tete[0] - .06, s * .14, tete[2] + .19], b2 = [tete[0] - .11, s * .23, tete[2] + .3], b3 = [tete[0] - .11, s * .2, tete[2] + .41];
+      pr(R0, b1, .048, .048, bois, .85, true); pr(b1, b2, .042, .042, bois, .85, true); pr(b2, b3, .036, .036, bois, .8, true);
+      const cors = [[mixP(R0, b1, .2), [R0[0] + .13, s * .08, R0[2] + .04], .034],     // l'andouiller de massacre, sur le front
+        [mixP(R0, b1, .6), [R0[0] + .12, s * .14, R0[2] + .1], .03],
+        [b1, [b1[0] + .1, b1[1] + s * .01, b1[2] + .11], .028],
+        [b2, [b2[0] + .05, b2[1] + s * .08, b2[2] + .07], .026],
+        [b3, [b3[0] + .02, b3[1] - s * .01, b3[2] + .11], .024], [b3, [b3[0] + .09, b3[1] - s * .03, b3[2] + .07], .024], [b3, [b3[0] - .06, b3[1] + s * .04, b3[2] + .08], .024]];
+      for (const [a, b, w] of cors) pr(a, b, w, w, bois, 0, true);
+    }
+  }
+  bo([tete[0] + .02, 0, tete[2] + .07], [tete[0] + .045, 0, tete[2] + .09], .045, .045, sp.pierre, .8, 3, !sika);   // la pierre natale, au front
+  // ---- les pattes : le trot en diagonale, pieds posés ; le genou pointe devant, le jarret derrière ----
+  // Le bond : à l'envol, les antérieurs se replient sous le poitrail et les postérieurs, tendus derrière,
+  // poussent encore ; à la descente, les antérieurs se tendent vers le sol et les postérieurs se ramènent.
+  const R = repere(f), desc = Math.max(0, Math.min(1, .5 - (f.vz || 0) / 14));
   for (const ft of f.feet || []) {
     const arr = ft.i === 1, s = ft.s;
-    const vol = arr ? mixP([-.46, s * .07, .06], [-.14, s * .07, .16], desc) : mixP([.20, s * .07, .16], [.32, s * .07, .03], desc);
-    const H = [arr ? -.19 : .14, s * .07, bz - .04], Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.cerf.haut, vol), arr ? .53 : .49);
-    const G = genou(H, Pd, arr ? .26 : .24, arr ? .27 : .25, [arr ? -1 : 1, 0, 0]);
-    add(H, G, .065, .065, sp.shell); add(G, Pd, .04, .04, sp.leg);
-    add(Pd, [Pd[0] + .03, Pd[1], Pd[2]], .045, .03, sp.dark);                         // le sabot
+    const vol = arr ? mixP([-.46, s * .08, .06], [-.14, s * .08, .16], desc) : mixP([.2, s * .08, .16], [.32, s * .08, .03], desc);
+    const H = [arr ? -.2 : .15, s * .08, bz - .04], L1 = arr ? .27 : .25, L2 = arr ? .29 : .27;
+    const Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.cerf.haut, vol), L1 + L2), G = genou(H, Pd, L1, L2, [arr ? -1 : 1, 0, 0]);
+    pr([H[0] + (arr ? -.02 : .02), H[1], H[2] + .08], G, arr ? (sika ? .145 : .175) : (sika ? .12 : .14), arr ? (sika ? .17 : .2) : (sika ? .135 : .155), poil, .45, false, 8, .7);   // la cuisse, l'épaule : de la masse
+    bo([G[0] - .025, G[1], G[2]], [G[0] + .025, G[1], G[2]], sika ? .062 : .072, sika ? .062 : .072, jambe, .7, 3);   // le genou, le jarret
+    const B0 = [Pd[0], Pd[1], Pd[2] + .045];
+    pr(G, B0, sika ? .055 : .065, sika ? .055 : .065, jambe, .78);                                   // le canon
+    bo([B0[0] - .018, B0[1], B0[2] - .01], [B0[0] + .018, B0[1], B0[2] + .01], sika ? .06 : .068, sika ? .055 : .062, jambe, .7, 3);   // le boulet
+    for (const d of [-1, 1]) pr([Pd[0] - .005, Pd[1] + d * .011, Pd[2] + .03], [Pd[0] + .035, Pd[1] + d * .013, Pd[2]], .022, .034, fonce, .6);   // le sabot fendu
+    if (!sika) pr([B0[0] - .01, B0[1], B0[2]], [B0[0] - .06, B0[1], B0[2] - .015], .022, .02, bois, 0, true);   // l'éperon de cristal
   }
   return B;
 }
@@ -17297,46 +17430,7 @@ function osDoux(f) {
     }
     return B;
   }
-  if (sp.corps === 'carillon') {
-    const bz = .42 + envolee(f) * .02 - dk * .28;
-    const broute = f.etat === 'brouter' && v < .3 && !f.dead;
-    add([-.20, 0, bz], [.16, 0, bz + .02], .17, .16, sp.shell);                       // le corps, fin
-    add([-.16, 0, bz - .065], [.1, 0, bz - .055], .13, .045, sp.dark);                // le ventre
-    for (const x of [-.12, -.04, .04]) add([x, 0, bz + .08], [x + .03, 0, bz + .085], .175, .02, sp.dark);   // les rayures du dos
-    add([-.21, 0, bz + .03], [-.26, 0, bz - .05], .04, .035, sp.dark);                // la queue
-    const cou0 = [.14, 0, bz + .05];
-    const tete = broute ? [.34, 0, .12] : alerte ? [.25, 0, bz + .40] : [.29, 0, bz + .30];
-    add(cou0, tete, .075, .075, sp.shell);
-    const mus = broute ? [.42, 0, .05] : [tete[0] + .11, 0, tete[2] - .05];
-    add(tete, mus, .065, .06, sp.shell);
-    add([mus[0] - .01, 0, mus[2]], [mus[0] + .01, 0, mus[2] - .005], .04, .04, sp.dark);
-    const vent = Math.min(1.5, Meteo.vent || 0);
-    for (const s2 of [-1, 1]) {
-      add([tete[0] + .03, s2 * .035, tete[2] + .02], [tete[0] + .04, s2 * .035, tete[2] + .025], .025, .025, sp.oeil);
-      add([tete[0] - .02, s2 * .04, tete[2] + .03], [tete[0] - .05, s2 * .10, tete[2] + .02], .03, .012, sp.shell);   // les oreilles
-      // les cornes creuses : elles partent en arrière, s'enroulent, s'ouvrent en pavillon
-      const c0 = [tete[0] - .01, s2 * .03, tete[2] + .05], c1 = [tete[0] - .10, s2 * .07, tete[2] + .17],
-        c2 = [tete[0] - .22, s2 * .10, tete[2] + .19], c3 = [tete[0] - .28, s2 * .12, tete[2] + .12];
-      add(c0, c1, .04, .04, sp.corne); add(c1, c2, .035, .035, sp.corne); add(c2, c3, .045, .045, sp.corne);
-      add(c3, [c3[0] - .015, c3[1], c3[2] - .03], .07, .07, sp.corne);                // le pavillon
-      add([c3[0] - .02, c3[1], c3[2] - .035], [c3[0] - .022, c3[1], c3[2] - .045], .045, .045, [48, 36, 26]);   // son creux
-      for (const [k, q] of [[0, c1], [1, c2]]) {                                     // deux clochettes, que le vent balance
-        const bal = Math.sin(t * (2.4 + k * .7) + f.bob + s2) * (.02 + vent * .03);
-        const a = [q[0], q[1] + s2 * .01, q[2] - .02], b = [q[0] + bal, q[1] + s2 * .015, q[2] - .08];
-        add(a, b, .008, .008, sp.dark); add(b, [b[0], b[1], b[2] - .03], .035, .035, sp.corne);
-      }
-    }
-    const desc = Math.max(0, Math.min(1, .5 - (f.vz || 0) / 14));
-    for (const ft of f.feet || []) {
-      const arr = ft.i === 1, s2 = ft.s;
-      const vol = arr ? mixP([-.42, s2 * .06, .08], [-.14, s2 * .06, .15], desc) : mixP([.19, s2 * .06, .15], [.30, s2 * .06, .04], desc);
-      const H = [arr ? -.17 : .12, s2 * .065, bz - .04], Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.carillon.haut, vol), arr ? .48 : .45);
-      const G = genou(H, Pd, arr ? .24 : .22, arr ? .25 : .23, [arr ? -1 : 1, 0, 0]);
-      add(H, G, .055, .055, sp.shell); add(G, Pd, .032, .032, sp.leg);
-      add(Pd, [Pd[0] + .025, Pd[1], Pd[2]], .035, .025, sp.dark);                    // le sabot
-    }
-    return B;
-  }
+  if (sp.corps === 'carillon') return osCarillon(f, B, dk, v, ph, R, alerte);   // (§190) le carillonneur, refait en formes
   // l'oglodon
   const ram = f.ramasse || 0, charge = f.as && f.as.phase === 'bond' ? 1 : 0;
   const croque = f.etat === 'grignoter' && !f.dead ? Math.max(0, Math.sin(t * 9 + f.bob)) : 0;
@@ -17370,6 +17464,104 @@ function osDoux(f) {
     const G = genou(H, Pd, .14, .17, [0, s2, .9]);
     add(H, G, .045, .04, sp.leg); add(G, Pd, .035, .03, sp.leg);
     add(Pd, [Pd[0] + (ft.i === 2 ? -.03 : .03), Pd[1] + s2 * .015, Pd[2]], .03, .015, sp.dark);
+  }
+  return B;
+}
+// (§190) LE CARILLONNEUR, refait en formes. Ni cerf de verre ni sika : une antilope des hautes herbes,
+// trapue, la bosse à l'épaule, la robe rayée de blanc sur les flancs, un chevron blanc entre les yeux, de
+// grandes oreilles, une barbiche. Sous la gorge, le fanon finit en cloche : une cloche de corne, qui
+// pend et bat. Ses cornes creuses font deux tours de vis en arrière et s'ouvrent en pavillon ; deux
+// clochettes y pendent à des fils. Tout ce qui sonne bat au pas, au vent — et à toute volée quand il
+// voit venir un chasseur.
+function osCarillon(f, B, dk, v, ph, R, alerte) {
+  const sp = f.sp, K = echB(f), vif = 1 - dk;
+  const fo = (F, a, b, w, h, c) => B.push(Object.assign({ a, b, w: w * K, h: h * K, c }, F));
+  const bo = (a, b, w, h, c, r = .6, n = 4) => fo({ boule: n, rond: r }, a, b, w, h, c);
+  const pr = (a, b, w, h, c, fin = 1, n = 6, r = .8) => fo(fin === 1 ? { pans: n, rond: r } : { pans: n, rond: r, fin }, a, b, w, h, c);
+  const pe = (a, b, w, h, c, fin = 1) => fo(fin === 1 ? {} : { fin }, a, b, w, h, c);
+  const poil = sp.shell, fonce = sp.dark, jambe = sp.leg, corne = sp.corne, creme = [242, 234, 214], creux = [48, 36, 26];
+  const broute = f.etat === 'brouter' && v < .3 && !f.dead;
+  const marche = Math.min(1, v / .8) * vif, pas = Math.sin(ph) * marche;
+  const g = 1 + .022 * Math.sin(t * 1.7 + (f.bob || 0)) * vif;
+  const bz = .44 + envolee(f) * .02 - dk * .28 + Math.abs(pas) * .012;
+  // ce qui sonne : le pas, le vent, et l'alarme (les premières secondes après avoir vu un chasseur)
+  const vent = Math.min(1.5, (typeof Meteo !== 'undefined' && Meteo.vent) || 0);
+  const volee = (f.chasseurVu && t < (f.guetT || 0) - 9 ? 1 : alerte ? .5 : 0) * vif;
+  const bat = k => (Math.sin(t * (2.4 + k * .7) + (f.bob || 0) * 3 + k) * (.015 + vent * .025) + Math.sin(ph * 2 + k) * .025 * marche) * vif + Math.sin(t * 17 + k * 2) * .045 * volee;
+  // ---- le tronc : trapu, la bosse à l'épaule ----
+  const W = .26;
+  bo([-.31, 0, bz + .01], [-.09, 0, bz + .03], W * .95, .25, poil);                                   // la croupe
+  bo([-.19, 0, bz - .02], [.09, 0, bz], W * g, .27 * g, poil, .55, 5);                                // le ventre
+  bo([0, 0, bz + .04], [.22, 0, bz + .07], W * 1.04, .31, poil);                                      // le poitrail
+  bo([.0, 0, bz + .15], [.17, 0, bz + .18], W * .62, .13, poil);                                      // la bosse
+  bo([-.19, 0, bz - .1], [.1, 0, bz - .09], W * .76, .13, fonce);                                     // le dessous
+  bo([.13, 0, bz - .06], [.23, 0, bz - .03], W * .68, .19, poil.map((x, i) => x * .75 + fonce[i] * .25), .85, 3);   // le bas du poitrail
+  // la robe : des rayures blanches qui descendent du dos sur chaque flanc, et une crinière courte
+  for (const s of [-1, 1]) for (let i = 0; i < 5; i++) {
+    const x = -.24 + i * .075, y0 = s * .06, y1 = s * (W * .5 - .008), zt = bz + (i < 2 ? .135 : .125), zm = bz + .05, zb = bz - .05;
+    pe([x, y0, zt], [x - .006, y1, zm], .017, .012, creme); pe([x - .006, y1, zm], [x - .016, y1 * .96, zb], .017, .012, creme);
+  }
+  for (let i = 0; i < 6; i++) { const x = -.22 + i * .07, z = bz + (i < 3 ? .13 : .14 + (i - 3) * .02); pe([x, 0, z], [x - .03, 0, z + .025], .03, .018, fonce, .6); }   // la crinière de l'échine
+  // la queue, et sa houppe sombre ; elle bat au pas, se lève à l'alerte
+  const qb = [-.32, 0, bz + .06], qe = [-.38, Math.sin(t * 4 + (f.bob || 0)) * .02 * (marche + .3), bz + (alerte ? .1 : -.06)];
+  pr(qb, qe, .045, .04, poil, .6); bo(qe, [qe[0] - .015, qe[1], qe[2] - .05], .045, .045, fonce, .7, 3);
+  if (alerte) pe([-.325, 0, bz + .04], [-.37, 0, bz + .085], .035, .012, creme);                      // le dessous blanc de la queue
+  // ---- le cou, le fanon et sa cloche ----
+  const cou0 = [.16, 0, bz + .08];
+  const tete = broute ? [.35, 0, .13] : alerte ? [.27, 0, bz + .42] : [.31, 0, bz + .3 + pas * .012];
+  const nuq = [cou0[0] + (tete[0] - cou0[0]) * .78, 0, cou0[2] + (tete[2] - cou0[2]) * .82];
+  const mus = broute ? [.44, 0, .06] : [tete[0] + .12, 0, tete[2] - .055];
+  pr(cou0, nuq, .15, .17, poil, .76, 8, .7); pr(nuq, tete, .115, .12, poil, .9, 8, .7);
+  for (let i = 0; i < 4; i++) { const p = mixP(cou0, nuq, .1 + i * .25); pe([p[0], 0, p[2] + .065], [p[0] - .025, 0, p[2] + .1], .026, .02, fonce, .5); }   // la crinière du cou
+  const gorge = mixP(cou0, nuq, .45), fa0 = [gorge[0] + .015, 0, gorge[2] - .06], fa1 = [gorge[0] + .01 + bat(0) * .3, 0, gorge[2] - .19];
+  pe(fa0, fa1, .02, .07, poil, .7);                                                                  // le fanon, une peau qui pend
+  const cl0 = [fa1[0] + bat(1) * .4, bat(2) * .3, fa1[2] - .005], cl1 = [cl0[0] + bat(1) * .5, cl0[1], cl0[2] - .09];
+  pr(cl0, cl1, .05, .05, corne, 1.9, 8, .9);                                                         // la cloche de gorge : de la corne, qui s'évase
+  bo([cl1[0], cl1[1], cl1[2] + .004], [cl1[0], cl1[1], cl1[2] - .002], .086, .086, creux, 1, 3);   // sa bouche
+  bo([cl1[0] + bat(3) * .3, cl1[1], cl1[2] - .005], [cl1[0] + bat(3) * .3, cl1[1], cl1[2] - .02], .022, .022, fonce, 1, 3);   // le battant
+  // ---- la tête ----
+  bo([tete[0] - .055, 0, tete[2] + .005], [tete[0] + .06, 0, tete[2] + .02], .125, .13, poil, .6, 4);   // le crâne
+  pr([tete[0] + .03, 0, tete[2] - .005], mus, .09, .095, poil, .72, 8, .7);                          // le chanfrein
+  bo([mus[0] - .02, 0, mus[2] + .002], [mus[0] + .012, 0, mus[2] - .004], .058, .05, fonce, .7, 3);   // le mufle
+  pe([tete[0] + .05, 0, tete[2] + .045], [tete[0] + .085, 0, tete[2] + .02], .07, .012, creme, .3);   // le chevron blanc
+  pr([mus[0] - .055, 0, mus[2] - .045], [mus[0] - .07, 0, mus[2] - .1], .035, .03, fonce, .4);      // la barbiche
+  for (const s of [-1, 1]) {
+    bo([tete[0] + .03, s * .058, tete[2] + .028], [tete[0] + .05, s * .058, tete[2] + .031], .034, .034, sp.oeil, 1, 3);   // les yeux
+    const oy = alerte ? .1 : .15, oz = alerte ? .1 : .05;
+    pe([tete[0] - .03, s * .05, tete[2] + .05], [tete[0] - .055, s * oy, tete[2] + oz], .085, .02, poil, .55);   // les oreilles, grandes et rondes
+    pe([tete[0] - .028, s * .052, tete[2] + .055], [tete[0] - .05, s * (oy - .012), tete[2] + oz + .004], .055, .012, creme, .5);
+    // les cornes creuses : deux tours de vis, en arrière et en dehors, puis le pavillon
+    const c0 = [tete[0] - .02, s * .035, tete[2] + .06], D = [-.66, s * .36, .66], Lc = .36, N = 14;
+    const dl = Math.hypot(D[0], D[1], D[2]), d = D.map(x => x / dl);
+    let p1 = [d[1], -d[0], 0]; const p1l = Math.hypot(p1[0], p1[1]) || 1; p1 = p1.map(x => x / p1l);
+    const p2 = [d[1] * p1[2] - d[2] * p1[1], d[2] * p1[0] - d[0] * p1[2], d[0] * p1[1] - d[1] * p1[0]];
+    const pt = u => { const th = s * u * Math.PI * 3, r = .01 + .042 * u, c = Math.cos(th) * r, sn = Math.sin(th) * r;
+      return [c0[0] + d[0] * Lc * u + p1[0] * c + p2[0] * sn, c0[1] + d[1] * Lc * u + p1[1] * c + p2[1] * sn, c0[2] + d[2] * Lc * u + p1[2] * c + p2[2] * sn]; };
+    let a = pt(0);
+    for (let i = 1; i <= N; i++) { const b = pt(i / N), w = .046 - .016 * i / N; pr(a, b, w, w, i % 3 ? corne : corne.map(x => x * .88), 1, 6, .75); a = b; }   // des anneaux plus sombres, un sur trois
+    const e = pt(1), e0 = pt(.94), tx = e[0] - e0[0], ty = e[1] - e0[1], tz = e[2] - e0[2], tl = Math.hypot(tx, ty, tz) || 1;
+    const pv = [e[0] + tx / tl * .06, e[1] + ty / tl * .06, e[2] + tz / tl * .06];
+    pr(e, pv, .032, .032, corne, 2.3, 8, .9);                                                        // le pavillon
+    bo(pv, [pv[0] + tx / tl * .006, pv[1] + ty / tl * .006, pv[2] + tz / tl * .006], .07, .07, creux, 1, 3);   // son creux
+    for (const [k, u] of [[0, .4], [1, .72]]) {                                                       // deux clochettes, pendues à un fil
+      const q = pt(u), bl = bat(k + 4 + (s > 0 ? 2 : 0)), h0 = [q[0], q[1], q[2] - .02], h1 = [q[0] + bl, q[1] + s * .01, q[2] - .075];
+      pe(h0, h1, .007, .007, fonce); pr(h1, [h1[0] + bl * .3, h1[1], h1[2] - .04], .022, .022, corne, 1.8, 8, .9);
+      bo([h1[0] + bl * .6, h1[1], h1[2] - .042], [h1[0] + bl * .6, h1[1], h1[2] - .052], .014, .014, fonce, 1, 3);
+    }
+  }
+  // ---- les pattes : trapues, des chaussettes blanches au-dessus des sabots ----
+  const desc = Math.max(0, Math.min(1, .5 - (f.vz || 0) / 14));
+  for (const ft of f.feet || []) {
+    const arr = ft.i === 1, s = ft.s;
+    const vol = arr ? mixP([-.42, s * .07, .08], [-.14, s * .07, .15], desc) : mixP([.19, s * .07, .15], [.3, s * .07, .04], desc);
+    const H = [arr ? -.18 : .13, s * .075, bz - .04], L1 = arr ? .25 : .23, L2 = arr ? .26 : .24;
+    const Pd = aPortee(H, piedLocal(f, ft, R, PATTES_T.carillon.haut, vol), L1 + L2), G = genou(H, Pd, L1, L2, [arr ? -1 : 1, 0, 0]);
+    pr([H[0] + (arr ? -.02 : .02), H[1], H[2] + .08], G, arr ? .16 : .13, arr ? .185 : .145, poil, .45, 8, .7);   // la cuisse, l'épaule
+    bo([G[0] - .025, G[1], G[2]], [G[0] + .025, G[1], G[2]], .066, .066, jambe, .7, 3);
+    const B0 = [Pd[0], Pd[1], Pd[2] + .045];
+    pr(G, B0, .06, .06, jambe, .82);                                                                 // le canon
+    bo([B0[0] - .016, B0[1], B0[2] - .012], [B0[0] + .016, B0[1], B0[2] + .012], .064, .058, creme, .7, 3);   // la chaussette
+    for (const dd of [-1, 1]) pr([Pd[0] - .005, Pd[1] + dd * .011, Pd[2] + .03], [Pd[0] + .035, Pd[1] + dd * .013, Pd[2]], .022, .034, fonce, .6);   // le sabot fendu
   }
   return B;
 }
@@ -25886,36 +26078,38 @@ void main() { o = uC; }`;
   }
   // (§186) les autres formes (geoForme) : chaque face, éventail de triangles ; le grain posé sur la face, à sa mesure
   function formeGL(T, A, B, w, h, base, uni, k, lum, sa, sb, ph, ref, dens, F) {
-    const G = geoForme(A, B, w, h, ref, F), P = G.P, r0 = base[0] / 255, g0 = base[1] / 255, b0 = base[2] / 255;
-    let nv = 0, ni = 0; for (const f of G.F) { nv += f.length; ni += (f.length - 2) * 3; }
-    reserve(T, nv, ni);
-    const fl = T.f, I = T.i, Lx = G.L || 1;
-    for (const f of G.F) {
-      const a = P[f[0]], b = P[f[1]], c = P[f[2]];
-      const ex = b[0] - a[0], ey = b[1] - a[1], ez = b[2] - a[2], gx = c[0] - a[0], gy = c[1] - a[1], gz = c[2] - a[2];
+    const G = geoForme(A, B, w, h, ref, F), P = FORME_P, r0 = base[0] / 255, g0 = base[1] / 255, b0 = base[2] / 255;
+    reserve(T, G.G.nv, G.G.ni);
+    const fl = T.f, I = T.i, Lx = G.L || 1, Ax = A[0], Ay = A[1], Az = A[2], UV = FORME_UV;
+    for (let q = 0; q < G.F.length; q++) {
+      if (q === G.capB) continue;
+      const f = G.F[q], i0 = f[0] * 3, i1 = f[1] * 3, i2 = f[2] * 3;
+      const ex = P[i1] - P[i0], ey = P[i1 + 1] - P[i0 + 1], ez = P[i1 + 2] - P[i0 + 2], gx = P[i2] - P[i0], gy = P[i2 + 1] - P[i0 + 1], gz = P[i2 + 2] - P[i0 + 2];
       let nx = -(ey * gz - ez * gy), ny = -(ez * gx - ex * gz), nz = -(ex * gy - ey * gx);   // la normale sortante
       const nl = Math.hypot(nx, ny, nz); if (nl < 1e-12) continue;
       nx /= nl; ny /= nl; nz /= nl;
       const sh = uni || ombreForme(nx, ny, nz);
       const el = Math.hypot(ex, ey, ez) || 1, e1x = ex / el, e1y = ey / el, e1z = ez / el;   // le repère de la face, pour le grain
       const e2x = ny * e1z - nz * e1y, e2y = nz * e1x - nx * e1z, e2z = nx * e1y - ny * e1x;
-      let u0 = 1e9, u1 = -1e9, w0 = 1e9, w1 = -1e9; const U = [], V = [];
-      for (const i of f) { const p = P[i], qx = p[0] - a[0], qy = p[1] - a[1], qz = p[2] - a[2], u = qx * e1x + qy * e1y + qz * e1z, v = qx * e2x + qy * e2y + qz * e2z;
-        U.push(u); V.push(v); if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < w0) w0 = v; if (v > w1) w1 = v; }
+      let u0 = 1e9, u1 = -1e9, w0 = 1e9, w1 = -1e9;
+      for (let j = 0; j < f.length; j++) { const o = f[j] * 3, qx = P[o] - P[i0], qy = P[o + 1] - P[i0 + 1], qz = P[o + 2] - P[i0 + 2];
+        const u = qx * e1x + qy * e1y + qz * e1z, v = qx * e2x + qy * e2y + qz * e2z; UV[j * 2] = u; UV[j * 2 + 1] = v;
+        if (u < u0) u0 = u; if (u > u1) u1 = u; if (v < w0) w0 = v; if (v > w1) w1 = v; }
       const ou = dens ? (w * 7.31 + Lx * 3.17 + f.length * .37) % 1 : 0, ov = dens ? (h * 5.73 + Lx * 1.91) % 1 : 0;
       const v0 = T.nv;
       for (let j = 0; j < f.length; j++) {
-        const p = P[f[j]], o = (v0 + j) * PV, tA = Math.max(0, Math.min(1, ((p[0] - A[0]) * G.ux + (p[1] - A[1]) * G.uy + (p[2] - A[2]) * G.uz) / Lx));
-        fl[o] = p[0]; fl[o + 1] = p[1]; fl[o + 2] = p[2];
+        const p = f[j] * 3, o = (v0 + j) * PV, tA = Math.max(0, Math.min(1, ((P[p] - Ax) * G.ux + (P[p + 1] - Ay) * G.uy + (P[p + 2] - Az) * G.uz) / Lx));
+        fl[o] = P[p]; fl[o + 1] = P[p + 1]; fl[o + 2] = P[p + 2];
         fl[o + 3] = r0 * sh; fl[o + 4] = g0 * sh; fl[o + 5] = b0 * sh;
-        fl[o + 6] = dens ? ou + (U[j] - u0) * dens : (U[j] - u0) / ((u1 - u0) || 1); fl[o + 7] = dens ? ov + (V[j] - w0) * dens : (V[j] - w0) / ((w1 - w0) || 1);
+        fl[o + 6] = dens ? ou + (UV[j * 2] - u0) * dens : (UV[j * 2] - u0) / ((u1 - u0) || 1); fl[o + 7] = dens ? ov + (UV[j * 2 + 1] - w0) * dens : (UV[j * 2 + 1] - w0) / ((w1 - w0) || 1);
         fl[o + 8] = k; fl[o + 9] = lum; fl[o + 10] = sa + (sb - sa) * tA; fl[o + 11] = ph;
       }
       const n = T.ni;
-      for (let j = 1; j < f.length - 1; j++) { const q = n + (j - 1) * 3; I[q] = v0; I[q + 1] = v0 + j + 1; I[q + 2] = v0 + j; }
+      for (let j = 1; j < f.length - 1; j++) { const q3 = n + (j - 1) * 3; I[q3] = v0; I[q3 + 1] = v0 + j + 1; I[q3 + 2] = v0 + j; }
       T.nv += f.length; T.ni += (f.length - 2) * 3;
     }
   }
+  const FORME_UV = new Float64Array(64);
   // Un pied de flore, à la maturité m. La silhouette vient de formeFlore, commune au canvas.
   function plante(T, x, y, m) {
     const i = y * WS + x, sp = ESP[Flo[i] - 1];
@@ -27443,7 +27637,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-155', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-158', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }

@@ -5888,3 +5888,77 @@ L'onglet Bêta était une longue liste de lignes. Certains outils avaient dispar
 - abattre les charniers (la Mère se prépare).
 
 **À déposer** : `index.html`, `sw.js` (`stone-valley-155`), `LISEZ-MOI.md`.
+
+## §188 · Les créatures en formes, comme la Mère-Charogne
+
+Les bêtes ne sont plus faites que de pavés : chacun de leurs os prend tout seul la forme que suggère sa mesure, sans qu'on ait redessiné chaque espèce (`formesAuto`, appelé à la fin de `foeBones`).
+
+**Les règles** (`formeOs`), dans l'ordre :
+- **Un os très fin** (antenne, fil, veine) reste un pavé.
+- **Un œil, un point qui luit** devient une petite boule.
+- **Une grande plaque courte** (la carapace du glaneur, le dos du crapaud) devient un dôme. Les autres plaques (ailes, oreilles, écailles) restent des pavés, effilés si elles sont longues.
+- **Une masse** (tronc, croupe, garrot, tête), soit tout os presque aussi épais que le tronc, devient un galet. C'est une boule gonflée vers sa boîte, un rien plus longue et plus grosse (+8 % à chaque bout, +10 % d'épaisseur) pour garder sa masse et rester soudée à ses voisines.
+- **Un membre** (patte, cou, queue, corne, bec) devient un prisme à six pans arrondi, qui s'effile vers son bout, d'autant plus qu'il est long.
+- **Un petit bloc trapu** (les touffes de la queue du renard) reste un pavé. Un petit bloc long (pied, museau) devient un prisme court.
+- **Ce qui a déjà sa forme ou son grain** n'est pas touché.
+
+**Le galet** : les formes acceptent `rond` (de 0 à 1). Sous 1, la boule ou le prisme gonfle vers sa boîte : on garde la masse du pavé, sans ses arêtes. Une boule pleine perdait la moitié du volume, et les bêtes paraissaient maigres.
+
+**Qui garde ses pavés** : les automates, les bâtiments, la flore, les gens et les villageois, les mages, l'araignon, la Tisseuse, les illusions, les charniers du Vyrel et la Mère-Charogne (déjà dessinés à la main).
+
+**De près seulement** : à moins de 26 cases (14 sur le canvas de secours). Une bête plus lointaine n'a que quelques pixels et garde ses pavés.
+
+**Le coût** : les os coûtent environ un quart de milliseconde de plus par image pour 25 bêtes proches. La carte graphique dessine un peu plus de faces.
+
+**L'onglet Bêta**, volet Monde, a une nouvelle carte : « Les bêtes en formes ». Elle repasse aux pavés le temps d'une partie, pour comparer. Le réglage n'est pas gardé.
+
+## §189 · Les cerfs refaits : deux physiques, deux bêtes
+
+Les deux cerfs étaient trop fins et trop simples. Ils sont redessinés en formes (`osCerf`), plus massifs, un peu plus grands (Cerf de verre : taille 1,4 → 1,55 ; Cerf des cerisiers : 1,3 → 1,4), et chacun a maintenant son propre physique.
+
+**Les largeurs suivent la taille de la bête.** Avant, elles ne grandissaient pas avec elle, et le cerf paraissait maigre. Le tronc est fait de galets qui se chevauchent : croupe, ventre qui respire, poitrail profond, garrot, dessous plus sombre. Les cuisses et les épaules sont épaisses. Les autres détails :
+- le canon, le genou et le boulet ;
+- le sabot fendu en deux onglons ;
+- la mâchoire, le mufle et le larmier ;
+- l'intérieur des oreilles.
+
+**Le Cerf de verre**, un grand cerf de montagne :
+- un garrot haut et un cou épais ;
+- une crinière d'aiguilles de cristal qui pend sous le cou ;
+- une crête de cristaux sur l'échine, plus grands au garrot ;
+- un éperon de cristal derrière chaque boulet ;
+- une ramure de cristal en lyre, qui s'ouvre puis se referme. Elle porte dix cors, dont le massacre sur le front et une couronne de trois au sommet.
+
+Tout le cristal luit.
+
+**Le Cerf des cerisiers**, un sika :
+- plus ramassé, la croupe ronde ;
+- la robe semée de taches couleur de pétale, sur deux rangs ;
+- le miroir blanc cerclé de sombre, une raie sombre sur l'échine et une courte crinière sous la gorge ;
+- des bois de bois vivant à huit cors, fleuris à chaque pointe (deux fleurs, une rose et une pâle), avec une feuille.
+
+**Les attitudes** restent celles d'avant : brouter tête au sol, se dresser à l'alerte avec la queue levée, le trot en diagonale, le bond. La tête balance un peu au pas et la queue bat.
+
+**Une correction du moteur de formes** : une pointe (`fin: 0`) ne se dessinait pas. Ses deux points du bout se confondaient, et la face prenait une normale nulle. Les flancs des prismes commencent maintenant par leurs deux points de base. Les pointes s'affichent enfin, partout où elles servent.
+
+## §190 · Le carillonneur refait : l'antilope à cloches
+
+Le carillonneur est redessiné en formes (`osCarillon`), sur le modèle des cerfs du §189. Il est plus massif, un peu plus grand (taille 1,25 → 1,35), et a son propre physique : ni cerf de verre ni sika, mais une antilope des hautes herbes.
+
+**Le corps** :
+- trapu, avec une bosse à l'épaule, un poitrail profond et un dessous plus sombre ;
+- la robe rayée de blanc : cinq rayures descendent du dos sur chaque flanc ;
+- une crinière courte sur l'échine et sur le cou ;
+- une queue à houppe sombre, qui bat au pas et se lève à l'alerte en montrant son dessous blanc ;
+- des pattes trapues, des chaussettes blanches au-dessus des sabots fendus.
+
+**La tête** : un chevron blanc entre les yeux, une barbiche, et de grandes oreilles rondes, blanches dedans.
+
+**Ce qui sonne** :
+- **La cloche de gorge** : le fanon pend sous le cou et finit en une cloche de corne évasée, avec sa bouche sombre et son battant.
+- **Les cornes creuses** font un tour et demi de vis, en arrière et en dehors. Elles sont annelées (un anneau plus sombre sur trois) et s'ouvrent en pavillon.
+- **Deux clochettes** pendent à des fils sur chaque corne, chacune avec son battant.
+
+Tout ce qui sonne balance au vent et au pas. Pendant les trois premières secondes après avoir vu un chasseur, tout bat à toute volée, au moment où il tinte (`guetCarillon`). À l'alerte, ça bat à moitié.
+
+**Les attitudes** restent celles d'avant : brouter, l'alerte tête haute, le trot, le bond.
