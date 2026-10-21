@@ -24,8 +24,8 @@ function roiInit() {
       d: 'dégâts 50 · portée de quatre pas · il tire la bête jusqu\'à vous · l\'objet unique des Forges hurlantes' },
     { id: 'obsidienne', n: 'Bouclier d\'obsidienne', emp: 'armure', red: .55, renvoie: 1, offert: 1, donjon: 1, unique: 1, cout: {},
       d: '−55 % de dégâts · porté dans le dos : les boules de feu qui vous arrivent de face repartent d\'où elles viennent · l\'objet unique des Galeries de cendre' },
-    { id: 'abime', n: 'Bâton de l\'Abîme', emp: 'grimoire', mana: 14, offert: 1, donjon: 1, unique: 1, cout: {},
-      d: 'un sort de feu : une boule noire et rouge qui éclate, frappe et brûle tout autour · l\'objet unique des Ossuaires' },
+    { id: 'abime', n: 'Arcane : Abîme', emp: 'grimoire', arcane: 1, mana: 14, offert: 1, donjon: 1, unique: 1, cout: {},
+      d: 'un sort de feu : une boule noire et rouge qui éclate, frappe et brûle tout autour · appris d\'après le Tome de l\'Abîme, le trésor des Ossuaires' },   // (§182) un arcane
   ];
   for (const o of O) if (!OBJETS.some(x => x.id === o.id)) OBJETS.push(o);
   // l'arme en main : la lame de soufre se tient et frappe comme la lame d'éclat ; le fouet, comme le gourdin
@@ -217,7 +217,11 @@ const reliqueFaite = () => (ROI.reliques || []).some(R => R.etat === 'fait');
 function ouvrirReliquaire(c) {
   c.ouvert = true; DJ.etat.ouverts.push(c.k); Sauve.sale = true;
   const id = ROI_UNIQUES[DJ.e], L = [], k = 1 + (DJ.e - 1) * .35;
-  if (id && !P.objets[id]) { P.objets[id] = 1; if (typeof rangerRaccourci === 'function') rangerRaccourci(id); L.push('OBJET UNIQUE · ' + objet(id).n.toUpperCase()); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
+  if (id === 'abime' && typeof gagnerArcane === 'function') {      // (§182) aux Ossuaires : le Tome de l'Abîme, à déchiffrer au pupitre (gardé même à la mort)
+    if (gagnerArcane('abime')) { L.push('TOME UNIQUE · ' + ARCANES.abime.tome.toUpperCase()); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
+    else { const e = Math.round((20 + Math.random() * 10) * k); P.sac.eclat += e; L.push('+' + e + ' éclats'); }
+  }
+  else if (id && !P.objets[id]) { P.objets[id] = 1; if (typeof rangerRaccourci === 'function') rangerRaccourci(id); L.push('OBJET UNIQUE · ' + objet(id).n.toUpperCase()); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
   else { const e = Math.round((20 + Math.random() * 10) * k), o = Math.round((6 + Math.random() * 4) * k); P.sac.eclat += e; P.sac.os = (P.sac.os || 0) + o; L.push('+' + e + ' éclats', '+' + o + ' os');
     const s2 = ROI_INGR[DJ.e] ? roiDonnerIngr(ROI_INGR[DJ.e], 2) : ''; if (s2) L.push(s2); }
   SON.jouer('clank', {}, c.x, c.y, c.z); SON.jouer('ramasse', {});

@@ -5632,3 +5632,259 @@ Les longues notes sont devenues une ligne chacune.
 - l'appui long sur une denrée (la bulle, et elle n'est pas mangée), un pigment, une matière.
 
 **À déposer** : `index.html`, `sw.js` (`stone-valley-149`), `LISEZ-MOI.md`.
+
+## §182 · Les grimoires deviennent des arcanes, à trouver
+
+L'emplacement **Grimoire** n'existe plus. Les cinq anciens grimoires (Souffle, Ancrage, Appel, Aube, Abîme) ne se fabriquent plus à l'établi : ce sont des **arcanes**, qu'on apprend d'un **tome trouvé**, déchiffré au **pupitre de la bibliothèque** comme les tomes de matière.
+
+**Où trouver les tomes** :
+- **Lutrin noirci** : une île sur quatre en a un, dès l'exploration 3 (Souffle, Ancrage ou Appel). Il est marqué sur la carte comme les autres lutrins ; ACTION pour le recopier.
+- **Coffres gardés** : un grand coffre du Centre (30 %) ou un coffre scellé des Cercles (15 %) peut en contenir un (Souffle, Ancrage, Appel ou Aube).
+- **Tome de l'Aube** : la première fois qu'on repose le prisme d'une île d'Achromie.
+- **Tome de l'Abîme** : le reliquaire des Ossuaires (troisième cercle du Roi), à la place de l'ancien Bâton de l'Abîme.
+- Un tome recopié est **gardé même à la mort**.
+
+**Déchiffrer** : au pupitre, section « Arcanes rapportés ». Cela coûte des éclats (20 à 40), puis l'arcane est appris pour de bon. Le carnet du pupitre liste les arcanes.
+
+**Lancer un arcane** : volet **Grimoire** du sac, section **Arcanes**.
+- **Tenir (L)** : l'arcane va dans la case bonus du bord droit ; on le lance d'un appui ou avec la touche L, comme une phrase tenue en main.
+- **Cases 1 à 5** : on peut aussi le ranger dans une case de la ceinture.
+- La même section dit quels tomes attendent au pupitre, et où chercher ceux qui manquent.
+
+**Les anciennes parties** : un grimoire déjà fabriqué ou trouvé reste appris, et celui qui était équipé reste en main.
+
+**Vérifié** (navigateur sans écran, ordinateur 1100 × 720 et téléphone 390 × 780, aucune erreur) :
+- plus d'emplacement Grimoire au sac, plus de grimoire à l'établi ;
+- un lutrin d'arcane : LIRE, puis RECOPIÉ ;
+- le pupitre : déchiffrer, les éclats payés, l'arcane appris ;
+- le volet Grimoire : Tenir, ranger dans une case, lancer le Souffle depuis la case ;
+- un coffre qui donne un tome (tirage forcé) ;
+- la sauvegarde garde les tomes recopiés.
+
+**Pas vérifié en jeu** : le tome dans un vrai coffre du Centre ou des Cercles, au reliquaire des Ossuaires, et au prisme d'Achromie (le code est relu, pas joué).
+
+**À déposer** : `index.html`, `donjon.js`, `roi.js`, `trone.js`, `achromie.js`, `sw.js` (`stone-valley-150`), `LISEZ-MOI.md`.
+
+## §183 · L'appui long dit tout : armes, plats, sorts
+
+La bulle de l'appui long, au sac, donne maintenant tous les chiffres.
+
+**Objets** : les mêmes lignes que la fiche du sac.
+- **Armes** : dégâts, portée ou tir, cadence (recharge pour une arme à feu), flèches en réserve pour l'arc. Pour l'arme portée, les dégâts **avec vos effets** (plat de coups puissants, potion de force).
+- **Armes forgées**, en plus :
+  - le type et sa mécanique ;
+  - la **compétence**, lisible si on a forgé l'arme ou déchiffré sa ligne ;
+  - le **Korlaz** (l'ombre ou les griffes) ;
+  - l'**aura** (le pigment) ;
+  - l'usure, la facture et le forgeron ;
+  - pour une arme magique, ce qu'elle fait aux sorts.
+- **Armures, outils, soins, ceinture, arcanes** : leurs chiffres (dégâts reçus, coût des sorts, récolte, vie rendue, coût de l'arcane…).
+
+**Plats** :
+- vie rendue, souffle rempli ;
+- régénération (par seconde, et combien de temps) ;
+- l'effet, sa puissance (I à IV) et sa durée ;
+- **ce qu'il fait concrètement**, par exemple « +70 % de dégâts à vos coups », « −50 % de dégâts reçus », « on voit à 11 cases dans le noir » ;
+- les parts, et les ingrédients quand la recette est connue.
+
+**Denrées** : la vie rendue crue, et environ ce qu'elles valent cuisinées.
+
+**Sorts** (dans les cases du bord droit au sac, et au volet Grimoire) :
+- dégâts, coût, délai de relance ;
+- rayon de l'onde, durée du mur et de l'égide, nombre de pièges ;
+- avec une arme magique en main, ses dégâts lancés par elle ;
+- l'instabilité d'un accord ;
+- ce que font la forme, la matière et l'accent.
+
+**La bulle** : un peu plus large. Les lignes longues prennent toute la largeur, et la bulle défile si elle dépasse l'écran.
+
+**Vérifié** (navigateur sans écran, ordinateur 1100 × 720 et téléphone 390 × 780, aucune erreur) : la bulle d'une arme forgée, d'un bâton de mage, d'un arc, d'une armure, d'un plat à effet, d'un sort en case et de l'égide au volet Grimoire. Le vrai appui long sur un sort affiche la bulle.
+
+**À déposer** : `index.html`, `forge.js`, `sw.js` (`stone-valley-151`), `LISEZ-MOI.md`.
+
+## §184 · Le Vyrel : l'île infectée
+
+Un nouvel état d'île, dans un nouveau fichier `vyrel.js`. **Le Vyrel** : une île sur dix environ, dès l'exploration 7, jamais sur l'île d'une Tisseuse. Il est branché dans `etats.js`, `faune.js`, `forge.js` et `index.html`.
+
+**L'île** :
+- **Le décor** : l'image jaunie et violacée, le ciel et la brume violets, un bord d'écran violet.
+- **Les miasmes** couvrent toute l'île : un fond léger partout, plus épais dans les creux et autour des charniers. Des volutes violettes dérivent au ras du sol.
+- **Les charniers** (trois à cinq, toujours aux mêmes places pour une même graine) : un tertre de terre noire, des côtes, des carcasses, un crâne, une mare violette qui bout. Les miasmes en montent.
+
+**Les bêtes** (toutes celles de l'île, sauf compagnes, automates, flore, nomades) :
+- **Leur aspect** : la robe ternie, les yeux pâles qui luisent, des pustules violettes, des mouches autour d'elles, une toux.
+- **Leur comportement** : elles foncent sur qui passe à moins de huit cases (vous, vos compagnes), même les herbivores.
+- **Leurs forces** : 15 % plus lentes, 30 % plus dures à abattre.
+- **La morsure** contamine.
+- **À leur mort**, elles crèvent en un nuage de miasme.
+- On ne peut ni les nourrir pour les apprivoiser, ni leur lancer le lien.
+
+**L'exposition, puis la maladie** :
+- **L'exposition** monte dans les miasmes, d'autant plus vite qu'ils sont épais. Une morsure en ajoute d'un coup. Tout près d'un joueur malade, on s'expose aussi. À 100 %, on est malade.
+- **Ce qui protège** :
+  - le **masque à bec** (établi niveau 2 : 16 fibres, 6 os, 4 pierres ; il se porte comme accessoire, à la place du sifflet) divise l'exposition par trois, et il se voit sur le personnage (face de cuir, verres violets, bec d'os), y compris pour les autres joueurs ;
+  - la lanterne allumée (×0,75), le feu du campement (×0,3), le plat antidote (×0,5).
+- **La maladie suit le joueur d'île en île**, en trois stades (à la contagion, à dix minutes, à vingt-cinq) :
+  - la vie ne remonte plus au-delà de 85 %, 70 %, 55 % ;
+  - le souffle revient à 75 %, 55 %, 40 % ;
+  - des quintes de toux alertent les bêtes alentour, et les chasseurs viennent voir ;
+  - aux stades II et III, la vue se trouble par moments ;
+  - la fièvre bat au bord de l'image, et des pustules sortent sur le personnage.
+- **La contagion en coop** : on est contagieux pour les joueurs tout près.
+- **Les compagnes** tombent malades aussi (dans les miasmes épais, ou mordues) : elles frappent 30 % moins fort et toussent. N'importe quel soin de compagne (table de soin) les guérit.
+
+**La Thériaque** : le remède, à la **table d'alchimie** (section « Les remèdes », qui paraît une fois le Vyrel croisé).
+- **La recette** est fixe : fleur, éclats, racine, champignon, éclats, fleur (peu communes ou plus). Elle coûte 3 ichors de Vyrel.
+- **Le produit** : une fiole (deux si elle est parfaite), qui se range avec les soins.
+- **L'usage** : bue, elle guérit le Vyrel et rend 20 % de vie. Elle se donne aussi à un équipier.
+
+**Guérir l'île** :
+- **Abattre les charniers.** Frappé, un charnier crache ses miasmes et appelle jusqu'à quatre bêtes malades à moins de 28 cases.
+- **Chaque charnier abattu** brûle (flammes, fumée) et éclaircit les miasmes.
+- **Du dernier sort la Mère-Charogne** : une immense araignée malade, couverte de pustules. Elle traque à 40 cases, exhale un nuage autour d'elle toutes les six à huit secondes, et crache des miasmes en cloche sur vous (blessure, exposition, nuage).
+- **Morte, l'île guérit** : les miasmes se lèvent en douze secondes, et les bêtes redeviennent saines et apprivoisables. +25 éclats et +4 ichors pour chaque joueur présent. L'île reste guérie, et c'est partagé en coop.
+
+**L'ichor de Vyrel** (une matière du sac, comme les spores de Korlaz) :
+- **Où le trouver** : 3 à 5 par charnier abattu, 6 sur la Mère-Charogne, et une bête malade abattue en lâche un une fois sur trois.
+- **À quoi il sert** : la forge et la Thériaque.
+
+**À la forge, la dose de Vyrel** (4 ichors, une au plus, jamais avec le Korlaz) :
+- **Le visuel** : l'alliage se teinte de violet, la lame suinte des gouttes violettes, et la traînée est violette sans pigment.
+- **Au contact** : la bête touchée est contaminée six secondes (elle s'affaiblit et ralentit).
+- **L'épidémie** : morte contaminée, la bête éclate et contamine ses voisines, sur trois générations au plus.
+- **Tirée** : la flèche, le carreau ou la balle laisse une flaque de miasme qui contamine ce qui y entre.
+- **Le code** de l'arme porte le Vyrel (un bit de plus). Les anciens codes se lisent toujours.
+
+**Vérifié** (navigateur sans écran, aucune erreur) :
+- une île tirée au Vyrel : le filtre, le ciel, les charniers, les bêtes malades ;
+- la fureur d'une bête malade, la morsure qui contamine (malade en six morsures) ;
+- les stades, la vie bornée, le flou, le souffle ;
+- le masque, vu de près sur le personnage ;
+- la Thériaque qui guérit, la tuile et la recette à la table d'alchimie ;
+- les charniers abattus, la Mère-Charogne qui sort, ses crachats, la guérison et son butin ;
+- l'île guérie au retour (sauvegarde relue) ;
+- le codage de la forge (Vyrel seul, refusé avec le Korlaz) et la bête contaminée ;
+- la sauvegarde.
+
+**Pas vérifié** :
+- une partie jouée de bout en bout (le temps de jeu est trop lent dans le navigateur de test : les minuteries ont été avancées à la main) ;
+- la coop à deux appareils (contagion, masque vu par l'autre, guérison partagée).
+
+**À déposer** : `vyrel.js` (nouveau), `index.html`, `etats.js`, `faune.js`, `forge.js`, `sw.js` (`stone-valley-152`), `LISEZ-MOI.md`.
+
+## §185 · La Mère-Charogne : une laie colossale
+
+La Mère-Charogne n'a plus le corps d'araignée des bêtes de base. C'est maintenant **une laie colossale, rongée par le Vyrel**, dessinée et animée à part (`osLaie`, `majMere`, dans `vyrel.js`).
+
+**Sa taille** : environ 5,5 cases de long et plus de 3 au garrot, deux fois la hauteur du personnage, et plus large que haute.
+
+**Son corps** :
+- **Le tronc** : un dos rond, la bosse du garrot, la croupe, un ventre qui pend.
+- **La robe** : un pelage gris-brun, mité de plaques galeuses et de cicatrices. Une crinière de soies sombres court du cou aux reins.
+- **La tête**, basse et lourde : le crâne, le chanfrein qui s'effile, un gros groin et ses naseaux, le toupet du front. Les oreilles sont déchirées, les yeux laiteux luisent violet.
+- **Les défenses** : deux défenses jaunies, la gauche cassée.
+- **Les pattes** : courtes et épaisses, avec des fanons de poils aux genoux et des sabots fendus.
+- **La queue** et sa touffe.
+- **Le Vyrel sur elle** :
+  - des grappes de **pustules** violettes sur les flancs, l'épaule, le cou et le dos, qui gonflent, battent, crèvent et repoussent ;
+  - des **veines** violettes sous le ventre et sur le dos ;
+  - une **bave** violette qui pend, s'étire et goutte.
+
+**Ses gestes** :
+- **La respiration** lourde : le ventre se gonfle.
+- **Le pas** : au trot, les pattes en diagonale ; le corps monte à chaque foulée, les épaules roulent, la tête balance.
+- **Le sol tremble** à chaque sabot qui retombe, avec un bruit sourd et un peu de poussière, d'autant plus fort qu'elle court.
+- **La charge** : elle baisse la tête en se ramassant, charge, puis relève les défenses.
+- **Quand elle exhale ou crache**, la tête se lève et la gueule s'ouvre. Elle luit violet dedans.
+- **Autour d'elle** : la vapeur monte de son dos, une nuée de mouches tourne, une pustule crève de temps en temps en jet violet, et elle grogne.
+- **Sa mort** : toutes les pustules crèvent dans un grand nuage, elle hurle et le sol tremble. Puis elle bascule sur le flanc, les pattes raides, et s'affaisse et se défait en sept secondes.
+
+**Ses coups** : la charge est plus longue (portée 3,4) et plus lourde. Elle crache de la gueule, plus de son centre.
+
+**Vérifié** (navigateur sans écran, aucune erreur) : la laie au repos, de profil, de face, en marche vers le joueur, ramassée avant la charge, en train d'exhaler, puis effondrée sur le flanc. La partie du Vyrel (§184) a été relancée en entier : la Mère sort, meurt, l'île guérit, la sauvegarde.
+
+**Pas vérifié** : le rendu chez un joueur suiveur en coop (ses gestes d'attaque n'y sont pas transmis, seulement son pas).
+
+**À déposer** : `vyrel.js`, `index.html`, `sw.js` (`stone-valley-153`), `LISEZ-MOI.md`.
+
+## §186 · De nouvelles formes : le pavé effilé, le prisme, la boule
+
+Jusqu'ici, le moteur ne dessinait qu'une forme, le pavé étiré entre deux points. Il en connaît maintenant trois de plus, dans ses deux moteurs (la carte graphique `boite` → `formeGL`, et le canvas de secours `emitLimb` → `emitForme`), avec la même géométrie (`geoForme`).
+
+**Les formes**, données sur l'os (`{ a, b, w, h, c, … }`) :
+- **`fin`** : le pavé effilé. La section du bout B, en proportion de celle du bout A : un nombre, ou `[largeur, hauteur]`. À 0, c'est une pointe.
+- **`pans: 6` ou `8`** : le prisme, presque rond, effilé lui aussi avec `fin`.
+- **`boule: n`** : la boule à facettes, un ellipsoïde tendu de A à B, de section w × h. Elle a `n` bandes (4 par défaut, 3 pour les petites) et deux fois plus de méridiens.
+- **Sans rien de tout ça**, l'os reste un pavé, dessiné exactement comme avant.
+
+**Le rendu** :
+- **L'éclairement** est celui des pavés (le dessus à 1, le dessous à 0,5, les flancs à 0,8 ou 0,6), mêlé pour les faces penchées. Les facettes restent nettes, dans l'esprit du jeu.
+- **Le grain** (pelage, os…) se pose sur chaque face à sa mesure.
+- **Les bêtes et le personnage** passent leur os au moteur : n'importe quel corps peut s'en servir.
+
+**Ce qui s'en sert déjà** :
+- **La Mère-Charogne**, refaite :
+  - le corps en masses rondes qui se chevauchent : le tronc, le garrot, la croupe, le ventre qui respire ;
+  - le crâne rond, le chanfrein et le groin en prismes qui s'effilent ;
+  - des défenses qui finissent en pointe ;
+  - des pattes rondes qui s'amincissent vers le sabot, des sabots à deux onglons ;
+  - des soies de la crinière en pointes, des oreilles effilées ;
+  - des yeux, une bave et des pustules rondes, posées sur la courbe du corps.
+- **Les autres bêtes de l'île au Vyrel** : leurs pustules sont rondes.
+- **Les charniers** : les bulles de la mare sont rondes.
+- **Le masque à bec** : des verres ronds, un bec qui s'effile en pointe. Les verres luisent pour de bon.
+
+**Le coût** : un prisme compte 10 faces, une petite boule 18, une grande 50, contre 6 pour un pavé. La Mère-Charogne en entier fait environ 1 500 faces : sans effet sensible.
+
+**Vérifié** (navigateur sans écran, aucune erreur) :
+- la Mère-Charogne de profil, de face, en marche, en train d'exhaler, effondrée ;
+- le masque de près ;
+- le tout aussi dans le canvas de secours (sans WebGL 2) ;
+- la partie du Vyrel relancée en entier.
+
+**La suite possible** : passer les autres créatures à ces formes, une par une.
+
+**À déposer** : `index.html`, `vyrel.js`, `sw.js` (`stone-valley-154`), `LISEZ-MOI.md`.
+
+## §187 · L'onglet Bêta, refait et mis à jour
+
+L'onglet Bêta était une longue liste de lignes. Certains outils avaient disparu de l'écran (tomes, codex, potions, lutrin…) et les nouveautés manquaient. Il est refait en **tableau de bord**.
+
+**Le bandeau du haut** reste en vue pendant qu'on fait défiler :
+- **Le mode essai** : un grand interrupteur, avec ce qu'il fait. Le bandeau devient orangé quand il est actif.
+- **Quatre gestes rapides**, avec leur icône : remplir le sac, tout fabriquer, soigner, invincible.
+- **Où l'on est** : la graine, l'exploration, l'état de l'île, le moteur de dessin.
+- **Les volets**, en pastilles : Tout, Personnage, Monde, Campement, Magie, Forge, États d'île, Voyage, Mesures. Le volet choisi reste en vue dans la rangée.
+
+**Les cartes** : chacune a sa vignette, son état du moment (vie, heure, niveau, charniers restants…) et ses boutons.
+- **Deux étiquettes** : *essai* (l'outil passe en mode essai, rien n'est gardé) et *gardé* (un réglage qui reste, à faire hors du mode essai).
+- **Les niveaux se règlent d'un pas** : « − ●●○ + », au lieu de tourner en rond.
+
+**Ce qui s'ajoute** (mise à jour) :
+- **Personnage** : les matières rares (+24 spores, +12 ichors, +5 encre, un pigment de chaque).
+- **Monde** : l'aube et le soir, en plus de midi et minuit.
+- **Campement** : la forge parmi les modules ; les autres modules, le rempart et les tours au pas.
+- **Magie** : les tomes au pas, tous les accords, un tome rapporté, aller au lutrin (ils étaient perdus).
+  - **Les arcanes** : leurs tomes au sac, tout apprendre, tout oublier.
+  - **Les potions** au pas, pour vous et pour les compagnes.
+  - **+2 fioles de Thériaque**.
+- **Forge** : son niveau au pas, tous les plans ou les oublier, et ce qui se forge (spores, ichor, pigments).
+- **États d'île** :
+  - partir sur une île **Korlaz, Brume, Achromie ou Vyrel** d'un seul appui ;
+  - le Korlaz : infecter, guérir ;
+  - la maladie du Vyrel : contaminer, stade suivant, guérir, mettre ou ôter le masque ;
+  - l'île au Vyrel : abattre les charniers, faire venir la Mère-Charogne, guérir l'île ;
+  - la brume sanglante : la lever.
+- **Voyage** : la téléportation, sur toute la largeur.
+- **Mesures** : les mesures du moteur, la position, la faune et l'île partagée, le diagnostic, écrire à l'équipe.
+
+**Sur téléphone** : une colonne de cartes ; le bandeau se resserre (les gestes rapides en icônes seules, sans la ligne d'infos). Sur un écran très bas, il ne reste plus collé en haut.
+
+**Vérifié** (navigateur sans écran, ordinateur 1100 × 720 et téléphone 390 × 800, aucune erreur) :
+- chaque volet affiché, toutes les vignettes connues ;
+- les pas (établi, forge, tomes) ;
+- les arcanes, les plans, l'ichor (qui passe en essai) ;
+- contaminer, stade suivant, guérir, le masque, le Korlaz ;
+- abattre les charniers (la Mère se prépare).
+
+**À déposer** : `index.html`, `sw.js` (`stone-valley-155`), `LISEZ-MOI.md`.

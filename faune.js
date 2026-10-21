@@ -219,7 +219,8 @@ function chargeFaune(suiv) {
 // (ce que les bêtes du gardien doivent savoir de lui), et pour le gardien, ses bêtes.
 function fauneEntete(now) {
   if (!faunePossible()) return {};
-  const fx = (joueurCalme() ? 1 : 0) | (sousAbri() ? 2 : 0) | (effet('invisible') ? 4 : 0) | (effet('silence') ? 8 : 0) | (effet('repousse') ? 16 : 0);
+  const fx = (joueurCalme() ? 1 : 0) | (sousAbri() ? 2 : 0) | (effet('invisible') ? 4 : 0) | (effet('silence') ? 8 : 0) | (effet('repousse') ? 16 : 0)
+    | (P.equip && P.equip.accessoire === 'masque_bec' ? 32 : 0) | (P.vyrel ? 64 : 0);   // (§184) le masque à bec, la maladie du Vyrel
   const e = { fv: 1, fg: FA.role === 'gardien' && maintenant() >= FA.ecoute ? 1 : 0, fa: Math.round(ancienneteFaune()), fx };
   const br = bruitJoueur(); if (br) e.br = r2(br);          // ce que le Silencieux entend de lui
   if (Fourmi) e.oc = r2(confColonie());                     // ce que la colonie des oglodons pense de lui
@@ -472,10 +473,12 @@ function mondeFaune() {
   const E = Escouade;
   if (E && !djIci()) w.es = [r2(E.x), r2(E.y), r2(E.z), r2(E.a), r2(E.k), E.etat, E.file.length, E.niv, E.sauts.map(A => [r2(A.x), r2(A.y), r2(A.z), r2(A.a), r2(A.k)])];
   if (typeof brumeMonde === 'function') { const br = brumeMonde(); if (br) w.br = br; }   // le cercle de la brume sanglante (brume.js)
+  if (typeof vyrelMonde === 'function') { const vy = vyrelMonde(); if (vy) w.vy = vy; }   // (§184) l'île au Vyrel, guérie ou non
   return w;
 }
 function appliquerMonde(w, idx) {
   if (w.br && typeof brumeAppliquer === 'function') brumeAppliquer(w.br);
+  if (w.vy && typeof vyrelAppliquer === 'function') vyrelAppliquer(w.vy);
   if (Number.isFinite(w.fo) && typeof Fourmi !== 'undefined' && Fourmi) Fourmi.nectar = Math.max(0, w.fo | 0);
   // les nomades : la caravane du gardien, dont on se fait un double pour leur parler et troquer
   const N = Array.isArray(w.nm) ? w.nm : null, arche = N && idx.get(N[0]);
@@ -863,7 +866,7 @@ function fauneEvenement(evt, d) {
 function fauneDistant(j, d) {
   j.fv = d.fv === 1; j.fg = !!d.fg; j.fa = +d.fa || 0;
   const x = d.fx | 0;
-  j.fx = { calme: !!(x & 1), abri: !!(x & 2), invisible: !!(x & 4), silence: !!(x & 8), repousse: !!(x & 16) };
+  j.fx = { calme: !!(x & 1), abri: !!(x & 2), invisible: !!(x & 4), silence: !!(x & 8), repousse: !!(x & 16), masque: !!(x & 32), vyrel: !!(x & 64) };
   j.br = Math.max(0, Math.min(1, +d.br || 0)); j.oc = Math.max(0, Math.min(1, +d.oc || 0));
   if (!d.f || FA.role !== 'suiveur' || j.u !== FA.gardien || !faunePossible()) return;
   if (FA.inventaire) appliquerFaune(d.f); else demanderInventaire(false);

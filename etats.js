@@ -43,6 +43,8 @@ function etatGraine(g, niv) {                             // le Korlaz : une îl
   if (v < 27) return niv >= 8 && typeof brumeIle === 'function' ? 'brume' : null;
   // (§127) l'Achromie (achromie.js) : une sur huit environ, dès l'exploration 4 — pas sur l'île d'une Tisseuse
   if (v < 40 && typeof achromieIle === 'function' && !(niv >= 10 && niv % 5 === 0)) return 'achromie';
+  // (§184) le Vyrel (vyrel.js) : une sur dix environ, dès l'exploration 7 — pas sur l'île d'une Tisseuse
+  if (v < 50 && niv >= 7 && typeof vyrelIle === 'function' && !(niv >= 10 && niv % 5 === 0)) return 'vyrel';
   return null;
 }
 function etatsInit() {
@@ -52,6 +54,7 @@ function etatsInit() {
       indice: 'ce qui pousse sur la roche rongée, la fleur des cimes, le nectar des oglodons, une goutte de sève',
       ok: ids => ids.length === 4 && ['p_mycelium', 'p_edelweiss', 'nectar', 'p_seve'].every(id => ids.includes(id)) });
   if (typeof CONSERVE !== 'undefined') CONSERVE['r:serum'] = [1, 1];          // une dose, qui se garde
+  if (typeof vyrelInit === 'function') vyrelInit();                          // (§184) le Vyrel
 }
 // ---------- l'île : la roche rongée, par plaques ----------
 // Le Korlaz change le sol en place (Bio). Un second chargement de l'île (l'île remise à zéro) partait
@@ -68,6 +71,7 @@ function etatsIle() {
   if (typeof GRIS !== 'undefined') GRIS.ici = false;
   if (ETAT.id === 'brume') { brumeIle(); return; }        // la brume sanglante (brume.js)
   if (ETAT.id === 'achromie') { achromieIle(); return; }   // (§127) l'Achromie (achromie.js)
+  if (ETAT.id === 'vyrel') { vyrelIle(); return; }         // (§184) le Vyrel (vyrel.js)
   if (ETAT.id !== 'korlaz') return;
   let s = (SEED ^ 0x9e3779b9) >>> 0 || 1; const r = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
   const C = ETAT.cases = new Uint8Array(WS * WS), roc = [], avant = ETAT.bioAvant = new Map();
@@ -121,9 +125,10 @@ function guerirKorlaz() {
   say('Le sérum brûle dans vos veines… et la brume se lève · guéri du Korlaz', 4); SON.jouer('ramasse');
 }
 function etatsHud() {
-  if (P.korlaz) return '<span class="etiq korlaz">infecté · Korlaz</span>';
-  if ((P.korlazExpo || 0) > .5) return '<span class="etiq korlaz">spores ' + Math.round(Math.min(1, P.korlazExpo / KORLAZ_SEUIL) * 100) + ' %</span>';
-  return '';
+  const vy = typeof vyrelHud === 'function' ? vyrelHud() : '';   // (§184) le Vyrel
+  if (P.korlaz) return '<span class="etiq korlaz">infecté · Korlaz</span>' + vy;
+  if ((P.korlazExpo || 0) > .5) return '<span class="etiq korlaz">spores ' + Math.round(Math.min(1, P.korlazExpo / KORLAZ_SEUIL) * 100) + ' %</span>' + vy;
+  return vy;
 }
 // ---------- les visions ----------
 function poserVision(id, angle, dist, ec = 1) {
@@ -557,6 +562,7 @@ let filtreEl = null, filtreG = null, filtreCss = '';
 function majEtats(dt) {
   if (typeof majBrume === 'function') majBrume(dt);        // la brume sanglante (brume.js)
   if (typeof majAchromie === 'function') majAchromie(dt);   // (§127) l'Achromie (achromie.js)
+  if (typeof majVyrel === 'function') majVyrel(dt);         // (§184) le Vyrel (vyrel.js) : l'île, et la maladie qui vous suit
   const ici = ETAT.id === 'korlaz';
   if (ici && !ETAT.annonce) { ETAT.annonce = true; say('Korlaz · la roche de cette île est rongée · ne restez pas dans ses spores', 5); }
   if (ici) {
@@ -587,11 +593,12 @@ function majEtats(dt) {
 function dessinerFiltre(ici, K) {
   const sang = typeof brumeSang === 'function' ? brumeSang() : 0;
   const gv = typeof achromieVoile === 'function' ? achromieVoile() : 0;   // (§127) le voile blanc du regard des veilleurs
-  const actif = ici || K || sang || gv || ETAT.flash || ETAT.rouge || ETAT.visage || ETAT.sang.length || ETAT.griffes.length;
+  const vy = typeof vyrelVoile === 'function' && vyrelVoile();   // (§184) le Vyrel : le bord violacé, la fièvre
+  const actif = ici || K || sang || gv || vy || ETAT.flash || ETAT.rouge || ETAT.visage || ETAT.sang.length || ETAT.griffes.length;
   // le noir et blanc : il vient en 0,8 s, repart en 1,5 s
   const nb = ETAT.nb > 0 ? Math.max(0, Math.min(1, ETAT.nb / 1.5, (ETAT.nbT - ETAT.nb) / .8)) : 0;
   // le filtre sur l'image même : la couleur s'en va, le contraste monte ; une inversion d'un éclair quand elle frappe
-  const css = ETAT.inv > 0 ? 'invert(1) contrast(1.3)' : K ? `saturate(${(.72 - Math.min(1, ETAT.brume / 3) * .3).toFixed(2)}) contrast(1.12) brightness(.9)` + (nb ? ` grayscale(${nb.toFixed(2)}) contrast(${(1 + nb * .4).toFixed(2)})` : '') : ici ? 'saturate(.85) sepia(.12)' : (typeof enferCss === 'function' && enferCss()) || (typeof achromieCss === 'function' ? achromieCss() : '');   // (§162) l'île démoniaque
+  const css = ETAT.inv > 0 ? 'invert(1) contrast(1.3)' : K ? `saturate(${(.72 - Math.min(1, ETAT.brume / 3) * .3).toFixed(2)}) contrast(1.12) brightness(.9)` + (nb ? ` grayscale(${nb.toFixed(2)}) contrast(${(1 + nb * .4).toFixed(2)})` : '') : ici ? 'saturate(.85) sepia(.12)' : (typeof enferCss === 'function' && enferCss()) || (typeof achromieCss === 'function' ? achromieCss() : '') || (typeof vyrelCss === 'function' ? vyrelCss() : '');   // (§162) l'île démoniaque
   if (css !== filtreCss) { filtreCss = css; for (const id of ['c', 'c3']) { const e = document.getElementById(id); if (e) e.style.filter = css; } }
   if (!actif) { if (filtreEl && filtreEl.style.display !== 'none') filtreEl.style.display = 'none'; return; }
   if (!filtreEl) {
@@ -608,6 +615,7 @@ function dessinerFiltre(ici, K) {
   if (ici) vign(.3, '22,30,18');
   if (sang) dessinerBrume(g, W, H, R, vign);
   if (gv) vign(gv, '238,238,242', .05);
+  if (vy) vyrelFiltre(g, W, H, R, vign);
   if (K) {
     const I = Math.min(1, K.duree / 900), br = Math.min(1, ETAT.brume / 3);
     vign(.38 + I * .2 + br * .42 + Math.sin(t * .4) * .06, '3,2,5', .2);                 // la brume noire qui respire
