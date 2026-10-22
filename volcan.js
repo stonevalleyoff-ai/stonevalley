@@ -1174,7 +1174,8 @@ function tisonMort(b) {
   for (let j = 0; j < 60; j++) { const a = Math.random() * 6.283, r = Math.random() * 2; parts.push({ x: b.x + Math.cos(a) * r, y: b.y + Math.sin(a) * r, z: b.z + 1 + Math.random() * 3, vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, vz: 3 + Math.random() * 6, g: 9, life: 1.6, age: 0, col: Math.random() < .5 ? '#ffb040' : '#ff5a18', luit: 1, tl: .16 }); }
   P.sac.eclat = (P.sac.eclat || 0) + 30; P.sac.verrenoir = (P.sac.verrenoir || 0) + 20; P.sac.basalte = (P.sac.basalte || 0) + 30;   // (§200) ses matières
   if (typeof INGR !== 'undefined' && INGR.coeurtison) gagnerDenree('coeurtison', 1);
-  say('le Tisonnier est abattu · le cœur du Tisonnier, 30 éclats, 20 éclats d\'obsidienne, 30 basalte · la montagne se calme', 6);
+  const fd = typeof donsGardien === 'function' ? donsGardien('terre') : '';   // (§205) le bout d'une voie de la Terre
+  say('le Tisonnier est abattu · le cœur du Tisonnier, 30 éclats, 20 éclats d\'obsidienne, 30 basalte' + (fd ? ' · ' + fd : '') + ' · la montagne se calme', 7);
   if (typeof forcerMeteo === 'function') { forcerMeteo('fumees', true); Meteo.reste = 600; }
   if (typeof majSac === 'function') majSac();
   if (typeof Sauve !== 'undefined') Sauve.sale = true;
@@ -1702,6 +1703,8 @@ function volcanIcones() {
   I('v_vautour', d => { const M = [188, 110, 86], Mc = [226, 150, 120], P = [120, 116, 112], Pc = [170, 166, 160];
     d.disque(6.5, 6.5, 4, M); d.disque(5.5, 5.5, 1.8, Mc); d.ligne(9, 9, 13, 13, OS, 2); d.disque(13.5, 13.5, 1.5, OS); d.disque(14.5, 12.5, 1, OS);
     d.ligne(2, 15, 6, 11, P, 2); d.ligne(3, 15, 7, 12, Pc); d.net(1, 15, [80, 76, 74]); });
+  I('plume', d => { const P1 = [150, 144, 138], P2 = [196, 190, 182], T = [86, 80, 76];   // (§204) la plume de vautour
+    d.ligne(3, 14, 12, 3, T); for (let k = 0; k < 7; k++) { const x = 5 + k, y = 12 - k; d.ligne(x, y, x - 2, y - 3, k % 2 ? P1 : P2); d.ligne(x, y, x + 3, y + 1, k % 2 ? P2 : P1); } d.net(13, 2, P2); });
   I('coeurtison', d => { const K = [44, 36, 38], Kc = [86, 72, 70];
     d.disque(5.5, 6, 3.5, K); d.disque(10.5, 6, 3.5, K); vfPoly(d, [[2, 7], [14, 7], [8, 14]], K);
     d.disque(5, 5, 1.4, Kc); d.ligne(8, 4, 8, 12, L); d.ligne(4, 7, 8, 9, L); d.ligne(12, 6, 8, 9, L); d.disque(8, 9, 1.4, LC); d.net(8, 9, VF_BL); });

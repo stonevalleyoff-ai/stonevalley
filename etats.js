@@ -2,8 +2,8 @@
 // Un état est un fléau qui tombe sur une île au hasard de sa graine : un filtre sur tout ce qu'on y
 // voit, et ses règles. Le premier est le KORLAZ : un élément inconnu qui ronge la roche et en fait
 // monter une spore neurotoxique. Qui reste longtemps dans les spores, ou récolte la roche rongée,
-// est infecté — et le reste, d'île en île, tant qu'on ne lui a pas injecté le remède (une recette
-// légendaire de la cuisine, à quatre ingrédients). L'infecté voit ce qui n'est pas : une brume
+// est infecté — et le reste, d'île en île, tant qu'on ne lui a pas injecté le remède (§203 : le sérum de clairvoyance,
+// une recette fixe de la table d'alchimie, comme la Thériaque du Vyrel ; il ne se cuisine plus). L'infecté voit ce qui n'est pas : une brume
 // noire qui monte, de petits êtres décharnés qui le regardent de loin (et s'approchent quand il
 // leur tourne le dos), des blessures qui s'ouvrent de nulle part, des silhouettes noires qui
 // surgissent et lui fondent dessus, un Rampant qui détale dans son dos, des mains qui sortent de terre et
@@ -12,7 +12,7 @@
 // au hasard, de plus en plus souvent à mesure que l'infection dure. Et il entend faux : la musique
 // du jeu devient dissonante tant qu'il est infecté (les humeurs « korlaz » de SON, dans index.html).
 // Le jeu (index.html) appelle, s'ils existent :
-//   etatsInit()       au démarrage : le remède dans les recettes ;
+//   etatsInit()       au démarrage : le Vyrel (§203 : le remède n'est plus une recette de cuisine) ;
 //   etatsIle()        à chaque île : l'état tiré, la roche rongée peinte, le mycélium posé ;
 //   majEtats(dt)      à chaque image : spores, exposition, infection, visions, le filtre ;
 //   etatsRecolte(nd)  une récolte (sur la roche rongée, elle infecte) ;
@@ -49,12 +49,7 @@ function etatGraine(g, niv) {                             // le Korlaz : une îl
   return null;
 }
 function etatsInit() {
-  if (typeof REMARQUABLES !== 'undefined' && !REMARQUABLES.some(r => r.id === 'serum'))
-    REMARQUABLES.push({ id: 'serum', n: 'Sérum de clairvoyance',
-      // (la mousse céleste ne pousse plus sur les nuages : la fleur des cimes, l'edelweiss, la remplace)
-      indice: 'ce qui pousse sur la roche rongée, la fleur des cimes, le nectar des oglodons, une goutte de sève',
-      ok: ids => ids.length === 4 && ['p_mycelium', 'p_edelweiss', 'nectar', 'p_seve'].every(id => ids.includes(id)) });
-  if (typeof CONSERVE !== 'undefined') CONSERVE['r:serum'] = [1, 1];          // une dose, qui se garde
+  // (§203) le sérum de clairvoyance ne se cuisine plus : il se prépare à la table d'alchimie (SERUM_ALCH, index.html)
   if (typeof vyrelInit === 'function') vyrelInit();                          // (§184) le Vyrel
 }
 // ---------- l'île : la roche rongée, par plaques ----------
@@ -94,8 +89,8 @@ const roche = (x, y) => { x |= 0; y |= 0; return !!ETAT.cases && x >= 0 && y >= 
 // ---------- l'infection ----------
 function infecter(pourquoi) {
   if (P.korlaz) return;
-  P.korlaz = { duree: 0, prochain: t + 12 + Math.random() * 10 }; P.korlazExpo = 0;
-  say('Vous êtes infecté par le Korlaz · ' + pourquoi + ' · seul un sérum vous en délivrera', 5);
+  P.korlaz = { duree: 0, prochain: t + 12 + Math.random() * 10 }; P.korlazExpo = 0; P.korlazVu = true;
+  say('Vous êtes infecté par le Korlaz · ' + pourquoi + ' · seul le sérum de clairvoyance vous en délivrera : il se prépare à la table d\'alchimie', 5);
   SON.jouer('stridence'); ETAT.flash = 1;
 }
 // Ce qui pousse sur la roche rongée, ou contre elle, est infecté.
@@ -121,7 +116,7 @@ function etatsRecolte(nd) {
 }
 function guerirKorlaz() {
   if (!P.korlaz) { say('vous n\'êtes pas infecté · le sérum vous éclaircit la vue', 2); return; }
-  P.korlaz = null; P.korlazExpo = 0; ETAT.brume = 0;
+  P.korlaz = null; P.korlazExpo = 0; ETAT.brume = 0; P.korlazVu = true;
   for (const b of beasts) if (b.sp.illusion && !b.sp.achromie) dissiper(b);
   say('Le sérum brûle dans vos veines… et la brume se lève · guéri du Korlaz', 4); SON.jouer('ramasse');
 }
@@ -565,7 +560,7 @@ function majEtats(dt) {
   if (typeof majAchromie === 'function') majAchromie(dt);   // (§127) l'Achromie (achromie.js)
   if (typeof majVyrel === 'function') majVyrel(dt);         // (§184) le Vyrel (vyrel.js) : l'île, et la maladie qui vous suit
   const ici = ETAT.id === 'korlaz';
-  if (ici && !ETAT.annonce) { ETAT.annonce = true; say('Korlaz · la roche de cette île est rongée · ne restez pas dans ses spores', 5); }
+  if (ici && !ETAT.annonce) { ETAT.annonce = true; P.korlazVu = true; say('Korlaz · la roche de cette île est rongée · ne restez pas dans ses spores', 5); }
   if (ici) {
     let n = 0; for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (roche(P.x + dx, P.y + dy)) n++;
     for (let k = 0; k < 4; k++) { const x = P.x + (Math.random() - .5) * 18, y = P.y + (Math.random() - .5) * 18;   // les spores, lentes, luisantes

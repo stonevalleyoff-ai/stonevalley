@@ -486,6 +486,8 @@ function djOuvrir(c) {
   if (plan) { L.push(plan.toUpperCase() + ' (APPRIS)'); if (!arme && !tome) SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
   const arc = typeof arcaneCoffre === 'function' ? arcaneCoffre(c.taille, 'centre') : '';   // (§182) un tome d'arcane, gardé même à la mort
   if (arc) { L.push(arc.toUpperCase() + ' (GARDÉ)'); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
+  const fdon = typeof donsCoffre === 'function' ? donsCoffre(c.taille) : '';   // (§205) une formule de don (l'Esprit), gardée même à la mort
+  if (fdon) { L.push(fdon.toUpperCase() + ' (GARDÉE)'); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
   SON.jouer('clank', {}, c.x, c.y, c.z); SON.jouer('ramasse', {});
   burst(c.x, c.y, c.z + .6, 18, arme ? '#ffe28a' : tome ? '#c9a2ec' : '#ffd27d');
   say((arme ? 'une arme d\'en bas · ' : tome ? 'un tome des Horlogers · ' : 'coffre ouvert · ') + L.join(' · ') + ' · à remonter pour le garder', 5);

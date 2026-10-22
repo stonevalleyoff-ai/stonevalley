@@ -615,8 +615,9 @@ function grFinir(mode, qui) {
   if (typeof Sauve !== 'undefined') Sauve.sale = true;
   const pg = deja ? null : grPigment();
   const aube = !deja && typeof gagnerArcane === 'function' && gagnerArcane('aube');   // (§182) l'arche rallumée : le Tome de l'Aube, la première fois
+  const fdon = !deja && typeof donsGardien === 'function' ? donsGardien('lumiere') : '';   // (§205) le bout d'une voie de la Lumière
   const rang = pg && typeof RARETES !== 'undefined' && RARETES[pg.r - 1] ? ' (' + RARETES[pg.r - 1] + ')' : '';
-  say((qui ? qui + ' repose le prisme · ' : 'Le prisme se rallume · ') + 'la couleur revient sur l\'île · l\'arche est rouverte' + (pg ? ' · +1 pigment : ' + pg.n + rang : '') + (aube ? ' · le Tome de l\'Aube, à déchiffrer au pupitre' : ''), 7);
+  say((qui ? qui + ' repose le prisme · ' : 'Le prisme se rallume · ') + 'la couleur revient sur l\'île · l\'arche est rouverte' + (pg ? ' · +1 pigment : ' + pg.n + rang : '') + (fdon ? ' · ' + fdon : '') + (aube ? ' · le Tome de l\'Aube, à déchiffrer au pupitre' : ''), 7);
   SON.jouer('portail'); SON.jouer('rare');
   if (PortailIle) for (const c of GR_COUL) burst(PortailIle.x, PortailIle.y, PortailIle.z + 2, 14, 'rgb(' + c.rgb.join(',') + ')');
   grJnl('fini', { nd: GRIS.delaves, ni: GRIS.indices, nf: GRIS.SS.reduce((a, S) => a + S.fautes, 0), pigment: pg ? pg.k : null, equipe: qui ? 1 : 0 });

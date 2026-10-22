@@ -87,7 +87,15 @@ const FG_MAT = [
   { id: 'spore', n: 'Korlaz', alli: 'Korlaz', dose: 1, q: 12, c: [40, 30, 52] },
   // (§184) le Vyrel : une dose au plus, jamais avec le Korlaz ; il teinte l'alliage de violet, et l'arme contamine
   { id: 'ichor', n: 'Vyrel', alli: 'Vyrel', dose: 1, q: 4, c: [120, 60, 160] },
+  // (§201) l'obsidienne de l'île volcanique : une matière de charge, le cran au-dessus de la ferraille. Plus dure (l'arme
+  // s'use moins et frappe un peu plus fort), un peu plus tranchante, plus légère ; elle veut une chauffe plus vive. En
+  // queue de liste pour ne rien changer aux codes d'avant ; on l'affiche juste après la ferraille (rang).
+  { id: 'verrenoir', n: 'obsidienne', alli: 'obsidienne', tr: .62, du: .88, p: .5, ch: .7, q: 10, c: [44, 34, 60], rang: .5 },
+  // (§202) le basalte : lourd et dur, sans tranchant. Sur une arme contondante (FG_CONTONDANTS), son poids s'ajoute au choc.
+  { id: 'basalte', n: 'basalte', alli: 'basalte', tr: .3, du: .74, p: 1.05, ch: .58, q: 8, c: [66, 64, 72], rang: 1.5 },
 ];
+const FG_CONTONDANTS = new Set(['marteau', 'fleau', 'baton']);   // (§202) ce qui frappe de sa masse
+const FG_ORDRE = FG_MAT.map((M, k) => k).sort((a, b) => (FG_MAT[a].rang ?? a) - (FG_MAT[b].rang ?? b));   // l'ordre d'affichage
 // (§177) les pigments de l'Achromie (P.pigments, « couleur:rang ») : posés à la fin de la forge, ils donnent à l'arme une aura et une
 // traînée à leur couleur ; plus le pigment est rare, plus l'aura est vive. Le code les porte : 0 rien, 1 à 20 couleur × rang, 21 la nacre.
 const FG_PIG_RGB = {
@@ -112,7 +120,10 @@ const FG_BAINS = [
   { id: 'sang', n: 'sang', t: 1.5, fam: 'viande', nb: 2, d: 'vivante : elle passe sur vous' },
   { id: 'nectar', n: 'nectar', t: 1, fam: 'douceur', nb: 1, d: 'lumineuse : elle part en trait' },
   { id: 'neige', n: 'neige d\'éclat', t: -.6, res: 'eclat', nb: 6, d: 'froide : elle vous entoure d\'une aura' },
+  // (§202) le soufre de l'île volcanique : la forme du coup, comme l'eau, et le feu en plus, même sans âme (fgAme)
+  { id: 'soufre', n: 'soufre', t: 1, res: 'soufrenat', nb: 6, forme: 'coup', el: 'feu', elK: 1.2, us: -200, d: 'brûlante : sur le coup, et le feu en plus, même sans âme' },
 ];
+const FG_BAIN_US = [0, 600, 200, 0, -200];   // ce que la trempe change à l'usure, pour les bains d'avant
 const FG_MONT = [
   { id: 'bois', n: 'bois', res: 'bois', nb: 4, c: [112, 80, 52] }, { id: 'os', n: 'os', res: 'os', nb: 3, c: [214, 204, 180] },
   { id: 'cuir', n: 'cuir', res: 'fibre', nb: 6, c: [96, 64, 44] }, { id: 'laiton', n: 'laiton', res: 'ferraille', nb: 4, c: [184, 148, 76] },
@@ -173,30 +184,30 @@ function fgEncode(R) {
   let v = 0n; const pose = (x, n) => { v = (v << BigInt(n)) | BigInt(Math.max(0, x | 0) & ((1 << n) - 1)); };
   pose(R.type, 5); for (let k = 0; k < 5; k++) pose(R.ch[k], 3); pose(R.coups - 6, 4); pose(R.plis, 3); pose(R.bain, 3); pose(R.mont, 2);
   for (let k = 0; k < 3; k++) pose(R.ame[k] ? fgHache(R.ame[k]) : 0, 10);
-  v |= BigInt((R.ch[5] ? 1 : 0) | (Math.max(0, Math.min(FG_PIG.length - 1, R.pig | 0)) << 1) | ((R.ch[6] && !R.ch[5] ? 1 : 0) << 6)) << 62n;   // (§177) le Korlaz, le pigment ; (§184) le Vyrel
-  const n = v >> 65n ? 14 : 13;                                     // une arme d'avant garde son code de treize signes
+  v |= BigInt((R.ch[5] ? 1 : 0) | (Math.max(0, Math.min(FG_PIG.length - 1, R.pig | 0)) << 1) | ((R.ch[6] && !R.ch[5] ? 1 : 0) << 6) | (Math.max(0, Math.min(4, R.ch[7] | 0)) << 7) | (Math.max(0, Math.min(4, R.ch[8] | 0)) << 10)) << 62n;   // (§177) le Korlaz, le pigment ; (§184) le Vyrel ; (§201) l'obsidienne ; (§202) le basalte
+  const n = v >> 70n ? 15 : v >> 65n ? 14 : 13;                     // une arme d'avant garde son code de treize signes
   let s = ''; for (let k = 0; k < n; k++) { s = FG_ALPH[Number(v & 31n)] + s; v >>= 5n; }
   return s;
 }
 function fgDecode(s) {
-  if (typeof s !== 'string' || !/^[0-9a-hjkmnp-tv-z]{13,14}$/.test(s) || (s.length === 14 && s[0] === '0')) return null;
+  if (typeof s !== 'string' || !/^[0-9a-hjkmnp-tv-z]{13,15}$/.test(s) || (s.length > 13 && s[0] === '0')) return null;
   let v = 0n; for (const c of s) v = (v << 5n) | BigInt(FG_ALPH.indexOf(c));
   const lit = n => { const x = Number(v & BigInt((1 << n) - 1)); v >>= BigInt(n); return x; };
   const ame = []; for (let k = 0; k < 3; k++) ame.unshift(lit(10));
   const mont = lit(2), bain = lit(3), plis = lit(3), coups = lit(4) + 6, ch = []; for (let k = 0; k < 5; k++) ch.unshift(lit(3));
-  const type = lit(5), ex = Number(v), pig = (ex >> 1) & 31; ch.push(ex & 1); ch.push((ex >> 6) & 1);
-  if (!FG_TYPES[type] || bain >= FG_BAINS.length || plis > 5 || pig >= FG_PIG.length || ex >> 7 || (ch[5] && ch[6])) return null;
+  const type = lit(5), ex = Number(v), pig = (ex >> 1) & 31; ch.push(ex & 1); ch.push((ex >> 6) & 1); ch.push((ex >> 7) & 7); ch.push((ex >> 10) & 7);
+  if (!FG_TYPES[type] || bain >= FG_BAINS.length || plis > 5 || pig >= FG_PIG.length || ex >> 13 || ch[7] > 4 || ch[8] > 4 || (ch[5] && ch[6])) return null;
   const tot = fgTot(ch); if (tot < 2 || tot > 4) return null;
   const A = []; for (const h of ame) if (h) { const id = fgIngrDeH(h); if (!id) return null; A.push(id); }
   return { type, ch, coups, plis, bain, mont, ame: A, pig };
 }
 const fgCodeAffiche = c => 'FG-' + c.slice(0, 4).toUpperCase() + '-' + c.slice(4, 8).toUpperCase() + '-' + c.slice(8).toUpperCase();
-const fgCodeLu = s => { const c = String(s || '').toLowerCase().replace(/^fg/, '').replace(/[^0-9a-z]/g, '').replace(/[ilo]/g, m => ({ i: '1', l: '1', o: '0' })[m]); return c.length === 13 || (c.length === 14 && c[0] !== '0') ? c : null; };
+const fgCodeLu = s => { const c = String(s || '').toLowerCase().replace(/^fg/, '').replace(/[^0-9a-z]/g, '').replace(/[ilo]/g, m => ({ i: '1', l: '1', o: '0' })[m]); return c.length === 13 || ((c.length === 14 || c.length === 15) && c[0] !== '0') ? c : null; };
 // L'identifiant d'une arme forgée : « fg », son code, et sa justesse (deux chiffres en base 36)
 const fgIdDe = (code, j) => 'fg' + code + '_' + Math.max(0, Math.min(100, j | 0)).toString(36).padStart(2, '0');
 const FG_LUS = new Map();
 function fgLireId(id) {
-  if (typeof id !== 'string' || (id.length !== 18 && id.length !== 19) || !id.startsWith('fg') || id[id.length - 3] !== '_') return null;
+  if (typeof id !== 'string' || id.length < 18 || id.length > 20 || !id.startsWith('fg') || id[id.length - 3] !== '_') return null;
   let L = FG_LUS.get(id); if (L !== undefined) return L;
   const code = id.slice(2, -3), j = parseInt(id.slice(-2), 36), R = fgDecode(code);
   L = R && j >= 0 && j <= 100 ? { code, R, j } : null; FG_LUS.set(id, L); return L;
@@ -209,7 +220,7 @@ function fgAlliage(R) {
   A.vyrel = !!R.ch[6]; if (A.vyrel) A.c = A.c.map((v, i) => v * .74 + [120, 60, 160][i] * .26 | 0);   // (§184) le Vyrel : violacé
   const ord = R.ch.map((q, k) => [q, k]).filter(x => x[0] && !FG_MAT[x[1]].dose).sort((a, b) => b[0] - a[0]);
   A.nom = FG_MAT[ord[0][1]].alli + (ord[1] ? ' ' + fgDe(FG_MAT[ord[1][1]].alli) : '');
-  A.eclat = R.ch[3] > 0; A.damne = R.ch[4] > 0;
+  A.eclat = R.ch[3] > 0; A.damne = R.ch[4] > 0; A.masse = (R.ch[8] || 0) / n;   // (§202)
   return A;
 }
 const fgLong = R => Math.max(.82, Math.min(1.32, .82 + (R.coups - 6) * .036));
@@ -218,19 +229,20 @@ const fgTrempe = R => Math.round(((FG_TYPES[R.type].trempe || 4) + FG_BAINS[R.ba
 const fgTol = () => (FG_NIV() >= 3 ? 1.4 : 1);
 function fgStats(R, j) {
   const T = FG_TYPES[R.type], A = fgAlliage(R), L = fgLong(R), jj = j / 100;
-  const deg = T.deg * (.8 + .45 * A.tr) * (1 + .12 * A.du) * (1 + .035 * R.plis) * (L > 1 ? 1 + (L - 1) * .5 : 1 - (1 - L) * .3) * (.72 + .45 * jj) * (j >= 97 ? 1.05 : 1);
+  const deg = T.deg * (.8 + .45 * A.tr) * (1 + .12 * A.du) * (FG_CONTONDANTS.has(T.id) ? 1 + .4 * A.masse : 1) * (1 + .035 * R.plis) * (L > 1 ? 1 + (L - 1) * .5 : 1 - (1 - L) * .3) * (.72 + .45 * jj) * (j >= 97 ? 1.05 : 1);
   const cad = T.cad * (.88 + .3 * A.p) * (L > 1 ? 1 + (L - 1) * .4 : 1);
   const port = T.port ? T.port * (.86 + .16 * L) : 0;
-  const usure = Math.round((2000 + 1400 * A.du + [0, 600, 200, 0, -200][R.bain] + 120 * R.plis) * (j >= 97 ? 2 : 1) * (T.us || 1));   // (§179) us : une arme rapide encaisse plus de coups
+  const usure = Math.round((2000 + 1400 * A.du + (FG_BAINS[R.bain].us ?? FG_BAIN_US[R.bain] ?? 0) + 120 * R.plis) * (j >= 97 ? 2 : 1) * (T.us || 1));   // (§179) us : une arme rapide encaisse plus de coups
   return { deg: Math.round(deg * 100) / 100, cad: Math.round(cad * 1000) / 1000, port: Math.round(port * 100) / 100, usure, L };
 }
 function fgAme(R) {
   const cpt = {};
   R.ame.forEach((id, k) => { const el = fgElemDe(id); if (el) cpt[el] = (cpt[el] || 0) + fgRang(INGR[id]) * [1.5, 1, .75][k]; });   // l'ordre compte : le premier pèse plus
+  const Bn = FG_BAINS[R.bain]; if (Bn && Bn.el) cpt[Bn.el] = (cpt[Bn.el] || 0) + Bn.elK;   // (§202) le soufre
   for (const [a, b] of FG_OPPOSES) if (cpt[a] && cpt[b]) { const m = Math.min(cpt[a], cpt[b]); cpt[a] -= m; cpt[b] -= m; }   // deux âmes contraires s'annulent
   const L = Object.entries(cpt).filter(x => x[1] > 0).sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1));
   if (!L.length) return null;
-  return { el: L[0][0], el2: L[1] ? L[1][0] : null, niv: Math.max(1, Math.min(4, Math.ceil(L[0][1] * .75 + (L[1] ? L[1][1] * .25 : 0)))), decl: FG_DECL[R.plis], forme: FG_FORMES[R.bain] };
+  return { el: L[0][0], el2: L[1] ? L[1][0] : null, niv: Math.max(1, Math.min(4, Math.ceil(L[0][1] * .75 + (L[1] ? L[1][1] * .25 : 0)))), decl: FG_DECL[R.plis], forme: (Bn && Bn.forme) || FG_FORMES[R.bain] };
 }
 const FG_ROM = ['', 'I', 'II', 'III', 'IV'];
 function fgCompTxt(C) {
@@ -1820,7 +1832,7 @@ function rendreForge() {
   const n = FG_NIV(), E = FG.en, now = fgNow(), maj = x => x[0].toUpperCase() + x.slice(1);
   pose('.fg-niv', 'niveau ' + n);
   pose('.fg-ong', [['forger', 'Forger'], ['armes', 'Mes armes'], ['code', 'Lire un code'], ['carnet', 'Carnet']].map(([k, tt]) => `<button data-fg="v:${k}" class="${FG.vue === k ? 'on' : ''}">${tt}</button>`).join(''));
-  pose('.fg-res', FG_MAT.map((M, k) => `<span>${img(M.ingr ? icIngr(M.id) : M.id)}${fgDispoMat(k)}</span>`).join(''));
+  pose('.fg-res', FG_ORDRE.map(k => [FG_MAT[k], k]).map(([M, k]) => `<span>${img(M.ingr ? icIngr(M.id) : M.id)}${fgDispoMat(k)}</span>`).join(''));
   const forger = FG.vue === 'forger';
   el.querySelector('.fg-corps').style.display = forger ? '' : 'none'; el.querySelector('.fg-autre').style.display = forger ? 'none' : '';
   if (!forger) { pose('.fg-autre', fgAutre() + `<div class="fg-msg">${now < FG.msgT ? ESC(FG.msg) : ''}</div>`); return; }
@@ -1837,7 +1849,7 @@ function rendreForge() {
   let ctl = '';
   if (!E) {
     const tot = fgTot(FG.ch), cout = fgCoutCharge(FG.ch);
-    ctl = FG_MAT.map((M, k) => `<div class="fg-mat${M.dose ? ' dose' : ''}">${img(M.ingr ? icIngr(M.id) : M.id)}<span>${M.n} <small>· ${M.dose ? M.id === 'ichor' ? M.q + ' ichors la dose · une au plus · pas avec le Korlaz · ' + (fgDistanceT(FG_TYPES[FG.choix]) ? 'une flaque de miasme là où elle touche' : 'elle contamine ce qu\'elle frappe') : M.q + ' spores la dose · une au plus · ' + (fgDistanceT(FG_TYPES[FG.choix]) ? 'une ombre qui se bat' : 'des griffes, même de loin') : M.q + ' par portion'} · ${fgDispoMat(k)} en réserve</small></span>${B('c-:' + k, '−', '', 'mini')}<em>${FG.ch[k]}</em>${B('c+:' + k, '+', '', 'mini')}</div>`).join('')
+    ctl = FG_ORDRE.map(k => [FG_MAT[k], k]).map(([M, k]) => `<div class="fg-mat${M.dose ? ' dose' : ''}">${img(M.ingr ? icIngr(M.id) : M.id)}<span>${M.n} <small>· ${M.dose ? M.id === 'ichor' ? M.q + ' ichors la dose · une au plus · pas avec le Korlaz · ' + (fgDistanceT(FG_TYPES[FG.choix]) ? 'une flaque de miasme là où elle touche' : 'elle contamine ce qu\'elle frappe') : M.q + ' spores la dose · une au plus · ' + (fgDistanceT(FG_TYPES[FG.choix]) ? 'une ombre qui se bat' : 'des griffes, même de loin') : M.q + ' par portion'} · ${fgDispoMat(k)} en réserve</small></span>${B('c-:' + k, '−', '', 'mini')}<em>${FG.ch[k]}</em>${B('c+:' + k, '+', '', 'mini')}</div>`).join('')
       + B('aufeu', 'AU FEU', tot < 2 ? 'deux à quatre portions' : (ditCoutTxt(cout, FG.ch[4]) || 'la charge'), 'prim', tot < 2 || !fgChargeOk(FG.ch));
   } else if (E.plonge) ctl = B('retirer', 'RETIRER', 'Espace');
   else if (E.feu) ctl = B('souffle', 'SOUFFLET', 'maintenir · Espace', 'prim') + B('enclume', 'SUR L\'ENCLUME', E.chauffeFaite ? 'reprendre le travail' : 'à la bonne couleur');
@@ -1902,7 +1914,7 @@ function fgEviter(R) {
   const L = [];
   if (R.plis < 5) L.push((R.plis + 1) + ' pli' + (R.plis ? 's' : '') + ' : un autre déclencheur (' + FG_DECL_TXT[FG_DECL[R.plis + 1]] + ')');
   L.push('six plis : la lame casse');
-  L.push('un autre bain change la forme (l\'eau : sur le coup ; l\'huile : au sol ; le sang : sur soi ; le nectar : en trait ; la neige : en aura)');
+  L.push('un autre bain change la forme (l\'eau : sur le coup ; l\'huile : au sol ; le sang : sur soi ; le nectar : en trait ; la neige : en aura ; le soufre : sur le coup, avec le feu en plus)');
   if (R.ame.length > 1) L.push('l\'âme dans un autre ordre : une autre arme, d\'autres dosages');
   L.push('l\'âme versée sous le vert ne prend pas');
   if (R.ch[2]) L.push('l\'os brûle vite : pas au-delà de ' + fgCouleurNom(fgCible(R) + .12));

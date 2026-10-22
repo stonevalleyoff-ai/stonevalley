@@ -826,6 +826,7 @@ function nmQuete(b) {
   return (b.quete = { type, etat: 'demande', x: sac && sac[0], y: sac && sac[1], z: sac && hAt(sac[0] | 0, sac[1] | 0) });
 }
 function nmRecompense(b) {
+  if (typeof donsRecompense === 'function') { const r = donsRecompense(b); if (r) return r; }   // (§205) parfois, une formule de don
   const niv = typeof profondeur === 'function' ? profondeur() : 0, L = typeof tirerCurios === 'function' ? tirerCurios(niv, 1) : [];
   nmGagne(b, 3); SON.jouer('rare');
   if (L.length) { const o = CURIO[L[0]]; P.objets[o.id] = 1; if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof majSac === 'function') majSac();
@@ -1194,6 +1195,7 @@ function nmAller(id, replique) {
   let n = R[id]; if (typeof n === 'function') n = n(b);
   if (!n) { nmFermer(); return; }
   if (id === 'accueil' && typeof recetteNomade === 'function') { const c = recetteNomade(b); if (c) n = Object.assign({}, n, { choix: [...(n.choix || []), c] }); }   // (§153) une recette de la route
+  if (id === 'accueil' && typeof donsNomade === 'function') { const c = donsNomade(b); if (c) n = Object.assign({}, n, { choix: [...(n.choix || []), c] }); }   // (§205) les dons
   if ((NM_AFFAIRES[b.nm.role] || []).includes(id)) {   // (§123) une affaire par halte : au-delà, les offres grisées
     const ok = nmPeutAffaire(b);
     n = Object.assign({}, n, { choix: (n.choix || []).map(c => !c.fait ? c : ok ? Object.assign({}, c, { fait: () => { const r = c.fait(); nmAffaire(b); if (typeof jnl === 'function') jnl('nomade', { role: b.nm.role, affaire: id, ami: nmAmi(b), expl: profondeur() }); return r; } })

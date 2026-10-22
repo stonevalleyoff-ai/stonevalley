@@ -6411,3 +6411,264 @@ Quand le soufre prend à la gorge, le jeu le rappelle : « un masque filtrant vo
 - En canvas, la pente du volcan montre deux fois plus de faces qu'une île ordinaire (environ 100 ms contre 60). Les particules n'y comptent plus que pour 20 ms environ.
 - Récolte, fabrication (en essai), saignement, masque contre le gaz et combat du Tisonnier vérifiés, sans erreur.
 - Les îles ordinaires, le canvas et la 1re personne fonctionnent sans erreur.
+
+## §201 · L'obsidienne à la forge
+
+L'obsidienne entre à la forge comme matière de charge, au même titre que la ferraille, la pierre, l'os et l'éclat. Ce n'est pas une dose comme le Korlaz ou le Vyrel. Elle se place juste après la ferraille dans la liste, et on la prend dans ses éclats d'obsidienne (10 par portion).
+
+**Le cran au-dessus de la ferraille.**
+
+| | Tranchant | Dureté | Poids | Chauffe |
+|---|---|---|---|---|
+| Ferraille | 0,55 | 0,62 | 0,6 | 0,64 |
+| Obsidienne | 0,62 | 0,88 | 0,5 | 0,7 |
+
+- **Plus dure.** C'est la résistance : l'arme s'use moins (environ 13 % de coups en plus avant d'être à réparer) et frappe un peu plus fort.
+- **Un peu plus tranchante, plus légère** : la cadence est un peu plus vive.
+- **Elle veut une chauffe plus vive**, plus proche de l'orange.
+- Seul le fer damné, plus rare, est plus dur.
+
+L'alliage prend sa couleur (un noir violacé) et son nom : « obsidienne », « acier d'obsidienne », « obsidienne d'éclat »… Elle se mêle librement aux autres matières, au Korlaz, au Vyrel et aux pigments.
+
+**Le code.** Les armes d'avant gardent leur code de treize ou quatorze signes. Une arme qui contient de l'obsidienne peut en prendre quinze. Le code se lit et se tape de la même façon (FG-XXXX-XXXX-XXXXXXX).
+
+**Vérifié :**
+- le codage et le décodage, de une à quatre portions, seules ou avec éclat, Vyrel, Korlaz et pigment ;
+- les anciens codes, inchangés ;
+- le coût de la charge et la forge ouverte, sans erreur.
+
+## §202 · Le basalte et le soufre à la forge
+
+**Le basalte : une charge lourde.** Il se prend sur les réserves de basalte, à 8 par portion, et s'affiche après la pierre.
+- Il est lourd et dur, mais sans tranchant : tranchant 0,3, dureté 0,74, poids 1,05, chauffe 0,58.
+- Sur une épée ou une lame, il fait une arme médiocre : elle est lente et frappe mal.
+- Sur une arme qui frappe de sa masse (marteau, fléau, bâton), son poids s'ajoute au choc : jusqu'à +40 % de dégâts, avec 4 portions sur 4. Les dégâts gagnés compensent largement la lenteur.
+
+Mesuré sur un marteau de trois portions, forgé juste à 80 %, trempé à l'eau :
+
+| Charge | Dégâts | Cadence | Usure |
+|---|---|---|---|
+| ferraille | 225 | 0,71 s | 2 331 |
+| pierre | 193 | 0,77 s | 2 184 |
+| basalte | 285 | 0,80 s | 2 457 |
+
+Le basalte donne environ 13 % de dégâts par seconde en plus que la ferraille, en coups plus lourds.
+
+**Le soufre : un bain de trempe.** Le bain de soufre (6 soufre natif) s'ajoute aux cinq autres.
+- La compétence porte sur le coup, comme avec l'eau.
+- Le soufre y met le feu, même sans âme : une arme trempée au soufre embrase ce qu'elle frappe (feu I).
+- Avec une âme, le feu s'y ajoute. Il peut devenir le second élément, ou prendre le dessus. Il annule le givre, son contraire.
+- La trempe dure une seconde de plus qu'à l'eau.
+- Elle rend l'arme un peu plus cassante : 200 coups de moins avant l'usure, comme la neige.
+- L'arme prend un nom de feu (« … de Fournaise ») et un fil orange.
+
+**Le code.** Les armes d'avant ne changent pas. Le basalte prend trois bits de plus dans le code, qui reste lisible et tapable sur quinze signes au plus. Le bain de soufre tient dans les bits du bain.
+
+**Vérifié :**
+- le codage et le décodage du basalte seul, mêlé à l'obsidienne, au Vyrel et à un pigment, et du bain de soufre ;
+- les anciens codes, inchangés ;
+- les dégâts, la cadence et l'usure ;
+- la compétence de feu sans âme ;
+- la forge ouverte, sans erreur.
+
+## §203 · L'alchimie rééquilibrée : le soufre et le Vyrel ; le sérum du Korlaz passe à la table
+
+**Ce que coûte une potion.** Jusqu'ici, à partir du rang 3, toutes les potions demandaient des spores de Korlaz. Désormais, chaque potion demande la matière qui va avec ce qu'elle travaille :
+
+| Matière | D'où elle vient | Potions |
+|---|---|---|
+| **Soufre natif** | le volcan | le corps : Vie, Force, Récupération, et la Défense d'une compagne |
+| **Spores de Korlaz** | l'île au Korlaz | l'esprit et la main : Mana, Récolte, Saut, et l'éveil d'une compagne |
+| **Ichor de Vyrel** | l'île au Vyrel | le souffle et le pas : Souffle, Vitesse |
+
+La dose suit la rareté de la matière : le soufre abonde, l'ichor est rare. Il en faut une dose au rang 3, deux au rang 4, trois au rang 5. Les éclats ne changent pas.
+
+| Rang | Éclats | Soufre | Spores | Ichor |
+|---|---|---|---|---|
+| 1 | 6 | — | — | — |
+| 2 | 12 | — | — | — |
+| 3 | 20 | 6 | 4 | 3 |
+| 4 | 30 | 12 | 8 | 6 |
+| 5 | 45 | 18 | 12 | 9 |
+
+Une potion ne demande qu'une seule de ces matières, celle de sa ligne. Les potions des compagnes suivent le même barème. L'en-tête de la table montre les éclats, plus les matières qu'on a ou que demande la potion choisie.
+
+**Le sérum de clairvoyance quitte la cuisine.** Le remède du Korlaz n'est plus une recette de cuisine à quatre ingrédients. C'est maintenant une recette fixe de la table d'alchimie, comme la Thériaque du Vyrel.
+- **La recette** : une table de niveau 1 et 6 spores de Korlaz. On verse un champignon, 6 éclats, une fleur, 6 éclats, une douceur puis un champignon, tous au moins peu communs.
+- **Le résultat** : réussi, il donne une dose, deux s'il est parfait. Les doses rejoignent les soins, comme la Thériaque.
+- **L'effet** : pour soi ou pour un équipier à portée, il guérit du Korlaz, chasse les visions et rend 20 % de vie.
+- **Un équipier infecté** peut être soigné même s'il a toute sa vie : l'infection se voit désormais d'un joueur à l'autre.
+- **Sur la table**, il paraît dans « Les remèdes » une fois le Korlaz croisé : arrivée sur l'île rongée, infection, ou spores dans le sac.
+- **Les messages** de l'infection disent où le préparer.
+
+**Les sauvegardes.** Les doses de sérum gardées en cuisine passent aux soins, et la recette sort du carnet de cuisine. Rien n'est perdu.
+
+**L'essai** : une carte « Sérum de clairvoyance » donne deux doses.
+
+**Vérifié :**
+- le barème de chaque potion, du rang 1 au rang 5 ;
+- un sérum brassé jusqu'au bout : 6 spores payées, une dose de plus ;
+- un sérum utilisé : le Korlaz est guéri ;
+- deux doses de cuisine passées aux soins au chargement (3 parts au total), la recette retirée ;
+- la table d'alchimie, sans erreur.
+
+## §204 · Les dons (lot 1 : le moteur)
+
+**Le principe.** Les dons sont des compétences permanentes, à part des caractéristiques.
+- **La formule.** Chaque don a sa formule, à trouver en trésor ; elle se garde, même à la mort.
+- **La préparation.** On prépare un élixir de don à la table d'alchimie, comme une potion : ingrédients dans l'ordre, gestes, chance de réussite. On le boit sur place.
+- **La puissance** dépend de la chance qu'avait le breuvage, de 55 à 150 %, comme pour les potions.
+- **Le code.** Il est dans le nouveau fichier `dons.js`.
+
+**Les sept familles.**
+- Six familles vont par couples opposés :
+  - le **Vent** (la mobilité) et la **Terre** (l'ancrage) ;
+  - l'**Ombre** (la furtivité) et la **Lumière** (la vigilance et le soin) ;
+  - l'**Instinct** (la bête et le sang) et l'**Esprit** (les arcanes).
+- **Boire un don d'une famille dissout tous les dons de la famille opposée.**
+- **Chaque famille a cinq dons** : un de niveau 1, puis une fourche de deux voies au niveau 2, puis le bout de chaque voie au niveau 3.
+  - La voie qu'on n'a pas prise est fermée : la table refuse ses dons.
+  - On a donc trois dons au plus par famille, neuf en tout sur trente.
+- **Le Héros**, à part :
+  - cinq dons exceptionnels ;
+  - un seul à la fois : en boire un autre dissout le premier ;
+  - aucune famille ne le dissout ;
+  - il faut un don de niveau 3 pour en préparer un.
+
+**Les dons.** Ce lot donne l'effet des six dons de niveau 1. Les autres sont décrits dans l'arbre et attendent leur lot ; leurs formules ne se trouvent pas encore.
+
+| Famille | Niveau 1 (en jeu) | Voie a (niv. 2 → 3) | Voie b (niv. 2 → 3) |
+|---|---|---|---|
+| Vent | **Pied léger** : saut +12 %, pas +6 % | Troisième saut → Vol plané | Ruée → Ruée fantôme |
+| Terre | **Racines** : les coups ne vous repoussent plus (le recul tombe à 15 %) | Peau de pierre → Colosse | Choc → Faille |
+| Ombre | **Pas feutré** : les bêtes vous repèrent de 40 % moins loin et vous entendent moitié moins | Fondu → Assassin | Esquive → Contre |
+| Lumière | **Lueur** : la nuit, on éclaire autour de soi sans lanterne (5 à 7 cases), et les autres joueurs le voient | Vigie → Œil du chercheur | Main guérisseuse → Aube intérieure |
+| Instinct | **Flair** : la flore rend son produit moitié plus souvent, et chaque bête abattue donne une viande de plus | Meneur → Chef de meute | Fureur → Sang chaud |
+| Esprit | **Mémoire** : les sorts coûtent 10 % de mana en moins | Écho → Archimage | Résonance → Âme liée |
+| Héros | Phénix, Temps suspendu, Ailes de l'aube, Titan, Roi des bêtes | | |
+
+Les chiffres des niveaux 1 sont donnés pour une puissance de 100 %. Ils suivent la puissance du don.
+
+**Les recettes.**
+
+| Niveau | Table | Base | Recette | Coût |
+|---|---|---|---|---|
+| 1 | 1 | 70 % | quatre étapes, ingrédients au moins peu communs | 15 éclats |
+| 2 | 2 | 55 % | cinq étapes, rares | 30 éclats |
+| 3 | 3 | 45 % | six étapes, dont un ingrédient légendaire | 50 éclats |
+| Héros | 3 | 30 % | trois fers damnés, deux légendaires, deux exotiques, 15 éclats versés | 80 éclats |
+
+Chaque niveau demande aussi la matière de sa famille, une dose par niveau :
+
+| Famille | Matière par niveau |
+|---|---|
+| Terre | 8 basalte |
+| Ombre | 4 spores |
+| Lumière | 3 nectars |
+| Instinct | 3 ichors |
+| Esprit | 4 obsidiennes |
+| Vent | une **plume de vautour** dans la recette (deux au niveau 3), à la place d'une matière |
+
+La plume de vautour est une nouvelle denrée : un vautour sur deux environ en laisse une, une sterne sauvage parfois.
+
+**Ce qu'on sait d'un don** s'apprend peu à peu. Il y a trois choses à savoir :
+1. ce qu'il fait : la formule le dit ;
+2. son niveau et ce qu'il demande avant lui ;
+3. ce qu'il ferme et ce qu'il dissout.
+
+Les nomades diront le reste au lot 2. Ce qu'on a vécu s'apprend aussi : une famille dissoute apprend les liens des deux familles. La table ne prévient en clair que de ce qu'on sait. Sinon : « quelque chose en vous résiste à ce breuvage », ou « il lui manque quelque chose en vous ».
+
+**À la table.**
+- La colonne de gauche montre « Les dons » dont on a la formule.
+- Le bouton **Les dons**, en haut, ouvre l'arbre des sept familles dans le brouillard. Un don qu'on ne sait pas situer reste un « ? ». Les liens (fourches, oppositions) s'affichent une fois sus.
+- Le carnet note chaque don essayé.
+
+**Bêta.** Une carte « Les dons » donne les formules prêtes avec tout leur savoir, ou fait oublier ses dons.
+
+**Vérifié :**
+- un don préparé jusqu'au bout et bu, avec sa puissance ;
+- la Terre bue après le Vent : le Pied léger dissous, et l'avertissement vague puis su ;
+- une formule pas encore prête refusée ;
+- l'effet des six dons de niveau 1 ;
+- la sauvegarde relue à l'identique ;
+- l'arbre à l'écran ;
+- les îles ordinaires et le volcan, sans erreur.
+
+## §205 · Les dons (lot 2 : les trésors et les nomades)
+
+**Où trouver les formules.**
+
+| Où | Ce qu'on y trouve |
+|---|---|
+| **La cache d'alchimiste** : un coffret de pierre cerclé de fer, une fiole qui luit posée dessus (la nuit, un fil de lumière en monte, visible de loin). Une île sur quatre dès l'exploration 3. | Une formule de niveau 1. |
+| **La cache, sur l'île d'une famille** : le volcan (Terre), le Korlaz et la brume (Ombre), l'Achromie (Lumière), le Vyrel (Instinct), les îles volantes (Vent). Trois îles sur cinq. | Une formule de niveau 2 de cette famille. |
+| **La cache, au plus haut des îles volantes** (exploration 10). | Une fois sur deux, le bout d'une voie du Vent. |
+| **Les coffres gardés du Centre et des Cercles** : un grand coffre une fois sur trois environ, un coffre du gardien une fois sur sept. | Une formule de l'Esprit (niveau 2). |
+| **Les gardiens** : le Tisonnier (Terre), la Mère-Charogne (Instinct), la Tisseuse (Ombre), le prisme reposé de l'Achromie (Lumière), le reliquaire du Roi (Esprit). | Le bout d'une voie de leur famille (niveau 3). |
+| **Un égaré tiré d'affaire.** | Quatre fois sur dix, une formule de niveau 1, à la place de sa curiosité. |
+
+- **Laquelle.** Une cache donne la première formule de son rang que vous n'avez pas encore. Ouverte, elle reste vide.
+- **Les dons pas encore en jeu.** Tant qu'un rang n'a pas son effet en jeu, sa formule ne se trouve pas. Ce n'est pas perdu : on reçoit à la place la formule prête la plus proche, de la même famille d'abord. Aujourd'hui, toutes ces sources donnent des formules de niveau 1. Elles donneront les autres à mesure que leurs lots arrivent.
+- **Le Héros** viendra au lot 6, chacun derrière son défi.
+
+**Ce que disent les nomades.**
+- À l'accueil, le marchand, le dresseur, le cartographe, le conteur et le devin proposent « Les dons… tu en sais quelque chose ? », dès l'exploration 3.
+- **Une chose par question.** Une seule par halte chez le marchand, le dresseur et le cartographe, deux chez le conteur et le devin.
+- **Dans quel ordre.** D'abord ce qu'on ignore des formules et des dons qu'on a, puis de leur famille, puis le reste : ce que fait un don, puis sa place, puis ce qu'il ferme et dissout.
+- **La fourche.** Apprendre ce que ferme un don de niveau 2 ou 3 apprend aussi l'autre voie.
+- **Les légendes du Héros**, seuls le conteur et le devin les content, une par expédition.
+- **Où chercher.** Parfois, plutôt qu'un savoir, ils disent où trouver les formules : les caches, les îles des fléaux, les gardiens, les coffres des Horlogers.
+- Chaque chose apprise s'inscrit à l'arbre de la table d'alchimie, et le jeu le signale.
+
+**Vérifié :**
+- une cache posée sur l'île du volcan, ouverte, sa formule reçue, puis vide ;
+- les coffres gardés : 5 formules sur 40 grands coffres ;
+- le repli sur une formule prête ;
+- la récompense d'un égaré ;
+- les répliques des nomades, leur budget par halte, et le savoir qui s'accumule sur douze haltes ;
+- la cache à l'image, la nuit ;
+- le combat du Tisonnier ;
+- les îles ordinaires et le volcan, sans erreur.
+
+## §206 · Les dons (lot 3 : le Vent, la Terre, l'Ombre)
+
+Les douze dons de niveau 2 et 3 de ces trois familles sont en jeu. Leurs formules se trouvent désormais :
+- dans les caches des îles de leur famille (niveau 2) ;
+- sur les gardiens : le Tisonnier pour la Terre, la Tisseuse pour l'Ombre (niveau 3) ;
+- au plus haut des îles volantes pour le Vent (niveau 3).
+
+**La nouvelle touche W** (sous le X en AZERTY, Z en QWERTY) sert à la ruée et à l'esquive. Sur téléphone, un bouton RUÉE / ESQUIVE paraît à gauche de l'ACTION dès qu'on a l'un des deux ; il pâlit quand il se recharge. Avec les deux dons (ce sont deux familles qui ne s'opposent pas), la touche fait la ruée en l'air ou en courant, l'esquive sinon.
+
+**Le Vent**
+- **Troisième saut** : un saut de plus en l'air, après le double saut. On monte de 3,7 cubes au lieu de 2,1.
+- **Ruée** : un bond à l'horizontale, dans la direction du pas (ou du regard). Environ trois cases en un sixième de seconde, intouchable pendant le bond, une recharge d'une seconde.
+- **Vol plané** (après le troisième saut) : en tombant, SAUT maintenu, on plane. Deux voiles claires s'ouvrent aux épaules, et les autres joueurs les voient. On descend à 1,9 case par seconde au lieu de tomber : six cubes de chute en un peu plus de trois secondes, au lieu de deux tiers de seconde.
+- **Ruée fantôme** (après la ruée) : deux ruées d'affilée. Elles traversent les bêtes, qui restent sonnées une seconde et prennent un petit coup.
+
+**La Terre**
+- **Peau de pierre** : −15 % de dégâts tant qu'on ne court pas.
+- **Choc** : retomber de haut (à partir d'un cube environ) frappe le sol. L'onde, sur 2,4 cases, sonne les bêtes près d'une seconde et les blesse un peu. Le sol tremble.
+- **Colosse** (après la peau de pierre) : un quatrième cœur. Il est rendu tout de suite, puis au feu comme les autres. Le plat « un cœur en plus » en donne encore un, le premier à partir.
+- **Faille** (après le choc) : la retombée ouvre en plus, devant soi, une faille de feu en zigzag sur quatre cases, pendant trois secondes. Ce qui y passe brûle.
+
+**L'Ombre**
+- **Fondu** : une seconde et demie immobile dans l'ombre (la nuit, sous les grands arbres, sous terre), et l'on disparaît, pâle comme un fantôme. On le reste en marchant. On réapparaît en courant, en frappant ou au grand jour. Les bêtes ne vous cherchent plus.
+- **Esquive** : une roulade de trois cases environ, intouchable un peu plus longtemps que la ruée. Recharge : un peu moins d'une seconde.
+- **Assassin** (après le fondu) : le premier coup sur une bête qui ne vous a pas vu (ni alertée, ni en colère, ni en train d'attaquer, ni sur votre piste) porte trois fois.
+- **Contre** (après l'esquive) : un coup esquivé pendant la roulade est rendu double à qui l'a porté, et le sonne une seconde.
+
+Tout suit la puissance du don, de 55 à 150 % : la hauteur du troisième saut, la recharge de la ruée, la lenteur du plané, la peau de pierre, l'onde du choc, la durée de la faille, le temps qu'il faut pour se fondre.
+
+**Vérifié** (simulation sur une dalle plate) :
+- la hauteur des sauts ;
+- la distance de la ruée, et un coup reçu pendant la ruée sans effet ;
+- la ruée fantôme qui traverse et sonne ;
+- l'esquive, puis le contre (la bête à 68 %, sonnée 1,2 s) ;
+- la peau de pierre (0,39 au lieu de 0,46) ;
+- la chute en planant ;
+- le choc (sonnée, blessée) et la faille qui brûle ;
+- le quatrième cœur ;
+- le fondu la nuit : la bête ne vous veut plus ;
+- l'assassin (×3, et ×1 sur une bête alertée) ;
+- les voiles et la faille à l'image ;
+- les îles ordinaires, le volcan et le Tisonnier, sans erreur.

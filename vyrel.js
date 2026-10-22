@@ -234,7 +234,8 @@ function guerirIle() {
   if (!(P.vyrelGueries || (P.vyrelGueries = [])).includes(SEED)) { P.vyrelGueries.push(SEED); if (P.vyrelGueries.length > 300) P.vyrelGueries.shift(); }
   for (const f of VY.foyers) if (!f.dead && f.pv > 0 && typeof oterBete === 'function') oterBete(f, false);
   P.sac.eclat = (P.sac.eclat || 0) + 25; P.sac.ichor = (P.sac.ichor || 0) + 4;
-  say('La Mère-Charogne est tombée · les miasmes se lèvent · l\'île guérit · +25 éclats, +4 ichors de Vyrel', 5.5);
+  const fd = typeof donsGardien === 'function' ? donsGardien('instinct') : '';   // (§205) le bout d'une voie de l'Instinct
+  say('La Mère-Charogne est tombée · les miasmes se lèvent · l\'île guérit · +25 éclats, +4 ichors de Vyrel' + (fd ? ' · ' + fd : ''), 6);
   SON.jouer('niveau'); if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof majSac === 'function') majSac();
 }
 // ---------- l'état partagé (faune.js) : l'île guérie ----------

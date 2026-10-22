@@ -224,6 +224,7 @@ function ouvrirReliquaire(c) {
   else if (id && !P.objets[id]) { P.objets[id] = 1; if (typeof rangerRaccourci === 'function') rangerRaccourci(id); L.push('OBJET UNIQUE · ' + objet(id).n.toUpperCase()); SON.jouer('rare', {}, c.x, c.y, c.z + .5); }
   else { const e = Math.round((20 + Math.random() * 10) * k), o = Math.round((6 + Math.random() * 4) * k); P.sac.eclat += e; P.sac.os = (P.sac.os || 0) + o; L.push('+' + e + ' éclats', '+' + o + ' os');
     const s2 = ROI_INGR[DJ.e] ? roiDonnerIngr(ROI_INGR[DJ.e], 2) : ''; if (s2) L.push(s2); }
+  { const f = typeof donsGardien === 'function' ? donsGardien('esprit') : ''; if (f) L.push(f.toUpperCase() + ' (GARDÉE)'); }   // (§205) le bout d'une voie de l'Esprit
   SON.jouer('clank', {}, c.x, c.y, c.z); SON.jouer('ramasse', {});
   burst(c.x, c.y, c.z + .8, 30, '#ffe08a');
   say('le reliquaire · ' + L.join(' · ') + ' · à remonter pour le garder', 6); majSac();

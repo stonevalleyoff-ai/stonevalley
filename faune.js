@@ -220,7 +220,7 @@ function chargeFaune(suiv) {
 function fauneEntete(now) {
   if (!faunePossible()) return {};
   const fx = (joueurCalme() ? 1 : 0) | (sousAbri() ? 2 : 0) | (effet('invisible') ? 4 : 0) | (effet('silence') ? 8 : 0) | (effet('repousse') ? 16 : 0)
-    | (P.equip && P.equip.accessoire === 'masque_bec' ? 32 : 0) | (P.vyrel ? 64 : 0) | (P.equip && P.equip.accessoire === 'masque_filtre' ? 128 : 0);   // (§200) le masque filtrant   // (§184) le masque à bec, la maladie du Vyrel
+    | (P.equip && P.equip.accessoire === 'masque_bec' ? 32 : 0) | (P.vyrel ? 64 : 0) | (P.equip && P.equip.accessoire === 'masque_filtre' ? 128 : 0) | (P.korlaz ? 256 : 0) | (typeof DN !== 'undefined' && DN.plane ? 512 : 0);   // (§200) le masque filtrant ; (§203) le Korlaz, qu'un équipier peut guérir   // (§184) le masque à bec, la maladie du Vyrel
   const e = { fv: 1, fg: FA.role === 'gardien' && maintenant() >= FA.ecoute ? 1 : 0, fa: Math.round(ancienneteFaune()), fx };
   const br = bruitJoueur(); if (br) e.br = r2(br);          // ce que le Silencieux entend de lui
   if (Fourmi) e.oc = r2(confColonie());                     // ce que la colonie des oglodons pense de lui
@@ -774,7 +774,7 @@ function frapperJoueur(b, J, deg, o) {
   if (J !== P) { FA.extra = o || null; const r = porterCoup(b, J, deg); FA.extra = null; return r; }
   const r = porterCoup(b, P, deg);
   if (r && o) {
-    if (o.kb) { P.vx += o.kb[0] || 0; P.vy += o.kb[1] || 0; if (o.kb[2]) P.vz = (P.vz || 0) + o.kb[2]; }
+    if (o.kb) { const r = typeof donA === 'function' && donA('racines') ? .15 : 1; P.vx += (o.kb[0] || 0) * r; P.vy += (o.kb[1] || 0) * r; if (o.kb[2]) P.vz = (P.vz || 0) + o.kb[2] * r; }   // (§204) les racines
     if (o.m) say(o.m, 1.8);
   }
   if (o && o.sh) { P.secousse = t; P.secousseK = Math.max(P.secousseK || 0, o.sh); }
@@ -866,7 +866,7 @@ function fauneEvenement(evt, d) {
 function fauneDistant(j, d) {
   j.fv = d.fv === 1; j.fg = !!d.fg; j.fa = +d.fa || 0;
   const x = d.fx | 0;
-  j.fx = { calme: !!(x & 1), abri: !!(x & 2), invisible: !!(x & 4), silence: !!(x & 8), repousse: !!(x & 16), masque: !!(x & 32), vyrel: !!(x & 64), filtre: !!(x & 128) };
+  j.fx = { calme: !!(x & 1), abri: !!(x & 2), invisible: !!(x & 4), silence: !!(x & 8), repousse: !!(x & 16), masque: !!(x & 32), vyrel: !!(x & 64), filtre: !!(x & 128), korlaz: !!(x & 256), plane: !!(x & 512) };
   j.br = Math.max(0, Math.min(1, +d.br || 0)); j.oc = Math.max(0, Math.min(1, +d.oc || 0));
   if (!d.f || FA.role !== 'suiveur' || j.u !== FA.gardien || !faunePossible()) return;
   if (FA.inventaire) appliquerFaune(d.f); else demanderInventaire(false);
