@@ -5962,3 +5962,117 @@ Le carillonneur est redessiné en formes (`osCarillon`), sur le modèle des cerf
 Tout ce qui sonne balance au vent et au pas. Pendant les trois premières secondes après avoir vu un chasseur, tout bat à toute volée, au moment où il tinte (`guetCarillon`). À l'alerte, ça bat à moitié.
 
 **Les attitudes** restent celles d'avant : brouter, l'alerte tête haute, le trot, le bond.
+
+## §191 · Le Bossu, le Démon, la Tisseuse et le Dragon, en formes
+
+Quatre bêtes de plus sont redessinées en formes, plus détaillées. Chacune pose ses os avec leur forme : des galets pour les masses, des prismes et des cylindres pour les membres, des pointes pour ce qui pique, des lames effilées pour les plumes, des lentilles pour les yeux.
+
+**Le Bossu** (`osBossu`) a enfin son corps à lui. Il partageait celui des autres Rampants.
+- Un gros rampant bas, sous une bosse de trois plaques en dôme qui se chevauchent, la plus haute au milieu.
+- De la mousse et des cailloux poussent sur la bosse, et l'éclat volé y est planté (deux pointes de cristal).
+- Devant : un bouclier de front et deux cornes courtes et épaisses, qui abattent les arbres et cassent la pierre ; des yeux sur de courts pédoncules ; des mandibules épaisses à pointe sombre.
+- Dessous : des anneaux sur le ventre.
+- Six pattes trapues (celles de devant plus fortes), un genou noueux, une épine au tibia et une griffe.
+- Il respire. À l'alarme il se dresse, ses mandibules s'ouvrent, ses yeux rougissent quand il charge.
+
+**Le Démon du cercle** (`osDemon`, brume.js) devient une masse de muscles et de corne. Toutes ses attitudes sont gardées : marche, rugissement, charge au galop, revers, martèlement, sonné, sortie du cercle.
+- Bassin, ventre, cage qui se gonfle, épaules, bosse du garrot, pectoraux, plaques du ventre.
+- Des épines sur l'échine et sur les épaules.
+- Une tête de taureau : arcade, mufle, naseaux de braise, crocs en haut et en bas, oreilles. Les cornes sont annelées et finissent en pointe.
+- Les bras : épaules, biceps, veines de lave, un éperon au coude, des griffes en pointe.
+- Les jambes de bouc : cuisse velue (du poil à l'arrière), genou, ergot de poil au jarret, sabot fendu.
+- La queue s'effile et finit en fer de lance.
+
+**La Tisseuse de fer** (`osTisseuse`) passe en fonte ronde et en cylindres.
+- Le céphalothorax et l'abdomen deviennent des dômes, ses plaques des carapaces, ses cerclages des bagues qui épousent l'abdomen.
+- Rivets ronds, tuyaux à coude, rivets sur les flancs.
+- Les cheminées ont une bouche noire, le fusil et le mortier deviennent des cylindres à bagues.
+- Les crochets et les griffes sont en pointe, les yeux et la lentille en lentilles.
+- Les pattes ont une rotule à la hanche, deux bagues de cuivre au fémur, un genou rond, une cheville de cuivre. Le vérin a un corps et une tige d'acier.
+
+**Le Dragon à plumes** (`osDragon`) est un peu plus imposant : son échelle passe de 0,8 à 0,9.
+- Un corps en anneaux ronds soudés par des jointures, qui s'affine jusqu'à la queue, avec les écailles du ventre en bandes.
+- Des plumes en lames qui s'effilent : la crête, les flancs, la culotte des pattes, les moustaches, l'aigrette, et l'éventail de la queue, où chaque plume a sa tige.
+- Une collerette de plumes à la base du cou, qui se hérisse à la menace.
+- La tête : arcade, naseaux, crocs en haut et en bas (ceux du bas se voient quand la gueule s'ouvre), yeux ronds à la pupille fendue, cornes en deux temps.
+- Les ailes ont des couvertures par-dessus les rémiges.
+
+## §192 · Le démon, en contraste
+
+Le démon était d'un rouge sombre uniforme, sous une peau grenue à points clairs : on ne lisait rien de son corps.
+
+**Une nouvelle matière, la croûte** (`TEX.croute`, `MAT_CORPS.demon`) : des plaques de peau cuite, décalées d'un rang à l'autre. Des fentes très sombres les séparent ; le haut de chaque plaque accroche la lumière, le bas s'ombre, et quelques piqûres sombres s'y ajoutent.
+
+**Des teintes qui varient d'une partie à l'autre** :
+- le torse plus clair, les muscles plus vifs encore (pectoraux, épaules, genoux) ;
+- les extrémités qui s'assombrissent (avant-bras, mains, bas des jambes, base du cou, bout de la queue) ;
+- les plaques du ventre presque noires.
+
+**La corne et l'os** (avec la matière os) :
+- les cornes passent du noir à la base à l'os clair à la pointe, cerclées d'anneaux plus sombres ;
+- les épines du dos et des épaules, les éperons des coudes et les crocs sont en os clair, sur une base de corne noire pour celles du dos ;
+- les griffes et les sabots sont presque noirs, le fer de la queue couleur de corne.
+
+**La lave**, plus vive :
+- un cœur de braise, une fente jaune et orange entre les pectoraux ;
+- des fentes de lave dans le dos et une veine sur chaque cuisse, en plus de celles du ventre et des bras.
+
+## §193 · Le démon vit : son animation refaite
+
+Toute l'animation du démon est refaite (`osDemon`, brume.js). Ses coups gardent leur moment et leur portée : le jeu ne change pas, seul ce qu'on voit change.
+
+**Le squelette.** Le bassin a sa hauteur, son balancement, son lacet et son roulis. L'échine a quatre vertèbres qui se cambrent ou se plient, et les épaules tournent à l'inverse du bassin. Le cou et la tête suivent leur cible du regard : vous, ou la cible de son coup. Les jambes de bouc se plient en trois : hanche, genou devant, jarret derrière, avec un sabot qui bascule. Les bras se plient au coude, et les mains s'ouvrent ou se serrent en poing.
+
+**Des poses clés, et pas d'à-coup.** Chaque geste est une suite de poses clés (`kf`), et tout est lissé d'une image à l'autre (`lis`). Au changement d'attitude, le lissage ralentit un instant (pendant 0,45 s) : il passe d'une attitude à l'autre, il ne saute pas. Les pôles des coudes sont choisis pour qu'aucun coude ne se retourne d'un coup pendant un geste. Mesure sur une suite marche, revers, martèlement, charge, rugissement : aucun saut entre deux images en dehors des coups eux-mêmes.
+
+**Les muscles travaillent.**
+- Le biceps gonfle quand le coude se plie, l'avant-bras quand le poing se serre.
+- La cuisse gonfle sous la charge, le mollet à la poussée.
+- L'épaule suit le bras ; les abdominaux se serrent quand il se plie.
+- La cage et les pectoraux se gonflent au souffle. Le souffle est court et profond après l'effort, et ne se calme que lentement.
+
+**La lave, les yeux, les naseaux.** La lave bat avec le souffle et flambe au coup, au rugissement et à la charge. Les yeux s'allument au coup et vacillent quand il est sonné. Les naseaux flambent quand il gratte le sol. Une oreille frémit de temps en temps.
+
+**Les attitudes** :
+- **Au repos** : il respire, change d'appui, laisse ses doigts jouer, penche la tête, et vous suit des yeux.
+- **La marche** : chaque pied se pose, porte, puis pousse : le talon se lève et le sabot bascule. En l'air, la jambe se replie puis se tend vers l'avant. Sur l'appui, le pied recule sans glisser. Le corps plonge à chaque pas et se déhanche sur la jambe qui porte ; le bassin tourne avec la jambe qui avance, les épaules en sens inverse. Les bras balancent à contretemps, avec un léger retard, et la queue répond au bassin.
+- **La charge** :
+  - D'abord il gratte le sol du sabot droit, tête basse, le poids sur la gauche : il lève, frappe, racle, revient.
+  - Puis il galope à quatre pattes. Les mains se posent loin devant, à plat, doigts en avant, coudes en arrière. Les deux pattes de bouc poussent, se ramassent sous le ventre et se replient en l'air. L'échine se plie et se déplie, la queue file derrière.
+- **Le revers** : il arme, le buste tordu, le bras droit levé derrière lui, le poing serré, le poids en arrière. Puis le pied droit avance, tout le corps se détord, et la main balaie devant lui, griffes ouvertes, et passe en travers. Le bras gauche fait contrepoids, la queue contre-balance, et il revient.
+- **Le martèlement** : il se dresse sur ses sabots, les poings joints au-dessus de la tête, le dos cambré, et rugit en tremblant. Puis il s'abat de tout son poids, genoux pliés, le pied gauche en avant, les deux poings au sol à l'endroit de l'impact. Il reste ramassé et souffle, puis se relève.
+- **Le rugissement** : il inspire, voûté, les bras bas et en arrière. Puis il se cambre, les bras grands ouverts, les doigts écartés, la gueule grande ouverte qui tremble, la queue levée qui fouette. Enfin il se penche vers vous, poings serrés.
+- **La sortie du cercle** : il s'y hisse à la force des bras, les mains agrippées au sol de chaque côté, la tête levée vers vous.
+- **Sonné** : il titube, les pieds cherchent le sol, les bras ballants, et il secoue la tête.
+- **La mort** : il tombe à genoux, puis s'effondre en avant, les bras tendus, la tête de côté, avant de s'enfoncer dans le sol.
+
+## §194 · Le village remis d'aplomb
+
+Trois défauts du biome village sont corrigés : les maisons bougeaient, elles tombaient à moitié dans le vide, et les villageois se coinçaient dans les murs.
+
+**La place nivelée** (`villageTerrain`, village.js). Elle est faite au chargement de l'île, avant l'eau, la flore et les bêtes.
+- Un rond de 11,5 cases autour du milieu du biome est ramené à une seule hauteur : la plus commune du rond, pour remuer le moins de terre possible.
+- Sur cette place, les trous et l'eau sont comblés, et le sol devient de la terre battue d'un bord à l'autre. Les arbres et les rochers en sont ôtés.
+- Autour, un talus en marches d'un cube rejoint le sol d'origine, sur 9 cases au plus.
+- La même graine donne la même place à tous les joueurs. Le sol d'origine (hauteur, eau, sol) est gardé et rendu avant de recommencer, si l'île est remise à zéro.
+- Les maisons sont posées sur la place, sur du plat de 5 × 5, à 5 cases au moins l'une de l'autre. Le puits est un peu plus loin du feu.
+
+**Les maisons ne bougent plus.** En démêlant deux corps, le jeu poussait aussi les bâtiments : un joueur qui s'appuyait contre une maison la faisait glisser de plusieurs cases. Un bâtiment est maintenant fixe, et c'est l'autre corps qui s'écarte (`demeler`).
+
+**Des corps à la mesure des maisons.**
+- La maison longue n'est plus un disque de 1,7 case, qui laissait passer par ses coins et barrait ses flancs. C'est une gélule qui suit son axe (`demiL`, `ptCorps`), utilisée par les heurts, le joueur et le démêlage.
+- La haute est un disque de 1,3 case.
+
+**Les villageois ne traversent plus les murs.**
+- Ils marchent comme les bêtes (`heurtCorps`) : ils glissent autour des maisons, du puits, du feu et des gens.
+- Un but pris dans un bâtiment est ramené à son bord, un pas dehors (`vlDehors`).
+- Bloqués une demi-seconde, ils cherchent leur chemin case par case (`vlChemin`) : autour des maisons, par des marches d'un cube au plus, sans eau ni trou. Sans chemin, ils renoncent à ce but.
+- Pris dans la foule, loin du but, ils font un détour où les gens immobiles comptent comme des murs ; tout près du but, ils s'arrêtent là.
+- Ils naissent devant leur porte et non plus dans la maison. Ils attendent devant la porte, hors des murs ; pour la maison longue, l'arrêt était dans le pignon.
+- Au repas, chacun a sa place autour du feu, en rond, à 2,25 cases. Ce qu'on rapporte se pose à des tas distincts autour du feu, à 2,4 cases, et plus tous au même endroit.
+
+**Mesuré** sur trois villages, en simulant 200 s de vie (le jour avec le repas de midi, puis la nuit) :
+- aucun villageois dans un mur, à aucun instant ;
+- aucune maison déplacée, même poussée par le joueur ;
+- personne de bloqué plus de 8 secondes ;
+- la nuit, tout le monde est rentré.

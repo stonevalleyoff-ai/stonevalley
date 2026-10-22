@@ -22,6 +22,65 @@ const VL_NOMS = [['Aren', 'Bastien', 'Colm', 'Dorian', 'Elio', 'Faro', 'Gaël', 
 const VL_METIERS = ['chasseur', 'cuisiniere', 'pecheur', 'cueilleuse', 'porteur', 'cueilleur'];
 const VL_DIT_METIER = { chasseur: 'chasseur', cuisiniere: 'cuisinière', pecheur: 'pêcheur', cueilleuse: 'cueilleuse', porteur: 'porteur d\'eau', cueilleur: 'cueilleur', enfant: 'enfant' };
 const VL_ROBES = [[[148, 84, 58], [214, 164, 104]], [[92, 72, 118], [168, 140, 196]], [[58, 108, 104], [132, 190, 176]], [[84, 98, 64], [150, 168, 110]], [[120, 60, 70], [196, 120, 128]], [[70, 84, 110], [132, 150, 186]], [[96, 90, 70], [180, 168, 128]]];
+// ---------- (§194) la place du village : le sol nivelé ----------
+// Les maisons tombaient sur des terrasses, des marches de dix cubes, des trous : à moitié dans le vide. Avant
+// tout le reste (l'eau, la flore, les bêtes), loadWorld appelle villageTerrain : autour du milieu du biome, un
+// rond de VL_R cases est ramené à une seule hauteur (la plus commune du rond : le moins de terre à remuer), l'eau
+// et les trous comblés ; autour, un talus en marches d'un cube rejoint le sol d'origine, sur VL_TALUS cases au
+// plus. La même graine donne la même place à tous les joueurs ; le sol d'origine est gardé (VL_SOL), et rendu
+// avant de recommencer, si l'île est remise à zéro.
+const VL_R = 11.5, VL_TALUS = 9;
+const VL_SOL = new Map(), VL_EAUO = new Map(), VL_BIOO = new Map();   // case -> hauteur d'origine ; [eau, type d'eau] ; sol d'origine (un trou)
+function villageTerrain() {
+  for (const [i, h] of VL_SOL) { Hgt[i] = h; if (typeof signalDecor === 'function') signalDecor('dalle', i); }
+  for (const [i, e] of VL_EAUO) { Eau[i] = e[0]; EauT[i] = e[1]; }
+  for (const [i, k] of VL_BIOO) Bio[i] = k;
+  VL_SOL.clear(); VL_EAUO.clear(); VL_BIOO.clear(); VL.place = null;
+  let n = 0, sx = 0, sy = 0; for (let i = 0; i < WS * WS; i++) if (Bio[i] === VL_BIO) { n++; sx += i % WS; sy += (i / WS) | 0; }
+  if (n < 40) return;
+  const mx = sx / n, my = sy / n, R = Math.ceil(VL_R), T = VL_TALUS, terre = i => Hgt[i] > SEA && !(Eau[i] > Hgt[i]) && Bio[i] !== 8 && !PlT[i];
+  // le milieu : une case de terre du biome, près du centre, sur un sol peu tourmenté
+  let C = null, best = 1e9;
+  for (let i = 0; i < WS * WS; i++) {
+    if (Bio[i] !== VL_BIO || !terre(i)) continue;
+    const x = i % WS, y = (i / WS) | 0; if (x < R + T + 2 || y < R + T + 2 || x >= WS - R - T - 2 || y >= WS - R - T - 2) continue;
+    const d = Math.hypot(x - mx, y - my); if (d * 2 > best) continue;
+    let rugu = 0; for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) rugu += Math.abs(Hgt[(y + dy) * WS + x + dx] - Hgt[i]);
+    const sc = d * 2 + rugu * .5; if (sc < best) { best = sc; C = [x, y]; }
+  }
+  if (!C) return;
+  // la hauteur de la place : la plus commune du rond (à égalité, la plus proche du milieu)
+  const compte = new Map(), hc = Hgt[C[1] * WS + C[0]];
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { if (dx * dx + dy * dy > VL_R * VL_R) continue; const i = (C[1] + dy) * WS + C[0] + dx; if (terre(i)) compte.set(Hgt[i], (compte.get(Hgt[i]) || 0) + 1); }
+  let h0 = hc, nb = -1; for (const [h, k] of compte) if (k > nb || (k === nb && Math.abs(h - hc) < Math.abs(h0 - hc))) { h0 = h; nb = k; }
+  h0 = Math.max(SEA + 1, h0);
+  const RR = VL_R + T;
+  for (let dy = -Math.ceil(RR); dy <= Math.ceil(RR); dy++) for (let dx = -Math.ceil(RR); dx <= Math.ceil(RR); dx++) {
+    const d = Math.hypot(dx, dy); if (d > RR) continue;
+    const x = C[0] + dx, y = C[1] + dy; if (x < 2 || y < 2 || x >= WS - 2 || y >= WS - 2) continue;
+    const i = y * WS + x; if (PlT[i] || (Bio[i] === 8 && d > VL_R)) continue;
+    if (d <= VL_R && Bio[i] !== VL_BIO) { VL_BIOO.set(i, Bio[i]); Bio[i] = VL_BIO; }   // la place : de la terre battue d'un bord à l'autre, ses trous comblés
+    const h = Hgt[i], mouille = Eau[i] > h; let v;
+    if (d <= VL_R) v = h0;                                                     // la place : à plat, l'eau et les trous comblés
+    else { if (mouille || h <= SEA) continue; const k = Math.floor(d - VL_R) + 1; v = Math.max(h0 - k, Math.min(h0 + k, h)); }   // le talus, en marches d'un cube
+    if (v !== h) { VL_SOL.set(i, h); Hgt[i] = v; if (typeof signalDecor === 'function') signalDecor('dalle', i); }
+    if (d <= VL_R && Eau[i]) { VL_EAUO.set(i, [Eau[i], EauT[i]]); Eau[i] = 0; EauT[i] = 0; }
+  }
+  VL.place = { x: C[0] + .5, y: C[1] + .5, z: h0 };
+}
+// les bâtiments vus du sol : un disque, ou pour la maison longue une gélule (son axe : demiL de part et d'autre)
+const VL_PORTE = { ronde: 1.95, longue: 2.3, haute: 1.75 };                      // où l'on attend devant la porte, hors des murs
+function vlBatiments() { const L = VL.maisons.slice(); if (VL.puits) L.push(VL.puits); if (VL.foyer) L.push(VL.foyer); return L; }
+// un but pris dans un bâtiment est ramené à son bord, un pas dehors
+function vlDehors(x, y, marge = .5) {
+  for (const M of vlBatiments()) {
+    const q = typeof ptCorps === 'function' ? ptCorps(M, x, y) : M, dx = x - q.x, dy = y - q.y, d = Math.hypot(dx, dy), r = rayonCorps(M) + marge;
+    if (d >= r) continue;
+    const ux = d > 1e-3 ? dx / d : Math.cos(M.dir), uy = d > 1e-3 ? dy / d : Math.sin(M.dir);
+    x = q.x + ux * r; y = q.y + uy * r;
+  }
+  return [x, y];
+}
 // ---------- le village, posé à l'arrivée ----------
 function villageIle() {
   VL.ici = false; VL.gens = []; VL.maisons = []; VL.centre = VL.foyer = VL.puits = null; VL.stock = { viande: 0, baies: 0, fibre: 0, eau: 0, poisson: 0 };
@@ -31,34 +90,36 @@ function villageIle() {
   const cx = Math.round(sx / n) + .5, cy = Math.round(sy / n) + .5;
   const plat = (x, y, R) => { const h = hAt(x, y); if (h <= SEA || PlT[y * WS + x]) return false; for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const i = (y + dy) * WS + x + dx; if (i < 0 || i >= WS * WS || Hgt[i] !== h || Eau[i] > Hgt[i] || PlT[i]) return false; } return true; };
   const faucher = (x, y, R) => { for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { const i = (y + dy) * WS + x + dx; if (i >= 0 && i < WS * WS && Flo[i]) Flo[i] = 0; } };
-  // le centre : la place la plus plate près du milieu du biome
-  let C = null, cd = 1e9;
-  for (let i = 0; i < WS * WS; i++) if (Bio[i] === VL_BIO) { const x = i % WS, y = (i / WS) | 0, d = (x - cx) ** 2 + (y - cy) ** 2; if (d < cd && x > 6 && y > 6 && x < WS - 6 && y < WS - 6 && plat(x, y, 1)) { cd = d; C = [x + .5, y + .5]; } }
+  // le centre : la place nivelée (§194) ; à défaut, la case la plus plate près du milieu du biome
+  let C = VL.place ? [VL.place.x, VL.place.y] : null, cd = 1e9;
+  if (!C) for (let i = 0; i < WS * WS; i++) if (Bio[i] === VL_BIO) { const x = i % WS, y = (i / WS) | 0, d = (x - cx) ** 2 + (y - cy) ** 2; if (d < cd && x > 6 && y > 6 && x < WS - 6 && y < WS - 6 && plat(x, y, 1)) { cd = d; C = [x + .5, y + .5]; } }
   if (!C) return;
   VL.ici = true; VL.centre = C; faucher(C[0] | 0, C[1] | 0, 3);
-  const poser = (forme, x, y, dir) => { const b = naitre(specById.maison, x, y); b.age = 1e6; b.ech = 1; b.forme = forme; b.dir = b.dirT = dir; b.z = sol(x, y); b.pv = 1; beasts.push(b); return b; };
+  if (VL.place) { const R = Math.floor(VL_R) - 1; for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) { if (dx * dx + dy * dy > R * R) continue; const i = ((C[1] | 0) + dy) * WS + (C[0] | 0) + dx;
+    if (Flo[i] && (ESP[Flo[i] - 1].res === 'bois' || ESP[Flo[i] - 1].res === 'pierre' || dx * dx + dy * dy < 16)) { Flo[i] = 0; if (typeof signalDecor === 'function') signalDecor('flore', i); } } }   // pas d'arbre sur la place
+  const poser = (forme, x, y, dir) => { const b = naitre(specById.maison, x, y); b.age = 1e6; b.ech = 1; b.forme = forme; b.dir = b.dirT = dir; b.z = sol(x, y); b.pv = 1; b.fixe = true; if (forme === 'longue') b.demiL = .85; beasts.push(b); return b; };
   VL.foyer = poser('foyer', C[0], C[1], 0);
   // les maisons : sur du plat, à 5–9 cases, bien espacées, la porte vers le feu
   const formes = ['ronde', 'longue', 'haute', 'ronde', 'longue'], places = [];
   for (let k = 0; k < 400 && places.length < 4; k++) {
     const a = r() * 6.2832, d = 5 + r() * 4, x = Math.round(C[0] + Math.cos(a) * d), y = Math.round(C[1] + Math.sin(a) * d);
-    if (x < 4 || y < 4 || x >= WS - 4 || y >= WS - 4 || !plat(x, y, 1) || Math.abs(hAt(x, y) - hAt(C[0] | 0, C[1] | 0)) > 2 || places.some(p => Math.hypot(p[0] - x, p[1] - y) < 4.6)) continue;
+    if (x < 4 || y < 4 || x >= WS - 4 || y >= WS - 4 || !plat(x, y, 2) || Math.abs(hAt(x, y) - hAt(C[0] | 0, C[1] | 0)) > (VL.place ? 0 : 2) || places.some(p => Math.hypot(p[0] - x, p[1] - y) < 5)) continue;
     places.push([x, y]);
   }
-  places.forEach(([x, y], k) => { faucher(x, y, 2); VL.maisons.push(poser(formes[k], x + .5, y + .5, Math.atan2(C[1] - y - .5, C[0] - x - .5))); });
-  for (let k = 0; k < 200 && !VL.puits; k++) { const a = r() * 6.2832, x = Math.round(C[0] + Math.cos(a) * 3.2), y = Math.round(C[1] + Math.sin(a) * 3.2); if (plat(x, y, 1) && !places.some(p => Math.hypot(p[0] - x, p[1] - y) < 2.5)) { faucher(x, y, 1); VL.puits = poser('puits', x + .5, y + .5, 0); } }
+  places.forEach(([x, y], k) => { faucher(x, y, 3); VL.maisons.push(poser(formes[k], x + .5, y + .5, Math.atan2(C[1] - y - .5, C[0] - x - .5))); });
+  for (let k = 0; k < 200 && !VL.puits; k++) { const a = r() * 6.2832, x = Math.round(C[0] + Math.cos(a) * 3.4), y = Math.round(C[1] + Math.sin(a) * 3.4); if (plat(x, y, 1) && !places.some(p => Math.hypot(p[0] - x, p[1] - y) < 3.4)) { faucher(x, y, 2); VL.puits = poser('puits', x + .5, y + .5, 0); } }
   // les familles : deux adultes par maison (un métier chacun), parfois un enfant
   let m = 0;
   VL.maisons.forEach((M, k) => {
     const famille = [];
     for (let j = 0; j < 2; j++) {
       const f = j === 1 ? 1 : 0, metier = VL_METIERS[(m++) % VL_METIERS.length], rob = VL_ROBES[(k * 2 + j) % VL_ROBES.length];
-      const b = naitre(specById.villageois, M.x + 1.2 + j * .8, M.y + 1), nom = VL_NOMS[f][(k * 2 + j) % 8];
+      const pt = vlPorte(M), lat = [-Math.sin(M.dir), Math.cos(M.dir)], b = naitre(specById.villageois, pt[0] + lat[0] * (j - .5) * .9, pt[1] + lat[1] * (j - .5) * .9), nom = VL_NOMS[f][(k * 2 + j) % 8];   // (§194) devant la porte, pas dans le mur
       b.age = 1e6; b.ech = 1; b.pv = 1; b.z = sol(b.x, b.y); b.maison = M; b.metier = metier; b.f = f;
       b.nm = { nom, role: 'villageois', f, robe: rob[0], clair: rob[1], lueur: rob[1] }; b.etat = 'travail'; b.tache = null; famille.push(b); beasts.push(b); VL.gens.push(b);
     }
     if (r() < .6) {
-      const b = naitre(specById.villageois, M.x + 2, M.y + 1.6), rob = VL_ROBES[(k + 3) % VL_ROBES.length];
+      const pt = vlPorte(M), b = naitre(specById.villageois, pt[0] + Math.cos(M.dir) * .8, pt[1] + Math.sin(M.dir) * .8), rob = VL_ROBES[(k + 3) % VL_ROBES.length];
       b.age = 1e6; b.ech = .62; b.pv = 1; b.z = sol(b.x, b.y); b.maison = M; b.metier = 'enfant'; b.f = r() < .5 ? 1 : 0;
       b.nm = { nom: VL_NOMS[2][k % 6], role: 'villageois', f: b.f, robe: rob[0], clair: rob[1], lueur: rob[1] }; b.etat = 'jouer'; famille.push(b); beasts.push(b); VL.gens.push(b);
     }
@@ -67,13 +128,66 @@ function villageIle() {
 }
 // ---------- la vie du village ----------
 const vlNuit = () => lumiere() < .36, vlRepas = () => horloge > .49 && horloge < .56;
+// (§194) le pas d'un villageois : le but, s'il tombe dans un bâtiment, est ramené dehors ; le pas contourne les
+// maisons, le puits, le feu et les gens (heurtCorps, comme toute bête) au lieu de traverser les murs. Bloqué une
+// demi-seconde (un mur, une marche trop haute, un trou), il cherche son chemin (vlChemin) et le suit, case après
+// case ; sans chemin, il renonce à ce but-là (il le tient pour atteint : la tâche passe).
 function vlBouger(b, tx, ty, vit, dt) {
+  [tx, ty] = vlDehors(tx, ty, .5);
   const d = Math.hypot(tx - b.x, ty - b.y);
   if (d < .08 || vit <= 0) { b.vit = 0; return true; }
-  const s = Math.min(vit * dt, d), nx = b.x + (tx - b.x) / d * s, ny = b.y + (ty - b.y) / d * s;
-  if (Math.abs(hAt(nx | 0, ny | 0) - hAt(b.x | 0, b.y | 0)) <= 1 && hAt(nx | 0, ny | 0) > SEA && !PlT[(ny | 0) * WS + (nx | 0)]) { b.x = nx; b.y = ny; b.vit = s / dt; }
-  else { b.vit = 0; b.bloque = (b.bloque || 0) + dt; }
-  b.dirT = Math.atan2(ty - b.y, tx - b.x); return d < .5;
+  if (b.injoignable && Math.hypot(b.injoignable[0] - tx, b.injoignable[1] - ty) < 1.5) { b.vit = 0; return true; }
+  let gx = tx, gy = ty;
+  if (b.chemin && Math.hypot(b.cheminBut[0] - tx, b.cheminBut[1] - ty) > 1.5) b.chemin = null;          // le but a changé
+  if (b.chemin) { while (b.chemin.length && Math.hypot(b.chemin[0][0] - b.x, b.chemin[0][1] - b.y) < .5) b.chemin.shift(); if (b.chemin.length) [gx, gy] = b.chemin[0]; else b.chemin = null; }
+  const dg = Math.hypot(gx - b.x, gy - b.y) || 1e-6, s = Math.min(vit * dt, dg); let nx = b.x + (gx - b.x) / dg * s, ny = b.y + (gy - b.y) / dg * s;
+  const q = typeof heurtCorps === 'function' ? heurtCorps(b, nx, ny) : [nx, ny];
+  if (q) { nx = q[0]; ny = q[1]; }
+  let avance = false;
+  if (q && Math.abs(hAt(nx | 0, ny | 0) - hAt(b.x | 0, b.y | 0)) <= 1 && hAt(nx | 0, ny | 0) > SEA && bAt(nx | 0, ny | 0) !== 8 && !PlT[(ny | 0) * WS + (nx | 0)]) {
+    const p = Math.hypot(nx - b.x, ny - b.y); b.x = nx; b.y = ny; b.vit = p / dt; avance = p > s * .25;
+  } else b.vit = 0;
+  if (avance) b.bloque = Math.max(0, (b.bloque || 0) - dt * 2);
+  else {
+    b.bloque = (b.bloque || 0) + dt;
+    if (b.bloque > .5 && t > (b.cheminT || 0)) {
+      b.cheminT = t + 1.2; b.bloque = 0; b.chemin = vlChemin(b, tx, ty); b.cheminBut = [tx, ty];
+      if (!b.chemin) { b.injoignable = [tx, ty]; b.vit = 0; return true; }
+    }
+  }
+  b.dirT = Math.atan2(gy - b.y, gx - b.x);
+  // la foule (autour du feu, au repas) : s'il ne gagne plus rien depuis deux secondes, tout près, il s'arrête là
+  const cle = (tx * 7.3 + ty * 3.1).toFixed(1);
+  if (b._butK !== cle || d < (b._dMin ?? 1e9) - .15) { b._butK = cle; b._dMin = d; b._dT = t; b._replan = 0; }
+  if (t - b._dT > 2 && d >= 2.4 && !b._replan) {                             // pris dans la foule, loin du but : un détour, les gens immobiles comptés comme des murs
+    b._replan = 1; b._dT = t; b.chemin = vlChemin(b, tx, ty, true); b.cheminBut = [tx, ty]; if (!b.chemin) { b.injoignable = [tx, ty]; return true; }
+  }
+  return d < .5 || (t - b._dT > 2 && (d < 2.4 || b._replan));
+}
+// le chemin d'une case à l'autre, autour des maisons, par des marches d'un cube au plus, sans eau ni trou
+function vlChemin(b, tx, ty, foule) {
+  const sx = b.x | 0, sy = b.y | 0, gx = tx | 0, gy = ty | 0, RM = 40;
+  if (Math.abs(gx - sx) > RM || Math.abs(gy - sy) > RM) return null;
+  const W = 2 * RM + 1, prev = new Int32Array(W * W).fill(-1), bat = vlBatiments(), gens = new Set();
+  if (foule) for (const o of VL.gens) if (o !== b && !o.cache && !o.dead && (o.vit || 0) < .2) gens.add((o.y | 0) * WS + (o.x | 0));
+  const id = (x, y) => (y - sy + RM) * W + (x - sx + RM);
+  const libre = (x, y, but) => { if (x < 1 || y < 1 || x >= WS - 1 || y >= WS - 1) return false; const i = y * WS + x; if (Hgt[i] <= SEA || Bio[i] === 8 || Eau[i] > Hgt[i] || PlT[i]) return false;
+    if (!but && gens.has(i)) return false;
+    if (!but) for (const M of bat) { const q = ptCorps(M, x + .5, y + .5); if (Math.hypot(q.x - x - .5, q.y - y - .5) < rayonCorps(M) + .3) return false; } return true; };
+  const Q = [id(sx, sy)]; prev[Q[0]] = Q[0]; let fin = -1;
+  for (let h = 0; h < Q.length && h < 7000; h++) {
+    const c = Q[h], cx = c % W - RM + sx, cy = ((c / W) | 0) - RM + sy;
+    if (cx === gx && cy === gy) { fin = c; break; }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+      const nx = cx + dx, ny = cy + dy; if (Math.abs(nx - sx) > RM || Math.abs(ny - sy) > RM) continue;
+      const k = id(nx, ny), but = nx === gx && ny === gy; if (prev[k] >= 0 || !libre(nx, ny, but) || Math.abs(Hgt[ny * WS + nx] - Hgt[cy * WS + cx]) > 1) continue;
+      if (dx && dy && (!libre(cx + dx, cy, false) || !libre(cx, cy + dy, false))) continue;     // pas de coin rogné
+      prev[k] = c; Q.push(k);
+    }
+  }
+  if (fin < 0) return null;
+  const L = []; for (let c = fin; c !== prev[c]; c = prev[c]) L.push([c % W - RM + sx + .5, ((c / W) | 0) - RM + sy + .5]);
+  L.reverse(); if (L.length) L[L.length - 1] = [tx, ty]; return L;
 }
 function vlMenace(b) {                                   // une bête qui chasse, à portée du village
   let m = null, md = 64;
@@ -82,7 +196,7 @@ function vlMenace(b) {                                   // une bête qui chasse
   }
   return m;
 }
-const vlPorte = M => [M.x + Math.cos(M.dir) * (M.forme === 'longue' ? 1.1 : 1.5), M.y + Math.sin(M.dir) * (M.forme === 'longue' ? 1.1 : 1.5)];
+const vlPorte = M => { const k = VL_PORTE[M.forme] || 1.9; return [M.x + Math.cos(M.dir) * k, M.y + Math.sin(M.dir) * k]; };   // (§194) devant la porte, plus dans le mur
 function vlEau(b) {                                      // l'eau la plus proche du village
   if (VL.eau) return VL.eau; let best = null, bd = 1e9;
   for (let k = 0; k < 600; k++) { const a = Math.random() * 6.2832, r = 2 + Math.random() * 28, x = VL.centre[0] + Math.cos(a) * r, y = VL.centre[1] + Math.sin(a) * r; const i = (y | 0) * WS + (x | 0);
@@ -90,15 +204,16 @@ function vlEau(b) {                                      // l'eau la plus proche
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const j = ((y | 0) + dy) * WS + (x | 0) + dx; if (j >= 0 && j < WS * WS && Hgt[j] > SEA && !(Eau[j] > Hgt[j]) && r < bd) { bd = r; best = { x: (x | 0) + dx + .5, y: (y | 0) + dy + .5, ex: (x | 0) + .5, ey: (y | 0) + .5 }; } } }
   return VL.eau = best || null;
 }
+const vlTas = res => { const a = { viande: -.8, baies: 2.4, fibre: 2.4, eau: -2.2, poisson: .8 }[res] ?? 1.6, C = VL.centre; return [C[0] + Math.cos(a) * 2.4, C[1] + Math.sin(a) * 2.4]; };   // (§194) où l'on pose ce qu'on rapporte
 function vlTache(b) {                                    // ce qu'il va faire, selon son métier
   const C = VL.centre, R = 20;
   if (b.metier === 'chasseur') { let pr = null, pd = R * R; for (const o of beasts) if (!o.dead && o.pv > 0 && !o.tame && o.sp.diet === 'h' && !o.sp.villageois && !o.sp.batiment && !o.sp.boss && !o.sp.dragon && o.sp.sz < 1.5) { const d = (o.x - C[0]) ** 2 + (o.y - C[1]) ** 2; if (d < pd) { pd = d; pr = o; } }
     return pr ? { k: 'chasse', o: pr } : { k: 'rode', x: C[0] + (Math.random() - .5) * 16, y: C[1] + (Math.random() - .5) * 16, T: 6 }; }
   if ((b.metier === 'cueilleuse' || b.metier === 'cueilleur') && typeof campIci === 'function' && campIci()) return { k: 'rode', x: C[0] + (Math.random() - .5) * 16, y: C[1] + (Math.random() - .5) * 16, T: 6 };   // (§124) chez vous : rien ne repousserait
   if (b.metier === 'cueilleuse' || b.metier === 'cueilleur') { let best = null, bd = R * R; for (let k = 0; k < 120; k++) { const x = (C[0] + (Math.random() - .5) * 2 * R) | 0, y = (C[1] + (Math.random() - .5) * 2 * R) | 0; const i = y * WS + x; if (i < 0 || i >= WS * WS || !Flo[i] || CHAMP_CASE.has(i)) continue; const e = ESP[Flo[i] - 1]; if ((e.res === 'fibre' || e.res === 'baies') && !e.dalle && maturite(i, e) >= .9) { const d = (x - C[0]) ** 2 + (y - C[1]) ** 2; if (d < bd) { bd = d; best = { k: 'cueille', i, x: x + .5, y: y + .5, res: e.res }; } } } return best || { k: 'rode', x: C[0] + (Math.random() - .5) * 10, y: C[1] + (Math.random() - .5) * 10, T: 4 }; }
-  if (b.metier === 'porteur') { const W = vlEau(b); return VL.puits && Math.random() < .6 ? { k: 'puise', x: VL.puits.x + .9, y: VL.puits.y, T: 2.5 } : W ? { k: 'puise', x: W.x, y: W.y, T: 2.5 } : { k: 'rode', x: C[0] + 3, y: C[1], T: 3 }; }
+  if (b.metier === 'porteur') { const W = vlEau(b); return VL.puits && Math.random() < .6 ? { k: 'puise', x: VL.puits.x + 1.4, y: VL.puits.y, T: 2.5 } : W ? { k: 'puise', x: W.x, y: W.y, T: 2.5 } : { k: 'rode', x: C[0] + 3, y: C[1], T: 3 }; }
   if (b.metier === 'pecheur') { const W = vlEau(b); return W ? { k: 'peche', x: W.x, y: W.y, vers: Math.atan2(W.ey - W.y, W.ex - W.x), T: 18 + Math.random() * 20 } : { k: 'rode', x: C[0] - 3, y: C[1], T: 3 }; }
-  if (b.metier === 'cuisiniere') return { k: 'cuisine', x: C[0] + Math.cos(b.t) * .0 + 1.1, y: C[1] + .3, T: 20 + Math.random() * 20 };
+  if (b.metier === 'cuisiniere') return { k: 'cuisine', x: C[0] + 1.3, y: C[1] + .3, T: 20 + Math.random() * 20 };
   return { k: 'joue', x: b.maison.x + (Math.random() - .5) * 7, y: b.maison.y + (Math.random() - .5) * 7, T: 1 };
 }
 function majVillageois(b, dt) {
@@ -137,17 +252,17 @@ function majVillageois(b, dt) {
   }
   if (b.cache) { b.cache = false; b.x = porte[0]; b.y = porte[1]; b.etat = 'travail'; b.tache = null; }
   // midi : tous au feu
-  if (repas && b.etat !== 'repas') { b.etat = 'repas'; b.tache = null; const a = Math.random() * 6.2832; b.place = [VL.centre[0] + Math.cos(a) * 1.6, VL.centre[1] + Math.sin(a) * 1.6]; }
+  if (repas && b.etat !== 'repas') { b.etat = 'repas'; b.tache = null; const k = Math.max(0, VL.gens.indexOf(b)), a = k / Math.max(1, VL.gens.length) * 6.2832 + .3; b.place = [VL.centre[0] + Math.cos(a) * 2.25, VL.centre[1] + Math.sin(a) * 2.25]; }   // (§194) chacun sa place, en rond, sans se marcher dessus
   if (b.etat === 'repas') { if (!repas) { b.etat = 'travail'; b.tache = null; } else { if (vlBouger(b, b.place[0], b.place[1], 1.5, dt)) { b.dirT = Math.atan2(VL.centre[1] - b.y, VL.centre[0] - b.x); b.assis = 1; } else b.assis = 0; vlTourner(b, dt); return; } }
   b.assis = 0;
   // le travail
-  let T = b.tache; if (!T) T = b.tache = vlTache(b);
-  if (T.k === 'chasse') { const o = T.o; if (!o || o.dead || o.pv <= 0) { b.tache = o && o.dead ? { k: 'rapporte', x: VL.centre[0] + .8, y: VL.centre[1] - .8, res: 'viande' } : null; return; }
-    if (Math.hypot(o.x - b.x, o.y - b.y) > 1.4) vlBouger(b, o.x, o.y, 2.4, dt); else { b.vit = 0; b.dirT = Math.atan2(o.y - b.y, o.x - b.x); if (b.t > (b.coupT || 0)) { b.coupT = b.t + 1; b.geste = 1; b.gesteT = t; porterCoup(b, o, .35); o.alarm = 1; if (o.pv <= 0 && !o.dead) { mourirBete(o, 'chassé'); b.tache = { k: 'rapporte', x: VL.centre[0] + .8, y: VL.centre[1] - .8, res: 'viande' }; b.porte = 'viande'; } } } }
+  let T = b.tache; if (!T) { T = b.tache = vlTache(b); b.injoignable = null; }
+  if (T.k === 'chasse') { const o = T.o; if (!o || o.dead || o.pv <= 0) { b.tache = o && o.dead ? { k: 'rapporte', x: vlTas('viande')[0], y: vlTas('viande')[1], res: 'viande' } : null; return; }
+    if (Math.hypot(o.x - b.x, o.y - b.y) > 1.4) vlBouger(b, o.x, o.y, 2.4, dt); else { b.vit = 0; b.dirT = Math.atan2(o.y - b.y, o.x - b.x); if (b.t > (b.coupT || 0)) { b.coupT = b.t + 1; b.geste = 1; b.gesteT = t; porterCoup(b, o, .35); o.alarm = 1; if (o.pv <= 0 && !o.dead) { mourirBete(o, 'chassé'); b.tache = { k: 'rapporte', x: vlTas('viande')[0], y: vlTas('viande')[1], res: 'viande' }; b.porte = 'viande'; } } } }
   else if (T.k === 'cueille') { if (!Flo[T.i] || maturite(T.i, ESP[Flo[T.i] - 1]) < .9) { b.tache = null; return; }
-    if (vlBouger(b, T.x + .4, T.y, 1.6, dt)) { T.w = (T.w || 0) + dt; b.geste = 1; b.gesteT = t; if (T.w > 3) { couperPied(T.i); b.porte = T.res === 'baies' ? 'baies' : 'fibre'; b.tache = { k: 'rapporte', x: VL.centre[0] - 1, y: VL.centre[1] + 1, res: b.porte }; } } }
-  else if (T.k === 'puise') { if (vlBouger(b, T.x, T.y, 1.5, dt)) { T.w = (T.w || 0) + dt; b.geste = 1; b.gesteT = t; if (T.w > T.T) { b.porte = 'eau'; b.tache = { k: 'rapporte', x: VL.centre[0] - .9, y: VL.centre[1] - 1.2, res: 'eau' }; } } }
-  else if (T.k === 'peche') { if (vlBouger(b, T.x, T.y, 1.5, dt)) { b.dirT = T.vers; b.peche = 1; T.w = (T.w || 0) + dt; if (Math.random() < dt * .08) { burst(T.x + Math.cos(T.vers) * 2.5, T.y + Math.sin(T.vers) * 2.5, sol(T.x, T.y) + .1, 8, '#d8eefa'); b.porte = 'poisson'; } if (T.w > T.T) { b.peche = 0; b.tache = { k: 'rapporte', x: VL.centre[0] + 1.2, y: VL.centre[1] + 1.2, res: b.porte || 'rien' }; } } else b.peche = 0; }
+    if (vlBouger(b, T.x + .4, T.y, 1.6, dt)) { T.w = (T.w || 0) + dt; b.geste = 1; b.gesteT = t; if (T.w > 3) { couperPied(T.i); b.porte = T.res === 'baies' ? 'baies' : 'fibre'; b.tache = { k: 'rapporte', x: vlTas(b.porte)[0], y: vlTas(b.porte)[1], res: b.porte }; } } }
+  else if (T.k === 'puise') { if (vlBouger(b, T.x, T.y, 1.5, dt)) { T.w = (T.w || 0) + dt; b.geste = 1; b.gesteT = t; if (T.w > T.T) { b.porte = 'eau'; b.tache = { k: 'rapporte', x: vlTas('eau')[0], y: vlTas('eau')[1], res: 'eau' }; } } }
+  else if (T.k === 'peche') { if (vlBouger(b, T.x, T.y, 1.5, dt)) { b.dirT = T.vers; b.peche = 1; T.w = (T.w || 0) + dt; if (Math.random() < dt * .08) { burst(T.x + Math.cos(T.vers) * 2.5, T.y + Math.sin(T.vers) * 2.5, sol(T.x, T.y) + .1, 8, '#d8eefa'); b.porte = 'poisson'; } if (T.w > T.T) { b.peche = 0; b.tache = { k: 'rapporte', x: vlTas('poisson')[0], y: vlTas('poisson')[1], res: b.porte || 'rien' }; } } else b.peche = 0; }
   else if (T.k === 'cuisine') { if (vlBouger(b, T.x, T.y, 1.4, dt)) { b.dirT = Math.atan2(VL.centre[1] - b.y, VL.centre[0] - b.x); b.cuisine = 1; T.w = (T.w || 0) + dt; if (T.w > T.T) { b.cuisine = 0; b.tache = { k: 'rode', x: VL.centre[0] + (Math.random() - .5) * 6, y: VL.centre[1] + (Math.random() - .5) * 6, T: 5 }; } } else b.cuisine = 0; }
   else if (T.k === 'rapporte') { if (vlBouger(b, T.x, T.y, 1.7, dt)) { if (T.res && T.res !== 'rien' && VL.stock[T.res] !== undefined) VL.stock[T.res]++; b.porte = null; b.tache = null; } }
   else if (T.k === 'joue' || T.k === 'rode') { if (vlBouger(b, T.x, T.y, T.k === 'joue' ? 2.6 : 1.3, dt) || b.bloque > 1) { T.w = (T.w || 0) + dt; b.bloque = 0; if (T.w > T.T) b.tache = null; } }

@@ -9317,6 +9317,7 @@ function signatureFaune() {
 function loadWorld() {
   terrasseDefaire();                                   // le sol d'avant les campements : la faune naît sur la même île pour tous
   if (typeof etatsSolDOrigine === 'function') etatsSolDOrigine();   // le sol d'avant le Korlaz : chaque chargement part du même sol (etats.js)
+  if (typeof villageTerrain === 'function') villageTerrain();       // (§194) la place du village, nivelée avant l'eau, la flore et les bêtes (village.js)
   calcCarteEau();                                    // les chemins de l'eau, pour le bestiaire
   calcFlore();                                       // peuplement de l'île, une fois pour toutes
   crystals = []; crates = []; foes = []; parts.length = 0; got = 0; won = false;
@@ -11961,9 +11962,13 @@ const COU_DORT = [-.75, -.6, -.45, -.25, -.05];             // le cou endormi : 
 // onde qui court dans la queue ; en vol, tout le corps nage dans l'air. Il est couvert de plumes : une crête
 // dressée sur chaque anneau, deux rangs couchés sur chaque flanc qui se recouvrent, un éventail au bout de la
 // queue, une aigrette et des moustaches de plumes sur la tête, des ailes de rémiges. Quatre pattes courtes.
-const DR_NS = 11, DR_SEG = .25, DR_AILE = .45, DR_ECH = .8;   // DR_ECH : tout le dragon, à la fin, à sa taille
+const DR_NS = 11, DR_SEG = .25, DR_AILE = .45, DR_ECH = .9;   // (§191) .8 → .9 : un peu plus imposant   // DR_ECH : tout le dragon, à la fin, à sa taille
 function osDragon(f) {
-  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
+  // (§191) en formes : le corps en anneaux ronds soudés par des galets, les plumes en lames qui s'effilent,
+  // les cornes, les griffes, les crocs en pointe ; les yeux ronds
+  const B = [], add = (a, b, w, h, c, luit, F) => B.push(F ? Object.assign({ a, b, w, h, c, luit }, F) : { a, b, w, h, c, luit });
+  const GA = (r = .6, n = 4) => ({ boule: n, rond: r }), PR = (fin = 1, n = 8, r = .78) => fin === 1 ? { pans: n, rond: r } : { pans: n, rond: r, fin }, PT = { pans: 6, rond: .8, fin: 0 };
+  const PL = (l, e) => ({ fin: [l, e] });                                  // une plume : sa lame s'effile vers la pointe
   const dtl = Math.min(.1, Math.max(0, t - (f._osT ?? t))); f._osT = t;
   const lisse = (k, cible, vit) => { const a = f[k] ?? cible; return f[k] = a + (cible - a) * Math.min(1, dtl * vit); };
   const mix = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
@@ -11991,23 +11996,26 @@ function osDragon(f) {
   }
   // le corps, le ventre clair dessous
   for (let k = 0; k < DR_NS - 1; k++) {
-    add(S[k], S[k + 1], W[k], W[k] * .9, M.corps);
-    if (k < 7) add([S[k][0], S[k][1], S[k][2] - W[k] * .28], [S[k + 1][0], S[k + 1][1], S[k + 1][2] - W[k + 1] * .28], W[k] * .7, W[k] * .3, M.ventre);
+    add(S[k], S[k + 1], W[k], W[k] * .9, M.corps, false, PR(Math.min(1, W[k + 1] / W[k])));
+    if (k > 0) add(mix(S[k - 1], S[k], .8), mix(S[k], S[k + 1], .2), W[k] * 1.04, W[k] * .94, M.corps, false, GA(.7));   // la jointure, ronde
+    if (k < 7) add([S[k][0], S[k][1], S[k][2] - W[k] * .28], [S[k + 1][0], S[k + 1][1], S[k + 1][2] - W[k + 1] * .28], W[k] * .74, W[k] * .34, M.ventre, false, PR(Math.min(1, W[k + 1] / W[k]), 8, .7));
+    if (k < 7) add([S[k][0] - .01, S[k][1], S[k][2] - W[k] * .4], [S[k][0] - .05, S[k][1], S[k][2] - W[k] * .4], W[k] * .6, W[k] * .05, mix(M.ventre, M.corps, .45));   // les écailles du ventre, en bandes
   }
   // les plumes du corps : la crête, dressée vers l'arrière ; deux rangs couchés sur chaque flanc, qui se recouvrent
   for (let k = 0; k < DR_NS - 1; k++) {
     const a = S[k], w = W[k], fr = Math.sin(t * 5 + k * .9) * .015 * (mort ? 0 : 1);
     const top = [a[0], a[1], a[2] + w * .42];
-    add(top, [top[0] - .15, top[1], top[2] + .1 - k * .004 + fr], .016, .07, k < 5 ? M.crete : mix(M.crete, M.pointe, (k - 4) / 6));
+    add(top, [top[0] - .17, top[1], top[2] + .12 - k * .004 + fr], .02, .085, k < 5 ? M.crete : mix(M.crete, M.pointe, (k - 4) / 6), false, PL(.7, .15));
     for (const s of [-1, 1]) for (const [ang, col, dec] of [[.75, mix(M.aile, M.corps, .3), DR_SEG * .5], [.15, M.corps, 0]]) {
       const o = [a[0] - .03 + dec, a[1] + s * Math.cos(ang) * w * .48, a[2] + Math.sin(ang) * w * .48];
-      add(o, [o[0] - .17, o[1] + s * .015, o[2] - .02 + fr], .018, .085 * Math.max(.35, w / .34), k > 6 ? mix(col, M.pointe, (k - 6) / 4) : col);
+      add(o, [o[0] - .19, o[1] + s * .015, o[2] - .02 + fr], .02, .095 * Math.max(.35, w / .34), k > 6 ? mix(col, M.pointe, (k - 6) / 4) : col, false, PL(.8, .3));
     }
   }
   // l'éventail au bout de la queue
   { const T = S[DR_NS - 1], P0 = S[DR_NS - 2], dx = T[0] - P0[0], dy = T[1] - P0[1], a0 = Math.atan2(dy, dx);
     for (let i = 0; i < 5; i++) { const q = a0 + (i - 2) * .3 + Math.sin(t * 3 + i) * .05 * (mort ? 0 : 1), ln = .42 - Math.abs(i - 2) * .05;
-      add(T, [T[0] + Math.cos(q) * ln, T[1] + Math.sin(q) * ln, T[2] + .02], .07, .015, i % 2 ? M.crete : M.pointe); } }
+      add(T, [T[0] + Math.cos(q) * ln, T[1] + Math.sin(q) * ln, T[2] + .02], .085, .018, i % 2 ? M.crete : M.pointe, false, PL(.25, .8));
+      add(T, [T[0] + Math.cos(q) * ln * .9, T[1] + Math.sin(q) * ln * .9, T[2] + .025], .012, .02, mix(M.pointe, [255, 255, 255], .3), false, PL(.4, .6)); } }   // et la tige de chaque plume
   // le cou : quatre anneaux, levé posé, tendu en vol, plongeant pour manger, couché la nuit
   const yaw = mort ? .6 : lisse('_yaw', vol ? 0 : dort ? 2.2 : menace ? 0 : f.regard || 0, 2.5);
   const eBase = lisse('_cou', vol ? .12 : dort ? -.25 : mange ? -.5 : menace ? 1.15 : crache ? .35 : .8, 3);
@@ -12018,31 +12026,42 @@ function osDragon(f) {
     const e0 = eBase - k * pente + (mange ? Math.sin(t * 9) * .06 * (k > 1) : 0), e = e0 + (COU_DORT[k + 1] - e0) * dk;
     const yk = yaw * (k + 1) / 4, L = .17;
     const n2 = [N[0] + Math.cos(e) * Math.cos(yk) * L, N[1] + Math.cos(e) * Math.sin(yk) * L, N[2] + Math.sin(e) * L];
-    add(N, n2, .21 - k * .02, .2 - k * .02, M.corps);
-    add([N[0], N[1], N[2] + .08], [n2[0] - .06, n2[1], n2[2] + .15], .014, .05, M.crete);   // la crête, jusque sur la nuque
+    add(N, n2, .22 - k * .02, .21 - k * .02, M.corps, false, PR((.2 - k * .02) / (.22 - k * .02)));
+    add(mix(N, n2, -.15), mix(N, n2, .15), .23 - k * .02, .22 - k * .02, M.corps, false, GA(.7));
+    add([N[0], N[1], N[2] + .08], [n2[0] - .07, n2[1], n2[2] + .17], .018, .06, M.crete, false, PL(.7, .2));   // la crête, jusque sur la nuque
     anneaux.push(n2); N = n2; dir = yk;
   }
-  add(anneaux[0], [anneaux[2][0], anneaux[2][1], anneaux[2][2] - .07], .1, .07, gorge > 0 ? [255, Math.round(120 + 100 * gorge), 50] : M.ventre, gorge > .2);   // la gorge
+  add(anneaux[0], [anneaux[2][0], anneaux[2][1], anneaux[2][2] - .07], .12, .09, gorge > 0 ? [255, Math.round(120 + 100 * gorge), 50] : M.ventre, gorge > .2, PR(.8, 8, .7));   // la gorge
+  // la collerette : un col de plumes à la base du cou, qui se hérisse à la menace
+  for (let i = 0; i < 7; i++) { const a = -1.35 + i * .45, o = [S[0][0] + .12, S[0][1] + Math.sin(a) * .2, S[0][2] + .04 + Math.cos(a) * .17], hr = menace ? .12 : 0;
+    add(o, [o[0] - .24, o[1] + Math.sin(a) * (.06 + hr), o[2] + Math.cos(a) * (.04 + hr) - .02], .07, .018, i % 2 ? M.crete : mix(M.crete, M.pointe, .5), false, PL(.3, .7)); }
   // la tête, fine et longue
   const he = vol ? -.05 : mange ? -.4 : menace ? .15 : -.22 + .25 * dk, cd = Math.cos(dir), sd = Math.sin(dir), ce = Math.cos(he), se = Math.sin(he);
   const fw = [cd * ce, sd * ce, se], up = [-cd * se, -sd * se, ce], H0 = N;
   const P_ = (u, w) => [H0[0] + fw[0] * u + up[0] * w, H0[1] + fw[1] * u + up[1] * w, H0[2] + fw[2] * u + up[2] * w];
-  add(P_(-.03, 0), P_(.2, .01), .16, .15, M.corps);                                    // le crâne
-  add(P_(.18, -.01), P_(.37, -.03), .1, .09, M.corps);                                 // le museau
+  add(P_(-.05, 0), P_(.21, .01), .17, .16, M.corps, false, GA(.55));                     // le crâne
+  add(P_(.16, -.01), P_(.38, -.03), .11, .1, M.corps, false, PR(.72));                   // le museau
+  add(P_(.12, .06), P_(.22, .045), .12, .04, mix(M.corps, M.crete, .3), false, GA(.6, 3));   // l'arcade
   const J0 = P_(.06, -.07);
   let gueule = Math.max(gorge * .55, menace ? .45 + Math.sin(t * 6) * .1 : 0, mange ? Math.abs(Math.sin(t * 9)) * .35 : 0);
   if (!vol) gueule = Math.min(gueule, Math.max(0, he - Math.asin(Math.max(-1, Math.min(1, (.04 - J0[2]) / .28)))));
   const mj = [fw[0] * Math.cos(gueule) - up[0] * Math.sin(gueule), fw[1] * Math.cos(gueule) - up[1] * Math.sin(gueule), fw[2] * Math.cos(gueule) - up[2] * Math.sin(gueule)];
-  add(J0, [J0[0] + mj[0] * .28, J0[1] + mj[1] * .28, J0[2] + mj[2] * .28], .09, .04, M.ventre);   // la mâchoire
+  add(J0, [J0[0] + mj[0] * .28, J0[1] + mj[1] * .28, J0[2] + mj[2] * .28], .095, .045, M.ventre, false, PR(.6, 8, .7));   // la mâchoire
+  for (const s of [-1, 1]) for (const k of [.1, .17, .24]) {                          // les crocs, en haut et en bas
+    const lat = [-Math.sin(dir) * s * .035, Math.cos(dir) * s * .035, 0], a = P_(.12 + k * .9, -.06), j = [J0[0] + mj[0] * k, J0[1] + mj[1] * k, J0[2] + mj[2] * k];
+    add([a[0] + lat[0], a[1] + lat[1], a[2]], [a[0] + lat[0] - up[0] * .05, a[1] + lat[1] - up[1] * .05, a[2] - up[2] * .05], .022, .022, [236, 228, 210], false, PT);
+    if (gueule > .1) add([j[0] + lat[0], j[1] + lat[1], j[2] + .015], [j[0] + lat[0] + up[0] * .04, j[1] + lat[1] + up[1] * .04, j[2] + .015 + up[2] * .04], .018, .018, [236, 228, 210], false, PT); }
   f._bouche = P_(.38, -.04);                                                           // d'où part le feu (voir cracheFeu)
-  if (gorge > .15) add(P_(.3, -.05), P_(.4, -.05), .06 + gorge * .06, .06 + gorge * .06, [255, 210, 120], true);   // le feu dans la gueule
+  if (gorge > .15) add(P_(.3, -.05), P_(.4, -.05), .06 + gorge * .06, .06 + gorge * .06, [255, 210, 120], true, GA(.8, 3));   // le feu dans la gueule
   for (const s of [-1, 1]) {
     const lat = [-sd * s, cd * s, 0], L_ = (p, k) => p.map((q, j) => q + lat[j] * k);
-    add(L_(P_(.02, .08), .05), L_(P_(-.15, .18), .08), .03, .03, [226, 214, 190]);   // les petites cornes
-    add(L_(P_(.12, .04), .075), L_(P_(.14, .04), .075), .028, dort ? .006 : .028, dort ? M.corps : [255, 196, 60], !dort && !mort);   // les yeux
-    add(L_(P_(.1, -.04), .07), L_(P_(-.1, -.12), .14), .012, .035, M.pointe);      // les moustaches de plumes
+    add(L_(P_(.02, .08), .05), L_(P_(-.1, .15), .075), .045, .045, [226, 214, 190], false, PR(.7, 6)); add(L_(P_(-.1, .15), .075), L_(P_(-.22, .2), .1), .032, .032, [236, 226, 204], false, PT);   // les cornes, en deux temps
+    add(L_(P_(.36, -.01), .028), L_(P_(.38, -.01), .028), .022, .016, [30, 24, 22], false, GA(1, 3));   // les naseaux
+    add(L_(P_(.11, .04), .075), L_(P_(.15, .04), .075), .036, dort ? .008 : .034, dort ? M.corps : [255, 196, 60], !dort && !mort, GA(1, 3));   // les yeux
+    if (!dort) add(L_(P_(.135, .04), .088), L_(P_(.145, .04), .088), .012, .03, [30, 16, 10], false, GA(1, 3));   // la pupille, fendue
+    add(L_(P_(.1, -.04), .07), L_(P_(-.12, -.13), .15), .014, .04, M.pointe, false, PL(.6, .2));      // les moustaches de plumes
   }
-  for (let k = 0; k < 4; k++) add(P_(.02 - k * .05, .08), P_(-.2 - k * .06, .2 - k * .02), .012, .05, k % 2 ? M.pointe : M.crete);   // l'aigrette
+  for (let k = 0; k < 4; k++) add(P_(.02 - k * .05, .08), P_(-.22 - k * .07, .22 - k * .02), .016, .06, k % 2 ? M.pointe : M.crete, false, PL(.6, .2));   // l'aigrette
   // les pattes : courtes, sous les épaules et sous les hanches ; posées sur le sol, repliées en vol
   const R = repere(f), ca = Math.cos(f.dir), sa = Math.sin(f.dir);
   f.gph = (f.gph || 0) + dtl * (f.vit || 0) * 3.2;
@@ -12063,9 +12082,11 @@ function osDragon(f) {
     let n = [pl[0] - u[0] * pu, pl[1] - u[1] * pu, pl[2] - u[2] * pu]; const nn = Math.hypot(...n) || 1; n = n.map(q => q / nn);
     const K = [hip[0] + u[0] * L1 * c1 + n[0] * L1 * s1, hip[1] + u[1] * L1 * c1 + n[1] * L1 * s1, hip[2] + u[2] * L1 * c1 + n[2] * L1 * s1];
     const Fd = [hip[0] + u[0] * d, hip[1] + u[1] * d, hip[2] + u[2] * d];
-    add(hip, K, av ? .1 : .12, av ? .1 : .12, M.corps); add(K, Fd, .07, .07, M.corps);
-    add(hip, [K[0] - .06, K[1] + s * .02, K[2] + .02], .02, .08, M.aile);            // la culotte de plumes
-    for (const q of [-.35, 0, .35]) add([Fd[0], Fd[1], Fd[2] - (vol ? 0 : .02)], [Fd[0] + Math.cos(q) * .1, Fd[1] + Math.sin(q) * .1 * s, Fd[2] - (vol ? 0 : .02)], .03, .025, [60, 52, 48]);   // les griffes
+    add(hip, K, av ? .12 : .14, av ? .12 : .14, M.corps, false, PR(.7)); add(K, Fd, .08, .08, M.corps, false, PR(.75));
+    add(mix(hip, K, -.1), mix(hip, K, .45), av ? .15 : .17, av ? .15 : .17, M.corps, false, GA(.65));   // la cuisse
+    add([K[0] - .03, K[1], K[2]], [K[0] + .03, K[1], K[2]], .09, .09, M.corps, false, GA(.7, 3));
+    for (const dz of [0, -.05]) add([hip[0], hip[1], hip[2] + dz], [K[0] - .08, K[1] + s * .03, K[2] + .02 + dz], .025, .1, M.aile, false, PL(.7, .3));            // la culotte de plumes
+    for (const q of [-.35, 0, .35]) add([Fd[0], Fd[1], Fd[2] - (vol ? 0 : .02)], [Fd[0] + Math.cos(q) * .1, Fd[1] + Math.sin(q) * .1 * s, Fd[2] - (vol ? 0 : .02)], .036, .03, [60, 52, 48], false, PT);   // les griffes
   }
   // les ailes, de rémiges : repliées le long du dos, déployées en vol
   for (const s of [-1, 1]) {
@@ -12083,17 +12104,19 @@ function osDragon(f) {
     const Eo = [Sh[0] + d1[0], Sh[1] + d1[1], Sh[2] + d1[2]], Wo = [Eo[0] + d2[0], Eo[1] + d2[1], Eo[2] + d2[2]], To = [Wo[0] + d3[0], Wo[1] + d3[1], Wo[2] + d3[2]];
     const Ef = [Sh[0] - .45 * K_, Sh[1] + s * .06, Sh[2] - .01], Wf = [Ef[0] + .55 * K_, Ef[1] + s * .02, Ef[2] + .06], Tf = [Wf[0] - .9 * K_, Wf[1] - s * .01, Wf[2] + .02];
     const El = mix(Eo, Ef, pw), Wl = mix(Wo, Wf, pw), Tl = mix(To, Tf, pw);
-    add(Sh, El, .1, .06, M.aile); add(El, Wl, .08, .05, M.aile); add(Wl, Tl, .06, .04, M.aile);
+    add(Sh, El, .11, .07, M.aile, false, PR(.8)); add(El, Wl, .085, .055, M.aile, false, PR(.75)); add(Wl, Tl, .06, .04, M.aile, false, PR(.5));
+    add(mix(Sh, El, -.05), mix(Sh, El, .2), .14, .1, M.aile, false, GA(.7, 3)); add(mix(El, Wl, -.06), mix(El, Wl, .06), .1, .075, M.aile, false, GA(.7, 3));
     const arr = [-1, 0, -.12 + (vol ? A * .3 * Math.sin(ph - .4) : 0)], kf = 1 - pw * .45;
     for (let i = 0; i < 5; i++) {                       // les rémiges : la pointe tendue, les autres en éventail vers l'arrière
       const r0 = mix(Wl, Tl, i / 4), wsp = [(Tl[0] - Wl[0]), (Tl[1] - Wl[1]), (Tl[2] - Wl[2])], q = Math.hypot(...wsp) || 1;
       const k2 = .9 - i * .2, dv = [wsp[0] / q * (1 - k2) + arr[0] * k2, wsp[1] / q * (1 - k2) + arr[1] * k2, wsp[2] / q * (1 - k2) + arr[2] * k2], qq = Math.hypot(...dv) || 1;
       const ln = (1.0 + i * .1) * kf * K_;
-      add(r0, [r0[0] + dv[0] / qq * ln, r0[1] + dv[1] / qq * ln, r0[2] + dv[2] / qq * ln], (.17 * kf + .03) * .55, .018, mix(M.aile, M.pointe, .3 + i * .15));
+      add(r0, [r0[0] + dv[0] / qq * ln, r0[1] + dv[1] / qq * ln, r0[2] + dv[2] / qq * ln], (.17 * kf + .03) * .6, .02, mix(M.aile, M.pointe, .3 + i * .15), false, PL(.35, .7));
     }
     for (let i = 0; i < 4; i++) {                       // les secondaires, le long de l'avant-bras
       const r0 = mix(El, Wl, i / 3), ln = .8 * kf * K_;
-      add(r0, [r0[0] + arr[0] * ln, r0[1] + arr[1] * ln, r0[2] + arr[2] * ln], (.2 * kf + .03) * .55, .018, mix(M.aile, M.corps, .3));
+      add(r0, [r0[0] + arr[0] * ln, r0[1] + arr[1] * ln, r0[2] + arr[2] * ln], (.2 * kf + .03) * .6, .02, mix(M.aile, M.corps, .3), false, PL(.4, .7));
+      add(r0, [r0[0] + arr[0] * ln * .45, r0[1] + arr[1] * ln * .45, r0[2] + arr[2] * ln * .45 + .01], (.2 * kf + .03) * .5, .022, mix(M.aile, M.crete, .35), false, PL(.5, .7));   // les couvertures, par-dessus
     }
   }
   // le roulis : tout le corps tourne autour de son axe dans les virages ; mort, il gît sur le flanc
@@ -12582,8 +12605,11 @@ function osAraignon(f) {
   }
   return B;
 }
+// (§191) en formes : le fer en dôme et en galet, les tuyaux, les cheminées, les vérins et les pattes en cylindres
+// (des prismes à huit pans), les griffes et les crochets en pointe, les yeux en lentilles.
 function osTisseuse(f) {
-  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
+  const B = [], add = (a, b, w, h, c, luit, F) => B.push(F ? Object.assign({ a, b, w, h, c, luit }, F) : { a, b, w, h, c, luit });
+  const GA = (r = .5, n = 4) => ({ boule: n, rond: r }), CY = (fin = 1, r = .9) => fin === 1 ? { pans: 8, rond: r } : { pans: 8, rond: r, fin }, PT = { pans: 6, rond: .8, fin: 0 };
   if (!f.pieds) initTisseuse(f);
   const zl = f.zc - f.z, cg = Math.cos(f.tg || 0), sg = Math.sin(f.tg || 0), cr = Math.cos(f.rl || 0), sr = Math.sin(f.rl || 0);
   const tb = p => { let x = p[0], z = p[2];   // (§134) le corps tourne autour de son centre, puis monte à sa hauteur : il ne s'écrase plus au sol
@@ -12596,50 +12622,56 @@ function osTisseuse(f) {
   const jt = rage ? [255, 96, 52] : fer;
   // le corps
   const rec = f.reculT != null && t - f.reculT < .2 ? (1 - (t - f.reculT) / .2) * .15 : 0;
-  add(tb([-.1 - rec, 0, 0]), tb([1.15 - rec, 0, .05]), 1.1, .72, plaque);                       // le céphalothorax
-  add(tb([.15, 0, .4]), tb([1.0, 0, .42]), .8, .14, cuivre);                                      // sa crête
-  add(tb([-.25, 0, .15]), tb([-1.75, 0, .42]), 1.55, 1.15, fer);                                 // l'abdomen
-  for (const x of [-.55, -1.0, -1.45]) add(tb([x + .15, 0, .78]), tb([x - .15, 0, .8]), 1.3, .1, plaque);   // ses plaques
-  add(tb([-.2, 0, .1]), tb([-.3, 0, .12]), .6, .5, sombre);                                       // le pédicelle
-  for (const x of [-.6, -1.05, -1.5]) add(tb([x + .04, 0, .27]), tb([x - .04, 0, .29]), 1.64, 1.22, cuivre);   // les cerclages de l'abdomen
-  for (const x of [-.55, -1.0, -1.45]) for (const y of [-.45, -.15, .15, .45]) add(tb([x, y, .86]), tb([x + .03, y, .86]), .05, .05, cuivre);   // les rivets
+  add(tb([-.1 - rec, 0, 0]), tb([1.15 - rec, 0, .05]), 1.16, .78, plaque, false, GA(.5, 5));                       // le céphalothorax
+  add(tb([.15, 0, .38]), tb([1.0, 0, .4]), .8, .16, cuivre, false, GA(.4));                                      // sa crête
+  add(tb([-.2, 0, .15]), tb([-1.8, 0, .42]), 1.62, 1.22, fer, false, GA(.5, 5));                                 // l'abdomen
+  for (const [x, z, k] of [[-.55, .74, .88], [-1.0, .82, 1], [-1.45, .74, .84]]) add(tb([x + .17, 0, z]), tb([x - .17, 0, z + .02]), 1.3 * k, .16, plaque, false, GA(.4));   // ses plaques
+  add(tb([-.1, 0, .1]), tb([-.32, 0, .12]), .62, .52, sombre, false, CY(1, .8));                                       // le pédicelle
+  for (const [x, k] of [[-.6, .93], [-1.05, 1.03], [-1.5, .86]]) add(tb([x + .045, 0, .27]), tb([x - .045, 0, .29]), 1.66 * k, 1.26 * k, cuivre, false, CY(1, .7));   // les cerclages de l'abdomen
+  for (const [x, z] of [[-.55, .84], [-1.0, .92], [-1.45, .84]]) for (const y of [-.45, -.15, .15, .45]) add(tb([x, y, z - Math.abs(y) * .1]), tb([x, y, z + .03 - Math.abs(y) * .1]), .06, .06, cuivre, false, GA(.8, 3));   // les rivets
   for (const sd of [1, -1]) {
-    add(tb([-.05, sd * .42, .3]), tb([-.6, sd * .66, .48]), .07, .07, cuivre); add(tb([-.6, sd * .66, .48]), tb([-1.25, sd * .7, .46]), .07, .07, cuivre);   // les tuyaux
+    add(tb([-.05, sd * .42, .3]), tb([-.6, sd * .66, .48]), .08, .08, cuivre, false, CY()); add(tb([-.6, sd * .66, .48]), tb([-1.25, sd * .7, .46]), .08, .08, cuivre, false, CY());   // les tuyaux
+    add(tb([-.55, sd * .66, .48]), tb([-.65, sd * .66, .48]), .13, .13, sombre, false, GA(.8, 3));   // leur coude
+    for (const x of [.3, .6, .85]) add(tb([x, sd * .5, .02]), tb([x + .04, sd * .52, .02]), .06, .06, cuivre, false, GA(.8, 3));   // les rivets du flanc
     const ch = tb([-.62, sd * .32, .82]), ch2 = tb([-.58, sd * .34, 1.32]);
-    add(ch, ch2, .15, .15, sombre); add(ch2, [ch2[0], ch2[1], ch2[2] + .06], .2, .2, fer);                  // les cheminées
+    add(ch, ch2, .16, .16, sombre, false, CY()); add(ch2, [ch2[0], ch2[1], ch2[2] + .08], .2, .2, fer, false, CY(1.25));   // les cheminées
+    add([ch2[0], ch2[1], ch2[2] + .07], [ch2[0], ch2[1], ch2[2] + .085], .17, .17, [20, 18, 20], false, CY());   // leur bouche noire
     const pul = .6 + .4 * Math.sin(t * (rage ? 9 : 3.5) + sd);                                              // le cœur, par les évents
     add(tb([-.85, sd * .79, .22]), tb([-1.15, sd * .79, .22]), .03, .07, mort ? [70, 40, 30] : [255, Math.round(120 + 80 * pul), 50], !mort);
     add(tb([-1.25, sd * .76, .1]), tb([-1.5, sd * .74, .1]), .03, .06, mort ? [70, 40, 30] : [255, Math.round(110 + 80 * pul), 40], !mort);
     const ou = f.etat === 'combat' && !mort ? (Math.sin(t * (rage ? 7 : 3)) * .5 + .5) * .12 : 0;            // les chélicères : elles s'ouvrent et claquent
-    add(tb([1.12, sd * .14, -.12]), tb([1.42, sd * (.1 + ou), -.42]), .09, .09, sombre);
-    add(tb([1.42, sd * (.1 + ou), -.42]), tb([1.48, sd * (.05 + ou * .5), -.56]), .05, .05, cuivre);
-    add(tb([1.0, sd * .3, -.1]), tb([1.32, sd * .46, -.3]), .07, .07, fer); add(tb([1.32, sd * .46, -.3]), tb([1.5, sd * .4, -.52]), .06, .06, fer);   // les pédipalpes
+    add(tb([1.12, sd * .14, -.12]), tb([1.42, sd * (.1 + ou), -.42]), .11, .11, sombre, false, CY(.75));
+    add(tb([1.42, sd * (.1 + ou), -.42]), tb([1.5, sd * (.04 + ou * .5), -.62]), .075, .075, cuivre, false, PT);   // le crochet
+    add(tb([1.0, sd * .3, -.1]), tb([1.32, sd * .46, -.3]), .08, .08, fer, false, CY(.85)); add(tb([1.32, sd * .46, -.3]), tb([1.5, sd * .4, -.52]), .07, .07, fer, false, CY(.6));   // les pédipalpes
+    add(tb([1.32, sd * .46, -.3]), tb([1.32, sd * .46, -.29]), .1, .1, cuivre, false, GA(.8, 3));
   }
-  add(tb([.85, 0, .4]), tb([.66, 0, .78]), .04, .04, sombre);                                         // l'antenne
-  add(tb([.65, 0, .79]), tb([.66, 0, .81]), .06, .06, (t * 2 | 0) % 2 && !mort ? [255, 70, 50] : [90, 40, 36], (t * 2 | 0) % 2 && !mort);
+  add(tb([.85, 0, .4]), tb([.66, 0, .78]), .045, .045, sombre, false, CY(.7));                                         // l'antenne
+  add(tb([.64, 0, .77]), tb([.67, 0, .83]), .08, .08, (t * 2 | 0) % 2 && !mort ? [255, 70, 50] : [90, 40, 36], (t * 2 | 0) % 2 && !mort, GA(1, 3));
   // les yeux : deux grands, six petits ; ils s'allument un à un à l'éveil
   const yeux = [[1.18, .2, .2, .12], [1.18, -.2, .2, .12], [1.12, .36, .3, .07], [1.12, -.36, .3, .07], [1.05, .12, .36, .06], [1.05, -.12, .36, .06], [.98, .3, .38, .05], [.98, -.3, .38, .05]];
-  yeux.forEach(([x, y, z, r], i) => { const on = !mort && eveil > i / 9; add(tb([x - .02, y, z]), tb([x + .03, y, z]), r, r, on ? oeil : [70, 40, 36], on); });
+  yeux.forEach(([x, y, z, r], i) => { const on = !mort && eveil > i / 9; add(tb([x - .03, y, z]), tb([x + .035, y, z]), r * 1.1, r * 1.1, on ? oeil : [70, 40, 36], on, GA(1, 3)); });
   // le fusil, sous la tête : il suit la visée
   let ax = 1, ay = 0, az = 0;
   if (f.vise && f.act && f.act.k === 'viser') { const q = loc(f.vise[0], f.vise[1], f.vise[2]), o = tb([1.0, 0, -.25]); const d = Math.hypot(q[0] - o[0], q[1] - o[1], q[2] - o[2]) || 1; ax = (q[0] - o[0]) / d; ay = (q[1] - o[1]) / d; az = (q[2] - o[2]) / d; }
   const o = tb([.95 - rec, 0, -.25]), bout = [o[0] + ax * 1.05, o[1] + ay * 1.05, o[2] + az * 1.05];
-  add(o, bout, .13, .13, sombre); add([bout[0] - ax * .12, bout[1] - ay * .12, bout[2] - az * .12], bout, .2, .2, fer);
+  add(o, bout, .14, .14, sombre, false, CY()); add([bout[0] - ax * .14, bout[1] - ay * .14, bout[2] - az * .14], bout, .22, .22, fer, false, CY(1.1));
+  for (const k of [.3, .55]) add([o[0] + ax * k, o[1] + ay * k, o[2] + az * k], [o[0] + ax * (k + .05), o[1] + ay * (k + .05), o[2] + az * (k + .05)], .18, .18, cuivre, false, CY());   // ses bagues
   const charge = f.act && f.act.k === 'viser' ? Math.max(0, Math.min(1, 1 - Math.max(0, f.act.T) / (rage ? 1.05 : 1.6))) : 0;
-  if (!mort) add([bout[0] - ax * .03, bout[1] - ay * .03, bout[2] - az * .03], [bout[0] + ax * .02, bout[1] + ay * .02, bout[2] + az * .02], .11 + charge * .08, .11 + charge * .08, charge > 0 ? [255, 120 + 100 * charge, 90] : [140, 60, 50], charge > 0);   // la lentille
+  if (!mort) add([bout[0] - ax * .03, bout[1] - ay * .03, bout[2] - az * .03], [bout[0] + ax * .02, bout[1] + ay * .02, bout[2] + az * .02], .12 + charge * .08, .12 + charge * .08, charge > 0 ? [255, 120 + 100 * charge, 90] : [140, 60, 50], charge > 0, GA(1, 3));   // la lentille
   if (charge > 0 && f.vise) {                                        // le laser, de la lentille à vous
     const q = loc(f.vise[0], f.vise[1], f.vise[2]);
     add(bout, q, .025 + charge * .03, .025 + charge * .03, [255, 60 + 120 * (charge > .75 ? (t * 20 | 0) % 2 : 0), 50], true);
   }
   // le mortier, sur l'abdomen : il se dresse vers vous, recule au coup
   const rm = f.mortierT != null && t - f.mortierT < .25 ? (1 - (t - f.mortierT) / .25) * .25 : 0;
-  const mo = tb([-1.05, 0, .85]); add(tb([-.85, 0, .82]), tb([-1.25, 0, .84]), .62, .3, cuivre);   // la tourelle
+  const mo = tb([-1.05, 0, .85]); add(tb([-.83, 0, .8]), tb([-1.27, 0, .82]), .64, .36, cuivre, false, GA(.45));   // la tourelle
   const el = f.act && f.act.k === 'mortier' ? 1.05 : .75, dmx = Math.cos(el), dmz = Math.sin(el);
-  add([mo[0] - dmx * rm * .5, mo[1], mo[2] - dmz * rm], [mo[0] + dmx * (.75 - rm), mo[1], mo[2] + dmz * (.75 - rm)], .3, .3, sombre);
+  add([mo[0] - dmx * rm * .5, mo[1], mo[2] - dmz * rm], [mo[0] + dmx * (.75 - rm), mo[1], mo[2] + dmz * (.75 - rm)], .3, .3, sombre, false, CY());
+  add([mo[0] + dmx * (.62 - rm), mo[1], mo[2] + dmz * (.62 - rm)], [mo[0] + dmx * (.78 - rm), mo[1], mo[2] + dmz * (.78 - rm)], .38, .38, fer, false, CY());   // la gueule du mortier
   // la filière, au bout de l'abdomen : elle se lève pour lancer la toile
   const lt = f.toileT != null && t - f.toileT < .9 ? Math.sin(Math.min(1, (t - f.toileT) / .9) * Math.PI) : 0;
-  add(tb([-1.7, 0, .3 + lt * .2]), tb([-1.95, 0, .28 + lt * .35]), .32, .28, plaque);
-  add(tb([-1.95, 0, .28 + lt * .35]), tb([-2.05, 0, .27 + lt * .4]), .16, .16, [196, 232, 255], lt > .1);
+  add(tb([-1.7, 0, .3 + lt * .2]), tb([-1.97, 0, .28 + lt * .35]), .34, .3, plaque, false, CY(.6));
+  add(tb([-1.95, 0, .28 + lt * .35]), tb([-2.06, 0, .27 + lt * .4]), .17, .17, [196, 232, 255], lt > .1, GA(.8, 3));
   // (§136) la trappe de la couvée, sous l'abdomen : deux volets qui s'ouvrent, une lueur dedans
   const cv = !!(f.act && f.act.k === 'couvee') && !mort;
   for (const sd of [1, -1]) if (cv) add(tb([-1.2, sd * .28, -.36]), tb([-1.2, sd * .34, -.7]), .46, .05, plaque); else add(tb([-.97, sd * .14, -.37]), tb([-1.43, sd * .14, -.37]), .27, .05, plaque);
@@ -12655,11 +12687,14 @@ function osTisseuse(f) {
     let n = [pl[0] - u[0] * pu, pl[1] - u[1] * pu, pl[2] - u[2] * pu]; const nn = Math.hypot(n[0], n[1], n[2]) || 1; n = n.map(q => q / nn);
     const K = [H[0] + u[0] * a * ca2 + n[0] * a * sa2, H[1] + u[1] * a * ca2 + n[1] * a * sa2, H[2] + u[2] * a * ca2 + n[2] * a * sa2];
     const Akk = [H[0] + u[0] * d, H[1] + u[1] * d, H[2] + u[2] * d];
-    add(H, K, .2, .2, fer); add(K, Akk, .15, .15, fer); add(Akk, Fp, .09, .09, sombre);
+    add(H, K, .22, .22, fer, false, CY(.8)); add(K, Akk, .17, .17, fer, false, CY(.75)); add(Akk, Fp, .1, .1, sombre, false, CY(.45));
+    add([H[0], H[1], H[2] - .14], [H[0], H[1], H[2] + .14], .3, .3, sombre, false, GA(.7, 3));   // la rotule de la hanche
+    for (const q of [.35, .7]) { const a = mixP(H, K, q), b2 = mixP(H, K, q + .06); add(a, b2, .27, .27, cuivre, false, CY()); }   // les bagues du fémur
+    add(mixP(K, Akk, .85), Akk, .19, .19, cuivre, false, CY(.8));   // la cheville
     const pis = [H[0] + (K[0] - H[0]) * .55, H[1] + (K[1] - H[1]) * .55, H[2] + (K[2] - H[2]) * .55 + .12];
-    add([H[0], H[1], H[2] + .1], pis, .06, .06, cuivre);                                                // le vérin
-    for (const q of [-.5, 0, .5]) { const a = Math.atan2(Fp[1] - H[1], Fp[0] - H[0]) + q; add(Fp, [Fp[0] + Math.cos(a) * .17, Fp[1] + Math.sin(a) * .17, Fp[2] + .01], .045, .04, cuivre); }   // trois griffes
-    add([K[0] - .07, K[1], K[2]], [K[0] + .07, K[1], K[2]], .24, .24, jt, rage);                  // le genou
+    add([H[0], H[1], H[2] + .1], mixP([H[0], H[1], H[2] + .1], pis, .55), .1, .1, sombre, false, CY()); add(mixP([H[0], H[1], H[2] + .1], pis, .5), pis, .055, .055, [190, 196, 204], false, CY());   // le vérin : son corps, sa tige
+    for (const q of [-.5, 0, .5]) { const a = Math.atan2(Fp[1] - H[1], Fp[0] - H[0]) + q; add(Fp, [Fp[0] + Math.cos(a) * .2, Fp[1] + Math.sin(a) * .2, Fp[2] + .005], .06, .05, cuivre, false, PT); }   // trois griffes
+    add([K[0] - .09, K[1], K[2]], [K[0] + .09, K[1], K[2]], .27, .27, jt, rage, GA(.6, 4));                  // le genou
   }
   // les toiles au sol
   for (const w of TOILES) {
@@ -13548,7 +13583,10 @@ function escHud() {
 // ============================================================
 const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
-const rayonCorps = b => b.sp.batiment ? (b.forme === 'puits' ? .85 : b.forme === 'foyer' ? .7 : b.forme === 'longue' ? 1.7 : 1.45) : .38 * b.sp.sz * (b.ech || 1);
+const rayonCorps = b => b.sp.batiment ? (b.forme === 'puits' ? .85 : b.forme === 'foyer' ? .7 : b.forme === 'longue' ? .98 : b.forme === 'haute' ? 1.3 : 1.45) : .38 * b.sp.sz * (b.ech || 1);
+// (§194) le point d'un corps le plus proche de (x, y) : son centre, ou, pour un corps allongé (la maison longue :
+// demiL de part et d'autre de son axe), le point de cet axe — le corps est alors une gélule et non plus un disque
+const ptCorps = (o, x, y) => { if (!o.demiL) return o; const c = Math.cos(o.dir || 0), s = Math.sin(o.dir || 0), q = Math.max(-o.demiL, Math.min(o.demiL, (x - o.x) * c + (y - o.y) * s)); return { x: o.x + c * q, y: o.y + s * q }; };
 const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
 const aCorps = b => !b.sp.cercle && !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !b.sp.plante && !b.cache && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
@@ -13573,9 +13611,9 @@ function heurtCorps(b, nx, ny) {
     if (o === b) return;
     const joueur = o === P, ro = joueur ? rayonJoueur() : rayonCorps(o);
     if (!memeHauteur(b.z, hb, o.z, joueur ? CORPS_JOUEUR_H : hautCorps(o))) return;
-    const rs = rb + ro, ex = o.x - (b.x + sx), ey = o.y - (b.y + sy);
+    const q1 = ptCorps(o, b.x + sx, b.y + sy), rs = rb + ro, ex = q1.x - (b.x + sx), ey = q1.y - (b.y + sy);
     if (ex * ex + ey * ey >= rs * rs) return;
-    const d0 = Math.hypot(o.x - b.x, o.y - b.y) || 1e-6, ux = (o.x - b.x) / d0, uy = (o.y - b.y) / d0;
+    const q0 = ptCorps(o, b.x, b.y), d0 = Math.hypot(q0.x - b.x, q0.y - b.y) || 1e-6, ux = (q0.x - b.x) / d0, uy = (q0.y - b.y) / d0;
     const vers = sx * ux + sy * uy;
     if (vers <= 0) return;                                  // il s'en écarte : libre
     touche = true;
@@ -13593,8 +13631,8 @@ function corpsBarre(nx, ny) {
   const r = rayonJoueur(); let barre = false;
   corpsPres(nx, ny, o => {
     if (barre || o === P.monture || !memeHauteur(P.z, CORPS_JOUEUR_H, o.z, hautCorps(o))) return;
-    const rs = r + rayonCorps(o), d1 = (o.x - nx) ** 2 + (o.y - ny) ** 2;
-    if (d1 < rs * rs && d1 < (o.x - P.x) ** 2 + (o.y - P.y) ** 2) barre = true;
+    const q1 = ptCorps(o, nx, ny), q0 = ptCorps(o, P.x, P.y), rs = r + rayonCorps(o), d1 = (q1.x - nx) ** 2 + (q1.y - ny) ** 2;
+    if (d1 < rs * rs && d1 < (q0.x - P.x) ** 2 + (q0.y - P.y) ** 2) barre = true;
   });
   return barre;
 }
@@ -13605,13 +13643,16 @@ function libreBete(b, x, y) { const h = hAt(x | 0, y | 0), h0 = hAt(b.x | 0, b.y
 function demeler(dt) {
   const pas = DEMELE_VIT * dt, vu = new Set();
   const ecarter = (a, o, ra, ro, joueur) => {
-    const dx = a.x - o.x, dy = a.y - o.y, d = Math.hypot(dx, dy), rs = ra + ro;
+    const qa = ptCorps(a, o.x, o.y), qo = ptCorps(o, qa.x, qa.y);              // (§194) une gélule : son point le plus proche
+    const dx = qa.x - qo.x, dy = qa.y - qo.y, d = Math.hypot(dx, dy), rs = ra + ro;
     if (d >= rs) return;
     const ux = d > 1e-4 ? dx / d : Math.cos((a.bob || 1) * 7), uy = d > 1e-4 ? dy / d : Math.sin((a.bob || 1) * 7);
     const m = Math.min(pas, (rs - d) / 2);
     const aOk = libreBete(a, a.x + ux * m, a.y + uy * m);
     const oOk = joueur ? !blockedAt(o.x - ux * m, o.y - uy * m, o.z) : libreBete(o, o.x - ux * m, o.y - uy * m);
-    const ka = aOk ? (joueur || !oOk ? 2 : 1) : 0, ko = oOk ? (joueur ? (aOk ? 0 : 2) : aOk ? 1 : 2) : 0;   // le joueur ne recule que si la bête ne peut pas
+    let ka = aOk ? (joueur || !oOk ? 2 : 1) : 0, ko = oOk ? (joueur ? (aOk ? 0 : 2) : aOk ? 1 : 2) : 0;   // le joueur ne recule que si la bête ne peut pas
+    if (a.fixe || a.sp.batiment) { ka = 0; ko = oOk ? 2 : 0; }                   // (§194) une maison ne se pousse pas : c'est l'autre qui s'écarte
+    if (!joueur && (o.fixe || o.sp.batiment)) { ko = 0; ka = aOk ? 2 : 0; }
     a.x += ux * m * ka; a.y += uy * m * ka; o.x -= ux * m * ko; o.y -= uy * m * ko;
   };
   for (const [, L] of corpsGrille) for (const a of L) {
@@ -16693,6 +16734,7 @@ function osDeBase(f) {
   if (sp.corps === 'sterne') return osSterne(f);
   if (sp.corps === 'felin') return osFelin(f);
   if (sp.corps === 'bramard') return osBramard(f);
+  if (sp.id === 'bosseu') return osBossu(f);                // (§191) le Bossu : son corps à lui
   EC = sp ? { shell: sp.shell, dark: sp.dark, leg: sp.leg, eye: sp.oeil, shard: [150, 226, 255] } : ECdef;
   const B = [], al = f.alarm || 0, dead = f.dead || 0;
   const dk = Math.min(1, dead * 2.6);
@@ -16732,6 +16774,75 @@ function osDeBase(f) {
   const open = 0.028 + al * 0.05 + Math.max(0, Math.sin(f.bob * 6)) * al * 0.03 + ram * 0.06;
   for (const sd of [-1, 1])                                     // mandibules
     B.push({ a: [0.17, sd * 0.05, bz - 0.02], b: [0.27, sd * (0.05 + open), bz - 0.045], w: 0.03, h: 0.03, c: EC.leg });
+  return B;
+}
+// (§191) LE BOSSU, en formes. Il partageait le corps des autres Rampants ; il a le sien : un gros
+// rampant bas sur pattes, sous une bosse de trois plaques en dôme qui se chevauchent, plus haute au
+// milieu, où poussent de la mousse et des cailloux, et où il plante l'éclat volé. Devant, un bouclier
+// de front et deux cornes courtes et épaisses — c'est avec elles qu'il abat les arbres et casse la
+// pierre —, des yeux sur de courts pédoncules, des mandibules épaisses. Six pattes trapues, celles de
+// devant plus fortes, des épines sur les tibias, une griffe au bout. Il respire ; à l'alarme il se
+// dresse, et ses mandibules s'ouvrent.
+function osBossu(f) {
+  const sp = f.sp, B = [], K = echB(f);
+  const fo = (F, a, b, w, h, c, luit) => { const o = { a, b, w: w * K, h: h * K, c }; if (luit) o.luit = true; B.push(Object.assign(o, F)); };
+  const bo = (a, b, w, h, c, r = .6, n = 4, luit) => fo({ boule: n, rond: r }, a, b, w, h, c, luit);
+  const pr = (a, b, w, h, c, fin = 1, n = 6, r = .8) => fo(fin === 1 ? { pans: n, rond: r } : { pans: n, rond: r, fin }, a, b, w, h, c);
+  const pe = (a, b, w, h, c, fin = 1) => fo(fin === 1 ? {} : { fin }, a, b, w, h, c);
+  const coque = sp.shell, fonce = sp.dark, jambe = sp.leg, corne = [218, 206, 178], caillou = [128, 124, 118], mousse = [104, 132, 80], eclat = [150, 226, 255];
+  const al = f.alarm || 0, dk = Math.min(1, (f.dead || 0) * 2.6), ram = f.ramasse || 0, vif = 1 - dk;
+  const bz = .2 + Math.sin(f.bob * 2) * .012 + al * .035 - dk * .08 - ram * .05, g = 1 + .03 * Math.sin(t * 1.5 + f.bob * 3) * vif;
+  const rouge = sp.chasse ? [255, 60, 44] : [255, 150, 60], oeil = ram > 0 ? sp.oeil.map((v, i) => Math.round(v + (rouge[i] - v) * ram)) : sp.oeil;
+  // le dessous, le corps
+  bo([-.25, 0, bz - .03], [.13, 0, bz - .02], .3, .13, fonce, .6, 5);
+  for (const x of [-.18, -.09, 0]) pe([x, -.11, bz - .085], [x, .11, bz - .085], .02, .012, jambe);   // les anneaux du ventre
+  bo([-.28, 0, bz + .03], [.02, 0, bz + .06], .36 * g, .22 * g, coque);                             // l'abdomen, qui respire
+  bo([-.02, 0, bz + .04], [.18, 0, bz + .03], .3, .2, coque);                                       // le thorax
+  // la bosse : trois plaques en dôme, la plus haute au milieu
+  bo([-.29, 0, bz + .12], [-.08, 0, bz + .16], .38, .2, fonce, .45);
+  bo([-.17, 0, bz + .18], [.07, 0, bz + .22], .37, .28, coque.map(x => Math.min(255, x * 1.08)), .45);
+  bo([.01, 0, bz + .14], [.16, 0, bz + .15], .31, .18, fonce, .45);
+  for (const x of [-.18, .04]) pe([x, -.17, bz + .2 + (x > 0 ? 0 : -.02)], [x, .17, bz + .2 + (x > 0 ? 0 : -.02)], .03, .025, fonce, .8);   // les sutures
+  // la mousse et les cailloux qui y poussent, et l'éclat volé, planté dans la bosse
+  for (const [x, y, z, r] of [[-.2, .09, .27, .05], [-.03, -.1, .33, .045], [.05, .08, .29, .04], [-.24, -.07, .24, .035]]) bo([x, y, bz + z - .01], [x + .01, y, bz + z + r * .6], r, r * .9, caillou, .6, 3);
+  for (const [x, y, z] of [[-.12, .11, .3], [-.07, -.05, .36], [-.25, .02, .27], [.02, .1, .3], [-.16, -.12, .29]]) pe([x, y, bz + z], [x - .02, y, bz + z + .04], .06, .02, mousse, .4);
+  pr([-.09, .02, bz + .32], [-.13, .03, bz + .5], .07, .07, eclat, .2, 6, .9);
+  pr([-.06, -.04, bz + .31], [-.04, -.07, bz + .41], .045, .045, eclat, .1, 6, .9);
+  // la tête : basse et large, le bouclier du front, les deux cornes qui cassent la pierre
+  bo([.15, 0, bz + .02], [.28, 0, bz + .01], .24, .16, coque);
+  bo([.21, 0, bz + .09], [.32, 0, bz + .03], .26, .08, fonce, .5);
+  for (const s of [-1, 1]) {
+    const c0 = [.29, s * .07, bz + .06], c1 = [.37, s * .095, bz + .1];
+    pr(c0, c1, .065, .06, corne, .7); pr(c1, [.4, s * .085, bz + .16], .045, .042, corne, 0);
+    // les yeux, sur de courts pédoncules
+    const base = [.22, s * .085, bz + .08], tip = [.245 + al * .015, s * (.12 + al * .01), bz + .14 + Math.sin(f.bob * 3 + s) * .006 - dk * .04];
+    pr(base, tip, .03, .03, jambe, .8); bo(tip, [tip[0] + .018, tip[1], tip[2] + .014], .05 + ram * .02, .05 + ram * .02, oeil, 1, 3);
+    // les mandibules, épaisses
+    const open = .025 + al * .045 + Math.max(0, Math.sin(f.bob * 6)) * al * .03 + ram * .06;
+    const m0 = [.27, s * .05, bz - .03], m1 = [.35, s * (.045 + open), bz - .055];
+    pr(m0, m1, .045, .04, jambe, .7); pr(m1, [.39, s * (.02 + open * .6), bz - .06], .03, .028, fonce, 0);
+  }
+  // les pattes : trapues, un genou noueux, des épines au tibia, une griffe
+  const R = repere(f), F = R.F, L = R.L, U = R.U, paroi = !!f.mur || !!f.tang, k = sp.sz;
+  for (const ft of f.feet || []) {
+    let wx, wy, wz, lz;
+    if (ft.step > 0) { const u = 1 - ft.step, e = u < .5 ? 2 * u * u : 1 - Math.pow(-2 * u + 2, 2) / 2;
+      wx = ft.sx + (ft.tx - ft.sx) * e; wy = ft.sy + (ft.ty - ft.sy) * e; wz = ft.sz + (ft.tz - ft.sz) * e; lz = Math.sin(u * Math.PI) * .07; }
+    else { wx = ft.x; wy = ft.y; wz = ft.z ?? f.z; lz = 0; }
+    const dx = wx - f.x, dy = wy - f.y, dz = wz - f.z;
+    let lx = dx * F[0] + dy * F[1] + dz * F[2], ly = dx * L[0] + dy * L[1] + dz * L[2];
+    let lzz = lz + (paroi ? (dx * U[0] + dy * U[1] + dz * U[2]) / k : 0);
+    const hip = [ft.rx * .5, ft.ry * .52, bz];
+    if (dk > 0) { const kk = dk * .88; lx += (hip[0] - lx) * kk; ly += (hip[1] - ly) * kk; lzz += (bz + .03 - lzz) * kk; }
+    const knee = [(hip[0] + lx) / 2, (hip[1] + ly) / 2 + ft.ry * .85, Math.max(hip[2], lzz) + .11 + al * .02];
+    const av = ft.rx > .1, s = Math.sign(ft.ry) || 1, Fd = [lx, ly, lzz];
+    pr(hip, knee, av ? .085 : .072, av ? .08 : .068, jambe, .8);
+    bo([knee[0] - .02, knee[1], knee[2]], [knee[0] + .02, knee[1], knee[2]], av ? .085 : .075, av ? .08 : .07, fonce, .7, 3);
+    pr(knee, Fd, av ? .066 : .056, av ? .062 : .052, jambe, .55);
+    const m = mixP(knee, Fd, .4);
+    pr(m, [m[0] - .01, m[1] + s * .045, m[2] + .02], .022, .022, fonce, 0);                         // l'épine du tibia
+    pr(Fd, [Fd[0] + (av ? .05 : .02), Fd[1] + s * .03, Fd[2] - .005], .03, .026, fonce, 0);          // la griffe
+  }
   return B;
 }
 // ============================================================
@@ -24242,11 +24353,15 @@ TEX.toile = motif(56, (x, y, h) => (x % 4 === 0 || y % 4 === 0) ? [-.12] : (x + 
 TEX.tissu = motif(57, (x, y, h) => (x + y) % 4 === 0 ? [-.13] : (x + y) % 4 === 2 ? [.06] : null);                                             // un sergé
 TEX.cuir = motif(58, (x, y, h) => (x * 3 + y * 5) % 13 === 0 ? [-.14] : h < .16 ? [-.12] : h > .93 ? [.1] : null);                             // des pores, des plis
 TEX.peau = motif(59, (x, y, h) => (x % 4 === 1 && y % 4 === 1 && h > .3) ? [.16] : (x % 4 === 2 && y % 4 === 2 && h > .3) ? [-.14] : h < .1 ? [-.12] : null);   // une peau nue, grenue
+// (§192) la croûte du démon : des plaques de peau cuite, décalées d'un rang à l'autre, que séparent des fentes très
+// sombres ; le haut de chaque plaque accroche la lumière, le bas s'ombre
+TEX.croute = motif(61, (x, y, h) => { const r = y >> 3, xo = (x + (r & 1) * 5 + ((hachCell(r + 61, 7) * 4) | 0)) % 9, yo = y & 7;
+  return (yo === 7 || xo === 0) ? [-.4] : (yo === 0 && xo > 1 && xo < 8) ? [.2] : (xo === 1 || yo === 6) ? [-.18] : (h > .94 ? [.14] : h < .07 ? [-.2] : null); });
 TEX.corde = motif(60, (x, y, h) => (x + y * 2) % 4 === 0 ? [-.24] : (x + y * 2) % 4 === 2 ? [.08] : null);                                     // des torons
 // La matière d'une bête : son corps d'abord, sa famille ensuite ; à défaut c'est un Rampant, un insecte.
 // « * » : pas de matière d'ensemble, chaque pièce prend celle de sa couleur (les plantes rares, un seuil).
 const MAT_CORPS = { bramard: 'pelage', carillon: 'pelage', cerf: 'facette', cotonnier: 'pelage', crapaud: 'peau', dragon: 'ecaille', felin: 'pelage',
-  lentigrade: 'pelage', mage: 'tissu', rodeur: 'lisse', demon: 'peau', millegueule: 'chitine', myconide: 'myce', oglodon: 'chitine', saurien: 'ecaille', silencieux: 'os', sterne: 'plume', tisseuse: 'metal' };
+  lentigrade: 'pelage', mage: 'tissu', rodeur: 'lisse', demon: 'croute', millegueule: 'chitine', myconide: 'myce', oglodon: 'chitine', saurien: 'ecaille', silencieux: 'os', sterne: 'plume', tisseuse: 'metal' };
 const MAT_FAM = { automate: 'metal', coursier: 'plume', doux: 'pelage', tellurien: 'roche', trottin: 'ecorce' };   // (§138) une peau d'écorce
 const matiereEspece = sp => !sp ? null : sp.illusion ? 'lisse' : sp.plante || sp.batiment ? '*' : sp.pnj || sp.villageois ? 'tissu' : MAT_CORPS[sp.corps] || MAT_FAM[sp.fam] || (sp.donjon ? 'metal' : 'chitine');
 // La matière d'une pièce d'après sa couleur, quand rien d'autre ne la dit : le gris est de la pierre
@@ -27637,7 +27752,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-158', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-162', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }

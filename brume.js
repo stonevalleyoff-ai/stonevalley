@@ -1112,71 +1112,328 @@ function genouD(A, B, L1, L2, dir) {
   const p = dir[0] * u[0] + dir[1] * u[1] + dir[2] * u[2]; let n = [dir[0] - u[0] * p, dir[1] - u[1] * p, dir[2] - u[2] * p]; const nl = Math.hypot(...n) || 1; n = n.map(q => q / nl);
   return [A[0] + u[0] * a + n[0] * h, A[1] + u[1] * a + n[1] * h, A[2] + u[2] * a + n[2] * h];
 }
+// (§193) L'ANIMATION DU DÉMON, refaite. Un vrai squelette : le bassin (hauteur, balancement, lacet, roulis), une
+// échine de quatre vertèbres qui se cambre ou se plie, les épaules qui tournent contre le bassin, un cou et une tête
+// qui suivent leur cible du regard. Chaque attitude est une suite de poses clés (kf) ; tout passe de l'une à l'autre
+// en douceur (lis), sans à-coup, et les muscles travaillent : le biceps gonfle quand le coude se plie, la cuisse sous
+// la charge, le mollet à la poussée, la cage au souffle — qui se fait court après l'effort.
+//  - LA MARCHE : chaque pied pose, porte, pousse (le talon se lève, le sabot bascule), se replie en l'air, puis se
+//    tend et se pose ; le corps plonge à chaque appui, se déhanche sur la jambe qui porte, le bassin tourne avec la
+//    jambe qui avance et les épaules en sens inverse ; les bras balancent à contretemps, avec un léger retard ; la
+//    queue ondule et répond au bassin. À l'arrêt, il respire, change d'appui, et vous regarde.
+//  - LA CHARGE : il gratte le sol du sabot droit (lever, frapper, racler), tête basse, les naseaux qui flambent ;
+//    puis il galope à quatre pattes : les mains se posent loin devant, les deux pattes de bouc ramassées sous le
+//    ventre poussent, l'échine se plie et se déplie, la queue file derrière.
+//  - LE REVERS : il arme, le buste tordu, le bras en arrière et le poing serré ; le pied droit avance et tout le corps
+//    se détord, la main balaie devant lui griffes ouvertes, puis passe en travers, et il revient.
+//  - LE MARTÈLEMENT : il se dresse sur ses sabots, les deux poings joints au-dessus de la tête, le dos cambré, et
+//    rugit ; puis il s'abat de tout son poids, les genoux pliés, les poings au sol ; il souffle, et se relève.
+//  - LE RUGISSEMENT : il inspire, voûté, les bras bas ; puis se cambre, les bras grands ouverts, les doigts écartés,
+//    la gueule ouverte qui tremble ; enfin il se penche vers vous, poings serrés. En sortant du cercle, il s'y hisse
+//    à la force des bras, les mains agrippées au sol.
+//  - SONNÉ : il titube, les bras ballants, secoue la tête. MORT : il tombe à genoux, puis s'effondre en avant.
 function osDemon(f, O) {
-  const { B, add, tete, bloc, os2, mi, pl, chaine, cadre } = O;
-  const peau = [64, 16, 14], sombre = [30, 8, 8], corne = [40, 32, 28], corneB = [86, 74, 62], ongle = [20, 16, 14];
-  const E = f.etat, u = f.actT != null ? t - f.actT : 9, ph = (((f.gph || 0) % 1) + 1) % 1;
-  const mort = f.dead > 0 ? Math.min(1, f.dead) : 0, respire = .5 + .5 * Math.sin(t * 1.6), lave = [255, 90 + 70 * respire * (1 - mort) | 0, 30];
-  const rug = E === 'rugir' || E === 'surgir', sonne = f.sonne > t, galop = E === 'charger' && u >= .9 && !sonne, gratte = E === 'charger' && u < .9;
-  const marche = !galop && !rug && !mort && !sonne && E !== 'marteler' && E !== 'revers';
+  const { B, add } = O;
+  const sh = F => { Object.assign(B[B.length - 1], F); };
+  const GA = (r = .55, n = 4) => ({ boule: n, rond: r }), PR = (fin = 1, n = 8, r = .8) => fin === 1 ? { pans: n, rond: r } : { pans: n, rond: r, fin };
+  const T = typeof TEX !== 'undefined' ? TEX : {}, mat = m => { if (m) B[B.length - 1].tex = m; };
+  const peau = [104, 26, 18], peauC = [150, 44, 26], peauB = [66, 16, 12], sombre = [34, 9, 8], ventre = [46, 13, 10], corne = [38, 30, 26], corneB = [118, 98, 76], corneP = [214, 194, 156];
+  const osC = [190, 166, 128], ongle = [16, 12, 11], croc = [240, 230, 208], poil = [22, 9, 8];
+  // ---- le temps, le lissage ----
+  const dtl = Math.min(.1, Math.max(0, t - (f._osT ?? t))); f._osT = t;
+  const D = f._dm || (f._dm = {}), ex = r => 1 - Math.exp(-r * dtl);
+  const lis = (k, v, r) => (D[k] = D[k] === undefined || !isFinite(D[k]) ? v : D[k] + (v - D[k]) * ex(r));
+  const lisV = (k, v, r) => { const a = D[k]; if (!a) { D[k] = v.slice(); return v.slice(); } const q = ex(r); for (let i = 0; i < 3; i++) a[i] += (v[i] - a[i]) * q; return a.slice(); };
+  // ---- de quoi calculer ----
+  const vA = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], vS = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], vK = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
+  const vL = a => Math.hypot(a[0], a[1], a[2]), vN = a => { const l = vL(a) || 1; return [a[0] / l, a[1] / l, a[2] / l]; }, vM = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+  const cl = (x, a = 0, b = 1) => x < a ? a : x > b ? b : x, seg = (x, a, b) => cl((x - a) / (b - a)), lisse = x => x * x * (3 - 2 * x);
+  const rz = (v, a) => { const c = Math.cos(a), s = Math.sin(a); return [v[0] * c - v[1] * s, v[0] * s + v[1] * c, v[2]]; };
+  const kf = (x, K) => { if (x <= K[0][0]) return K[0][1]; for (let i = 1; i < K.length; i++) if (x <= K[i][0]) { const a = K[i - 1], b = K[i], e = lisse((x - a[0]) / ((b[0] - a[0]) || 1));
+    return Array.isArray(a[1]) ? a[1].map((q, j) => q + (b[1][j] - q) * e) : a[1] + (b[1] - a[1]) * e; } return K[K.length - 1][1]; };
+  // un repère : lacet (autour de la verticale), tangage (> 0 : penché en avant), roulis (> 0 : la gauche monte)
+  const rep = (Og, yaw, pitch, roll) => {
+    const cp = Math.cos(pitch), sp = Math.sin(pitch), cr = Math.cos(roll), sr = Math.sin(roll);
+    const F = rz([cp, 0, -sp], yaw), S = rz([sp * sr, cr, cp * sr], yaw), U = rz([sp * cr, -sr, cp * cr], yaw);
+    const M = (a, b, c) => [Og[0] + F[0] * a + S[0] * b + U[0] * c, Og[1] + F[1] * a + S[1] * b + U[1] * c, Og[2] + F[2] * a + S[2] * b + U[2] * c];
+    M.F = F; M.S = S; M.U = U; return M;
+  };
+  const bl = (M, a0, a1, b, c, w, h, col, luit) => add(M(a0, b, c), M(a1, b, c), w, h, col, luit, M.U);
+  const os2 = (A, Bv, w, col, luit) => add(A, Bv, w, w, col, luit);
+  // ---- où il en est ----
+  const E = f.etat, u = f.actT != null ? t - f.actT : 9, ph = (((f.gph || 0) % 1) + 1) % 1, P2 = 6.2832;
+  const mort = f.dead > 0 ? Math.min(1, f.dead) : 0, vif = 1 - mort, emerge = f.emerge ?? 1, surgit = emerge < 1 && !mort;
+  const rug = (E === 'rugir' || E === 'surgir') && !mort && !surgit, sonne = f.sonne > t && !mort;
+  const galop = E === 'charger' && u >= .9 && !sonne && !mort, gratte = E === 'charger' && u < .9 && !mort;
+  const revers = E === 'revers' && !mort && !sonne, marteler = E === 'marteler' && !mort && !sonne;
+  const acte = revers || marteler || rug || gratte;
+  const marche = !galop && !rug && !mort && !sonne && !revers && !marteler && !gratte && !surgit;
   const v = marche ? Math.min(1, Math.max((f.vit || 0) / 2.2, (f._tour || 0) * .4)) : 0;
-  // le pied d'une jambe dans son cycle (0 : il se pose devant) : à l'appui il recule à plat, en l'air il revient en se levant
-  const cycle = (q, A, H) => q < .6 ? [A - 2 * A * q / .6, 0] : [-A + 2 * A * (q - .6) / .4, Math.sin(Math.PI * (q - .6) / .4) * H];
-  // le corps : le plongeon à chaque appui, le déhanchement ; au galop, l'échine à l'horizontale qui tangue
-  const bob = galop ? -.4 + Math.sin(ph * 6.2832) * .06 : gratte ? -.12 : sonne ? -.15 : -.08 * v * Math.cos(ph * 12.566) ** 2;
-  const sway = marche ? .07 * v * Math.sin(ph * 6.2832) : 0;
-  const plus = galop ? .72 + Math.sin(ph * 6.2832 + 1) * .08 : gratte ? .3 : sonne ? .15 : 0;
-  const AN = [.25, .45, .62, .78].map(a => a + plus + (rug ? -.15 : 0)), S = chaine([0, sway, 1.15 + bob], AN, .22), Q = k => cadre(S[k], AN[Math.min(k, 3)]);
-  bloc(Q(0), -.2, .18, 0, 0, .5, .26, peau); bloc(Q(1), -.22, .2, 0, 0, .52, .26, peau); bloc(Q(2), -.26, .26, 0, 0, .7, .26, peau);
-  bloc(Q(3), -.26, .24, 0, 0, .9, .24, peau); bloc(Q(4), -.22, .1, 0, 0, .62, .16, sombre);
-  for (let k = 1; k <= 4; k++) { const A = Q(k)(-.22, 0, 0); os2(A, pl(A, [-.08, 0, .2]), .06, corne); }                // les épines de l'échine
-  for (const [k, a, b] of [[2, -.18, .1], [2, .05, .2], [3, -.25, -.05], [1, .1, -.1]]) { const R = Q(k); add(R(.27, a, -.08), R(.27, b, .06), .028, .028, lave, true); }   // la lave, dans les fentes
-  // la tête : de taureau, les cornes, la gueule de braise ; elle dodeline au pas, plonge à la charge
-  const N0 = Q(4)(.06, 0, .06), H = pl(N0, [.24, 0, .04]), ouv = rug ? .9 + .1 * Math.sin(t * 20) : E === 'revers' || E === 'marteler' ? .5 : gratte ? .3 + .2 * Math.sin(t * 9) : .12;
-  os2(N0, H, .3, peau);
-  const pitch = rug ? .45 : galop ? -.35 : gratte ? -.7 : sonne ? Math.sin(t * 9) * .3 : -.15 + .05 * v * Math.sin(ph * 12.566);
-  const M = tete(H, pitch, sonne ? Math.sin(t * 7) * .25 : marche ? -sway * 1.5 : 0);
-  bloc(M, -.14, .16, 0, .05, .34, .28, peau); bloc(M, .12, .2, 0, .14, .36, .07, sombre); bloc(M, .1, .3, 0, -.08, .26, .14, peau);
-  bloc(M, .06, .28, 0, -.2 - ouv * .12, .22, .06, sombre); bloc(M, .12, .26, 0, -.14 - ouv * .06, .18, .03 + ouv * .1, lave, true);
-  for (const s of [-1, 1]) {
-    bloc(M, .2, .215, s * .09, .1, .06, .035, [255, 160, 60], true);
-    for (const z of [-.1, -.17]) bloc(M, .27, .29, s * .07, z, .025, .05, [230, 220, 200]);                              // les crocs
-    let p = M(-.02, s * .16, .2);                                                                                        // la corne : en arrière, puis vers le ciel
-    [.14, .12, .1, .07, .045].forEach((w, i) => {
-      const n = M(-.02 + [-.1, -.22, -.26, -.18, -.04][i], s * (.16 + [.1, .16, .18, .18, .16][i]), .2 + [.12, .26, .42, .56, .64][i]); os2(p, n, w, i < 3 ? corne : corneB); p = n; });
+  // le souffle : court et profond après l'effort, qui ne retombe que lentement
+  const effort = galop || gratte || revers || marteler || rug || surgit ? 1 : sonne ? .7 : 0;
+  const eff = lis('eff', effort, effort > (D.eff || 0) ? 2.5 : .22);
+  D.res = (D.res || 0) + dtl * (1.5 + 2.6 * eff);
+  const souffle = (.5 + .5 * Math.sin(D.res)) * vif, g = 1 + (.035 + .055 * eff) * souffle;
+  // ce que la lave dit : elle bat avec le souffle, et flambe à l'effort, aux coups, au rugissement
+  const flambe = revers ? kf(u, [[.6, 0], [.75, 1], [1.1, 0]]) : marteler ? kf(u, [[1, 0], [1.1, 1], [1.6, .2], [1.9, 0]]) : rug ? kf(u, [[.4, 0], [.6, 1], [1.6, .7], [2, .2]]) : galop ? .5 : gratte ? .3 : 0;
+  const lave = [255, Math.min(255, (100 + 80 * souffle + 75 * flambe) * vif + 40) | 0, (36 + 90 * flambe * vif) | 0], laveC = [255, 226, 120 + 80 * flambe | 0];
+  // le regard : la cible de son coup, sinon vous
+  let lookY = 0, lookP = 0;
+  { const cible = (acte || galop) && Array.isArray(f.vise) ? f.vise : [P.x, P.y, P.z + .9], dx = cible[0] - f.x, dy = cible[1] - f.y, c = Math.cos(f.dir || 0), s2 = Math.sin(f.dir || 0);
+    const lx = dx * c + dy * s2, ly = -dx * s2 + dy * c, d = Math.hypot(lx, ly);
+    if (d < 45 && d > .5) { lookY = cl(Math.atan2(ly, lx), -1.15, 1.15); lookP = cl(Math.atan2(cible[2] - (f.z + 4), d), -.55, .45); } }
+  // ================= LES POSES =================
+  const repos = s => [.32, s * .14, -.88];                                  // la main, pendue sous l'épaule
+  const G = { px: 0, py: 0, pz: 0, pY: 0, pR: 0, plus: 0, arch: 0, cY: 0, cR: 0, hY: lookY * .85, hP: -.12 + lookP * .8, hR: 0, jaw: .1 + .05 * souffle,
+    tUp: 0, tAmp: .06, tW: 1.2, tY: 0, galopW: 0 };
+  const pied = {}, met = {}, toe = {}, main = {}, mainAbs = {}, pole = {}, poing = {};
+  for (const s of [-1, 1]) { pied[s] = [.06, s * .29, 0]; met[s] = [-.12, 0, .34]; toe[s] = 0; main[s] = repos(s); mainAbs[s] = null; pole[s] = [-.2, s * .6, -.6]; poing[s] = .45; }
+  // ---- à l'arrêt : il respire, change d'appui, regarde ----
+  if (marche) {
+    const appui = Math.sin(t * .45 + (f.bob || 0) * 3) * (1 - v);
+    G.py = .04 * appui; G.pR = .03 * appui; G.pz = -.012 * souffle;
+    for (const s of [-1, 1]) { main[s][2] += .025 * souffle; main[s][0] += .03 * Math.sin(t * .7 + s); poing[s] = .4 + .18 * Math.sin(t * .9 + s * 1.3); }
+    G.hR = .06 * Math.sin(t * .37 + 1); G.tAmp = .06; G.tW = .9;
   }
-  // les jambes de bouc : la hanche, le genou en avant, le jarret en arrière, le sabot
-  const pieds = [];
-  for (const s of [-1, 1]) {
-    const hip = Q(0)(0, s * .24, 0); let F;
-    if (galop) { const [x, z] = cycle(ph, .62, .34); F = [x - .25, s * .3, z]; }                                 // les deux pattes ensemble : elles poussent
-    else if (gratte && s < 0) { const g = Math.sin(t * 11); F = [.12 + g * .26, s * .3, Math.max(0, g) * .1]; }   // le sabot droit gratte le sol
-    else { const [x, z] = cycle((ph + (s > 0 ? 0 : .5)) % 1, DEMON_PAS * v, .24 * v); F = [x + .06, s * .29, z]; }
-    const A = pl(F, [-.12, 0, .34]), K = genouD(hip, A, .55, .48, [1, 0, -.15]);
-    os2(hip, K, .27, peau); os2(K, A, .19, peau); os2(A, F, .13, sombre); bloc(O.rep(F, [1, 0, 0], [0, 1, 0], [0, 0, 1]), -.06, .14, 0, .03, .17, .07, ongle);
-    pieds.push(F);
+  // ---- la marche ----
+  if (marche && v > .01) {
+    const A = DEMON_PAS * v, H = .27 * v; let dipMax = 0;
+    for (const s of [-1, 1]) {
+      const q = (ph + (s > 0 ? 0 : .5)) % 1;
+      if (q < .6) {                                                           // l'appui : le pied recule sous lui, à plat, puis le talon se lève
+        const k = lisse(seg(q, .36, .6));
+        pied[s] = [.06 + A - 2 * A * q / .6, s * .29, 0]; met[s] = vM([-.12, 0, .34], [.01, 0, .36], k * v); toe[s] = .55 * k * v;
+        dipMax = Math.max(dipMax, q < .28 ? Math.sin(Math.PI * q / .28) : 0);
+      } else {                                                                // en l'air : il se replie, puis se tend vers l'avant
+        const w = (q - .6) / .4, e = lisse(w);
+        pied[s] = [.06 - A + 2 * A * e + .07 * v * Math.sin(Math.PI * w), s * (.29 - .03 * Math.sin(Math.PI * w)), Math.sin(Math.PI * Math.pow(w, .75)) * H];
+        met[s] = w < .5 ? vM([.01, 0, .36], [-.25, 0, .25], lisse(w / .5)) : vM([-.25, 0, .25], [-.08, 0, .35], lisse((w - .5) / .5));
+        toe[s] = (w < .3 ? .55 + .4 * w / .3 : .95 * (1 - lisse((w - .3) / .7))) * v;
+      }
+      const sw = -Math.cos(P2 * (ph - .08 + (s > 0 ? 0 : .5)));             // le bras, à contretemps de sa jambe, un peu en retard
+      main[s] = [.3 + .36 * v * sw, s * (.15 + .05 * v * Math.max(0, sw)), -.86 + .14 * v * Math.max(0, sw) + .02 * souffle];
+      poing[s] = .5 + .1 * sw;
+    }
+    G.pz = -.1 * v * dipMax + .015 * v; G.py = .075 * v * Math.sin(P2 * ph); G.pR = .065 * v * Math.sin(P2 * ph);
+    G.pY = -.11 * v * Math.cos(P2 * ph); G.cY = -1.3 * G.pY; G.cR = -.45 * G.pR; G.plus = .07 * v + .04 * v * dipMax;
+    G.hP = -.14 + lookP * .6 + .05 * v * dipMax; G.hR = -G.py * 1.4; G.hY = lookY * (.8 - .3 * v);
+    G.tAmp = .07 + .06 * v; G.tW = 1.2 + 2.2 * v; G.tY = -G.pY * 1.6;
   }
-  // les bras : ils balancent à l'opposé des jambes ; au galop, ils deviennent des pattes de devant
-  for (const s of [-1, 1]) {
-    const Sh = Q(3)(0, s * .48, .05); let Hd, dirC = [-.2, s * .6, -.6];
-    if (rug) Hd = pl(Sh, [.05, s * .7, .55]);
-    else if (E === 'revers' && s < 0) Hd = u < .75 ? pl(Sh, [-.3, -.5, .75]) : pl(Sh, [.85, .3, -.15]);
-    else if (E === 'marteler') Hd = u < 1.1 ? [Sh[0] + .32, s * .14, Sh[2] + .95] : [Sh[0] + .95, s * .14, .12];
-    else if (galop) { const [x, z] = cycle((ph + .5) % 1, .55, .3); Hd = [Sh[0] + .35 + x * .8, s * .55, .1 + z]; dirC = [-.5, s * .5, .3]; }   // les mains loin devant, à plat
-    else if (gratte) Hd = pl(Sh, [.35, s * .2, -.75]);
-    else if (sonne) Hd = pl(Sh, [.2 + Math.sin(t * 5 + s) * .1, s * .15, -.85]);
-    else { const [x] = cycle((ph + (s > 0 ? .5 : 0)) % 1, DEMON_PAS * v, 0); Hd = pl(Sh, [.32 + x * .55, s * .14, -.88]); }   // à l'opposé de la jambe du même côté
-    const El = genouD(Sh, Hd, galop ? .62 : .52, galop ? .6 : .5, dirC);
-    os2(Sh, El, .22, peau); os2(El, Hd, .18, peau); add(mi(Sh, El, .2), mi(Sh, El, .8), .03, .03, lave, true);
-    const dd = [Hd[0] - El[0], Hd[1] - El[1], Hd[2] - El[2]], dl = Math.hypot(...dd) || 1, ud = dd.map(q => q / dl), Pm = galop ? pl(Hd, [.12, 0, -.06]) : pl(Hd, ud.map(q => q * .14));
-    os2(Hd, Pm, .2, sombre);
-    for (const q of [-.07, -.023, .023, .07]) { const a = pl(Pm, [0, q, 0]); os2(a, galop ? pl(a, [.16, q * .3, -.04]) : pl(a, [ud[0] * .16 + .04, ud[1] * .16 + q * .3, ud[2] * .16 - .05]), .045, ongle); }
+  // ---- le rugissement ----
+  if (rug) {
+    const a = lisse(seg(u, 0, .45)), b = lisse(seg(u, .42, .72)), c = lisse(seg(u, 1.45, 2));
+    const tr = Math.sin(t * 31) * b * (1 - c);
+    G.plus = .14 * a * (1 - b) - .32 * b * (1 - c) + .12 * c; G.pz = -.04 * a + .07 * b * (1 - c);
+    G.hP = -.35 * a * (1 - b) + .6 * b * (1 - c) + (lookP * .7) * c; G.hY = lookY * (.3 + .6 * c); G.hR = .05 * tr;
+    G.jaw = .15 + .85 * b * (1 - c) + .05 * tr + .25 * c * (1 - seg(u, 1.8, 2)); G.cR = .02 * tr;
+    for (const s of [-1, 1]) {
+      main[s] = vM(vM(repos(s), [0, s * .36, -.66], a), [.05, s * .74, .55 + .03 * tr], b); main[s] = vM(main[s], [.42, s * .36, -.42], c);
+      poing[s] = .5 * (1 - b) * (1 - c) + 1 * c; pole[s] = [-.3, s * .6, -.3];
+    }
+    G.tUp = .45 * b; G.tAmp = .07 + .14 * b; G.tW = 2 + 6 * b;
   }
-  let q = S[0];                                                                                                          // la queue, en pointe, qui fouette
-  for (let j = 1; j <= 5; j++) { const n = [S[0][0] - j * .2, S[0][1] + Math.sin(t * 1.3 + j * .6 + ph * 6.28) * .07 * j, S[0][2] - .08 * j + .02 * j * j + (galop ? .05 * j : 0)]; os2(q, n, .16 - j * .022, peau); q = n; }
-  os2(q, pl(q, [-.14, 0, .06]), .09, corne);
+  // ---- il sort du cercle : il se hisse à la force des bras ----
+  const bas = (1 - emerge) * 2.7 + lisse(seg(mort, .78, 1)) * 1.1;
+  if (surgit) {
+    const tire = Math.sin(t * 1.8);
+    G.plus = .38 + .06 * tire; G.pz = .05 * tire; G.hP = .3 + lookP * .5; G.hY = lookY * .6; G.jaw = .25 + .15 * Math.max(0, tire);
+    for (const s of [-1, 1]) { mainAbs[s] = [.62 + .14 * Math.sin(t * 1.8 + s * 1.6), s * .95, (1 - emerge) * 2.7 + .03]; poing[s] = .85; pole[s] = [-.4, s * .8, .3]; }
+    G.tAmp = .12; G.tW = 3;
+  }
+  // ---- il gratte le sol, avant la charge ----
+  if (gratte) {
+    const pw = (u * 1.9) % 1, snort = Math.max(0, Math.sin(pw * P2));
+    G.plus = .3; G.pz = -.13; G.py = .05; G.pR = -.04; G.hP = -.7 + .08 * Math.sin(pw * P2); G.hY = lookY * .3; G.jaw = .04;
+    let x, z;
+    if (pw < .35) { const e = lisse(pw / .35); x = .06 + .32 * e; z = .2 * e; }
+    else if (pw < .45) { const e = (pw - .35) / .1; x = .38; z = .2 * (1 - e * e); }
+    else if (pw < .85) { x = .38 - .55 * lisse((pw - .45) / .4); z = 0; }
+    else { const e = (pw - .85) / .15; x = -.17 + .23 * lisse(e); z = .1 * Math.sin(Math.PI * e); }
+    pied[-1] = [x, -.31, z]; toe[-1] = pw < .45 ? .5 : 0; met[-1] = pw < .4 ? [-.04, 0, .36] : [-.12, 0, .34];
+    for (const s of [-1, 1]) { main[s] = [.36 + .05 * Math.sin(t * 6 + s), s * .2, -.74]; poing[s] = .3; }
+    D.naseau = snort; G.tAmp = .22; G.tW = 5; G.tUp = .1;
+  } else D.naseau = 0;
+  // ---- le galop ----
+  if (galop) {
+    G.galopW = 1; G.plus = .72 + .08 * Math.sin(P2 * ph + 1); G.pz = -.4 + .06 * Math.sin(P2 * ph); G.arch = .16 * Math.sin(P2 * ph - .6);
+    G.hP = -.35 + .05 * Math.sin(P2 * ph + 2); G.hY = 0; G.jaw = .32 + .1 * Math.sin(P2 * ph);
+    for (const s of [-1, 1]) {
+      const ql = (ph - .45 - (s > 0 ? 0 : .07) + 2) % 1;
+      if (ql < .4) { const k = seg(ql, .18, .4); pied[s] = [.25 - 1.05 * ql / .4, s * .3, 0]; met[s] = vM([-.12, 0, .34], [.07, 0, .35], lisse(k)); toe[s] = .7 * k; }
+      else { const w = (ql - .4) / .6; pied[s] = [-.8 + 1.05 * lisse(w), s * .3, .42 * Math.sin(Math.PI * w)];
+        met[s] = w < .4 ? vM([.07, 0, .35], [-.26, 0, .22], lisse(w / .4)) : vM([-.26, 0, .22], [-.12, 0, .34], lisse((w - .4) / .6)); toe[s] = w < .4 ? .7 + .2 * w / .4 : .9 * (1 - lisse((w - .4) / .6)); }
+      const qa = (ph + (s > 0 ? 0 : .06)) % 1;
+      const xa = qa < .4 ? .55 - .7 * qa / .4 : -.15 + .7 * lisse((qa - .4) / .6), za = qa < .4 ? 0 : .3 * Math.sin(Math.PI * (qa - .4) / .6);
+      mainAbs[s] = ['galop', xa, s * .55, .08 + za]; poing[s] = qa < .4 ? 0 : .6; pole[s] = [-.5, s * .5, .3];
+    }
+    G.tUp = .35; G.tAmp = .12; G.tW = 7.5;
+  }
+  // ---- sonné : il titube ----
+  if (sonne) {
+    G.pz = -.15 + .04 * Math.sin(t * 2.1); G.py = .1 * Math.sin(t * 2.3); G.pR = .14 * Math.sin(t * 2.3 + .5); G.pY = .1 * Math.sin(t * 1.7); G.plus = .16 + .05 * Math.sin(t * 3.1);
+    G.hR = .26 * Math.sin(t * 7); G.hY = .35 * Math.sin(t * 4.3); G.hP = -.35 + .15 * Math.sin(t * 2.2); G.jaw = .42;
+    for (const s of [-1, 1]) {
+      pied[s] = [.06 + .13 * Math.sin(t * 2.3 + (s > 0 ? 0 : 2)), s * (.31 + .04 * Math.sin(t * 1.9 + s)), Math.max(0, Math.sin(t * 4.6 + (s > 0 ? 0 : 3))) * .09];
+      main[s] = [.2 + .13 * Math.sin(t * 2.5 + s), s * .16, -.87]; poing[s] = .15;
+    }
+    G.tAmp = .04; G.tW = 1; G.tUp = -.15;
+  }
+  // ---- le revers : la main droite ----
+  if (revers) {
+    G.cY = kf(u, [[0, 0], [.55, -.62], [.58, -.66], [.8, .62], [1.05, .85], [1.4, 0]]); G.pY = G.cY * .4;
+    G.plus = kf(u, [[0, 0], [.55, -.06], [.8, .2], [1.05, .26], [1.4, 0]]); G.px = kf(u, [[0, 0], [.55, -.08], [.8, .1], [1.4, 0]]);
+    G.pz = kf(u, [[0, 0], [.55, -.08], [.8, -.14], [1.05, -.1], [1.4, 0]]); G.pR = kf(u, [[0, 0], [.55, -.05], [.8, .06], [1.4, 0]]);
+    G.hY = lookY * .7 - G.cY * .25; G.hP = kf(u, [[0, -.15], [.55, -.04], [.8, -.32], [1.4, -.15]]); G.jaw = kf(u, [[0, .12], [.62, .3], [.75, .85], [1.0, .6], [1.4, .12]]);
+    const be = kf(u, [[0, -.3], [.55, -2.2], [.58, -2.26], [.8, .1], [1.05, 1.0], [1.4, -.3]]), R = kf(u, [[0, .35], [.55, .55], [.8, .98], [1.05, .82], [1.4, .35]]), z = kf(u, [[0, -.88], [.55, .5], [.58, .56], [.8, -.05], [1.05, -.3], [1.4, -.88]]);
+    main[-1] = ['tourne', R * Math.cos(be), R * Math.sin(be), z]; poing[-1] = kf(u, [[0, .45], [.5, .95], [.58, .95], [.72, .05], [1.1, .1], [1.4, .45]]); pole[-1] = [-.2, -.45, -.8];
+    main[1] = kf(u, [[0, repos(1)], [.55, [.6, .42, -.25]], [.8, [-.15, .36, -.55]], [1.05, [.05, .6, -.45]], [1.4, repos(1)]]); poing[1] = .7;
+    pied[-1] = [kf(u, [[0, .06], [.6, 0], [.74, .33], [1.4, .06]]), -.3, kf(u, [[.6, 0], [.67, .15], [.75, 0]])];
+    toe[-1] = kf(u, [[.6, 0], [.67, .6], [.75, 0]]);
+    G.tY = -G.cY * 1.2; G.tAmp = .1; G.tW = 2;
+  }
+  // ---- le martèlement : les deux poings ----
+  if (marteler) {
+    const haut = s => [-.06, s * .1, .96], ab = kf(u, [[.92, 0], [1.08, 1], [1.45, 1], [1.78, 0]]);
+    for (const s of [-1, 1]) {
+      main[s] = kf(u, [[0, repos(s)], [.75, haut(s)], [.92, [-.13, s * .08, 1.02]], [1.1, [.9, s * .14, -1.2]], [1.45, [.9, s * .14, -1.2]], [1.9, repos(s)]]);
+      mainAbs[s] = ab > 0 ? ['sol', ab, s * .14] : null; poing[s] = kf(u, [[0, .45], [.6, 1], [1.5, 1], [1.9, .45]]); pole[s] = [-.05, s, -.1];
+    }
+    G.plus = kf(u, [[0, 0], [.75, -.3], [.92, -.36], [1.1, .82], [1.45, .76], [1.9, 0]]);
+    G.pz = kf(u, [[0, 0], [.75, .08], [.92, .1], [1.1, -.38], [1.18, -.43], [1.45, -.36], [1.9, 0]]); G.px = kf(u, [[0, 0], [.75, -.06], [1.1, .15], [1.9, 0]]);
+    G.hP = kf(u, [[0, -.15], [.75, .45], [.92, .5], [1.1, -.55], [1.45, -.45], [1.9, -.15]]); G.hY = lookY * .4;
+    G.jaw = kf(u, [[0, .12], [.6, .8], [.92, 1], [1.05, .2], [1.3, .5], [1.9, .12]]); G.cR = u > .75 && u < .92 ? .02 * Math.sin(t * 33) : 0;
+    pied[1] = [kf(u, [[0, .06], [.9, .06], [1.02, .3], [1.9, .06]]), .34, kf(u, [[.9, 0], [.96, .13], [1.02, 0]])]; pied[-1] = [.06, -.34, 0];
+    for (const s of [-1, 1]) met[s] = kf(u, [[0, [-.12, 0, .34]], [.75, [-.01, 0, .36]], [.95, [-.01, 0, .36]], [1.05, [-.14, 0, .33]]]);
+    G.tUp = kf(u, [[0, 0], [.75, .4], [1.1, -.1], [1.9, 0]]); G.tAmp = .1; G.tW = 2.5;
+  }
+  // ---- la mort : à genoux, puis en avant ----
+  if (mort) {
+    const k1 = lisse(seg(mort, 0, .3)), k2 = lisse(seg(mort, .25, .7));
+    G.pz = -.5 * k1 - .45 * k2; G.plus = .22 * k1 + .95 * k2; G.px = .12 * k2; G.pR = .25 * k2; G.py = 0; G.pY = 0; G.cY = .15 * k2;
+    G.hP = -.2 - .45 * k2; G.hR = .5 * k2; G.hY = .3 * k2; G.jaw = .45 * k1 * (1 - .4 * k2);
+    for (const s of [-1, 1]) { pied[s] = [.06 - .48 * k1, s * .3, 0]; met[s] = [-.12 - .1 * k1, 0, .34 - .14 * k1]; poing[s] = .2;
+      mainAbs[s] = k2 > 0 ? ['tombe', k2, s * (.55 + .2 * k2)] : null; }
+    G.tUp = -.25 * k2; G.tAmp = .05 * (1 - k2); G.tW = 1;
+  }
+  // ================= LE LISSAGE =================
+  // au changement d'attitude, le lissage se fait plus lent un instant : il passe de l'une à l'autre, il ne saute pas
+  const cat = galop ? 'g' : gratte ? 'gr' : revers ? 'rv' : marteler ? 'm' : rug ? 'r' : sonne ? 's' : surgit ? 'su' : mort ? 'd' : 'w';
+  if (D.cat !== cat) { if (D.cat !== undefined) D.catT = t; D.cat = cat; }
+  const kR = .22 + .78 * lisse(seg(t - (D.catT ?? -9), 0, .45));
+  const vite = galop || (marche && v > .1), Rs = (acte || sonne ? 22 : vite ? 14 : 8) * kR, Rp = (vite ? 45 : acte ? 30 : 16) * kR, Rm = (vite || acte ? 34 : 18) * kR;
+  const px = lis('px', G.px, Rs), py = lis('py', G.py, Rs), pz = lis('pz', G.pz, Rs), pY = lis('pY', G.pY, Rs), pR = lis('pR', G.pR, Rs), plus = lis('plus', G.plus, Rs), arch = lis('arch', G.arch, Rs);
+  const cY = lis('cY', G.cY, Rs), cR = lis('cR', G.cR, Rs * 1.5), hY = lis('hY', G.hY, acte ? 14 : 6), hP = lis('hP', G.hP, 10), hR = lis('hR', G.hR, 12), jaw = lis('jaw', G.jaw, 18);
+  const tUp = lis('tUp', G.tUp, 5), tAmp = lis('tAmp', G.tAmp, 4), tW = lis('tW', G.tW, 3), tY = lis('tY', G.tY, 5), galopW = lis('galopW', G.galopW, 6);
+  D.tPh = (D.tPh || 0) + dtl * tW;
+  // ================= LE CORPS =================
+  const AN0 = [.25, .45, .62, .78], ARW = [-.7, -.2, .35, .7];
+  const Q = [], Sp = [[px, py, 1.15 + pz]];
+  for (let i = 0; i < 4; i++) { const k = i / 3; Q.push(rep(Sp[i], pY + (cY - pY) * k, AN0[i] + plus + arch * ARW[i], pR + (cR - pR) * k)); Sp.push(vA(Sp[i], vK(Q[i].U, .22))); }
+  Q.push(rep(Sp[4], cY, AN0[3] + plus + arch * ARW[3], cR));
+  // le tronc : le bassin, le ventre, la cage, les épaules, la base du cou — des masses qui se chevauchent
+  bl(Q[0], -.2, .18, 0, 0, .54, .36, peau); sh(GA());
+  bl(Q[1], -.22, .2, 0, 0, .56 * g, .36, peau); sh(GA());
+  bl(Q[2], -.27, .27, 0, .02, .76 * g, .38 * (1 + (g - 1) * .5), peau); sh(GA(.5, 5));
+  bl(Q[3], -.27, .25, 0, 0, .96, .32, peau); sh(GA(.5, 5));
+  bl(Q[4], -.24, .1, 0, 0, .66, .24, peauB); sh(GA());
+  bl(Q[4], -.3, -.04, 0, .06, .72, .26, peau); sh(GA(.55));                                   // la bosse du garrot
+  const crunch = cl(plus - .2) * .25;                                                            // les abdominaux se serrent quand il se plie
+  for (const s of [-1, 1]) { bl(Q[3], .04, .27, s * .2, -.04, .3 * (1 + (g - 1) * .8), .28, peauC); sh(GA(.6, 3)); }   // les pectoraux
+  for (const k of [1, 2]) for (const s of [-1, 1]) { bl(Q[k], .14, .24, s * .085, (k === 1 ? .02 : -.02) * (1 - crunch), .14, .12 * (1 - crunch), ventre); sh(GA(.6, 3)); }
+  { const R = Q[2]; add(R(.25, 0, -.1), R(.25, 0, .16), .045, .03, laveC, true); sh(GA(.8, 3)); add(R(.24, 0, -.14), R(.24, 0, .2), .07, .05, lave, true); sh(GA(.8, 3)); }   // le cœur de braise
+  for (let k = 1; k <= 4; k++) { const A = Q[k](-.22, 0, 0), Uk = Q[k].U, Fk = Q[k].F, base = vA(A, vA(vK(Fk, -.04), vK(Uk, .08)));
+    os2(A, base, .1, corne); sh(PR(.7, 6)); os2(base, vA(A, vA(vK(Fk, -.1), vK(Uk, .26 - k * .02))), .07, osC); sh(PR(0, 6)); mat(T.os); }   // les épines de l'échine
+  for (const s of [-1, 1]) for (const [a, z] of [[-.12, .3], [-.02, .36]]) { const A = Q[3](a, s * .34, .08); os2(A, Q[3](a - .06, s * .42, .08 + z * .55), .065, osC); sh(PR(0, 6)); mat(T.os); }
+  for (const [k, a, b] of [[2, -.18, .1], [2, .05, .2], [3, -.25, -.05], [1, .1, -.1]]) add(Q[k](.21, a, -.08), Q[k](.21, b, .06), .036, .036, lave, true);
+  for (const [k, a, b] of [[1, -.22, -.1], [3, .15, .02], [2, -.2, .02]]) add(Q[k](-.2, a, -.06), Q[k](-.22, b, .07), .03, .03, lave, true);
+  // ---- la tête : de taureau ; elle suit sa cible du regard ----
+  const N0 = Q[4](.06, 0, .06), H = vA(N0, rz([.24, 0, .04], cY * .5 + hY * .4));
+  os2(N0, H, .34, peau); sh(PR(.85));
+  const M = rep(H, hY, -hP, hR);
+  const ouv = cl(jaw, 0, 1.1);
+  bl(M, -.15, .17, 0, .05, .36, .3, peau); sh(GA(.55));                                         // le crâne
+  bl(M, .1, .21, 0, .15, .38, .08, peauB); sh(GA(.6, 3));                                       // l'arcade
+  bl(M, .08, .33, 0, -.08, .27, .16, peau); sh(PR(.82));                                         // le mufle
+  bl(M, .3, .345, 0, -.08, .2, .12, ventre); sh(GA(.7, 3));                                      // le nez
+  const nas = D.naseau || 0;
+  for (const s of [-1, 1]) { add(M(.34, s * .05, -.07), M(.35, s * .05, -.07), .035 + .02 * nas, .035 + .02 * nas, nas > .3 ? laveC : lave, true); sh(GA(1, 3)); }
+  bl(M, .06, .29, 0, -.2 - ouv * .12, .22, .06, sombre); sh(PR(.7));                             // la mâchoire
+  bl(M, .12, .26, 0, -.14 - ouv * .06, .18, .03 + ouv * .1, lave, true); sh(GA(.8, 3));        // la gueule de braise
+  const yeux = sonne ? ((t * 9 | 0) % 3 ? [255, 160, 60] : [120, 40, 20]) : [255, Math.min(255, 160 + 80 * flambe) | 0, 60 + 100 * flambe | 0];
+  for (const s of [-1, 1]) {
+    bl(M, .19, .215, s * .095, .1, .065, .04, yeux, true); sh(GA(1, 3));
+    for (const z of [-.1, -.16]) { add(M(.27 - (z + .1) * .3, s * .075, z + .02), M(.28 - (z + .1) * .3, s * .07, z - .07), .03, .03, croc); sh(PR(0, 6)); mat(T.os); }
+    add(M(.24, s * .07, -.2 - ouv * .12), M(.25, s * .065, -.13 - ouv * .12), .026, .026, croc); sh(PR(0, 6)); mat(T.os);
+    const tic = Math.pow(Math.max(0, Math.sin(t * 2.3 + s * 1.7 + (f.bob || 0) * 5)), 24) * vif;   // l'oreille qui frémit
+    add(M(-.03, s * .17, .12), M(-.1, s * (.27 + .03 * tic), .1 + .07 * tic), .1, .03, peau); sh({ fin: [.4, .6] });
+    let p = M(-.02, s * .16, .2); const W = [.16, .135, .11, .08, .05];
+    W.forEach((w, i) => {
+      const n = M(-.02 + [-.1, -.22, -.26, -.18, -.04][i], s * (.16 + [.1, .16, .18, .18, .16][i]), .2 + [.12, .26, .42, .56, .66][i]);
+      os2(p, n, w, [corne, corne, corneB, corneP, corneP][i]); sh(PR(i === 4 ? 0 : W[i + 1] / w, 8, .8)); mat(T.os);
+      if (i < 4) { os2(vM(p, n, .92), vM(p, n, 1.04), w * 1.12, i < 2 ? sombre : corneB.map(x => x * .6)); sh(GA(.8, 3)); }
+      p = n; });
+  }
+  // ---- les jambes de bouc : hanche, genou devant, jarret derrière, sabot ----
+  for (const s of [-1, 1]) {
+    const hip = Q[0](0, s * .24, 0), F = lisV('pied' + s, pied[s], Rp), mt = rz(lisV('met' + s, met[s], Rm), pY * .5), to = lis('toe' + s, toe[s], Rm);
+    const A = vA(F, mt), K = genouD(hip, A, .55, .48, rz([1, 0, -.15], pY));
+    const charge = cl(1 - vL(vS(A, hip)) / 1.02, 0, .5) * 2, pousse = cl((mt[0] + .12) / .14);
+    os2(hip, K, .32, peau); sh(PR(.62));
+    os2(vM(hip, K, .1), vM(hip, K, .62), .36 * (1 + .14 * charge), peau); sh(GA(.55));            // la cuisse, qui gonfle sous la charge
+    for (const q of [.25, .45, .65]) { const a = vM(hip, K, q); os2(vA(a, rz([-.1, 0, .02], pY)), vA(a, rz([-.2, 0, -.14], pY)), .1, poil); sh({ fin: [.2, .5] }); }
+    os2(K, A, .2, peauB); sh(PR(.7));
+    { const d = vN(vS(A, K)), bk = rz([-1, 0, 0], pY), off = vK(vN(vS(bk, vK(d, bk[0] * d[0] + bk[1] * d[1] + bk[2] * d[2]))), .06);
+      os2(vA(vM(K, A, .15), off), vA(vM(K, A, .6), off), .19 * (1 + .25 * pousse), peau); sh(GA(.6, 3)); }   // le mollet, à la poussée
+    add(vM(hip, K, .2), vM(hip, K, .75), .028, .028, lave, true);
+    os2(vS(K, [.02, 0, 0]), vA(K, [.03, 0, 0]), .19, peauC); sh(GA(.7, 3));                      // le genou
+    os2(A, F, .14, sombre); sh(PR(.75));
+    os2(vA(A, rz([-.04, 0, .02], pY)), vA(A, rz([-.22, 0, -.08], pY)), .11, poil); sh({ fin: [.2, .5] });   // l'ergot de poil
+    const fw = rz([Math.cos(to), 0, -Math.sin(to)], pY), up = rz([Math.sin(to), 0, Math.cos(to)], pY), lat = rz([0, 1, 0], pY);
+    for (const d of [-1, 1]) { add(vA(F, vA(vK(fw, -.05), vA(vK(lat, d * .04), vK(up, .06)))), vA(F, vA(vK(fw, .15), vK(lat, d * .045))), .085, .1, ongle); sh(PR(.45, 6, .7)); mat(T.os); }
+  }
+  // ---- les bras : épaule, biceps, avant-bras, main, griffes ----
+  for (const s of [-1, 1]) {
+    const Sh = Q[3](0, s * .48, .05), L1 = .52 + .1 * galopW, L2 = .5 + .1 * galopW;
+    let cible;
+    const m = main[s], ma = mainAbs[s];
+    if (Array.isArray(m) && m[0] === 'tourne') cible = vA(Sh, rz([m[1], m[2], m[3]], cY));
+    else cible = vA(Sh, rz(m, cY * .8));
+    if (ma) {
+      if (ma[0] === 'galop') cible = [Sh[0] + .35 + ma[1] * .8, ma[2], ma[3]];
+      else if (ma[0] === 'sol') cible = vM(cible, [Sh[0] + .92, ma[2], .12], ma[1]);
+      else if (ma[0] === 'tombe') cible = vM(cible, [Sh[0] + .5, ma[2], .05], ma[1]);
+      else cible = ma;
+    }
+    const Hd = lisV('main' + s, cible, Rm), pl2 = rz(lisV('pole' + s, pole[s], 10), cY), cf = lis('poing' + s, poing[s], 14);
+    const El = genouD(Sh, Hd, L1, L2, pl2), pli = cl(1 - vL(vS(Hd, Sh)) / (L1 + L2));
+    os2(vA(Sh, vK(vN(vS(El, Sh)), -.04)), vA(Sh, vA(vK(vN(vS(El, Sh)), .1), [0, 0, -.04])), .34, peauC); sh(GA(.55));   // l'épaule, qui suit le bras
+    os2(Sh, El, .24, peau); sh(PR(.72));
+    os2(vM(Sh, El, .25), vM(Sh, El, .72), .27 * (1 + .45 * pli), peau); sh(GA(.6));                // le biceps, qui gonfle quand le coude plie
+    os2(El, Hd, .21, peauB); sh(PR(.68));
+    os2(vM(El, Hd, .05), vM(El, Hd, .4), .23 * (1 + .15 * cf), peauB); sh(GA(.6, 3));             // l'avant-bras, qui serre avec le poing
+    add(vM(Sh, El, .2), vM(Sh, El, .8), .03, .03, lave, true); add(vM(El, Hd, .15), vM(El, Hd, .75), .025, .025, lave, true);
+    const de = vN(vS(El, Sh));
+    os2(El, vA(El, vA(vK(de, .2), [0, 0, .02])), .08, osC); sh(PR(0, 6)); mat(T.os);            // l'éperon du coude
+    const ud = vN(vS(Hd, El)), dn0 = [0, 0, -1], dd = ud[2] * -1, bas2 = vN(vS(dn0, vK(ud, -dd)));
+    const plat = ma && ma[0] === 'galop';
+    const Pm = plat ? vA(Hd, [.12, 0, -.06]) : vA(Hd, vK(ud, .14));
+    os2(Hd, Pm, .22, peauB); sh(GA(.6, 3));                                                        // la main
+    for (const q of [-.07, -.023, .023, .07]) {
+      const ecart = .3 + .7 * (1 - cf), a = vA(Pm, [0, q, 0]);
+      const dir = plat ? [.9, q * 2.4, -.1] : vN(vA(vK(ud, 1 - 1.5 * cf), vA(vK(bas2, .35 + .9 * cf), [0, q * ecart * 3, 0])));
+      os2(a, vA(a, vK(vN(dir), .18 - .05 * cf)), .05, ongle); sh(PR(0, 6)); mat(T.os);              // les griffes : ouvertes, ou repliées en poing
+    }
+  }
+  // ---- la queue : elle répond au bassin, ondule, se lève à l'effort ----
+  let q = Q[0](-.22, 0, -.02), pt = .72 - tUp;
+  for (let j = 1; j <= 6; j++) {
+    pt += -.17 + .04 * Math.sin(D.tPh * 1.3 - j * .5) * (1 + tAmp * 4);
+    const yw = pY + tY * (j / 6) + tAmp * Math.sin(D.tPh * P2 / 2.2 - j * .62) * (j / 3), ln = .2 * (1 - j * .05);
+    const d = rz([-Math.cos(pt), 0, -Math.sin(pt)], yw), n = vA(q, vK(d, ln)), w = .17 - j * .02;
+    os2(q, n, w, j > 2 ? peauB : peau); sh(PR(Math.max(.4, (w - .02) / w))); q = n;
+    if (j === 6) { add(vA(q, vK(d, -.02)), vA(q, vA(vK(d, .22), [0, 0, .02])), .22, .04, corneB); sh({ fin: [0, .6] }); mat(T.os); }
+  }
   // il sort du cercle, ou s'effondre : tout descend
-  const bas = (1 - (f.emerge ?? 1)) * 2.7 + mort * 1.3;
   if (bas) for (const o of B) { o.a = [o.a[0], o.a[1], o.a[2] - bas]; o.b = [o.b[0], o.b[1], o.b[2] - bas]; }
 }
 // La cadence de leurs pas, ici comme chez qui les voit passer (faune.js) : le démon pose un pied pour un peu
