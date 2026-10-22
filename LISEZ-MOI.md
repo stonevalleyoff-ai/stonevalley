@@ -6076,3 +6076,338 @@ Trois défauts du biome village sont corrigés : les maisons bougeaient, elles t
 - aucune maison déplacée, même poussée par le joueur ;
 - personne de bloqué plus de 8 secondes ;
 - la nuit, tout le monde est rentré.
+
+## §195 · L'île volcanique (lot 1 : le terrain et l'ambiance)
+
+Un nouveau genre d'île, l'« île biome » : toute l'île est faite d'un seul monde, qu'on ne trouve nulle part ailleurs. La première est volcanique. Ce lot pose le terrain, la lave, les vapeurs et le ciel ; l'hostilité, la météo, la musique, la flore, la faune et la créature alpha suivront (lots 2 à 6). Tout le module est dans `volcan.js`.
+
+**Quand.** Une graine signée sur vingt-cinq (environ une île sur quatre cents en tout), dès l'exploration 6 (`NIV_VOLCAN`, `ileVolcanGraine`). L'île volcanique n'a ni biome rare, ni état d'île (Korlaz, brume, Achromie, Vyrel), ni fourmilière, ni îles volantes. Ce n'est jamais aussi l'île des automates.
+
+**Le relief** (`volcanRelief`, appelé dans la boucle du relief de `genWorld`) :
+- l'île est ronde, avec une côte qui ondule ;
+- au centre, légèrement décalé selon la graine, un cône concave jusqu'au sommet de l'île, raviné de crêtes qui rayonnent ;
+- en haut, une lèvre, puis un cratère à parois raides.
+
+**Les sols** (`volcanSols`, après les biomes). Huit sols nouveaux (`BIOME` 24 à 31), chacun avec sa texture, son flanc, son bruit de pas et ses particules d'ambiance :
+- orgues de basalte : le dessus en hexagones, sur les parois et les vieilles coulées ;
+- soufrière ;
+- obsidienne : des reflets de verre ;
+- sable noir : le rivage et les traînées de scories du cône ;
+- cendre : le gros du cône ;
+- lave ;
+- bain brûlant ;
+- travertin : des gradins qui ondulent.
+
+Le cône n'a pas de gouffres : ils sont comblés jusqu'au pied du cône.
+
+**La lave.**
+- Un lac au fond du cratère.
+- Une coulée part du lac par une brèche qu'elle se taille dans la lèvre, puis descend jusqu'à la mer.
+- Deux ou trois autres coulées partent de bouches sur le flanc, chacune entourée d'un bourrelet de scories.
+- Une coulée suit la pente, garde son élan et serpente. Son lit ne remonte jamais et court un cube sous ses berges d'obsidienne et de basalte. Là où elle entre dans la mer, la vapeur monte.
+- Avec la carte graphique, la lave a son propre rendu (`laveVolc`) :
+  - elle coule ;
+  - des plaques de croûte noire dérivent dessus, fendues de feu ;
+  - elle bat doucement ;
+  - elle tombe le long des marches ;
+  - elle luit la nuit ;
+  - elle éclaire ses berges (`lueursRares`).
+
+**Les soufrières.** Cinq ou six taches jaunes sur le cône, dont deux sur la lèvre du cratère, avec des évents qui fument.
+
+**Les bains brûlants.** Deux ou trois sources, chacune avec trois à cinq vasques en terrasses qui descendent. Chaque vasque est un cube sous la précédente et ceinte de travertin. L'eau est turquoise et fume ; on peut s'y baigner.
+
+**Les geysers.** Trois à cinq, surtout près des bains : un monticule de travertin, avec un trou d'eau au sommet. Chacun suit un cycle :
+- il se repose de 20 à 60 s ;
+- il gronde pendant 2,6 s (il bouillonne et crache) ;
+- il jaillit pendant 4,5 à 7,5 s, sur 6 à 13 cubes de haut, couché par le vent, avec un nuage de vapeur.
+
+**L'air.**
+- Un panache monte du cratère, sombre en bas et cendré en haut, et le vent le couche de plus en plus. La nuit, son dessous rougeoie.
+- Des gerbes et des bulles crèvent sur le lac et sur les coulées.
+- Les fumées sont des disques doux qui grossissent et arrivent en fondu (`bouffee`, genre de panneau 9). En canvas, ce sont des disques pâles, deux fois moins nombreux.
+
+**Le ciel et la lumière.**
+- Le ciel est de cendre : brun le jour, rouge sombre la nuit (`volcanCiel`).
+- Un voile roux couvre tout le décor (`volcanVoile`).
+- En canvas, un filtre sépia chaud est appliqué (`volcanCss`).
+
+**Sûreté.**
+- Le joueur n'apparaît jamais dans la lave ni dans un bain : il apparaît de préférence sur la cendre ou le sable noir.
+- Ni l'arche ni la réapparition ne se posent sur la lave.
+
+**Pour l'instant**, aucune faune n'est posée sur l'île : `capEsp` n'y garde que les espèces marquées `volcan`, qui viendront au lot 4. La lave ne brûle pas encore ; ce sera le lot 2.
+
+**Bêta.** Le bouton « Volcan » de la carte « Cette île » cherche une graine volcanique et vous y emmène, à l'exploration 6 au moins. Pour les tests, on peut aussi forcer l'île avec `globalThis.__VOLCAN = true`.
+
+## §196 · L'île volcanique (lot 2 : l'hostilité, la météo, la musique)
+
+L'île volcanique devient dangereuse, prend un ciel qui n'appartient qu'à elle, bien visible, et sa propre musique. Tout est dans `volcan.js`, avec quelques accroches dans `index.html`.
+
+**Ce que l'île fait au corps** (`volcanCorps`) :
+- **La lave.**
+  - Elle brûle vite : on y meurt en trois à quatre secondes.
+  - La brûlure dure encore deux secondes après en être sorti.
+  - Un message dit « la lave ! sortez-en ».
+- **La chaleur.**
+  - Qui longe une coulée plus d'une seconde lit « la chaleur vous mord ».
+  - Au-delà de deux secondes et demie, la chaleur blesse doucement.
+- **Le soufre.**
+  - Sur une soufrière ou près d'un évent, au bout de deux secondes, on est empoisonné, avec une toux et un message.
+  - Ce poison ne tue pas. L'antidote le chasse.
+- **Les bains.**
+  - La source, en haut de chaque cascade, est brûlante, comme le trou d'eau d'un geyser.
+  - Les vasques du bas apaisent : elles rendent de la vie et lavent le soufre. On entre dans l'eau avec un plouf.
+- **Les geysers.**
+  - Quand on approche, « le geyser gronde ».
+  - Qui reste sur l'évent quand il jaillit est projeté de 8 à 12 cubes en l'air, et un peu ébouillanté.
+- Le baume de braise (l'effet `braise`) protège de tout ce qui est feu.
+
+**La météo de l'île.** Quatre temps qu'on ne voit qu'ici (`METEO`, avec `volc`). Chacun s'annonce par un message quand il arrive.
+
+| Temps | Ce qu'on voit et ce qu'on subit |
+|---|---|
+| Fumées | Le temps de l'arrivée : un ciel brun, un peu de cendre. |
+| Pluie de cendres | Le jour baisse et la brume se resserre. Des flocons gris tombent en se balançant et se posent. Des nappes de cendre traînent au ras du sol. Le ciel vire au gris sale. |
+| Orage de cendre | La foudre tombe dans le panache et autour de vous : des éclairs brisés, ramifiés, avec un halo violet. Le ciel s'allume et le tonnerre suit. Il pleut de la boue. |
+| Éruption | « La montagne gronde », puis le cratère éclate : détonation, secousse, puis la terre tremble par à-coups. Le panache triple, une fontaine de lave jaillit du cratère, le ciel et la brume s'embrasent. Des bombes de lave volent en cloche en traînant leur fumée et éclatent au sol, et deux sur cinq visent vos environs (un coup coûte un cinquième de la vie et vous repousse). |
+
+- Après un sort qui change le temps, l'île revient d'elle-même à ses fumées.
+- Il ne neige jamais sur le volcan.
+- Le bouton météo de la Bêta ne fait défiler que les temps de l'île où l'on est.
+
+**La musique : « Le Cœur de cendre »** (`volcanMusique`). Elle a son propre lecteur, comme la Grande Horloge.
+- Un ré grave respire sous un filtre.
+- Des tambours de peau suivent un cycle de deux mesures.
+- Une voix d'anche en mode hijaz chante une phrase, puis se tait.
+- Le danger (`volcanIntensite`) change la musique :
+  - il resserre les tambours, ouvre la nappe et ajoute une basse en 3 + 3 + 2 ;
+  - au plus fort, il ajoute des cuivres graves et des braises qui crépitent.
+- Ce qui compte comme danger : l'éruption, le bord du cratère, l'orage, une bête qui vous chasse, une vie basse.
+- Mesurée hors jeu, elle est aussi forte que la Valse rouge au calme, et 2 à 3 dB plus forte en éruption.
+
+**Performances.** Une particule morte n'est plus retirée en décalant tout le tableau : la dernière prend sa place. L'éruption en fait vivre jusqu'à deux mille à la fois. En canvas, la fontaine, les bulles du lac et la cendre sont réduites.
+
+## §197 · L'île volcanique (lot 3 : la flore et ses ressources)
+
+L'île volcanique a maintenant sa propre flore : neuf espèces qu'on ne voit nulle part ailleurs, plus des plantes rares pour trois de ses sols. Les espèces sont ajoutées en queue de `ESP`, pour ne rien déplacer des autres. Elles ont sept silhouettes nouvelles dans `formeFlore`, communes au canvas et à la carte graphique.
+
+**Les braises qui luisent vraiment.** Les braises du tison et les flammes du lis de feu sont teintes de `FL_LAVE`, une couleur qui porte le drapeau de la lave. La carte graphique leur donne le rendu de la lave (§195) : elles bougent, se couvrent de croûte et luisent la nuit. La nuit, l'île est semée de petites braises.
+
+**Les espèces :**
+
+| Espèce | Ce qu'on voit | Où elle pousse | Ce qu'elle donne |
+|---|---|---|---|
+| Arbre-tison | Un fût noir qui se tord, des bras nus avec une braise au bout de chacun, une fente qui couve. Il crache des étincelles. | Cendre, sable noir, basalte | Bois. Peut donner une braise de tison (peau dure) |
+| Lis de feu | Une tige noire et des pétales en lames qui se referment comme une flamme. Il luit la nuit. | Obsidienne, basalte, cendre | Fibre. Peut donner des pétales de feu (insensible au feu) |
+| Soufre en aiguilles | Une croûte jaune et des aiguilles de cristal qui rayonnent. | Soufrière | Éclats, à la pioche |
+| Orgue de basalte | Des colonnes serrées, de hauteurs inégales. | Basalte | Beaucoup de pierre (8 par pied) |
+| Lames d'obsidienne | Des lames noires aux reflets violets, fichées de biais dans le sol. | Obsidienne | Éclats, à la pioche |
+| Vesse-de-vapeur | Un bulbe ventru avec une bouche au sommet. Elle souffle de la vapeur. | Travertin, près des sources | Fibre. Peut donner un bulbe de vapeur (grand souffle) |
+| Tapis thermophile | Des anneaux orange, verts et jaunes, au ras de l'eau chaude. | Bord des bains | Fibre. Peut donner un voile thermophile (antidote) |
+| Herbe de cendre | Des touffes pâles, qui donnent un peu de vie aux pentes grises. | Cendre, sable noir | Fibre. Peut donner des graines de cendre |
+| Piment de lave | Un buisson sombre aux baies rouge vif, qui luisent. Un sur trois des buissons tirés sur la cendre. | Cendre | Baies. Peut donner des piments de lave (insensible au feu) |
+
+L'arbre-tison, le lis de feu, la vesse, le tapis, l'herbe de cendre et le piment donnent des graines comme le reste de la flore. On peut donc les cultiver au campement.
+
+**Ce que le volcan donne pour survivre au volcan.** Un plat préparé avec un ingrédient « braise » (les pétales de feu, les piments de lave, la chair de salamandre…) rend insensible au feu. L'effet s'appelle maintenant « insensible au feu ». On traverse alors la lave, la chaleur, les sources et les bombes sans brûler (§196). La première fois qu'on met le pied dans la lave, le jeu le dit : « un plat de braise protège du feu ». Le voile thermophile est un antidote contre le soufre.
+
+**Les plantes rares** (`flore.js`). Trois nouvelles familles de douze, comme pour les autres biomes, avec leurs noms, leurs couleurs et leurs ingrédients :
+- **la cendre :** de l'étoile de scorie au fouet de scories ;
+- **la soufrière :** de l'étoile jaune à la cracheuse de soufre ;
+- **le travertin :** de l'étoile des sources à la cracheuse de geyser.
+
+**La flore vit.** Près de vous, la vesse-de-vapeur souffle de petites bouffées et l'arbre-tison laisse monter des étincelles (`majVolcan`).
+
+**Mesuré** sur la graine 4242 :
+- herbe de cendre : 1 208 pieds ;
+- lis de feu : 752 ;
+- arbre-tison : 357 ;
+- orgues : 286 ;
+- vesses : 252 ;
+- lames : 81 ;
+- soufre : 54 ;
+- tapis : 50 ;
+- piments : 22.
+
+Deux plantes rares sont posées : une méduse de fumerolle et une cracheuse de geyser. La récolte a été vérifiée sur l'orgue, le lis, le tison et le soufre (le soufre demande la pioche).
+
+## §198 · L'île volcanique (lot 4 : la faune)
+
+Trois bêtes qu'on ne voit que sur l'île volcanique, toutes trois grandes. Leurs squelettes sont faits sur mesure dans `volcan.js` (`osVolcan`). Leurs pièces marquées `{ lave: 1 }` ont le rendu de la lave dans la carte graphique (épines, joints, braises), comme la flore du §197. Elles sont en queue de `SPEC` (`VOLCAN_SPEC`). Leur nombre sur l'île est fixe (`capEsp`) : 5 magmatons, 3 basilics, 4 charognards. On ne les tire jamais ailleurs.
+
+**Le Magmaton** (2,5 fois la taille d'une bête ordinaire).
+
+Son corps :
+- **La carapace :** un dôme d'orgues de basalte (une colonne au sommet, deux couronnes autour), une jupe d'écailles plates qui déborde, et des joints de lave qui rayonnent du sommet entre les colonnes.
+- **Le sommet :** un petit cratère qui fume.
+- **La tête :** massive, avec un bec d'obsidienne crochu, une plaque de basalte sur le front et des yeux qui luisent.
+- **Les pattes :** des piliers aux genoux cuirassés et aux ongles d'obsidienne.
+
+Il vit ainsi :
+- Il marche une patte après l'autre, lourdement, et le corps roule vers la patte qui porte.
+- Près de vous, le sol tremble et sonne à chacun de ses pas.
+- Il broute la cendre, la tête au sol, en troupeau lent, et dort au cœur de la nuit.
+- Frappé, il se fâche : la tête se lève, la gueule rougeoie, et tout le troupeau charge.
+- Sa charge est lourde : elle se prépare longtemps, mais un coup coûte cher.
+- Sa viande donne le cœur de magmaton (peau dure, rare).
+
+**Le Basilic de lave** (environ trois cases de long).
+
+Son corps :
+- **L'échine :** dix points, parcourus d'une onde qui va du cou à la queue, plus ample vers le bout.
+- **Le dos et les flancs :** des épines dont la pointe est en feu, et des fissures de lave sur les flancs.
+- **La queue :** terminée par une braise.
+- **La tête :** un crâne plat, des cornes en arrière, des yeux jaunes, des dents, et une mâchoire qui s'ouvre sur une gueule-four.
+- **La collerette :** sept lames qui se déploient quand il chasse ; leurs bords s'embrasent alors, et il crache des étincelles.
+- **Les pattes :** écartées, le coude en dehors.
+
+Il vit ainsi :
+- Il chasse le jour comme la nuit, à la lueur de la lave.
+- Il s'en prend au magmaton, et à vous quand il a faim.
+- Il se ramasse longtemps avant de fondre sur vous, de loin.
+- Sa morsure brûle.
+- Il vit de la cendre entre deux proies.
+- Sa viande donne la queue de basilic (insensible au feu, légendaire).
+
+**Le Charognard de cendre** : un vautour de plus de deux cases d'envergure.
+
+Son corps :
+- **Les ailes :** des rémiges écartées en doigts, à la pointe de braise, et des couvertures plus claires.
+- **La tête :** un cou nu, orange vif, une fraise de plumes grises, un bec crochu.
+- **La queue :** en éventail.
+
+Il a sa propre vie en l'air (`majVautour`) :
+- **Planer :** il tourne en cercle sur une colonne chaude (le cratère, une soufrière, une bouche), et en change de temps en temps.
+- **Guetter :** il vous suit et tourne au-dessus de vous.
+- **Piquer :** il fond sur vous, bien plus volontiers si vous êtes blessé. Au bout du piqué, il ne lâche plus sa cible. Un coup vous lacère et vous repousse.
+- **Remonter et fuir :** après le piqué, il remonte ; frappé, il s'enfuit.
+- Il ne rentre jamais dans la roche, même au bout d'un piqué.
+- Abattu, il tombe en vrille.
+- Il ne s'apprivoise pas.
+- Sa viande donne le blanc de charognard (grand souffle).
+
+**La rencontre.** La première fois qu'on approche chacune des trois bêtes, le jeu l'annonce : « une montagne qui marche », « sa collerette s'embrase quand il chasse », « des charognards de cendre tournent sur les fumées ».
+
+**Les sons.** Le magmaton soupire, très bas. Le basilic rugit. Le charognard crie.
+
+**Mesuré.** Les trois comportements ont été vérifiés par simulation :
+- le basilic traque, attaque et brûle ;
+- le charognard passe par tous ses états (planer, guetter, piquer, remonter) et touche ;
+- le magmaton frappé traque, puis charge.
+
+Les trois bêtes s'affichent aussi en canvas. Les îles ordinaires n'en ont aucune, et aucune erreur n'apparaît sur ces îles.
+
+## §199 · L'île volcanique (lot 5 : l'alpha, le Tisonnier)
+
+Le gardien du volcan. Il y en a un par île volcanique ; il dort dans le lac de lave du cratère. Tout est dans `volcan.js` : son squelette (`osTisonnier`), sa vie (`majTisonnier`, `actionTisonnier`), son onde (`majOndes`), sa mort (`tisonMort`), sa barre (`majBarreTison`).
+
+**Son corps.** Un titan voûté de basalte et de magma, d'environ cinq cases de haut, qui marche sur les poings comme un gorille.
+- **Le tronc :** des pattes arrière courtes et épaisses, aux griffes d'obsidienne. Un poitrail massif qui respire, un ventre de magma qui luit.
+- **Le dos :** l'échine hérissée d'orgues de basalte, avec des fentes de lave entre elles et sur les flancs. Entre les épaules, un petit volcan de huit orgues penchées, avec un lac de lave au fond : il fume et crache des braises en permanence.
+- **Les épaules :** deux épaulières en orgues, bordées de lave.
+- **La tête :** basse sous les épaules, sous un front de basalte, avec de grands yeux qui luisent, une mâchoire qui s'ouvre sur un four, deux défenses et une couronne de cinq pointes d'obsidienne.
+- **Les bras :** le gauche finit en poing. Le droit finit en **tisonnier** : un bracelet de fer, une barre noire dont le dernier tiers est rouge et crochu. Il le plante en marchant, comme une béquille.
+
+**Son animation.** Elle est faite comme celle du démon (§193) : un repère par pièce (le bassin, l'échine, le poitrail, la tête), des poses clés pour chaque geste, et tout passe de l'une à l'autre en douceur.
+- **La marche sur les poings :** patte arrière gauche, poing gauche, patte arrière droite, tisonnier. Le corps plonge et roule à chaque appui, les épaules tournent contre le bassin.
+- **À l'arrêt :** il souffle, change d'appui et vous suit du regard.
+
+**Le combat.**
+1. **Le réveil.** Quand on approche du cratère, ou qu'on le frappe dans son lac, le lac se soulève. Il se hisse hors de la lave à la force des bras, la lave coulant de lui, puis se cabre et rugit, les bras grands ouverts. La barre « LE TISONNIER » apparaît en bas de l'écran.
+2. **Ses cinq coups.** Il tire au hasard parmi ceux qui sont à portée et prêts, sans répéter le même deux fois de suite quand il a le choix :
+   - **Embrocher.** Il se cabre et ramène le fer ; une ligne d'étincelles au sol montre où il vise. Puis il se jette et plante le tisonnier jusqu'à 7,5 cases devant lui. Le sol brûle ensuite le long de la ligne.
+   - **Balayer.** Il arme sur sa droite, le buste tordu, puis balaie tout devant lui sur six cases et vous jette de côté.
+   - **Marteler.** Il se dresse, les deux bras au ciel, et s'abat. Il y a le coup, puis une onde de feu qui court au sol sur neuf cases. Celle-ci ne touche que ceux qui ont les pieds au sol : il faut sauter au bon moment, et le jeu le dit la première fois.
+   - **Cracher.** Le volcan de son dos jette six bombes de lave autour de vous, quand vous restez loin.
+   - **Charger.** Il gratte du poing, tête basse, puis galope sur les poings et fonce.
+3. **À mi-vie, il s'embrase.** Il rugit et la montagne entre en éruption (§196). Il frappe 30 % plus vite, le volcan de son dos crache davantage, et des fentes de lave s'ouvrent sur ses bras, ses cuisses et ses pointes. Son tisonnier qui traîne laisse un sillage de feu.
+4. **Le sol qui brûle.** Le sillage et la ligne plantée brûlent pendant trois à quatre secondes. Le baume de braise protège aussi de ce feu.
+
+**Son domaine.** Il ne quitte pas son cône. Une proie qui s'en éloigne de plus de 45 cases, ou qui sort du cône, il ne la suit pas : il s'arrête et regarde. Au bout de dix secondes, il rentre au lac, s'y enfonce et guérit.
+
+**Sa mort.** Il tombe à genoux, puis s'effondre en avant, et sa lave refroidit en croûte sombre. Il donne :
+- le **cœur du Tisonnier** (ingrédient légendaire, insensible au feu) ;
+- 30 éclats et 30 pierres.
+
+La montagne se calme : dix minutes de fumées. Il ne revient pas tant qu'on ne recharge pas la page.
+
+**À côté.**
+- On ne le nourrit pas, et on ne nourrit pas non plus un charognard sauvage.
+- Sa fiche dit « gardien du volcan », « embrasé » ou « il rentre au lac ».
+- Pendant le combat, la musique du volcan est à son plus fort.
+
+**Mesuré** par simulation, à l'exploration 8 :
+- le réveil, les cinq coups, l'onde, le sol en feu, les bombes ;
+- l'embrasement et l'éruption ;
+- le retour au lac quand on fuit, avec la guérison ;
+- la mort, le butin et le calme de la montagne.
+
+Il s'affiche aussi en canvas et en 1re personne, sans erreur. Les îles ordinaires n'en ont pas.
+
+## §200 · L'île volcanique (lot 6 : une flore à elle, ses matières, la fabrication, les performances)
+
+**La flore rare du volcan a ses propres formes.** Jusqu'ici, les 36 plantes rares des trois biomes du volcan reprenaient les formes communes à toutes les îles, recolorées. Elles sont maintenant dessinées à part (volcan.js, `osPlanteVolcan`), en prismes et en boules de pierre, avec le grain de leur biome. Chacune garde la conduite de sa forme : elle respire, se ferme la nuit, mord, fouette ou crache comme avant (flore.js).
+- **Étoile** : une rosette d'écailles de pierre, qui se referme la nuit sur sa braise.
+- **Clochettes** : des lanternes de pierre creuse pendues à une hampe, une lueur dans chacune.
+- **Éventail** : des lames de pierre ponce dressées en éventail, criblées de pores.
+- **Crosse** : trois crosses de perles de pierre enroulées comme des ammonites. Elles fument (cendre), gouttent d'acide (soufre) ou fument de vapeur (travertin).
+- **Orbe** : des œufs de croûte fendus, le cœur en fusion à nu, le couvercle soulevé. Sur le travertin, un petit jet en sort.
+- **Arbuste** : une concrétion faite d'un tronc de nodules, de branches noueuses et de grappes au bout.
+- **Lys-cratère** (géante) : une hampe d'orgues et un cratère de pétales épais, avec une mare qui bat au fond et des braises qui montent.
+- **Saule** (géante) : des crins de verre roux qui pendent, une larme au bout de chacun, sous une couronne de cendre.
+- **Méduse** (géante) : une cloche côtelée que porte la vapeur d'un évent. Ses bras sont des chapelets.
+- **Arbre-coulée** (géante) : au bout de chaque branche, une vasque qui déborde, puis un filet qui tombe jusqu'au sol et sa flaque.
+- **Gueule** (vive) : elle sort d'une fissure. Mâchoires en dalles, dents et cornes d'obsidienne, langue de feu.
+- **Fouet de scories** (vive) : des chapelets de nodules aux jointures qui couvent, avec une masse hérissée au bout.
+- **Cracheuse** (vive) : une fumerolle en gradins dont la bouche enfle avant de cracher.
+
+Chaque biome a sa matière :
+- **La cendre** : ce qui luit a le rendu de la lave.
+- **La soufrière** : des aiguilles de soufre. La croûte est plus sombre que le sol, pour qu'on la voie.
+- **Le travertin** : des perles et des vasques d'eau chaude.
+
+**Deux plantes communes redessinées**, qui reprenaient elles aussi une forme commune :
+- L'**herbe de cendre** est faite de crins de verre roux qui jaillissent d'un tas de cendre, avec une larme de verre au bout.
+- Le **piment de lave** a des tiges grasses et sombres, gonflées aux nœuds, et des gousses sèches qui pendent. Ses piments mûrs restent les baies rouges.
+
+**Trois matières.** On les montre au sac (Matières) dès qu'on en a, ou sur l'île volcanique. Elles vont aussi au coffre et au relevé des gains.
+
+| Matière | D'où elle vient |
+|---|---|
+| **Soufre natif** | le soufre en aiguilles, à la main |
+| **Éclats d'obsidienne** | les lames d'obsidienne, à la pioche (comme les éclats) |
+| **Basalte** | les orgues de basalte ; un magmaton abattu (3 à 5) ; le Tisonnier |
+
+Le Tisonnier abattu donne désormais le cœur, 30 éclats, 20 éclats d'obsidienne et 30 basalte (au lieu de 30 pierres).
+
+**À l'établi**, quatre recettes :
+
+| Objet | Établi | Coût | Effet |
+|---|---|---|---|
+| **Lame d'obsidienne** | 2 | 18 obsidienne, 6 basalte, 6 os | dégâts 88, très vive. Le verre noir entaille : la bête saigne trois secondes. Elle se tient comme la lame d'éclat, avec un fourreau et une traînée violette. |
+| **Cuirasse de basalte** | 3 | 36 basalte, 8 obsidienne, 30 fibre, 6 os | −70 % de dégâts. La chaleur des coulées, le sol en feu et l'eau brûlante mordent trois fois moins, la lave deux fois moins. |
+| **Masque filtrant** | 2 | 4 obsidienne, 6 soufre, 14 fibre, 2 os | les gaz des solfatares et des fumerolles ne prennent plus à la gorge. Il prend la place du sifflet et se met ou s'ôte d'une case. Il se voit sur le visage, y compris chez les autres joueurs. |
+| **Pâte de soufre** | table de soin 2 | 5 soufre, 8 fibre, par deux | +30 % de vie, chasse le poison et la brûlure |
+
+Quand le soufre prend à la gorge, le jeu le rappelle : « un masque filtrant vous en protégerait ».
+
+**Les vignettes.** Les trois matières, les quatre objets, les denrées du volcan et les 36 denrées des plantes rares du volcan ont leur propre vignette :
+- les denrées : braise de tison, pétales de feu, bulbe de vapeur, voile thermophile, graines de cendre, piments de lave, les trois viandes et le cœur du Tisonnier ;
+- les plantes rares : une vignette par forme, aux couleurs du biome.
+
+**Les performances (téléphone).** La fumée, la vapeur et la cendre ont un budget. Les bombes, la lave et les dégâts ne changent jamais.
+- En canvas, ou sur un appareil qui fait moins de 40 images par seconde, elles sont émises moitié moins.
+- Passé un plafond de particules (1 600 ; 700 sur un appareil lent ; 280 en canvas), elles attendent que la place se libère.
+
+**Mesuré** (navigateur sans carte graphique, exploration 8) :
+
+| Situation | Mise à jour | Particules |
+|---|---|---|
+| L'éruption, à mi-pente | 0,95 ms | 550 au plus |
+| La pluie de cendre | 0,7 ms | — |
+| Une île ordinaire, pour comparer | 2 ms | — |
+
+- En canvas, la pente du volcan montre deux fois plus de faces qu'une île ordinaire (environ 100 ms contre 60). Les particules n'y comptent plus que pour 20 ms environ.
+- Récolte, fabrication (en essai), saignement, masque contre le gaz et combat du Tisonnier vérifiés, sans erreur.
+- Les îles ordinaires, le canvas et la 1re personne fonctionnent sans erreur.

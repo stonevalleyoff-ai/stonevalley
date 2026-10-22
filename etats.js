@@ -37,6 +37,7 @@ const KORLAZ_BIO = 21;
 const KORLAZ_SEUIL = 30;                                  // secondes de spores (pondérées) avant l'infection
 function etatGraine(g, niv) {                             // le Korlaz : une île sur six environ, dès l'exploration 6
   if (!Number.isInteger(g) || niv < 4) return null;       // la brume sanglante (brume.js) : une sur dix, dès l'exploration 8
+  if (typeof ileVolcanGraine === 'function' && ileVolcanGraine(g) && niv >= NIV_VOLCAN) return null;   // (§195) l'île volcanique n'a pas d'état
   let n = (g ^ 0x6b0f1a) >>> 0; n = Math.imul(n ^ (n >>> 16), 0x45d9f3b); n = Math.imul(n ^ (n >>> 16), 0x45d9f3b);
   const v = ((n ^ (n >>> 16)) >>> 0) % 100;
   if (v < 17) return niv >= 6 ? 'korlaz' : null;
@@ -598,7 +599,7 @@ function dessinerFiltre(ici, K) {
   // le noir et blanc : il vient en 0,8 s, repart en 1,5 s
   const nb = ETAT.nb > 0 ? Math.max(0, Math.min(1, ETAT.nb / 1.5, (ETAT.nbT - ETAT.nb) / .8)) : 0;
   // le filtre sur l'image même : la couleur s'en va, le contraste monte ; une inversion d'un éclair quand elle frappe
-  const css = ETAT.inv > 0 ? 'invert(1) contrast(1.3)' : K ? `saturate(${(.72 - Math.min(1, ETAT.brume / 3) * .3).toFixed(2)}) contrast(1.12) brightness(.9)` + (nb ? ` grayscale(${nb.toFixed(2)}) contrast(${(1 + nb * .4).toFixed(2)})` : '') : ici ? 'saturate(.85) sepia(.12)' : (typeof enferCss === 'function' && enferCss()) || (typeof achromieCss === 'function' ? achromieCss() : '') || (typeof vyrelCss === 'function' ? vyrelCss() : '');   // (§162) l'île démoniaque
+  const css = ETAT.inv > 0 ? 'invert(1) contrast(1.3)' : K ? `saturate(${(.72 - Math.min(1, ETAT.brume / 3) * .3).toFixed(2)}) contrast(1.12) brightness(.9)` + (nb ? ` grayscale(${nb.toFixed(2)}) contrast(${(1 + nb * .4).toFixed(2)})` : '') : ici ? 'saturate(.85) sepia(.12)' : (typeof enferCss === 'function' && enferCss()) || (typeof achromieCss === 'function' ? achromieCss() : '') || (typeof vyrelCss === 'function' ? vyrelCss() : '') || (typeof volcanCss === 'function' ? volcanCss() : '');   // (§162) l'île démoniaque
   if (css !== filtreCss) { filtreCss = css; for (const id of ['c', 'c3']) { const e = document.getElementById(id); if (e) e.style.filter = css; } }
   if (!actif) { if (filtreEl && filtreEl.style.display !== 'none') filtreEl.style.display = 'none'; return; }
   if (!filtreEl) {

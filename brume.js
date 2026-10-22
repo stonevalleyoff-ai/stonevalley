@@ -654,7 +654,7 @@ function enferCielK() {                                    // (une fois par imag
 // Pour la carte graphique (DECOR_FS) : [cercle x, y, rayon de la vague, force, temps, guérison, chaleur, ciel].
 function enferGL() {
   if (typeof roiIci === 'function' && roiIci()) { ENF_GL.set([P.x, P.y, 1e5, 1, t % 600, 0, 1, roiTerreNue() ? -1 : .5]); return ENF_GL; }   // (§165) -1 : seule la lave   // (§163) en bas, tout est de cendre et de lave
-  if (!enferIci()) { ENF_GL[3] = 0; ENF_GL[7] = 0; return ENF_GL; }
+  if (!enferIci()) { ENF_GL[3] = 0; ENF_GL[7] = 0; ENF_GL[4] = t % 600; return ENF_GL; }   // (§195) le temps : la lave du volcan coule
   ENF_GL[0] = ENF.cx; ENF_GL[1] = ENF.cy; ENF_GL[2] = enferR(); ENF_GL[3] = 1;
   ENF_GL[4] = t % 600; ENF_GL[5] = enferG(); ENF_GL[6] = chaleurLave(); ENF_GL[7] = enferCielK();
   return ENF_GL;

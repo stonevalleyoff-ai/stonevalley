@@ -52,6 +52,10 @@ const FL_BIOMES = [
   [23, [[96, 70, 66], [150, 186, 120], [255, 182, 208], [255, 236, 160], [255, 250, 252]], "Étoile de sakura|Clochettes de glycine|Éventail d'érable rouge|Crosse de jade|Lampion de pétales|Prunier du Japon|Pivoine-reine|Saule de pétales|Voile de pétales|Arbre aux mille fleurs|Gueule de camélia|Fouet d'églantier"],   // la cerisaie (§112)
   // (§162) le biome 40 n'existe sur aucune île : c'est la flore de l'île démoniaque (brume.js, lieuxEnfer), qui sort de terre
   // au passage de la vague et se fane quand l'île guérit. Ni les nomades ni les îles ordinaires ne l'ont.
+  // (§197) l'île volcanique : la cendre, la soufrière, les sources
+  [28, [[52, 46, 46], [96, 84, 78], [255, 96, 36], [255, 214, 110], [190, 70, 255]], "Étoile de scorie|Clochettes de lapilli|Éventail de pierre ponce|Crosse fumante|Orbe de magma|Arbuste à lapilli|Lys-cratère|Saule de cendre chaude|Méduse de fumerolle|Arbre-coulée|Gueule de lave|Fouet de scories"],
+  [25, [[150, 130, 50], [200, 180, 60], [250, 236, 90], [255, 255, 190], [140, 230, 90]], "Étoile jaune|Clochettes sulfureuses|Éventail de cristaux|Crosse acide|Orbe de vapeur jaune|Arbuste à aiguilles|Lys de soufre|Saule acide|Méduse sulfureuse|Arbre-fumerolle|Gueule acide|Cracheuse de soufre"],
+  [31, [[200, 186, 160], [120, 180, 150], [110, 220, 210], [240, 250, 230], [255, 170, 90]], "Étoile des sources|Clochettes de vapeur|Éventail de travertin|Crosse thermale|Orbe de geyser|Arbuste-concrétion|Lys des bains|Saule de vapeur|Méduse thermale|Arbre-fontaine|Gueule bouillante|Cracheuse de geyser"],
   [40, [[42, 24, 22], [72, 30, 28], [214, 42, 30], [255, 172, 52], [255, 92, 30]], "Étoile du Malin|Clochettes de soufre|Éventail d'obsidienne|Crosse de braise|Orbe-brasier|Ronce ardente|Lys de l'abîme|Saule des damnés|Voile de soufre|Arbre-cendre|Gueule de l'enfer|Fouet d'obsidienne"],
 ];
 const FLORE_RARES = [], FLORE_PRODUITS = [];
@@ -200,6 +204,7 @@ function cueillirPlante(b) {
 function osPlante(f) {
   const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
   const pl = f.pl; if (!pl) return B;
+  if (typeof osPlanteVolcan === 'function' && VF_BIOS.has(pl.bio)) return osPlanteVolcan(f);   // (§200) celles du volcan ont leurs propres formes (volcan.js)
   const [tige, feuille, petale, coeur, pointe] = pl.pal, g = f.graine || 0, fan = f.cueillie;
   const vent = 1 + Math.min(1.5, (typeof Meteo !== 'undefined' && Meteo.vent) || 0), nuit = lumiere() < .36;
   const sway = (k, a) => Math.sin(t * (.8 + g * .4) + k * .7 + g * 9) * a * vent;
