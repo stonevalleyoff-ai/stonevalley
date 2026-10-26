@@ -890,6 +890,8 @@
 <script src="coop.js"></script>
 <script src="faune.js"></script>
 <script src="flore.js"></script>
+<script src="catalogue-vivant.js"></script>
+<script src="vivant.js"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -8995,6 +8997,7 @@ const TROTTINS = [   // (§138) un petit peuple sylvestre : cinq lignées (le co
 ];
 SPEC.push(...TROTTINS);
 SPEC.push(...(typeof VOLCAN_SPEC !== 'undefined' ? VOLCAN_SPEC : []));   // (§198) la faune de l'île volcanique (volcan.js), en QUEUE
+if (typeof vivantBrancher === 'function') vivantBrancher(SPEC);   // le monde vivant (vivant.js) : toujours tout en queue
 const specById = {}; SPEC.forEach(sp => specById[sp.id] = sp);
 const tirDe = b => b.sp.tir || (b.tame && b.sp.tirLie) || null;   // le tir d'une bête ; le moissonneur n'en a qu'une fois lié
 // Ce qu'une chasseuse abat : sa liste ; un automate lié, tout ce qui bouge (null : pas de liste).
@@ -14292,6 +14295,7 @@ function bestiaireGraine(graine, niv) {
   if (niv >= 1 && bramardGraine(graine) && okR('bramard')) e.add('bramard');
   if (sterneGraine(graine) && okR('sterne')) e.add('sterne');
   for (const id of trottinsGraine(graine, niv)) e.add(id);   // (§137) les Trottins, tirés à part
+  if (typeof vivantGraine === 'function') for (const id of vivantGraine(graine, niv)) e.add(id);   // le monde vivant (vivant.js), tiré à part
   if (niv >= 3 && dragonGraine(graine) && okR('dragon')) e.add('dragon');
   { const rg = biomesGraine(graine); if (rg.includes(19)) e.add('silencieux'); if (rg.includes(20)) e.add('millegueule'); }   // l'effroi vit sur son sol          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
   return e;
@@ -16952,6 +16956,7 @@ function osDeBase(f) {
   if (sp.corps === 'felin') return osFelin(f);
   if (sp.corps === 'bramard') return osBramard(f);
   if (sp.id === 'bosseu') return osBossu(f);                // (§191) le Bossu : son corps à lui
+  if (sp && sp.vivant && typeof osVivant === 'function') return osVivant(f);   // le monde vivant : le gabarit, déformé par le génome (vivant.js)
   EC = sp ? { shell: sp.shell, dark: sp.dark, leg: sp.leg, eye: sp.oeil, shard: [150, 226, 255] } : ECdef;
   const B = [], al = f.alarm || 0, dead = f.dead || 0;
   const dk = Math.min(1, dead * 2.6);
@@ -18836,6 +18841,7 @@ const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], ang
 // flore en prennent un préfixé (v_brouteur, p_chene) ; et la baie, le nectar.
 const INGR = {};
 for (const f of POISSONS) INGR[f.id] = { id: f.id, n: f.n, court: f.n.split(' ')[0].toLowerCase(), fam: 'poisson', r: POISSON_R[f.id][0], tag: POISSON_R[f.id][1], soin: f.soin, c: f.c, src: 'poisson' };
+if (typeof vivantViandes === 'function') vivantViandes(VIANDES);   // les viandes du monde vivant (vivant.js)
 for (const [sp, n, court, r, tag, c] of VIANDES) INGR['v_' + sp] = { id: 'v_' + sp, sp, n, court, fam: 'viande', r, tag, soin: SOIN_FAM.viande * (1 + (r - 1) * .15), c, src: 'denree' };
 for (const [fl, n, court, fam, r, tag, c] of [...PRODUITS, ...(typeof FLORE_PRODUITS !== 'undefined' ? FLORE_PRODUITS : [])]) INGR['p_' + fl] = { id: 'p_' + fl, fl, n, court, fam, r, tag, soin: SOIN_FAM[fam] * (1 + (r - 1) * .15), c, src: 'denree' };
 INGR.baie = { id: 'baie', n: 'Baie', court: 'baies', fam: 'fruit', r: 1, tag: null, soin: .04, c: [214, 72, 104], src: 'baie' };
