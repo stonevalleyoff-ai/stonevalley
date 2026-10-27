@@ -6672,3 +6672,87 @@ Tout suit la puissance du don, de 55 à 150 % : la hauteur du troisième saut, l
 - l'assassin (×3, et ×1 sur une bête alertée) ;
 - les voiles et la faille à l'image ;
 - les îles ordinaires, le volcan et le Tisonnier, sans erreur.
+
+## §207 · Les dons (lot 4 : la Lumière, l'Instinct, l'Esprit)
+
+Les douze derniers dons ordinaires sont en jeu : les trente dons des six familles marchent tous. Restent les cinq dons du Héros (lot 6).
+
+**La Lumière**
+- **Vigie** : toutes les deux secondes et demie, la bête la plus proche qui vous guette (à 22 pas environ) est désignée. Un message dit où elle est, quelques étincelles rouges montent au-dessus d'elle, une étoile rouge la suit douze secondes sur la boussole. Une même bête n'est pas redite avant 25 secondes.
+- **Main guérisseuse** : soins, plats, poissons, baies et fruits soignent moitié plus.
+- **Œil du chercheur** (après la vigie) : à quarante pas, on voit ce qui vaut le détour, même derrière le relief. Une colonne de lumière monte de chaque trouvaille, une étoile de sa couleur sur la boussole (les huit plus proches). On voit ainsi :
+  - les caches d'alchimiste (violet) ;
+  - les lutrins pas encore lus ;
+  - les coffres du donjon (orange) ;
+  - les plantes rares (vert) ;
+  - les filons de fer, l'obsidienne, les druses géantes, les condensateurs ;
+  - les druses lavande et dorées.
+- **Aube intérieure** (après la main guérisseuse) : une fois par expédition, tomber à zéro vous relève à mi-vie au lieu de coûter un cœur, intouchable une seconde et demie. Elle revient en rentrant au campement. Elle est gardée dans la sauvegarde : recharger ne la rend pas.
+
+**L'Instinct**
+- **Meneur** : sept compagnes en jeu au lieu de six, et des liens un quart moins chers (le quatrième : 12 éclats au lieu de 16).
+- **Fureur** : sous 30 % de vie, +30 % de dégâts et de vitesse. Un message quand elle monte, des braises rouges autour de soi tant qu'elle dure.
+- **Chef de meute** (après le meneur) : à huit pas de vous, vos compagnes frappent 20 % plus fort et encaissent 20 % de moins.
+- **Sang chaud** (après la fureur) : chaque bête abattue rend 5 % de vie. Pas les plantes, ni les nomades.
+
+**L'Esprit**
+- **Écho** : un sort sur quatre ne coûte pas de mana (un anneau violet le montre, et le nom du sort dit « écho »).
+- **Résonance** : la compétence de l'arme forgée qu'on tient gagne un niveau, jusqu'à V (un niveau de plus qu'à la forge).
+- **Archimage** (après l'écho) : les sorts du grimoire frappent 30 % plus fort et portent 30 % plus loin. Cela vaut pour la portée du trait, le rayon de l'onde, la longueur du mur, la durée de l'égide. Le Souffle repousse plus loin et plus fort.
+- **Âme liée** (après la résonance) : un coup d'arme forgée (de près ou tiré) rend un éclat, une fois sur trois environ. Au plus un toutes les 0,6 seconde.
+
+Tout suit la puissance du don : par exemple l'écho tombe un sort sur trois à forte puissance, un sur cinq à faible.
+
+**Vérifié** (simulation) :
+- le soin (+20 % devient +30 %) ;
+- la vigie et son étoile ;
+- le chercheur (six trouvailles, la cache vue) et sa colonne violette à l'image ;
+- l'aube (relevé à 50 %, cœur gardé, puis la chute suivante coûte un cœur) ;
+- le meneur (7 en jeu, 16 → 12 éclats) ;
+- la fureur (×1,30) ;
+- le chef de meute (×1,2 / ×0,8, rien de loin) ;
+- le sang chaud (0,50 → 0,55) ;
+- l'écho (un sur quatre) ;
+- l'archimage (0,60 → 0,78) ;
+- la résonance (III → IV) ;
+- l'âme liée ;
+- les îles ordinaires, le volcan, le Tisonnier et les dons du lot 3, sans erreur.
+
+## §208 · Les dons (lot 6 : le Héros)
+
+Les cinq dons du Héros sont en jeu : les 35 dons marchent tous. On n'en porte qu'un à la fois, et il faut déjà un don de niveau 3 pour qu'il prenne. Sa recette demande 3 fers damnés et 2 ingrédients légendaires.
+
+**La touche P** (ou le bouton doré HÉROS, au-dessus de l'ACTION sur téléphone) déclenche le Temps suspendu, le Titan et le Roi des bêtes. Le bouton affiche la recharge et pâlit tant qu'elle court. Le Phénix et les Ailes marchent seuls ; P dit alors où ils en sont.
+
+La recharge court en temps réel, même jeu fermé, et elle est gardée dans la sauvegarde. La puissance du don (55 à 150 %) l'abrège ou l'allonge, et allonge aussi ce que le don dure.
+
+**Les cinq dons**
+- **Phénix** : tombé à zéro, on renaît sur place, toute la vie rendue, intouchable deux secondes. Une gerbe de feu blesse et embrase les bêtes à quatre pas. Recharge : dix minutes. Il passe avant l'Aube intérieure (Lumière), si l'on a les deux.
+- **Temps suspendu** : cinq secondes, le monde tourne au quart de sa vitesse. Cela ralentit les bêtes sauvages, les gardiens et les tirs d'en face. Vous, vos compagnes et vos propres tirs gardez votre vitesse. L'écran pâlit pendant ce temps. Recharge : deux minutes.
+- **Ailes de l'aube** : en l'air, SAUT maintenu, on vole vraiment. On monte de 2,2 cases par seconde, huit secondes en tout (une vingtaine de cubes), et tout se recharge en touchant le sol. Deux grandes ailes d'or battent aux épaules, et les autres joueurs les voient. Si l'on a aussi le Vol plané, il prend le relais quand les ailes sont vides.
+- **Titan** : douze secondes, on grandit de moitié. Les coups font deux fois plus mal, et on ne recule presque plus sous les coups. Les autres joueurs vous voient grandir. Recharge : trois minutes.
+- **Roi des bêtes** : un regard sur une bête sauvage (la cible désignée, sinon la plus proche devant soi, à douze pas), et elle se range à vos côtés quatre-vingt-dix secondes. Elle vous suit et vous défend, sans prendre de place parmi vos compagnes. Une couronne d'étincelles d'or flotte au-dessus d'elle. À la fin, elle retourne à la vie sauvage, calmée. Si elle tombe au combat, elle meurt (elle ne va pas au sac). Ni les gardiens, ni les dragons, ni les automates, ni les bêtes des fléaux n'y cèdent. Recharge : quatre minutes.
+
+**Où trouver les formules** (chacune est gardée par une épreuve, et gardée même si l'on meurt) :
+- **Phénix** : un œuf de feu dans un nid de basalte, au milieu du lac de lave du volcan. Il reste noir et froid tant que vit le Tisonnier. Une fois le gardien abattu, il s'éveille, pâle et lumineux. Il ne se laisse prendre que par qui porte la cuirasse de basalte : sans elle, il brûle les mains. Il faut aussi traverser la lave : la cuirasse en divise la brûlure par deux, un plat de braise l'annule.
+- **Temps suspendu** : le grand coffre de la salle de l'Horloge, tout au fond du Centre des automates, à partir de l'exploration 12.
+- **Ailes de l'aube** : une plume d'or qui flotte sur un socle blanc, au point le plus haut de deux îles volantes sur cinq, à partir de l'exploration 12.
+- **Titan** : une fois le Roi démon abattu, s'asseoir sur son trône (ACTION, au pied du trône).
+- **Roi des bêtes** : Hadrik, un vieux dompteur du Seuil à la barbe blanche et au long bâton. Il vient aux haltes des nomades à partir de l'exploration 10, tant que ses épreuves ne sont pas finies. Il en donne trois, une à chaque rencontre :
+  - nourrir de sa main dix bêtes sauvages ;
+  - avoir cinq compagnes liées à la fois ;
+  - abattre trois prédateurs avec au moins deux compagnes en jeu.
+
+  Ses épreuves avancent entre les haltes et sont gardées dans la sauvegarde. Un nomade tué ne revient jamais : Hadrik non plus.
+
+Les conteurs et les devins disent désormais, dans leurs légendes du Héros, où chercher chaque formule. L'Œil du chercheur (Lumière) voit aussi l'œuf et la plume, en doré.
+
+**Vérifié** (simulation) :
+- **Phénix** : relevé à pleine vie sans perdre de cœur ; la chute suivante, pendant la recharge, coûte un cœur ; la recharge est gardée.
+- **Temps suspendu** : une bête vit 0,25 s par seconde au lieu de 1 ; la teinte et le bouton s'affichent.
+- **Titan** : force ×2 ; taille 0,72 → 1,10 ; recul réduit.
+- **Roi des bêtes** : la bête liée suit, sans compter parmi les compagnes ; libre à la fin, morte si elle tombe.
+- **Ailes** : 18,9 cubes de montée au lieu de 1,2 ; rechargées au sol.
+- **Les formules** : la plume ; le coffre de l'Horloge (rien à l'exploration 11, ni dans une autre salle) ; le trône (rien tant que vit le Roi) ; l'œuf (froid, puis brûlant sans cuirasse, puis pris avec) ; Hadrik et ses trois épreuves jusqu'à la formule, et sa venue à une halte avec son dialogue.
+- **À l'image** : les ailes, l'œuf dans son nid.
+- **Régressions** : les îles, le volcan, le Tisonnier et les lots 3 et 4, sans erreur.

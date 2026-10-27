@@ -272,6 +272,9 @@
   #combat button:active,#bsac:active{background:rgba(255,210,125,.35);}
   #besq{right:90px;bottom:88px;width:74px;height:62px;border-radius:14px;font-size:10px;letter-spacing:.2px !important;border-color:rgba(150,214,236,.5) !important;}   /* (§206) la ruée, l'esquive */
   #besq.charge{opacity:.45;}
+  #bheros{right:2px;bottom:156px;width:74px;height:46px;border-radius:12px;font-size:9px;letter-spacing:.2px !important;border-color:rgba(255,206,96,.6) !important;color:#ffe2a0 !important;}   /* (§208) le don du Héros */
+  #bheros.charge{opacity:.45;}
+  body.dn-suspendu #c, body.dn-suspendu #c3{filter:saturate(.35) brightness(1.06) hue-rotate(-12deg);}   /* (§208) le temps suspendu */
   /* La fiche de la cible : en haut, sous la boussole — on regarde la bête et sa fiche d'un même coup d'œil. */
   #cible{position:fixed;z-index:2;pointer-events:none;top:calc(50px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
     width:200px;padding:6px 8px 7px;border-radius:9px;font-size:11px;line-height:1.35;text-align:center;
@@ -844,6 +847,7 @@
   <button id="batt"><kbd>X</kbd>ATTAQUER</button>
   <button id="bj"><kbd>␣</kbd>SAUT</button>
   <button id="besq" hidden><kbd>W</kbd>RUÉE</button>
+  <button id="bheros" hidden><kbd>P</kbd>HÉROS</button>
 </div>
 <button class="ui" id="bsac" aria-label="Sac"><kbd>I</kbd><i class="ic ic-ongletSac"></i>SAC</button>
 <div class="ui" id="sac"></div>
@@ -872,7 +876,7 @@
     <div class="gestes"><button id="retour-non">Fermer</button><button class="principal" id="retour-oui">Envoyer</button></div>
   </div>
 </div>
-<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
+<div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
 <script src="donjon.js"></script>
 <script src="rouages.js"></script>
@@ -2826,11 +2830,12 @@ const EN_JEU_MAX = 6;
 const enJeu = () => P.compagnes.reduce((n, c) => n + (c.dehors || c.aucamp ? 1 : 0), 0);
 function coutLien(n) {
   const k = Math.pow(LIEN_FACTEUR, Math.max(0, n | 0)), c = {};
-  for (const [r, v] of Object.entries(LIEN_BASE)) c[r] = Math.max(v, Math.ceil(v * k - 1e-9));
+  const m = typeof donsLienK === 'function' ? donsLienK() : 1;   // (§207) le meneur
+  for (const [r, v] of Object.entries(LIEN_BASE)) c[r] = Math.max(v, Math.ceil(v * k * m - 1e-9));
   return c;
 }
 const LIENS_BORNE = 99;          // seulement pour borner une sauvegarde hostile
-const COMPAGNES_RESEAU = 6;      // ce qu'on diffuse aux autres joueurs : pas plus qu'il n'y en a en jeu
+const COMPAGNES_RESEAU = 7;      // ce qu'on diffuse aux autres joueurs : pas plus qu'il n'y en a en jeu
 
 // La ceinture ouvre les cases du bord droit : sans elle, pas de barre. Trois niveaux, une barre de
 // cinq cases chacun ; un bouton au-dessus des cases (ou T) passe de l'une à l'autre. Le premier
@@ -4240,6 +4245,7 @@ const FL_LAVE = Object.assign([255, 132, 44], { lave: 1 }), FL_FEU = [255, 220, 
 // les os — donc toute la branche des armes — resteraient hors d'atteinte tant qu'on
 // n'aurait pas d'arme, et rien ne permettait d'en fabriquer une.
 function butin(b) {
+  if (typeof donsAbattue === 'function') { donsAbattue(b); donsQueteAbattue(b); }   // (§207) le sang chaud ; (§208) l'épreuve d'Hadrik
   if (typeof satEvent === 'function') satEvent('victoire', b);   // (§158)
   if (curioFx('eclat') && !b.tame) { P.sac.eclat = (P.sac.eclat || 0) + curioFx('eclat'); }   // la bourse du Seuil, la couronne (§109)
   if (typeof nmPrime === 'function' && !b.tame) nmPrime(b);   // (§122) la prime du chasseur
@@ -4620,7 +4626,7 @@ function poserCampement() {
   q.expl = profondeur();                               // planté ici, il fait de ce niveau votre chez-vous
   P.camp = q; P.objets.foyer = 1;                      // la pierre de foyer vient avec
   majTerrasse();                                       // le rond se nivelle aussitôt
-  P.exp.sortie = 0; P.exp.coeurs = 0;                  // on est chez soi : l'expédition est close
+  P.exp.sortie = 0; P.exp.coeurs = 0; P.aubeFait = 0;                  // on est chez soi : l'expédition est close
   noterVisite();                                       // l'île du campement ouvre le journal
   burst(q.x, q.y, q.z + .6, 26, '#ffd27d');
   say('campement posé · île ' + nomIle(SEED), 3);
@@ -5781,7 +5787,7 @@ function clotureExpedition() {
   const e = P.exp || (P.exp = { niveau: 0, coeurs: 0, sortie: 0 });
   const dehors = !!e.sortie, ecartFait = ecart();
   e.niveau = nivCampement();                         // on est chez soi : l'île reprend son niveau
-  e.sortie = 0;
+  e.sortie = 0; P.aubeFait = 0;                       // (§207) l'aube intérieure revient au campement
   if (!dehors) { e.coeurs = 0; return null; }        // on n'était pas parti : rien à solder
   const part = partGardee();
   const range = aModule('coffre');                      // sans coffre, ce qu'on garde reste au sac
@@ -6653,7 +6659,7 @@ function lancerSort() {
     let n = 0;
     for (const b of beasts) if (!b.dead && b.pv > 0 && !b.tame) {
       const dx = b.x - P.x, dy = b.y - P.y, d = Math.hypot(dx, dy);
-      if (d < 7) { lacherParoi(b); b.vx += dx / (d || 1) * 9; b.vy += dy / (d || 1) * 9; b.alarm = 1; n++; }
+      if (d < 7 * donsSortK()) { lacherParoi(b); b.vx += dx / (d || 1) * 9 * donsSortK(); b.vy += dy / (d || 1) * 9 * donsSortK(); b.alarm = 1; n++; }
     }
     if (typeof fauneGeste === 'function') fauneGeste('souffle', { x: r2(P.x), y: r2(P.y) });   // les bêtes du gardien reculent chez lui
     burst(P.x, P.y, P.z + .4, 22, '#bfe6ff'); say(n ? n + ' bête(s) repoussée(s)' : 'le souffle se perd', 1.6);
@@ -6696,7 +6702,7 @@ function lancerSort() {
     horloge = .26; burst(P.x, P.y, P.z + .6, 26, '#ffe9b0'); say('le jour se lève', 2.2);
     if (typeof fauneGeste === 'function') fauneGeste('aube');   // une seule heure sur l'île : celle du gardien
   } else if (gr.id === 'abime') ok = typeof roiSortAbime === 'function' && roiSortAbime();   // (§166) le Bâton de l'Abîme
-  if (ok) payerMana(cs);
+  if (ok && !donsEcho()) payerMana(cs);                // (§207) l'écho : un sort sur quatre est offert
   if (ok && RS.ouvert && Autres.size && Compte.uid) diffuser(canalIle(), 'fx', { u: Compte.uid, k: gr.id, x: r2(P.x), y: r2(P.y), z: r2(P.z) });   // l'éclat du sort, vu d'en face
 }
 
@@ -8106,7 +8112,7 @@ function pageCompagnes() {
       `<li><button class="lien-ligne libre${choixComp === 'libre' && !k ? ' choisie' : ''}" data-comp="libre">`
       + caseObjet('lien', { inerte: true, vide: true })
       + `<span class="nom">Lien libre</span><span class="etat">une bête s'y liera</span></button></li>`).join('');
-  const compte = `${P.compagnes.length} compagne${P.compagnes.length > 1 ? 's' : ''} · ${enJeu()}/${EN_JEU_MAX} en jeu · ${libres} lien${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''}`;
+  const compte = `${P.compagnes.length} compagne${P.compagnes.length > 1 ? 's' : ''} · ${enJeu()}/${enJeuMax()} en jeu · ${libres} lien${libres > 1 ? 's' : ''} libre${libres > 1 ? 's' : ''}`;
   return `<div class="sac-corps deux">`
     + `<div class="col"><h3>Liens <span class="compte">${compte}</span></h3><ul class="liens">${lignes}</ul>`
     + `<div class="gestes"><button class="btn" data-voir="compagnes">Fabriquer un lien</button>`
@@ -8142,7 +8148,7 @@ function ficheCompagne(c) {
       ? `<button class="btn" data-rentrer="${id}">Rentrer dans le sac</button>`
       : c.aucamp ? `<button class="btn" disabled>Restée au campement</button>`
       : (c.ko ? `<button class="btn principal" data-relever="${id}"${P.baumes > 0 || essai ? '' : ' disabled'}>Relever · 1 baume</button>` : '')
-      + `<button class="btn${c.ko ? '' : ' principal'}" data-sortir="${id}"${c.ko || enJeu() >= EN_JEU_MAX ? ' disabled' : ''}>Sortir</button>`)
+      + `<button class="btn${c.ko ? '' : ' principal'}" data-sortir="${id}"${c.ko || enJeu() >= enJeuMax() ? ' disabled' : ''}>Sortir</button>`)
     + (automate(sp) ? '' : `<button class="btn" data-nourrirc="${id}"${dispo('baies') > 0 && faim >= .05 ? '' : ' disabled'}>Nourrir · 1 baie</button>`)
     + (c.aucamp && !campIci() ? '' : OBJETS.filter(o => o.emp === 'soin' && o.cible === 'compagne' && qteSoin(o.id) > 0 && (!c.ko || o.releve))
         .map(o => `<button class="btn" data-soinc="${o.id}" data-cid="${id}" title="${ESC(o.d)}">${ESC(o.n)} · ${qteSoin(o.id)}</button>`).join(''))
@@ -8157,7 +8163,7 @@ function ficheCompagne(c) {
     + `<p class="note" style="margin:6px 0 0">${ESC(c.nom)} ${ESC(ORDRES_DIT[(c.role === 'recolte' && recolteDe(c) === 'jardin' ? 'jardin' : c.role) + ':' + (c.mode || 'joueur')] || '')}`
     + `${c.role === 'recolte' ? ' — ' + (recolteDe(c) === 'os' ? 'elle chasse, et rapporte les os' : recolteDe(c) === 'peche' ? 'elle pêche, et rapporte le poisson' : 'elle récolte ' + LE_APT[recolteDe(c)]) : ''}.</p>`
     + (P.camp ? '' : `<p class="note" style="margin:4px 0 0">« Au campement » se choisit une fois le campement posé.</p>`)
-    + (!c.dehors && !c.aucamp && !c.ko && enJeu() >= EN_JEU_MAX
+    + (!c.dehors && !c.aucamp && !c.ko && enJeu() >= enJeuMax()
       ? `<p class="note manque">Six compagnes sont déjà en jeu : rentrez-en une dans le sac pour sortir ${ESC(c.nom)}.</p>` : '')
     + `<div class="gestes">${gestes}</div>`
     + (confirme ? `<p class="note manque">Encore un clic : ${ESC(c.nom)} retourne à l'île, et le lien redevient libre.</p>` : '')
@@ -9877,7 +9883,7 @@ function sigCompagnes() {
 function dessinerCompagnes() {
   const el = document.getElementById('compvol'); if (!el) return;
   CV.sig = sigCompagnes();
-  el.querySelector('.compte').textContent = P.compagnes.length ? enJeu() + '/' + EN_JEU_MAX + ' en jeu' : '';
+  el.querySelector('.compte').textContent = P.compagnes.length ? enJeu() + '/' + enJeuMax() + ' en jeu' : '';
   const rp = el.querySelector('.rappel'), sif = porte('accessoire') && porte('accessoire').id === 'sifflet';
   rp.hidden = !sif || !P.compagnes.some(c => c.dehors);
   rp.innerHTML = icOrdre('sifflet') + '<span>Rappeler</span>';
@@ -9892,7 +9898,7 @@ function dessinerCompagnes() {
     const ou = c.ko ? 'assommée' : c.aucamp ? 'au campement' : c.dehors ? 'dehors' : 'dans le sac';
     const act = c.ko ? `<button class="act principal" data-cv="relever" data-cid="${id}"${P.baumes > 0 || essai ? '' : ' disabled'} title="Un baume de relève la remet sur pied">Relever</button>`
       : c.aucamp ? '' : c.dehors ? `<button class="act" data-cv="rentrer" data-cid="${id}">Rentrer</button>`
-      : `<button class="act principal" data-cv="sortir" data-cid="${id}"${enJeu() >= EN_JEU_MAX ? ' disabled title="Six compagnes en jeu au plus"' : ''}>Sortir</button>`;
+      : `<button class="act principal" data-cv="sortir" data-cid="${id}"${enJeu() >= enJeuMax() ? ' disabled title="' + (enJeuMax() > 6 ? 'Sept' : 'Six') + ' compagnes en jeu au plus"' : ''}>Sortir</button>`;
     const bouton = (cle, o, ic, actif, dis, titre) => `<button class="ordre" data-cv="${cle}" data-v="${o}" data-cid="${id}" aria-pressed="${actif}"`
       + `${dis ? ' disabled' : ''} title="${ESC(titre)}" aria-label="${ESC(titre)}">${icOrdre(ic)}</button>`;
     const roles = ROLES.map(r => bouton('role', r.id, r.ic, c.role === r.id, false, 'Mission : ' + r.n.toLowerCase()
@@ -10031,6 +10037,7 @@ const TOUCHES = {
   KeyT:   () => barreSuivante(),                     // la ceinture : passer à la barre de cases suivante
   KeyO:   () => { if (typeof basculerLanterne === 'function') basculerLanterne(); },   // (§127) la lanterne prismatique
   KeyZ:   () => { if (typeof donsTouche === 'function') donsTouche(); },   // (§206) la ruée, l'esquive (W en AZERTY)
+  KeyP:   () => { if (typeof donsHerosTouche === 'function') donsHerosTouche(); },   // (§208) le don du Héros
 };
 // 1 à 5 : les onglets, dans l'ordre du rail
 // sac fermé, 1 à 5 : les cinq cases de la barre affichée
@@ -10168,6 +10175,7 @@ const zoomer = k => { zoomT = Math.max(perspIso && isoGL && G3.ok && !G3.perdu ?
 document.getElementById('bj').addEventListener('pointerdown', e => { e.preventDefault(); jumpQ = true; sautTenu = true; });
 for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) document.getElementById('bj').addEventListener(ev, () => { sautTenu = false; });   // (§206) SAUT maintenu : le vol plané
 document.getElementById('besq').addEventListener('pointerdown', e => { e.preventDefault(); if (typeof donsTouche === 'function') donsTouche(); });
+document.getElementById('bheros').addEventListener('pointerdown', e => { e.preventDefault(); if (typeof donsHerosTouche === 'function') donsHerosTouche(); });   // (§208)
 document.getElementById('batt').addEventListener('pointerdown', e => { e.preventDefault(); agirQ = true; });
 document.getElementById('bact').addEventListener('pointerdown', e => { e.preventDefault(); actQ = true; actTenu = true; });
 document.getElementById('cible').addEventListener('pointerdown', e => {   // (§151) LIER, sous la fiche de la bête désignée
@@ -10461,7 +10469,7 @@ function update(dt) {
   else if (court) { P.endu = Math.max(0, P.endu - dt / (ENDU_COURSE * (1 + .1 * puissAlch('souffle'))) * (biomeIci === 10 && lumiere() > .5 ? CHALEUR : 1) * [1, .5, .3, .15, 0][effet('souffle')]); P.courseT = t; if (P.endu <= 0) { P.epuise = true; say('à bout de souffle', 1.6); } }
   else if (t - P.courseT > .5) P.endu = Math.min(1, P.endu + dt * (im > .06 ? ENDU_REPRISE : ENDU_REPOS) * (typeof vyrelSouffle === 'function' ? vyrelSouffle() : 1));   // (§184) malade : il revient mal
   if (P.epuise && P.endu >= ENDU_SEUIL) P.epuise = false;
-  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (1 + effet('vif') * .2) * (1 + .04 * puissAlch('vitesse')) * (1 + .06 * donK('piedleger'));   // pas vif : +20 % par niveau (§168) ; la potion de vitesse : +4 % par rang
+  SPD = (P.epuise ? VIT_EPUISE : court ? VIT_COURSE : VIT_MARCHE) * (1 + effet('vif') * .2) * (1 + .04 * puissAlch('vitesse')) * (1 + .06 * donK('piedleger')) * donsFureurK();   // pas vif : +20 % par niveau (§168) ; la potion de vitesse : +4 % par rang
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
@@ -10539,7 +10547,7 @@ function update(dt) {
   const z0 = P.z;                                       // d'où l'on part : le pas entier compte
   P.vz -= (P.vz > 0 ? 17 : 26 * (effet('plume') ? Math.max(.2, .6 - .1 * effet('plume')) : 1)) * dt;
   if (effet('plume') && P.vz < -4) P.vz = -4;            // chute de plume : on descend en planant                    // chute plus rapide que la montée
-  if (!M && typeof donsPlane === 'function') donsPlane(dt, K.Space || sautTenu);   // (§206) le vol plané
+  if (!M && typeof donsPlane === 'function' && !donsVol(dt, K.Space || sautTenu)) donsPlane(dt, K.Space || sautTenu);   // (§206) le vol plané ; (§208) les ailes de l'aube d'abord
   if (M && M.plane && P.vz < -1.7 && im > .06) { P.vz = -1.7; if ((t * 10 | 0) % 3 === 0) burst(P.x, P.y, P.z + .8, 1, '#ffd0e8'); }   // l'aurore plane
   P.z += P.vz * dt;
   if (P.vz > 0) {                                       // on se cogne sous une île volante
@@ -10628,6 +10636,7 @@ function update(dt) {
       else {
         // La confiance vient en mangeant, plus lentement chez les espèces rares, plus vite chez
         // une bête blessée. Au bout, il faut un lien libre pour qu'elle s'y attache.
+        if (typeof donsNourri === 'function') donsNourri(c);   // (§208) l'épreuve d'Hadrik
         c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1) * (pois ? 2 : 1) * (1 + .5 * effet('apprivoiseur')));
         const colonie = c.sp.roche ? ' · colonie ' + Math.round(Math.min(1, confColonie() + 1 / OG_BAIES) * 100) + ' %' : '';
         if (c.sp.roche) { c.doute = Math.max(0, (c.doute || 0) - .6); gagnerColonie(1 / OG_BAIES); }
@@ -11082,6 +11091,8 @@ function paint(list) {
 // c'est ce qui permet de le dessiner sans écrire une seconde silhouette.
 function heroBones(J) {                                  // invisible : un fantôme pâle
   const B = heroBonesBase(J);
+  { const k = typeof donsTaille === 'function' ? donsTaille(J || P) : 1;   // (§208) le titan : une fois et demie plus grand
+    if (k !== 1) for (const o of B) { o.a = [o.a[0] * k, o.a[1] * k, o.a[2] * k]; o.b = [o.b[0] * k, o.b[1] * k, o.b[2] * k]; o.w *= k; o.h *= k; } }
   if (J === P && effet('invisible')) for (const o of B) o.c = [Math.round(o.c[0] * .25 + 150), Math.round(o.c[1] * .25 + 175), Math.round(o.c[2] * .25 + 205)];
   if (J === P && P.korlaz && typeof myceliumHeros === 'function') myceliumHeros(B);   // infecté : le mycélium gagne le corps (etats.js)
   if (typeof vyrelHeros === 'function') vyrelHeros(J, B);   // (§184) malade du Vyrel : des pustules
@@ -13418,6 +13429,8 @@ const degDefense = (b, c) => (b.tame ? .06 + .045 * noteDef(b.sp.id) : (.06 + ma
 // Le joueur à terre : il se relève au départ, un peu plus léger. Les chasseurs le perdent.
 function terrasse() {
   if (P.invincible) { P.pv = 1; return; }
+  if (typeof donsPhenix === 'function' && donsPhenix()) return;   // (§208) le phénix
+  if (typeof donsAube === 'function' && donsAube()) return;   // (§207) l'aube intérieure
   SON.jouer('mort');
   if (djIci() && djMort()) return;                     // sous terre : le butin du donjon est perdu
   if (raidIci() && !Raid.fini) emporter('mort');       // terrassé en pleine visite : le butin reste au coffre
@@ -13470,7 +13483,7 @@ function porterCoup(b, c, deg) {
     if (effet('epines') && b.sp && !b.tame && b.pv > 0) { b.pv -= deg * .4 * effet('epines') / robuste(b); b.hit = .25; if (b.pv <= 0 && !b.dead) mourirBete(b, 'combat'); }   // les épines rendent le coup
     P.vx = dx / d * 7; P.vy = dy / d * 7; P.vz = 4.2; P.recul = .3;
     if (b.sp && b.sp.roche && b.as) { P.vx = dx / d * 11; P.vy = dy / d * 11; P.vz = 5.4; }   // la charge de l'oglodon projette loin
-    if (donA('racines')) { P.vx *= .15; P.vy *= .15; P.vz = Math.min(P.vz, 1.2); }   // (§204) les racines : on ne recule plus
+    if (donA('racines') || DN.titan > t) { P.vx *= .15; P.vy *= .15; P.vz = Math.min(P.vz, 1.2); }   // (§204) les racines : on ne recule plus ; (§208) le titan non plus
     burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
     if (b.sp.brule && !effet('braise')) { P.brulure = t + 3; say('la morsure brûle', 1.4); }   // la salamandre
     if (typeof vyrelMorsure === 'function') vyrelMorsure(b, P);   // (§184) une morsure malade contamine
@@ -13478,7 +13491,7 @@ function porterCoup(b, c, deg) {
     if (P.pv <= 0) terrasse();
     return true;
   }
-  const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .35 * effet('meute') : 1) * (1 + .1 * puissBete(b, 'defense')) * (1 - .06 * puissBete(c, 'defense')) * (b && b.comp && b.comp.vyrel ? .7 : 1);   // (§184) une compagne malade frappe moins fort
+  const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .35 * effet('meute') : 1) * (1 + .1 * puissBete(b, 'defense')) * (1 - .06 * puissBete(c, 'defense')) * (b && b.comp && b.comp.vyrel ? .7 : 1) * donsMeuteK(b, c);   // (§184) une compagne malade frappe moins fort ; (§207) le chef de meute
   if (c.comp && typeof vyrelMorsure === 'function') vyrelMorsure(b, c);
   c.pv -= dgC; c.hit = .25; c.alarm = 1;   // la meute galvanisée   // sur la Tisseuse, crocs et griffes glissent
   // le bossu rend parfois le coup qu'il reçoit d'un chasseur
@@ -14094,9 +14107,10 @@ function toucheObus(f, nx, ny, nz) {
   for (const o of beasts) if (o !== f.de && !o.dead && o.pv > 0 && toucheBete(o, nx, ny, nz)) return true;
   return false;
 }
-function majTirs(dt) {
+function majTirs(dt0) {
+  const monK = typeof donsMondeK === 'function' ? donsMondeK() : 1;   // (§208) le temps suspendu : les tirs d'en face ralentissent, pas les vôtres
   for (let k = TIRS.length - 1; k >= 0; k--) {
-    const f = TIRS[k]; f.age += dt;
+    const f = TIRS[k], dt = f.de === null || f.sortM ? dt0 : dt0 * monK; f.age += dt;
     if (f.age > 4) { TIRS.splice(k, 1); continue; }
     const v = Math.hypot(f.vx, f.vy, f.vz);
     const n = Math.max(1, Math.min(16, Math.ceil(v * dt / TIR_PAS))), h = dt / n;
@@ -15604,7 +15618,7 @@ function majEcosysteme(dt) {
   dansEcosysteme = true;
   // La faune partagée (faune.js) : chez un suiveur, les bêtes du gardien ne pensent pas, elles
   // suivent ce qu'il en dit ; chez le gardien, chacune se règle sur le joueur le plus proche (JC).
-  const suiveur = typeof fauneSuiveur === 'function' && fauneSuiveur();
+  const suiveur = typeof fauneSuiveur === 'function' && fauneSuiveur(), monK = typeof donsMondeK === 'function' ? donsMondeK() : 1;
   const partagee = typeof faunePartagee === 'function' ? faunePartagee : () => false;
   for (let i = beasts.length - 1; i >= 0; i--) {
     const b = beasts[i];
@@ -15614,8 +15628,9 @@ function majEcosysteme(dt) {
     const d = (b.x - JC.x) ** 2 + (b.y - JC.y) ** 2;
     // même logique partout : seule la cadence change avec la distance au joueur (le plus proche)
     const ox = b.x, oy = b.y;
-    if (d < 3600) majBete(b, dt);
-    else if ((i + tour) % 6 === 0) majBete(b, dt * 6);
+    const mk = b.tame ? 1 : monK;                       // (§208) le temps suspendu : le monde au quart, vos compagnes non
+    if (d < 3600) majBete(b, dt * mk);
+    else if ((i + tour) % 6 === 0) majBete(b, dt * 6 * mk);
     if (MURS.length && murBete(b, ox, oy)) { b.x = ox; b.y = oy; }   // un rempart : elle n'entre pas
     if (SORTS_POSES.length && !b.tame && !b.enVol && murSort(ox, oy, b.x, b.y, b.z)) { b.x = ox; b.y = oy; b.vx = b.vy = 0; }   // un mur de sort : elle ne passe pas
     if (b.englue > t) {                                  // engluée : clouée sur place, sans assaut
@@ -15882,7 +15897,7 @@ function lier(b, voie) {
   if (typeof fauneLien === 'function') fauneLien(b);   // une bête du gardien : elle quitte sa faune pour la vôtre
   const c = { id: prochainId++, esp: b.sp.id, nom: tirerNom(), role: 'defense', mode: 'joueur', dehors: true, b,
     pv: b.pv, faim: b.faim, soif: b.soif, nrj: b.nrj, ko: 0 };
-  const plein = enJeu() >= EN_JEU_MAX;
+  const plein = enJeu() >= enJeuMax();
   P.compagnes.push(c);
   apprivoiser(b, c);
   burst(b.x, b.y, b.z + .5, 20, '#ffd68a'); burst(b.x, b.y, b.z + .6, 12, '#e8404e'); SON.jouer('lien', {}, b.x, b.y, b.z + .5);
@@ -15932,7 +15947,7 @@ function placePres(x0, y0, z0, rmax) {
 const solJoueur = () => P.ground ? P.z : (P.sol ? P.sol[2] : P.z);
 function sortirCompagne(c, pos, discret) {
   if (c.dehors && c.b) return c.b;
-  if (!c.aucamp && enJeu() >= EN_JEU_MAX) {
+  if (!c.aucamp && enJeu() >= enJeuMax()) {
     if (!discret) say('six compagnes en jeu au plus · rentrez-en une dans le sac d\'abord', 2.6);
     return null;
   }
@@ -15985,7 +16000,8 @@ function equipierProche() {
 const besoinSoin = o => P.pv < .999 || !!(o.purge && (P.poison > t || P.brulure > t)) || !!(o.coeur && lives < viesMax()) || !!(o.vyrel && P.vyrel) || !!(o.korlaz && P.korlaz);
 function effetSoin(o) {                               // sur soi : ce qui a servi, ou rien
   const L = [];
-  if (o.pv && P.pv < .999) { const a = P.pv; P.pv = Math.min(1, P.pv + o.pv); L.push('+' + Math.round((P.pv - a) * 100) + ' % de vie'); }
+  if (o.pv && P.pv < .999) { const a = P.pv; P.pv = Math.min(1, P.pv + o.pv * soinK());   // (§207) la main guérisseuse
+  L.push('+' + Math.round((P.pv - a) * 100) + ' % de vie'); }
   if (o.purge && (P.poison > t || P.brulure > t)) { P.poison = 0; P.brulure = 0; L.push('poison et brûlure chassés'); }
   if (o.coeur && lives < viesMax()) { lives++; L.push('un cœur retrouvé'); }
   if (o.vyrel && P.vyrel && typeof guerirVyrel === 'function' && guerirVyrel()) L.push('guéri du Vyrel');   // (§184) la Thériaque
@@ -16064,6 +16080,7 @@ function ficheSoin(sid) {
 }
 function assommer(b, cause) {
   const c = b.comp; if (!c) return;
+  if (typeof donsAssommer === 'function' && donsAssommer(b)) return;   // (§208) la bête du regard ne va pas au sac
   burst(b.x, b.y, b.z + .4, 16, '#e8404e');
   rentrerCompagne(c, true);
   say(c.nom + ' est à terre · le lien la ramène dans le sac · un baume de relève la remettra sur pied', 3.4);
@@ -18570,8 +18587,8 @@ function mangerPoisson(id) {
   const f = poissonDe(id);
   if (!f || !(P.poissons[id] > 0)) return;
   if (P.pv >= 1) { say('vous n\'avez pas faim', 1.4); return; }
-  P.poissons[id]--; P.pv = Math.min(1, P.pv + f.soin);
-  SON.jouer('ramasse'); say(f.n.toLowerCase() + ' · +' + Math.round(f.soin * 100) + ' % de vie', 1.8);
+  P.poissons[id]--; P.pv = Math.min(1, P.pv + f.soin * soinK());
+  SON.jouer('ramasse'); say(f.n.toLowerCase() + ' · +' + Math.round(f.soin * soinK() * 100) + ' % de vie', 1.8);
   if (sacOuvert) majSac();
 }
 // Le poisson qu'on donne à une bête : le plus commun qu'on ait.
@@ -19219,7 +19236,7 @@ function prendrePart(k) {
 function mangerPlat(k) { const p = prendrePart(k); if (p) consommer(p); }
 function consommer(p) {
   if (p.c === 'r:serum' && typeof guerirKorlaz === 'function') guerirKorlaz();   // le sérum, injecté
-  P.pv = Math.min(1, P.pv + p.soin);
+  P.pv = Math.min(1, P.pv + p.soin * soinK());   // (§207) la main guérisseuse
   if (p.so) { P.endu = 1; P.epuise = false; }
   if (p.tag === 'surplus') P.bonusPv = Math.min(1, (P.bonusPv || 0) + (p.u || .2));                 // de la vie en plus, au-delà du plein
   else if (p.tag === 'coeur') { if (lives < viesMax() + 1) lives++; else say('vous avez déjà un cœur en plus', 2); }   // un quatrième cœur, le premier à partir
@@ -19243,8 +19260,8 @@ function mangerCru(id) {
   if (i.fam === 'viande') { say('la viande se cuit d\'abord : au feu du campement, ou à la marmite', 2); return; }
   if (P.pv >= 1) { say('vous n\'avez pas faim', 1.2); return; }
   if (sacIngr(id) > 0) metSacIngr(id, sacIngr(id) - 1); else oterIngr(id);
-  P.pv = Math.min(1, P.pv + i.soin * .5);
-  SON.jouer('ramasse'); say(i.n.toLowerCase() + ' · +' + Math.round(i.soin * 50) + ' % de vie', 1.6);
+  P.pv = Math.min(1, P.pv + i.soin * .5 * soinK());
+  SON.jouer('ramasse'); say(i.n.toLowerCase() + ' · +' + Math.round(i.soin * 50 * soinK()) + ' % de vie', 1.6);
   majSac();
 }
 const effetRepas = k => (P.effets[k] || 0) > t ? ((P.effetsN && P.effetsN[k]) || 1) : 0;   // 0, ou la puissance de l'effet d'un plat (1 à 4)
@@ -19465,7 +19482,7 @@ const pwFiole = (q, C) => q.g === 'comp' || alFixe(q) ? 1 : puissFiole(C.total, 
 const pctP = v => Math.round(v * 100) + ' %';
 // Ce que les rangs changent en jeu.
 const vieK = () => (egideActive() ? .67 : 1) * (P.gangue > t ? 1.5 : 1) / (1 + .1 * puissAlch('vie'));                    // la jauge tient plus : toute blessure en coûte moins
-const forceK = () => (1 + effet('fort') * .35) * (1 + .1 * puissAlch('force'));   // coups puissants (plat) et force (potion)
+const forceK = () => (1 + effet('fort') * .35) * (1 + .1 * puissAlch('force')) * donsFureurK() * donsTitanK();   // coups puissants (plat) et force (potion) ; (§207) la fureur ; (§208) le titan
 const sautK = () => (1 + .16 * effet('saut')) * (1 + .05 * puissAlch('saut')) * (1 + .12 * donK('piedleger'));   // (§204) le pied léger
 function arrondiAlch(v) {                                   // la récolte : la fraction en plus tombe au sort
   const r = puissAlch('recolte'); if (!r) return Math.round(v);
@@ -20683,7 +20700,7 @@ function sortRate(s, cs, brule) {
 }
 const SORT_FAIT = { trait: sortTrait, onde: sortOnde, piege: sortPiege, mur: sortMur, egide: sortEgide };
 function lancerPhrase(k) {
-  const s = phraseDe(k);
+  const s = phraseDe(k); if (s) donsArchimage(s);   // (§207) l'archimage
   if (!s || !sortInscrit(s.k)) { say('ce sort n\'est plus au grimoire', 1.6); return false; }
   if (P.effroi > t) { say('saisi d\'effroi · aucun sort ne vient', 1.2); return false; }
   if (P.pv <= 0 || (typeof djIci === 'function' && djIci() && s.f.id === 'piege')) return false;
@@ -20694,9 +20711,9 @@ function lancerPhrase(k) {
   { const p = instabilite(s);                              // un accord mal tenu : parfois il tourne mal
     if (p > 0) { const de = globalThis.__SORT_DE != null ? globalThis.__SORT_DE : Math.random(); if (de < p) return sortRate(s, cs, de < p / 2); } }
   if (!SORT_FAIT[s.f.id](s)) return false;
-  payerMana(cs); sortPret[s.k] = t + s.del; casesSig = '';
+  const echo = donsEcho(); if (!echo) payerMana(cs); sortPret[s.k] = t + s.del; casesSig = '';   // (§207) l'écho
   if (effet('invisible')) { P.effets.invisible = t; say('vous redevenez visible', 1.6); }
-  else say(nomPhrase(s), 1);
+  else say(nomPhrase(s) + (echo ? ' · écho : sans mana' : ''), 1);
   return true;
 }
 // --- les pièges, les murs, l'égide : ce qui dure ---
@@ -21441,10 +21458,11 @@ function sortOs(w) {
   return B;
 }
 function sortDecor(ex, ey, r) {
-  if (!SORTS_POSES.length && !LUTRINS.length && !(typeof DON_CACHES !== 'undefined' && DON_CACHES.length) && !(typeof DN !== 'undefined' && DN.failles.length)) return [];
+  if (!SORTS_POSES.length && !LUTRINS.length && !(typeof DON_CACHES !== 'undefined' && DON_CACHES.length) && !(typeof DN !== 'undefined' && DN.failles.length) && !(typeof DON_RELIQUES !== 'undefined' && DON_RELIQUES.length)) return [];
   const L = [];
   if (typeof DON_CACHES !== 'undefined') for (const c of DON_CACHES) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < r * r) L.push(...cacheOs(c));   // (§205) les caches d'alchimiste
   if (typeof donsDecor === 'function') L.push(...donsDecor(ex, ey, r));   // (§206) les failles
+  if (typeof donsReliquesOs === 'function') L.push(...donsReliquesOs(ex, ey, r));   // (§208) l'œuf du phénix, la plume d'aube
   for (const w of SORTS_POSES) { const x = w.k === 'mur' ? (w.x0 + w.x1) / 2 : w.x, y = w.k === 'mur' ? (w.y0 + w.y1) / 2 : w.y; if ((x - ex) ** 2 + (y - ey) ** 2 < r * r) L.push(...sortOs(w)); }
   for (const l of LUTRINS) if ((l.x - ex) ** 2 + (l.y - ey) ** 2 < r * r) L.push(...lutrinOs(l));   // les lutrins des tomes
   return L;
@@ -25699,6 +25717,7 @@ function reperes() {
   if (typeof satRepere === 'function') { const r = satRepere(); if (r) L.push(r); }   // (§159) ce que le satellite a repéré
   if (typeof nmMarques === 'function') for (const m of nmMarques()) L.push(m);   // ce qu'a marqué le cartographe, le sac de l'égaré (§110)
   for (const l of LUTRINS) if ((l.vu || curioFx('lutrins')) && !lutLu(l)) L.push({ x: l.x, y: l.y, k: 'tome', c: hexSort(lutCol(l)) });   // un lutrin aperçu, pas encore lu
+  if (typeof donsReperes === 'function') for (const m of donsReperes()) L.push(m);   // (§207) la vigie, l'œil du chercheur
   return L;
 }
 function majBoussole(forcer) {
@@ -27598,7 +27617,7 @@ function installerCompagnes(liste, vivantes) {
     const v = r.id ? enPlace.get(r.id) : null;
     if (v && v.sp.id === r.esp) {
       enPlace.delete(r.id);
-      if (r.dehors && !r.ko && enJeu() < EN_JEU_MAX) {
+      if (r.dehors && !r.ko && enJeu() < enJeuMax()) {
         c.b = v; c.dehors = true; v.comp = c; v.role = c.role; v.mode = c.mode; if (c.variante) v.variante = c.variante;
         if (vivantes) { c.pv = v.pv; c.faim = v.faim; c.soif = v.soif; c.nrj = v.nrj; }
         else { v.pv = c.pv; v.faim = c.faim; v.soif = c.soif; v.nrj = c.nrj; }
@@ -27609,7 +27628,7 @@ function installerCompagnes(liste, vivantes) {
     // restée au campement : on la retrouve chez soi, près du feu ; sans campement, le lien la reprend
     if (c.aucamp) {
       if (!P.camp) c.aucamp = 0;
-      else if (enJeu() > EN_JEU_MAX) c.aucamp = 0;      // une copie qui en compterait trop : au sac
+      else if (enJeu() > enJeuMax()) c.aucamp = 0;      // une copie qui en compterait trop : au sac
       else if (campIci()) { c.aucamp = 0; if (!c.ko) sortirCompagne(c, lieuCamp(c), true); }
       continue;
     }
@@ -28065,7 +28084,7 @@ arriveeLe = maintenant();                            // le répit des premières
 // fonction vp_journaliser). Des faits de jeu, relié au compte : ni texte libre, ni rien des autres joueurs.
 // Un paquet par minute (ou dès 40 lignes) ; la file attend dans le navigateur entre deux îles et hors ligne.
 // Se coupe dans les Réglages (Aide › Statistiques de jeu) ; « Supprimer mon compte » l'efface avec le reste.
-const JNL_VERSION = 'stone-valley-174', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
+const JNL_VERSION = 'stone-valley-176', JNL_CLE = 'stone_valley:journal', JNL_MAX = 400;
 const JNL = { file: [], session: '', t0: Date.now(), envoiT: Date.now(), instT: 0, envoi: false, coupe: false, erreurs: 0, pret: false, vu: null,
   c: { r: {}, tues: {}, conso: {}, coups: 0 } };
 function jnlActif() { try { return localStorage.getItem('stone_valley:stats') !== '0'; } catch (e) { return true; } }

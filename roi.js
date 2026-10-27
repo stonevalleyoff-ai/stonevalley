@@ -354,6 +354,7 @@ function roiAction() {
     return { v: 'OUVRIR', o: nom,
       f: () => sc ? say(c.taille === 'scelle' ? 'scellé · il faut la clé d\'os ' + deG(nomG) : 'scellé · les chaînes ne cèdent pas tant que vit ' + nomG, 2.4) : roiOuvrir(c) };
   }
+  { const tr = typeof donsTroneAction === 'function' && donsTroneAction(); if (tr) return tr; }   // (§208) le trône : la formule du Titan
   return null;
 }
 // Un coffre de cendre : des éclats, des os, de la pierre ; celui de la Mère, bien plus, et parfois un tome.

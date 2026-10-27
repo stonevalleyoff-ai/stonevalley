@@ -244,7 +244,7 @@ function fgAme(R) {
   if (!L.length) return null;
   return { el: L[0][0], el2: L[1] ? L[1][0] : null, niv: Math.max(1, Math.min(4, Math.ceil(L[0][1] * .75 + (L[1] ? L[1][1] * .25 : 0)))), decl: FG_DECL[R.plis], forme: (Bn && Bn.forme) || FG_FORMES[R.bain] };
 }
-const FG_ROM = ['', 'I', 'II', 'III', 'IV'];
+const FG_ROM = ['', 'I', 'II', 'III', 'IV', 'V'];
 function fgCompTxt(C) {
   if (!C) return 'aucune : l\'âme est vide, ou deux âmes contraires se sont annulées';
   const t = FG_DECL_TXT[C.decl], f = FG_FORME_TXT[C.forme][C.el];
@@ -522,7 +522,8 @@ function fgDessin(d, R) {
 // ============================================================
 //  AU COMBAT : les mécaniques propres, la compétence, l'usure
 // ============================================================
-const fgPuiss = L => { const C = fgAme(L.R); return C ? C.niv * (.7 + .45 * L.j / 100) : 0; };
+const fgPuiss = L => { const C = fgAmeJ(L.R);   // (§207) la résonance (dons.js)
+  return C ? C.niv * (.7 + .45 * L.j / 100) : 0; };
 const fgDerriere = (b, ox = P.x, oy = P.y) => { const dx = ox - b.x, dy = oy - b.y, d = Math.hypot(dx, dy) || 1, f = Number.isFinite(b.dir) ? b.dir : 0; return (Math.cos(f) * dx + Math.sin(f) * dy) / d < -.3; };
 function fgUser(id, n = 1) {
   const L = fgLireId(id); if (!L) return;
@@ -651,8 +652,8 @@ function forgeSubi() {
 // Après le coup : l'usure, la série, la mécanique de l'arme, la compétence
 function forgeApres(A, pr, dg, tue, a) {
   const L = fgLireId(a.id); if (!L || !pr) return;
-  const T = FG_TYPES[L.R.type], C = fgAme(L.R), pw = fgPuiss(L);
-  fgUser(a.id, 1);
+  const T = FG_TYPES[L.R.type], C = fgAmeJ(L.R), pw = fgPuiss(L);
+  fgUser(a.id, 1); donsAmeLiee(pr);   // (§207) l'âme liée
   FG.serie = t - FG.serieT < 1.4 ? FG.serie + 1 : 1; FG.serieT = t;
   const f = P.face, ux = Math.cos(f), uy = Math.sin(f);
   if (T.id === 'lance') {                                           // l'estoc traverse : la bête de derrière
@@ -690,7 +691,7 @@ function forgeApres(A, pr, dg, tue, a) {
 // Une flèche d'arc forgé qui touche (impactFleche)
 function forgeFleche(f, b, dg) {
   const L = fgLireId(f.fg); if (!L || !b) return;
-  const C = fgAme(L.R), T = FG_TYPES[L.R.type];
+  const C = fgAmeJ(L.R), T = FG_TYPES[L.R.type]; donsAmeLiee(b);
   if (T.id === 'arbaletef' && b.pv > 0 && !b.dead) {                 // (§173) le carreau : cloué au mur, ou repoussé
     const v = Math.hypot(f.vx, f.vy) || 1, ux = f.vx / v, uy = f.vy / v, z = (b.z || 0) + .8; let mur = false;
     for (let s = .5; s <= 1.5 && !mur; s += .25) { const x = b.x + ux * s, y = b.y + uy * s; mur = fgSol(x, y) > z || (typeof floreTouche === 'function' && floreTouche(x, y, z)); }
@@ -896,7 +897,7 @@ function forgeSortTouche(o, dg) {
   const X = FG.sortCtx; if (!X || t - X.t > 3 || !o || X.vus.has(o) || X.vus.size >= 6) return;
   X.vus.add(o);
   const L = fgLireId(X.id); if (!L) return;
-  const C = fgAme(L.R), tue = !(o.pv > 0) || !!o.dead;
+  const C = fgAmeJ(L.R), tue = !(o.pv > 0) || !!o.dead;
   if (C && (X.ame || fgDeclenche(C.decl, { charge: X.charge, dos: fgDerriere(o) }, tue))) fgCompetence(C, o, fgPuiss(L) * (X.ame ? 1.5 : 1));
   if (FG.buff && FG.buff.fin > t && !tue) fgStatut(o, FG.buff.el, FG.buff.pw * .5);
 }

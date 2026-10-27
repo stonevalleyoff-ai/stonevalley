@@ -46,25 +46,25 @@ const DONS = [
   { id: 'assassin', fam: 'ombre', niv: 3, voie: 'a', req: 'fondu', n: 'Assassin', d: 'le premier coup sur une bête qui ne vous a pas vu fait trois fois plus mal' , pret: 1 },
   { id: 'contre', fam: 'ombre', niv: 3, voie: 'b', req: 'esquive', n: 'Contre', d: 'une esquive au bon moment déclenche une riposte double' , pret: 1 },
   { id: 'lueur', fam: 'lumiere', niv: 1, n: 'Lueur', d: 'on éclaire autour de soi la nuit, sans lanterne', pret: 1 },
-  { id: 'vigie', fam: 'lumiere', niv: 2, voie: 'a', req: 'lueur', n: 'Vigie', d: 'les bêtes qui vous guettent sont signalées' },
-  { id: 'guerisseuse', fam: 'lumiere', niv: 2, voie: 'b', req: 'lueur', n: 'Main guérisseuse', d: 'les soins et les plats soignent moitié plus' },
-  { id: 'chercheur', fam: 'lumiere', niv: 3, voie: 'a', req: 'vigie', n: 'Œil du chercheur', d: 'coffres, plantes rares et filons se voient à travers le relief' },
-  { id: 'aube', fam: 'lumiere', niv: 3, voie: 'b', req: 'guerisseuse', n: 'Aube intérieure', d: 'une fois par expédition, tomber à zéro vous relève à mi-vie' },
+  { id: 'vigie', fam: 'lumiere', niv: 2, voie: 'a', req: 'lueur', n: 'Vigie', d: 'les bêtes qui vous guettent sont signalées' , pret: 1 },
+  { id: 'guerisseuse', fam: 'lumiere', niv: 2, voie: 'b', req: 'lueur', n: 'Main guérisseuse', d: 'les soins et les plats soignent moitié plus' , pret: 1 },
+  { id: 'chercheur', fam: 'lumiere', niv: 3, voie: 'a', req: 'vigie', n: 'Œil du chercheur', d: 'coffres, plantes rares et filons se voient à travers le relief' , pret: 1 },
+  { id: 'aube', fam: 'lumiere', niv: 3, voie: 'b', req: 'guerisseuse', n: 'Aube intérieure', d: 'une fois par expédition, tomber à zéro vous relève à mi-vie' , pret: 1 },
   { id: 'flair', fam: 'instinct', niv: 1, n: 'Flair', d: 'la flore rend son produit moitié plus souvent, et chaque bête abattue une viande de plus', pret: 1 },
-  { id: 'meneur', fam: 'instinct', niv: 2, voie: 'a', req: 'flair', n: 'Meneur', d: 'une compagne de plus en jeu, et des liens moins chers' },
-  { id: 'fureur', fam: 'instinct', niv: 2, voie: 'b', req: 'flair', n: 'Fureur', d: 'sous 30 % de vie, +30 % de dégâts et de vitesse' },
-  { id: 'chefmeute', fam: 'instinct', niv: 3, voie: 'a', req: 'meneur', n: 'Chef de meute', d: 'les compagnes près de vous frappent et encaissent 20 % mieux' },
-  { id: 'sangchaud', fam: 'instinct', niv: 3, voie: 'b', req: 'fureur', n: 'Sang chaud', d: 'chaque bête abattue rend 5 % de vie' },
+  { id: 'meneur', fam: 'instinct', niv: 2, voie: 'a', req: 'flair', n: 'Meneur', d: 'une compagne de plus en jeu, et des liens moins chers' , pret: 1 },
+  { id: 'fureur', fam: 'instinct', niv: 2, voie: 'b', req: 'flair', n: 'Fureur', d: 'sous 30 % de vie, +30 % de dégâts et de vitesse' , pret: 1 },
+  { id: 'chefmeute', fam: 'instinct', niv: 3, voie: 'a', req: 'meneur', n: 'Chef de meute', d: 'les compagnes près de vous frappent et encaissent 20 % mieux' , pret: 1 },
+  { id: 'sangchaud', fam: 'instinct', niv: 3, voie: 'b', req: 'fureur', n: 'Sang chaud', d: 'chaque bête abattue rend 5 % de vie' , pret: 1 },
   { id: 'memoire', fam: 'esprit', niv: 1, n: 'Mémoire', d: 'les sorts coûtent 10 % de mana en moins', pret: 1 },
-  { id: 'echo', fam: 'esprit', niv: 2, voie: 'a', req: 'memoire', n: 'Écho', d: 'un sort sur quatre ne coûte rien' },
-  { id: 'resonance', fam: 'esprit', niv: 2, voie: 'b', req: 'memoire', n: 'Résonance', d: 'la compétence d\'une arme forgée gagne un niveau' },
-  { id: 'archimage', fam: 'esprit', niv: 3, voie: 'a', req: 'echo', n: 'Archimage', d: 'les sorts portent 30 % plus fort et plus loin' },
-  { id: 'ameliee', fam: 'esprit', niv: 3, voie: 'b', req: 'resonance', n: 'Âme liée', d: 'chaque coup d\'une arme forgée rend un peu de mana' },
-  { id: 'phenix', fam: 'heros', niv: 4, n: 'Phénix', d: 'tombé à zéro, vous renaissez sur place dans une gerbe de feu, toute la vie rendue · toutes les dix minutes' },
-  { id: 'tempssuspendu', fam: 'heros', niv: 4, n: 'Temps suspendu', d: 'le monde tourne au quart de sa vitesse cinq secondes, vous non · toutes les deux minutes' },
-  { id: 'ailes', fam: 'heros', niv: 4, n: 'Ailes de l\'aube', d: 'un vrai vol, huit secondes, rechargé au sol' },
-  { id: 'titan', fam: 'heros', niv: 4, n: 'Titan', d: 'vous grandissez de moitié douze secondes : dégâts doublés, aucun recul · toutes les trois minutes' },
-  { id: 'roibetes', fam: 'heros', niv: 4, n: 'Roi des bêtes', d: 'un regard fait d\'une bête sauvage une compagne pour quatre-vingt-dix secondes · toutes les quatre minutes' },
+  { id: 'echo', fam: 'esprit', niv: 2, voie: 'a', req: 'memoire', n: 'Écho', d: 'un sort sur quatre ne coûte rien' , pret: 1 },
+  { id: 'resonance', fam: 'esprit', niv: 2, voie: 'b', req: 'memoire', n: 'Résonance', d: 'la compétence d\'une arme forgée gagne un niveau' , pret: 1 },
+  { id: 'archimage', fam: 'esprit', niv: 3, voie: 'a', req: 'echo', n: 'Archimage', d: 'les sorts portent 30 % plus fort et plus loin' , pret: 1 },
+  { id: 'ameliee', fam: 'esprit', niv: 3, voie: 'b', req: 'resonance', n: 'Âme liée', d: 'chaque coup d\'une arme forgée rend un peu de mana' , pret: 1 },
+  { id: 'phenix', fam: 'heros', niv: 4, n: 'Phénix', d: 'tombé à zéro, vous renaissez sur place dans une gerbe de feu, toute la vie rendue · toutes les dix minutes' , pret: 1 },
+  { id: 'tempssuspendu', fam: 'heros', niv: 4, n: 'Temps suspendu', d: 'le monde tourne au quart de sa vitesse cinq secondes, vous non · toutes les deux minutes' , pret: 1 },
+  { id: 'ailes', fam: 'heros', niv: 4, n: 'Ailes de l\'aube', d: 'un vrai vol, huit secondes, rechargé au sol' , pret: 1 },
+  { id: 'titan', fam: 'heros', niv: 4, n: 'Titan', d: 'vous grandissez de moitié douze secondes : dégâts doublés, aucun recul · toutes les trois minutes' , pret: 1 },
+  { id: 'roibetes', fam: 'heros', niv: 4, n: 'Roi des bêtes', d: 'un regard fait d\'une bête sauvage une compagne pour quatre-vingt-dix secondes · toutes les quatre minutes' , pret: 1 },
 ];
 const DON = {}; for (const D of DONS) DON[D.id] = D;
 const DON_NIV = ['', 'niveau 1', 'niveau 2', 'niveau 3', 'héroïque'];
@@ -178,10 +178,12 @@ function donsArbre() {                                    // l'arbre, dans le br
 // ---------- la sauvegarde ----------
 function donsSauve() {
   const o = {}; for (const D of DONS) { const v = {}; if (P.dons && P.dons[D.id]) v.p = P.dons[D.id]; if (P.formules && P.formules[D.id]) v.f = 1; const s = (P.savoirDons || {})[D.id] | 0; if (s) v.s = s; if (Object.keys(v).length) o[D.id] = v; }
+  { const x = {}; if (P.aubeFait) x.a = 1; if (P.herosT > Date.now()) x.h = Math.round(P.herosT); if (P.roiQ && P.roiQ.e) x.q = [P.roiQ.e, P.roiQ.n | 0]; if (Object.keys(x).length) o._ = x; }
   return o;
 }
 function donsLus(d) {
-  P.dons = {}; P.formules = {}; P.savoirDons = {};
+  P.dons = {}; P.formules = {}; P.savoirDons = {}; P.aubeFait = d && d._ && d._.a ? 1 : 0; P.herosT = d && d._ && Number.isFinite(+d._.h) ? Math.min(+d._.h, Date.now() + 9e5) : 0;
+  P.roiQ = d && d._ && Array.isArray(d._.q) ? { e: Math.max(0, Math.min(4, d._.q[0] | 0)), n: Math.max(0, Math.min(99, d._.q[1] | 0)) } : { e: 0, n: 0 };
   if (!d || typeof d !== 'object') return;
   for (const [id, v] of Object.entries(d)) { if (!DON[id] || !v || typeof v !== 'object') continue;
     if (Number.isFinite(+v.p) && +v.p > 0) P.dons[id] = Math.max(.5, Math.min(1.5, Math.round(+v.p * 100) / 100));
@@ -252,7 +254,7 @@ function donFormuleLibre(niv, fam, graine) {
   return null;
 }
 function placerCachesDons() {
-  DON_CACHES.length = 0;
+  DON_CACHES.length = 0; donsReliquesPlacer();   // (§208) l'œuf du phénix, la plume d'aube
   if ((typeof djIci === 'function' && djIci()) || typeof profondeur !== 'function') return;
   const niv = profondeur(); if (niv < 3) return;
   let g = (SEED ^ 0xd0c4e5) >>> 0; const tir = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
@@ -304,6 +306,7 @@ function majCachesDons(dt) {
   }
 }
 function cacheAction() {
+  const rq = typeof donsReliqueAction === 'function' && donsReliqueAction(); if (rq) return rq;   // (§208) l'œuf du phénix, la plume d'aube
   let c = null, bd = DON_CACHE_R * DON_CACHE_R;
   for (const o of DON_CACHES) { const d = (o.x - P.x) ** 2 + (o.y - P.y) ** 2; if (d < bd && Math.abs(o.z - P.z) < 2) { bd = d; c = o; } }
   if (!c) return null;
@@ -350,7 +353,7 @@ function donsNomade(b) {                                  // (nmAller) le choix,
 const donSait = (id, b) => ((P.savoirDons || {})[id] | 0) & b;
 function donPhrase(D, bit) {
   const F = DON_FAM[D.fam], de = DON_DE[D.fam];
-  if (bit === 1) return F.heros ? '« ' + D.n + ' »… On en parle à voix basse, près des feux. Un don du Héros : ' + D.d + '.'
+  if (bit === 1) return F.heros ? '« ' + D.n + ' »… On en parle à voix basse, près des feux. Un don du Héros : ' + D.d + '. ' + (HEROS_OU[D.id] || '')
     : '« ' + D.n + ' » ? Un don ' + de + ' : ' + D.d + '.';
   if (bit === 2) {
     if (F.heros) return D.n + ' ne prend que chez qui porte déjà un don au bout d\'une voie. Les autres, le breuvage les rejette.';
@@ -415,7 +418,7 @@ if (typeof NM_DIALOGUES !== 'undefined') for (const r in NM_DIALOGUES) NM_DIALOG
 //  ne vous a pas vu (ni alertée, ni en colère, ni en train d'attaquer) porte trois fois.
 //  Tout suit la puissance du don (55 à 150 %).
 // ============================================================
-const DN = { q: false, tenu: false, ruee: null, roule: null, charges: 2, rechT: 0, cdT: 0, chocT: -9, failles: [], fondu: 0, invis: false, contreT: -9, plane: false, fantome: [] };
+const DN = { suspendu: -9, titan: -9, titan0: -9, roi: null, roiN: 0, vol: false, ailesE: 8, herosDit: 0, echo: 0, ameT: 0, vigT: 0, vigie: [], cherT: 0, cher: [], furie: false, q: false, tenu: false, ruee: null, roule: null, charges: 2, rechT: 0, cdT: 0, chocT: -9, failles: [], fondu: 0, invis: false, contreT: -9, plane: false, fantome: [] };
 const donDeplace = () => donA('ruee') || donA('esquive');
 const viesMax = () => 3 + (donA('colosse') ? 1 : 0);
 function donsTouche() { if (donDeplace()) DN.q = true; }
@@ -490,6 +493,7 @@ function donsCoupK(b) {                                   // (coupArme) l'assass
 }
 function donsMaj(dt) {
   if (typeof P === 'undefined' || !P.dons) return;
+  donsMaj4(dt); donsMaj6(dt);
   // les charges de ruée
   const nmax = donA('rueefantome') ? 2 : 1;
   if (DN.charges < nmax && t > DN.rechT) { DN.charges++; DN.rechT = t + 1.1; }
@@ -531,6 +535,7 @@ function donsPlane(dt, tenu) {
 }
 // (heroBones) les voiles du vol plané : deux pans clairs tendus des épaules ; et la ruée, une traîne
 function donsHeros(J, hip, neck, B) {
+  if (J === P ? DN.vol : !!(J && J.fx && J.fx.ailes)) return donsAiles(neck, B);   // (§208) les ailes de l'aube
   const plane = J === P ? DN.plane : !!(J && J.fx && J.fx.plane);
   if (!plane) return;
   const toile = [214, 236, 246], bord = [150, 196, 220];
@@ -550,3 +555,360 @@ function donsDecor(ex, ey, r) {
       B.push({ a: [A[0], A[1], F.z + .07], b: [Bb[0], Bb[1], F.z + .07], w: .1 * vie + .03, h: .08, c: [255, 110 + (i % 3) * 40, 40], lum: 1 }); } }   // le feu au fond
   return B;
 }
+
+// ============================================================================================
+//  (§207) LOT 4 : la Lumière, l'Instinct, l'Esprit
+// ============================================================================================
+const donKc = id => Math.min(1.5, donK(id));
+// la main guérisseuse : soins et plats, moitié plus
+const soinK = () => 1 + .5 * donKc('guerisseuse');
+// la fureur : sous 30 % de vie, coups et pas
+const donsFureurK = () => donA('fureur') && P.pv > 0 && P.pv < .3 ? 1 + .3 * donKc('fureur') : 1;
+// l'archimage : les sorts portent plus fort et plus loin
+const donsSortK = () => donA('archimage') ? 1 + .3 * donKc('archimage') : 1;
+function donsArchimage(s) { const k = donsSortK(); if (k > 1) { s.deg *= k; s.amp *= k; } return s; }
+// le meneur : une compagne de plus en jeu
+const enJeuMax = () => (typeof EN_JEU_MAX !== 'undefined' ? EN_JEU_MAX : 6) + (donA('meneur') ? 1 : 0);
+const donsLienK = () => donA('meneur') ? 1 - .25 * donKc('meneur') : 1;
+// le chef de meute : ses compagnes, près de lui, frappent et encaissent mieux
+function donsMeuteK(b, c) {
+  if (!donA('chefmeute')) return 1;
+  const k = .2 * donKc('chefmeute'), pres = o => o && o.tame && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < 64;
+  return (pres(b) ? 1 + k : 1) * (pres(c) ? 1 - k : 1);
+}
+// le sang chaud : une bête abattue rend un peu de vie
+function donsAbattue(b) {
+  if (!donA('sangchaud') || !b || b.tame || b.pl || !b.sp || b.sp.pnj || b.pnjSuit || !(P.pv > 0) || P.pv >= 1) return;
+  P.pv = Math.min(1, P.pv + .05 * donKc('sangchaud'));
+  for (let i = 0; i < 8; i++) parts.push({ x: b.x + (Math.random() - .5) * .5, y: b.y + (Math.random() - .5) * .5, z: (b.z || 0) + .6, vx: (P.x - b.x) * 1.2, vy: (P.y - b.y) * 1.2, vz: 1.5, g: 1, life: .6, age: 0, col: '#e0404e', luit: 1, tl: .06 });
+}
+// l'écho : un sort sur quatre ne coûte rien (sur trois à forte puissance, sur cinq à faible)
+function donsEcho() {
+  if (!donA('echo')) return false;
+  const k = donK('echo'), n = k >= 1.25 ? 3 : k < .75 ? 5 : 4;
+  DN.echo = (DN.echo || 0) + 1;
+  if (DN.echo < n) return false;
+  DN.echo = 0;
+  for (let i = 0; i < 16; i++) { const a = i / 16 * 6.2832; parts.push({ x: P.x + Math.cos(a) * .7, y: P.y + Math.sin(a) * .7, z: P.z + 1, vx: Math.cos(a) * 1.5, vy: Math.sin(a) * 1.5, vz: .2, g: 0, life: .7, age: 0, col: '#c8b0ff', luit: 1, tl: .06 }); }
+  return true;
+}
+// la résonance : la compétence de l'arme forgée qu'on tient gagne un niveau (jusqu'à V)
+function fgAmeJ(R) { const C = fgAme(R); if (C && donA('resonance')) C.niv = Math.min(5, C.niv + 1); return C; }
+// l'âme liée : un coup d'arme forgée rend parfois un éclat
+function donsAmeLiee(b) {
+  if (!donA('ameliee') || t < DN.ameT || Math.random() > .35 * donKc('ameliee')) return;
+  DN.ameT = t + .6; P.sac.eclat = (P.sac.eclat || 0) + 1;
+  for (let i = 0; i < 6; i++) parts.push({ x: P.x + (Math.random() - .5) * .4, y: P.y + (Math.random() - .5) * .4, z: P.z + 1.1, vx: 0, vy: 0, vz: .9, g: 0, life: .6, age: 0, col: '#8fe3ff', luit: 1, tl: .06 });
+  if (typeof sacOuvert !== 'undefined' && sacOuvert && typeof majSac === 'function') majSac();
+}
+// l'aube intérieure : une fois par expédition, tomber à zéro relève à mi-vie
+function donsAube() {
+  if (!donA('aube') || P.aubeFait) return false;
+  P.aubeFait = 1; P.pv = Math.min(1, .35 + .15 * donKc('aube')); P.hurt = 1.5; P.esquiveT = t + 1.5;
+  for (let i = 0; i < 30; i++) { const a = i / 30 * 6.2832; parts.push({ x: P.x, y: P.y, z: P.z + .2, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, vz: 2 + Math.random() * 2, g: 1, life: 1, age: 0, col: i % 2 ? '#ffe9b0' : '#fff6d8', luit: 1, tl: .08 }); }
+  if (typeof SON !== 'undefined') SON.jouer('niveau');
+  say('l\'aube intérieure vous relève · une fois par expédition', 3);
+  return true;
+}
+// l'œil du chercheur : ce qui vaut le détour, à quarante pas
+const CH_FLO = { fer: '#d8a070', drusegeante: '#8fe4e8', obsidienne: '#b088d8', condensateur: '#8fe3ff' };
+function donsChercher() {
+  const L = [], R = 40, x0 = P.x | 0, y0 = P.y | 0, pres = (x, y) => (x - P.x) ** 2 + (y - P.y) ** 2 < R * R;
+  for (const c of DON_CACHES) if (!c.pris && pres(c.x, c.y)) L.push({ x: c.x, y: c.y, z: c.z, c: '#c8a0ff' });
+  for (const R of DON_RELIQUES) if (reliqueVive(R) && pres(R.x, R.y)) L.push({ x: R.x, y: R.y, z: R.z, c: '#ffd060' });   // (§208)
+  if (typeof LUTRINS !== 'undefined') for (const l of LUTRINS) if (pres(l.x, l.y) && !(typeof lutLu === 'function' && lutLu(l))) { l.vu = 1; L.push({ x: l.x, y: l.y, z: l.z, c: '#e8d9b0' }); }
+  if (typeof DJ !== 'undefined' && typeof djIci === 'function' && djIci()) for (const c of DJ.coffres) if (!c.ouvert && pres(c.x, c.y)) L.push({ x: c.x, y: c.y, z: c.z, c: '#ffb45a' });
+  for (const b of beasts) if (b.pl && !b.dead && pres(b.x, b.y)) L.push({ x: b.x, y: b.y, z: b.z || 0, c: '#7fe08a' });
+  if (typeof Flo !== 'undefined') for (let y = Math.max(1, y0 - R); y < Math.min(WS - 1, y0 + R); y++) for (let x = Math.max(1, x0 - R); x < Math.min(WS - 1, x0 + R); x++) {
+    const k = Flo[y * WS + x]; if (!k) continue; const E = ESP[k - 1]; if (!E) continue;
+    let c = CH_FLO[E.id];
+    if (!c && E.teintes && typeof teinteDruse === 'function') { const tn = teinteDruse(x, y); if (tn.id !== 'cyan') c = tn.css; }
+    if (c && pres(x + .5, y + .5)) L.push({ x: x + .5, y: y + .5, z: typeof sol === 'function' ? sol(x + .5, y + .5) : 0, c });
+  }
+  L.sort((a, b) => ((a.x - P.x) ** 2 + (a.y - P.y) ** 2) - ((b.x - P.x) ** 2 + (b.y - P.y) ** 2));
+  return L.slice(0, 8);
+}
+// les repères de la boussole : les guetteurs (vigie), ce qu'a vu le chercheur
+function donsReperes() {
+  const L = [];
+  for (const v of DN.vigie) if (t < v.fin && !v.o.dead && v.o.pv > 0) L.push({ x: v.o.x, y: v.o.y, k: 'sat', c: '#ff6a5a' });
+  if (donA('chercheur')) for (const c of DN.cher) L.push({ x: c.x, y: c.y, k: 'sat', c: c.c });
+  return L;
+}
+function donsMaj4(dt) {
+  if (!(P.pv > 0)) return;
+  // la vigie : qui vous guette est désigné
+  DN.vigie = DN.vigie.filter(v => t < v.fin);
+  if (donA('vigie') && t > DN.vigT) {
+    DN.vigT = t + 2.5;
+    const R = 16 + 6 * donKc('vigie'); let m = null, bd = R * R;
+    for (const o of beasts) { if (!guette(o) || (o.vigieT || 0) > t || o.tame) continue; const d = (o.x - P.x) ** 2 + (o.y - P.y) ** 2; if (d < bd) { bd = d; m = o; } }
+    if (m) {
+      m.vigieT = t + 25; DN.vigie.push({ o: m, fin: t + 12 }); P.designe = { o: m, t };
+      for (let i = 0; i < 10; i++) parts.push({ x: m.x, y: m.y, z: (m.z || 0) + 1.2 * (m.sp.sz || 1) + i * .15, vx: 0, vy: 0, vz: .5, g: 0, life: 1.2, age: 0, col: '#ff6a5a', luit: 1, tl: .07 });
+      say('vigie · ' + m.sp.n.toLowerCase() + ' vous guette · ' + versLe(m.x - P.x, m.y - P.y) + ', à ' + Math.max(1, Math.round(Math.sqrt(bd))) + ' pas', 3);
+    }
+  }
+  // l'œil du chercheur : des colonnes de lumière, au-dessus du relief
+  if (donA('chercheur')) {
+    if (t > DN.cherT) { DN.cherT = t + 2; DN.cher = donsChercher(); }
+    for (const c of DN.cher.slice(0, 5)) if (Math.random() < dt * 14) parts.push({ x: c.x + (Math.random() - .5) * .25, y: c.y + (Math.random() - .5) * .25, z: c.z + .3, vx: 0, vy: 0, vz: 5, g: 0, life: 1.6, age: 0, col: c.c, luit: 1, tl: .16 });
+  } else DN.cher = [];
+  // la fureur : on la sent venir
+  const f = donsFureurK() > 1;
+  if (f && !DN.furie) say('la fureur monte · coups et pas +' + Math.round(30 * donKc('fureur')) + ' %', 2);
+  DN.furie = f;
+  if (f && Math.random() < dt * 10) parts.push({ x: P.x + (Math.random() - .5) * .6, y: P.y + (Math.random() - .5) * .6, z: P.z + .3 + Math.random(), vx: 0, vy: 0, vz: .8, g: 0, life: .5, age: 0, col: '#ff4a3a', luit: 1, tl: .06 });
+}
+
+// ============================================================================================
+//  (§208) LOT 6 : LES DONS DU HÉROS
+//  Une touche, P (ou le bouton HÉROS sur téléphone), pour les trois qui se déclenchent : le Temps suspendu,
+//  le Titan, le Roi des bêtes. Le Phénix se déclenche seul, à la chute ; les Ailes, SAUT maintenu en l'air.
+//  La recharge court en temps réel (gardée dans la sauvegarde) ; la puissance du don l'allonge ou l'abrège,
+//  et allonge ce qu'il dure.
+//  Chaque formule est gardée par une épreuve :
+//  - le PHÉNIX : un œuf de feu au milieu du lac du volcan, qui ne se réveille qu'une fois le Tisonnier abattu,
+//    et ne se laisse prendre que par une main vêtue de la cuirasse de basalte ;
+//  - le TEMPS SUSPENDU : le grand coffre de la salle de l'Horloge, au fond du Centre (exploration 12) ;
+//  - les AILES DE L'AUBE : une plume d'or au sommet de certaines îles volantes (exploration 12, deux sur cinq) ;
+//  - le TITAN : s'asseoir sur le trône du Roi démon, une fois le Roi abattu ;
+//  - le ROI DES BÊTES : trois épreuves pour Hadrik, un vieux dompteur du Seuil (exploration 10).
+// ============================================================================================
+const HEROS_RECH = { phenix: 600, tempssuspendu: 120, titan: 180, roibetes: 240 };     // en secondes, à puissance 1
+const HEROS_ACTIF = { tempssuspendu: 'TEMPS', titan: 'TITAN', roibetes: 'REGARD' };
+const HEROS_OU = {
+  phenix: 'On dit qu\'un œuf de feu dort au milieu du lac d\'un volcan, sous son gardien. Il ne s\'éveille qu\'une fois le gardien abattu, et brûle toute main qui n\'est pas vêtue de basalte.',
+  tempssuspendu: 'Les Horlogers l\'ont enfermé dans le grand coffre de la salle de l\'Horloge, tout au fond de leur Centre. Pas sur les îles d\'en haut : il faut descendre loin, très loin (exploration 12).',
+  ailes: 'Une plume d\'or repose au sommet de certaines îles volantes, très loin dans les profondeurs (exploration 12). Qui grimpe jusqu\'à elle y trouve la formule.',
+  titan: 'Le Roi démon est assis sur sa formule. Abats-le, puis prends sa place sur le trône.',
+  roibetes: 'Un vieux dompteur du Seuil, Hadrik, la garde pour qui fera ses preuves. On ne le croise qu\'au-delà de l\'exploration 10.',
+};
+const herosDe = () => DONS.find(D => D.fam === 'heros' && donA(D.id)) || null;
+const herosK = id => Math.max(.5, Math.min(1.5, donK(id) || 1));
+const herosDuree = (id, s) => s * (.75 + .25 * herosK(id));
+const herosReste = () => Math.max(0, ((P.herosT || 0) - Date.now()) / 1000);
+function herosArmer(id) { P.herosT = Date.now() + HEROS_RECH[id] * (1.25 - .25 * herosK(id)) * 1000; if (typeof Sauve !== 'undefined') Sauve.sale = true; }
+const herosAttente = () => { const r = herosReste(); return r >= 60 ? Math.ceil(r / 60) + ' min' : Math.ceil(r) + ' s'; };
+// ---------- le Phénix : tombé à zéro, on renaît sur place ----------
+function donsPhenix() {
+  if (!donA('phenix') || herosReste() > 0) return false;
+  herosArmer('phenix');
+  P.pv = 1; P.hurt = 2; P.esquiveT = t + 2; P.brulure = 0; P.poison = 0;
+  const k = herosK('phenix');
+  for (const b of beasts) if (donCible(b) && (b.x - P.x) ** 2 + (b.y - P.y) ** 2 < 16 && Math.abs((b.z || 0) - P.z) < 2.5) { donFrapper(b, .25 * k, .6, 7); b.brule = Math.max(b.brule || 0, t + 3); }
+  for (let i = 0; i < 70; i++) { const a = Math.random() * 6.2832, v = 1 + Math.random() * 4;
+    parts.push({ x: P.x, y: P.y, z: P.z + .2 + Math.random() * .6, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 2 + Math.random() * 5, g: 2, life: .8 + Math.random() * .7, age: 0, col: ['#ff5a18', '#ffb040', '#ffe9a0'][i % 3], luit: 1, tl: .1 }); }
+  P.secousse = t; P.secousseK = .8;
+  if (typeof SON !== 'undefined') { SON.jouer('explosion', { vol: .8 }, P.x, P.y, P.z); SON.jouer('niveau'); }
+  say('le phénix · vous renaissez de vos cendres · il se rallumera dans ' + herosAttente(), 4);
+  return true;
+}
+// ---------- le Temps suspendu : le monde au quart, vous non ----------
+const donsMondeK = () => DN.suspendu > t ? .25 : 1;
+// ---------- le Titan : dégâts doublés, aucun recul, une fois et demie plus grand ----------
+const donsTitanK = () => DN.titan > t ? 2 : 1;
+function donsTaille(J) {
+  if (J !== P) return J && J.fx && J.fx.titan ? 1.5 : 1;
+  if (!(DN.titan > t - .4)) return 1;
+  const a = Math.min(1, (t - DN.titan0) / .4), b = Math.min(1, (DN.titan - t + .4) / .4);
+  return 1 + .5 * Math.max(0, Math.min(a, b));
+}
+// ---------- le Roi des bêtes : un regard, et une bête sauvage se range à vos côtés ----------
+const donsVassaleOk = b => donCible(b) && !b.sp.boss && !b.sp.alpha && !b.sp.dragon && !b.sp.horreur && !b.sp.achromie && !b.sp.brume && !b.sp.vyrel && !b.sp.villageois
+  && !b.sp.plante && !b.gardeCamp && b.sp.corps !== 'araignon' && b.sp.corps !== 'roi' && !(typeof automate === 'function' && automate(b.sp)) && !b.sp.donjon;
+function donsRegard() {
+  let pr = null, bd = 144;
+  const D = P.designe && P.designe.o; if (D && donsVassaleOk(D) && (D.x - P.x) ** 2 + (D.y - P.y) ** 2 < 196) pr = D;
+  if (!pr) { const f = P.face || 0, ux = Math.cos(f), uy = Math.sin(f);
+    for (const b of beasts) { if (!donsVassaleOk(b)) continue; const dx = b.x - P.x, dy = b.y - P.y, d = dx * dx + dy * dy; if (d >= bd) continue;
+      if (d > 4 && (dx * ux + dy * uy) / Math.sqrt(d) < .2) continue; bd = d; pr = b; } }
+  if (!pr) { say('aucune bête sauvage sous votre regard', 1.8); return false; }
+  if (typeof fauneLien === 'function' && pr.num !== undefined) fauneLien(pr);   // une bête du gardien : elle quitte sa faune pour la vôtre
+  const c = { id: 900000 + (++DN.roiN), esp: pr.sp.id, nom: pr.sp.n, role: 'defense', mode: 'joueur', dehors: true, b: pr, pv: pr.pv, faim: pr.faim, soif: pr.soif, nrj: Math.max(.6, pr.nrj || 0), ko: 0, vassale: 1 };
+  apprivoiser(pr, c); pr.faim = Math.min(pr.faim || 0, .3); pr.soif = Math.min(pr.soif || 0, .3);
+  DN.roi = { b: pr, fin: t + herosDuree('roibetes', 90) };
+  for (let i = 0; i < 24; i++) { const a = i / 24 * 6.2832; parts.push({ x: pr.x + Math.cos(a) * .8, y: pr.y + Math.sin(a) * .8, z: (pr.z || 0) + .3, vx: 0, vy: 0, vz: 1.4, g: 0, life: .9, age: 0, col: '#ffd060', luit: 1, tl: .08 }); }
+  if (typeof SON !== 'undefined') SON.jouer('lien', {}, pr.x, pr.y, pr.z + .5);
+  say('le regard du roi · ' + pr.sp.n.toLowerCase() + ' se range à vos côtés · ' + Math.round(DN.roi.fin - t) + ' s', 3);
+  return true;
+}
+function donsVassaleFin(tombee) {
+  const R = DN.roi; DN.roi = null; if (!R) return;
+  const b = R.b; if (!b || !b.comp || !b.comp.vassale) return;
+  relacher(b); b.alarm = 0; b.colere = 0; b.traque = false; b.as = null; b.conf = .6;
+  if (tombee) { b.pv = 0; if (!b.dead && typeof mourirBete === 'function') mourirBete(b, 'combat'); say(b.sp.n.toLowerCase() + ' tombe à vos côtés', 2); }
+  else if (!b.dead) say(b.sp.n.toLowerCase() + ' retourne à la vie sauvage', 2.2);
+}
+// (assommer) une vassale à terre ne va pas au sac : elle tombe
+function donsAssommer(b) { if (!b || !b.comp || !b.comp.vassale) return false; donsVassaleFin(true); return true; }
+// ---------- les Ailes de l'aube : SAUT maintenu en l'air, huit secondes, rechargées au sol ----------
+const ailesMax = () => herosDuree('ailes', 8);
+function donsVol(dt, tenu) {
+  if (!donA('ailes')) { DN.vol = false; return false; }
+  if (P.ground) { if (DN.ailesE < ailesMax() && DN.ailesE <= .05) say('les ailes se rechargent', 1); DN.ailesE = ailesMax(); DN.vol = false; return false; }
+  if (!tenu || (!DN.vol && P.vz > 1) || DN.ailesE <= 0 || P.monture) { if (DN.vol && DN.ailesE <= 0) say('les ailes se replient', 1.4); DN.vol = false; return false; }
+  DN.ailesE = Math.max(0, DN.ailesE - dt);
+  P.vz = Math.min(2.2, P.vz + 30 * dt);                   // la pesanteur vient de passer : les ailes la battent, jusqu'à monter à 2,2 cases par seconde
+  if (!DN.vol) { DN.vol = true; if (typeof SON !== 'undefined') SON.jouer('elan', {}, P.x, P.y, P.z); }
+  if (Math.random() < dt * 16) parts.push({ x: P.x + (Math.random() - .5), y: P.y + (Math.random() - .5), z: P.z + .6 + Math.random() * .6, vx: 0, vy: 0, vz: -1, g: 0, life: .6, age: 0, col: Math.random() < .5 ? '#fff4c8' : '#ffd878', luit: 1, tl: .05 });
+  return true;
+}
+function donsAiles(neck, B) {                              // deux grandes ailes d'or, qui battent ; trois rémiges au bout
+  const bat = Math.sin(t * 9) * .22, plume = [255, 236, 180], bord = [236, 196, 110];
+  for (const s of [-1, 1]) {
+    const e = v3.add(neck, [-.12, s * .1, -.02]), m = v3.add(neck, [-.24, s * .55, .12 + bat]), f = v3.add(neck, [-.3, s * .95, .02 + bat * 1.6]);
+    B.push({ a: e, b: m, w: .3, h: .03, c: plume, luit: 1 });
+    B.push({ a: m, b: f, w: .24, h: .025, c: plume, luit: 1 });
+    B.push({ a: v3.add(m, [-.08, 0, -.12]), b: v3.add(f, [-.1, 0, -.16]), w: .16, h: .02, c: bord });
+    for (let k = 0; k < 3; k++) B.push({ a: v3.add(f, [-.05 * k, 0, -.06 * k]), b: v3.add(f, [-.1 - .06 * k, s * (.26 - .05 * k), -.1 - .12 * k + bat * .4]), w: .1, h: .02, c: k % 2 ? bord : plume, luit: 1 });
+  }
+}
+// ---------- la touche du héros ----------
+function donsHerosTouche() {
+  const D = herosDe();
+  if (!D) { say('aucun don du Héros en vous', 1.4); return; }
+  if (D.id === 'phenix') { say(herosReste() > 0 ? 'le phénix couve · il se rallumera dans ' + herosAttente() : 'le phénix veille · il vous relèvera à la prochaine chute', 2.2); return; }
+  if (D.id === 'ailes') { say('les ailes de l\'aube · en l\'air, maintenez SAUT pour voler · ' + Math.round(DN.ailesE) + ' s de vol', 2.2); return; }
+  if (P.pv <= 0) return;
+  if (herosReste() > 0) { say(D.n + ' · encore ' + herosAttente(), 1.6); return; }
+  if (D.id === 'tempssuspendu') {
+    DN.suspendu = t + herosDuree(D.id, 5); herosArmer(D.id);
+    for (let i = 0; i < 30; i++) { const a = i / 30 * 6.2832; parts.push({ x: P.x + Math.cos(a) * 1.2, y: P.y + Math.sin(a) * 1.2, z: P.z + 1, vx: Math.cos(a) * 3, vy: Math.sin(a) * 3, vz: 0, g: 0, life: .8, age: 0, col: '#b8d8ff', luit: 1, tl: .08 }); }
+    if (typeof SON !== 'undefined') SON.jouer('portail', {}, P.x, P.y, P.z + 1);
+    say('le temps se suspend · ' + Math.round(DN.suspendu - t) + ' s', 2);
+  } else if (D.id === 'titan') {
+    DN.titan0 = t; DN.titan = t + herosDuree(D.id, 12); herosArmer(D.id);
+    P.secousse = t; P.secousseK = .6; burst(P.x, P.y, P.z + .2, 30, '#c8a070');
+    if (typeof SON !== 'undefined') SON.jouer('pilon', {}, P.x, P.y, P.z);
+    say('Titan · vous grandissez · coups doublés, aucun recul · ' + Math.round(DN.titan - t) + ' s', 2.4);
+  } else if (D.id === 'roibetes') {
+    if (DN.roi) { say('une bête vous suit déjà', 1.4); return; }
+    if (donsRegard()) herosArmer(D.id);
+  }
+}
+// ---------- chaque image ----------
+function donsMaj6(dt) {
+  // le temps suspendu : une teinte sur le monde
+  const susp = DN.suspendu > t;
+  if (typeof document !== 'undefined' && document.body && document.body.classList.contains('dn-suspendu') !== susp) { document.body.classList.toggle('dn-suspendu', susp); if (!susp) say('le temps reprend son cours', 1.4); }
+  if (DN.titan > 0 && DN.titan < t && DN.titan > t - dt * 1.5) say('vous reprenez votre taille', 1.4);
+  // la vassale : son temps, sa fin
+  if (DN.roi) { const b = DN.roi.b;
+    if (!b || !beasts.includes(b) || b.dead || !b.comp) donsVassaleFin(!!(b && b.dead));
+    else if (t > DN.roi.fin) donsVassaleFin(false);
+    else if (Math.random() < dt * 4) parts.push({ x: b.x + (Math.random() - .5) * .5, y: b.y + (Math.random() - .5) * .5, z: (b.z || 0) + 1.2 * (b.sp.sz || 1), vx: 0, vy: 0, vz: .6, g: 0, life: .7, age: 0, col: '#ffd060', luit: 1, tl: .06 }); }
+  // le bouton du téléphone
+  if (typeof document !== 'undefined') { const bt = document.getElementById('bheros'); if (bt) {
+    const D = herosDe(), lab = D && HEROS_ACTIF[D.id], on = !!lab; if (bt.hidden === on) bt.hidden = !on;
+    if (on) { const r = herosReste(), h = '<kbd>P</kbd>' + lab + (r > 0 ? ' · ' + herosAttente() : ''); if (bt.dataset.l !== h) { bt.dataset.l = h; bt.innerHTML = h; } bt.classList.toggle('charge', r > 0); } } }
+  // les reliques du héros : un mot en approchant
+  for (const R of DON_RELIQUES) if (!R.dit && (R.x - P.x) ** 2 + (R.y - P.y) ** 2 < 196 && Math.abs(R.z - P.z) < 6 && reliqueVive(R)) { R.dit = 1; say(R.id === 'phenix' ? 'au milieu du lac, un œuf de feu bat comme un cœur' : 'au sommet, une plume d\'or flotte dans le vent', 3.5); }
+  for (const R of DON_RELIQUES) if (reliqueVive(R) && (R.x - P.x) ** 2 + (R.y - P.y) ** 2 < 2500 && Math.random() < dt * 5)
+    parts.push({ x: R.x + (Math.random() - .5) * .3, y: R.y + (Math.random() - .5) * .3, z: R.z + .5, vx: 0, vy: 0, vz: R.id === 'phenix' ? 2.2 : 1.2, g: 0, life: 1.2, age: 0, col: R.id === 'phenix' ? (Math.random() < .5 ? '#ff7a28' : '#ffd060') : '#fff0b0', luit: 1, tl: .08 });
+}
+// ---------- les reliques du héros : l'œuf du phénix, la plume d'aube ----------
+const DON_RELIQUES = [];                                   // celles de l'île : { id, x, y, z }
+const heroPris = id => donA(id) || !!(P.formules && P.formules[id]);
+const reliqueVive = R => !heroPris(R.id) && (R.id !== 'phenix' || (typeof VOLC !== 'undefined' && VOLC.tue));
+function donsReliquesPlacer() {
+  DON_RELIQUES.length = 0;
+  if ((typeof djIci === 'function' && djIci()) || typeof profondeur !== 'function') return;
+  if (typeof ileVolcan !== 'undefined' && ileVolcan && typeof VOLC !== 'undefined') { DON_RELIQUES.push({ id: 'phenix', x: (VOLC.cx | 0) + .5, y: (VOLC.cy | 0) + .5, z: VOLC.zLac }); return; }
+  if (profondeur() < 12 || donFamIle() !== 'vent' || ((SEED ^ 0xa11e5) >>> 0) % 5 >= 2) return;
+  let best = -1, bi = -1;
+  for (let i = 0; i < PlT.length; i++) if (PlT[i] > best && !(typeof dalleConjuree === 'function' && dalleConjuree(i))) { best = PlT[i]; bi = i; }
+  if (bi >= 0) DON_RELIQUES.push({ id: 'ailes', x: bi % WS + .5, y: (bi / WS | 0) + .5, z: best });
+}
+function donsReliqueAction() {
+  let R = null, bd = 2.6;
+  for (const o of DON_RELIQUES) { const d = (o.x - P.x) ** 2 + (o.y - P.y) ** 2; if (d < bd && Math.abs(o.z - P.z) < 2) { bd = d; R = o; } }
+  if (!R) return null;
+  if (heroPris(R.id)) return { v: 'VIDE', o: R.id === 'phenix' ? 'un nid de basalte, froid' : 'un socle blanc', f: () => say('vous avez déjà sa formule', 1.6), vide: true };
+  if (R.id === 'phenix') {
+    if (!VOLC.tue) return { v: 'ŒUF', o: 'un œuf de pierre noire · il dort sous le gardien du lac', f: () => say('l\'œuf est froid comme la pierre · il ne s\'éveillera pas tant que vit le gardien du lac', 3), vide: true };
+    if (!P.equip || P.equip.armure !== 'cuirbasalte') return { v: 'PRENDRE', o: 'l\'œuf du phénix · brûlant', f: () => {
+      P.pv = Math.max(.01, P.pv - .15); P.dernierCoup = t; P.brulure = Math.max(P.brulure || 0, t + 2); burst(P.x, P.y, P.z + .8, 12, '#ff7a28');
+      say('l\'œuf vous brûle les mains · seule une main vêtue de basalte peut le prendre', 3.5); } };
+  }
+  return { v: 'PRENDRE', o: R.id === 'phenix' ? 'l\'œuf du phénix' : 'la plume d\'aube', f: () => {
+    if (!gagnerFormule(R.id, true)) return;
+    if (typeof SON !== 'undefined') { SON.jouer('rare', {}, R.x, R.y, R.z + .5); SON.jouer('niveau'); }
+    burst(R.x, R.y, R.z + .8, 40, R.id === 'phenix' ? '#ffb040' : '#fff0b0');
+    say((R.id === 'phenix' ? 'l\'œuf s\'ouvre au creux de la cuirasse : une flamme, et une formule écrite dans la cendre' : 'la plume s\'écrit d\'elle-même dans votre main')
+      + ' · la formule ' + (R.id === 'phenix' ? 'du Phénix' : 'des Ailes de l\'aube') + ' (don du Héros) · elle se prépare à la table d\'alchimie', 6);
+    if (typeof majSac === 'function') majSac(); } };
+}
+function donsReliquesOs(ex, ey, r) {
+  const B = [], add = (a, b, w, h, c, lum) => B.push({ a, b, w, h, c, lum: lum ? 1 : 0 });
+  for (const R of DON_RELIQUES) { if ((R.x - ex) ** 2 + (R.y - ey) ** 2 > r * r) continue;
+    const vive = reliqueVive(R), x = R.x, y = R.y, z = R.z;
+    if (R.id === 'phenix') {
+      for (let k = 0; k < 7; k++) { const a = k / 7 * 6.2832; add([x + Math.cos(a) * .5, y + Math.sin(a) * .5, z], [x + Math.cos(a) * .52, y + Math.sin(a) * .52, z + .22 + (k % 2) * .08], .24, .2, [46, 42, 46]); }
+      const pul = .75 + .25 * Math.sin(t * 3.2);
+      add([x, y, z + .12], [x, y, z + .62], .34, .34, vive ? [255, 200 + 40 * pul | 0, 120 + 60 * pul | 0] : [70, 30, 26], vive);   // pâle, pour trancher sur la lave
+      add([x, y, z + .3], [x, y, z + .44], .38, .38, vive ? [255, 120, 30] : [60, 26, 22], vive);      // sa ceinture de braise
+      add([x, y, z + .62], [x, y, z + .72], .2, .2, vive ? [255, 250, 220] : [60, 26, 22], vive);
+    } else {
+      add([x, y, z], [x, y, z + .5], .4, .4, [228, 228, 232]); add([x, y, z + .5], [x, y, z + .56], .52, .52, [240, 240, 244]);
+      if (vive) { const h = z + 1.1 + .08 * Math.sin(t * 1.6), a = t * .8, ux = Math.cos(a) * .3, uy = Math.sin(a) * .3;
+        add([x - ux, y - uy, h - .25], [x + ux, y + uy, h + .25], .16, .03, [255, 226, 130], 1);
+        add([x - ux * 1.1, y - uy * 1.1, h - .3], [x - ux * .7, y - uy * .7, h - .18], .03, .03, [200, 160, 80]); }
+    } }
+  return B;
+}
+// ---------- le Temps suspendu : au fond du Centre ----------
+function donsCoffreHorloge(c) {
+  if (typeof DJ === 'undefined' || !DJ.etat || DJ.etat.th === 'roi' || !c || !DJ.salles[c.salle] || DJ.salles[c.salle].role !== 'horloge') return '';
+  if (profondeur() < 12 || heroPris('tempssuspendu') || !gagnerFormule('tempssuspendu', true)) return '';
+  return 'la formule du Temps suspendu (don du Héros)';
+}
+// ---------- le Titan : le trône du Roi démon ----------
+function donsTroneAction() {
+  const T = typeof ROI !== 'undefined' && ROI.trone; if (!T || !T.fini) return null;
+  if ((T.tx - P.x) ** 2 + (T.ty - P.y) ** 2 > 3.2) return null;
+  if (heroPris('titan')) return { v: 'TRÔNE', o: 'le trône du Roi démon · vide', f: () => say('le trône est froid · vous avez déjà sa formule', 1.8), vide: true };
+  return { v: 'S\'ASSEOIR', o: 'le trône du Roi démon', f: () => {
+    if (!gagnerFormule('titan', true)) return;
+    P.secousse = t; P.secousseK = .7; burst(T.tx, T.ty, P.z + 1, 40, '#ffb040');
+    if (typeof SON !== 'undefined') { SON.jouer('rare'); SON.jouer('grondement', { fort: 1 }); }
+    say('vous vous asseyez sur le trône du Roi démon · gravée sous l\'accoudoir, la formule du Titan (don du Héros) · elle se prépare à la table d\'alchimie', 6);
+    if (typeof majSac === 'function') majSac(); } };
+}
+// ---------- le Roi des bêtes : Hadrik, le vieux dompteur du Seuil ----------
+const ROIQ_N = [0, 10, 5, 3];
+function donsNourri(b) { if (P.roiQ && P.roiQ.e === 1 && b && !b.tame) { P.roiQ.n++; if (P.roiQ.n === ROIQ_N[1]) say('Hadrik · dix bêtes nourries de votre main · retournez le voir', 3); } }
+function donsQueteAbattue(b) {
+  if (!P.roiQ || P.roiQ.e !== 3 || !b || b.tame || !b.sp || typeof predateur !== 'function' || !predateur(b.sp) || typeof enJeu !== 'function' || enJeu() < 2) return;
+  P.roiQ.n++; say('Hadrik · prédateur abattu, vos compagnes à vos côtés · ' + Math.min(P.roiQ.n, 3) + '/3', 2.4);
+}
+function donsHadrik(b) {
+  const Q = P.roiQ || (P.roiQ = { e: 0, n: 0 }), fin = { t: 'Autre chose.', va: 'qui' };
+  const nt = Q.e === 1 ? Q.n : Q.e === 2 ? (P.compagnes || []).length : Q.e === 3 ? Q.n : 0;
+  const pret = Q.e >= 1 && Q.e <= 3 && nt >= ROIQ_N[Q.e];
+  const ep = ['', 'nourris de ta main dix bêtes sauvages', 'lie-toi à cinq compagnes à la fois', 'abats trois prédateurs, deux compagnes au moins à tes côtés'];
+  if (Q.e === 0) return { dit: 'Approche. On m\'appelait le Roi des bêtes, il y a longtemps. J\'ai une formule à laisser, et plus guère de temps pour choisir à qui. Trois épreuves. Veux-tu les entendre ?',
+    choix: [{ t: 'Je t\'écoute.', va: 'accueil', fait: () => { Q.e = 1; Q.n = 0; if (typeof Sauve !== 'undefined') Sauve.sale = true; say('Hadrik · première épreuve : nourrir dix bêtes sauvages', 3.5);
+      return 'La première : ' + ep[1] + '. Une bête qui mange dans ta main t\'apprend plus que mille combats. Reviens me voir quand ce sera fait : le Seuil me ramènera.'; } }, { t: 'Qui es-tu ?', va: 'qui' }] };
+  if (Q.e === 4) return { dit: 'Te voilà, Roi. La formule est à toi : bois-la, et les bêtes baisseront les yeux devant toi.', choix: [{ t: 'Qui étais-tu ?', va: 'qui' }] };
+  if (pret) return { dit: 'Je le sens sur toi : l\'odeur des bêtes, leur confiance. C\'est fait, n\'est-ce pas ?',
+    choix: [{ t: 'C\'est fait.', va: 'accueil', fait: () => {
+      Q.e++; Q.n = 0; if (typeof Sauve !== 'undefined') Sauve.sale = true; if (typeof nmGagne === 'function') nmGagne(b, 2);
+      if (Q.e === 4) { gagnerFormule('roibetes', true); if (typeof SON !== 'undefined') { SON.jouer('rare'); SON.jouer('niveau'); }
+        say('Hadrik vous donne la formule du Roi des bêtes (don du Héros) · elle se prépare à la table d\'alchimie', 6);
+        return 'Alors prends-la. La formule du Roi des bêtes. Un regard suffira : la bête te suivra, un temps. Ne la retiens pas quand le temps sera passé.'; }
+      say('Hadrik · épreuve suivante : ' + ep[Q.e], 3.5);
+      return (Q.e === 2 ? 'Bien. La deuxième : ' : 'Bien. La dernière : ') + ep[Q.e] + '. Reviens me voir ensuite.'; } }, fin] };
+  return { dit: 'Pas encore. ' + ep[Q.e][0].toUpperCase() + ep[Q.e].slice(1) + ' : ' + Math.min(nt, ROIQ_N[Q.e]) + ' sur ' + ROIQ_N[Q.e] + '. Le Seuil me ramènera vers toi.', choix: [fin] };
+}
+if (typeof NM_DIALOGUES !== 'undefined') {
+  NM_DIALOGUES.ancien = {
+    accueil: donsHadrik,
+    qui: { dit: ['J\'ai dompté le dragon à plumes quand tu n\'étais pas né. Puis j\'ai rendu les bêtes à leurs îles, une à une. Le Seuil m\'a gardé ; elles, je les revois en rêve.',
+      'Un roi des bêtes ne commande pas. Il regarde, et la bête choisit. C\'est tout le secret, et c\'est le plus dur.'], choix: [{ t: 'Revenons à tes épreuves.', va: 'accueil' }] },
+  };
+}
+if (typeof NM_GENS !== 'undefined' && !NM_GENS.some(g => g.nom === 'Hadrik')) NM_GENS.push({ nom: 'Hadrik', role: 'ancien', robe: [96, 82, 64], clair: [176, 160, 132], lueur: [255, 214, 150] });
+if (typeof NM_ROLE !== 'undefined') NM_ROLE.ancien = ['vieux dompteur', 'vieille dompteuse'];
+if (typeof NM_ACCUEIL !== 'undefined') NM_ACCUEIL.ancien = { inconnu: ['Approche, petit. Mes yeux ne sont plus ce qu\'ils étaient.'], connu: ['Te revoilà, {moi}.'], ami: ['{moi} ! Les bêtes parlent de toi.'], froid: ['Tu as frappé les miens. Mais les bêtes, elles, pardonnent.'] };
+const hadrikVient = () => typeof profondeur === 'function' && profondeur() >= 10 && !(P.roiQ && P.roiQ.e >= 4) && typeof NM !== 'undefined' && !NM.moi.morts.includes('Hadrik');

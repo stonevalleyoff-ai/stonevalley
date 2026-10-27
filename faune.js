@@ -220,7 +220,8 @@ function chargeFaune(suiv) {
 function fauneEntete(now) {
   if (!faunePossible()) return {};
   const fx = (joueurCalme() ? 1 : 0) | (sousAbri() ? 2 : 0) | (effet('invisible') ? 4 : 0) | (effet('silence') ? 8 : 0) | (effet('repousse') ? 16 : 0)
-    | (P.equip && P.equip.accessoire === 'masque_bec' ? 32 : 0) | (P.vyrel ? 64 : 0) | (P.equip && P.equip.accessoire === 'masque_filtre' ? 128 : 0) | (P.korlaz ? 256 : 0) | (typeof DN !== 'undefined' && DN.plane ? 512 : 0);   // (§200) le masque filtrant ; (§203) le Korlaz, qu'un équipier peut guérir   // (§184) le masque à bec, la maladie du Vyrel
+    | (P.equip && P.equip.accessoire === 'masque_bec' ? 32 : 0) | (P.vyrel ? 64 : 0) | (P.equip && P.equip.accessoire === 'masque_filtre' ? 128 : 0) | (P.korlaz ? 256 : 0) | (typeof DN !== 'undefined' && DN.plane ? 512 : 0) | (typeof DN !== 'undefined' && DN.titan > t ? 1024 : 0) | (typeof DN !== 'undefined' && DN.vol ? 2048 : 0);   // (§208) le titan, les ailes
+      // (§200) le masque filtrant ; (§203) le Korlaz, qu'un équipier peut guérir   // (§184) le masque à bec, la maladie du Vyrel
   const e = { fv: 1, fg: FA.role === 'gardien' && maintenant() >= FA.ecoute ? 1 : 0, fa: Math.round(ancienneteFaune()), fx };
   const br = bruitJoueur(); if (br) e.br = r2(br);          // ce que le Silencieux entend de lui
   if (Fourmi) e.oc = r2(confColonie());                     // ce que la colonie des oglodons pense de lui
@@ -866,7 +867,7 @@ function fauneEvenement(evt, d) {
 function fauneDistant(j, d) {
   j.fv = d.fv === 1; j.fg = !!d.fg; j.fa = +d.fa || 0;
   const x = d.fx | 0;
-  j.fx = { calme: !!(x & 1), abri: !!(x & 2), invisible: !!(x & 4), silence: !!(x & 8), repousse: !!(x & 16), masque: !!(x & 32), vyrel: !!(x & 64), filtre: !!(x & 128), korlaz: !!(x & 256), plane: !!(x & 512) };
+  j.fx = { calme: !!(x & 1), abri: !!(x & 2), invisible: !!(x & 4), silence: !!(x & 8), repousse: !!(x & 16), masque: !!(x & 32), vyrel: !!(x & 64), filtre: !!(x & 128), korlaz: !!(x & 256), plane: !!(x & 512), titan: !!(x & 1024), ailes: !!(x & 2048) };
   j.br = Math.max(0, Math.min(1, +d.br || 0)); j.oc = Math.max(0, Math.min(1, +d.oc || 0));
   if (!d.f || FA.role !== 'suiveur' || j.u !== FA.gardien || !faunePossible()) return;
   if (FA.inventaire) appliquerFaune(d.f); else demanderInventaire(false);

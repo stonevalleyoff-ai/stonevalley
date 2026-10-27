@@ -118,11 +118,12 @@ function nmVenir(force, pour) {
   // pour les trois métiers d'avant, une fois sur deux l'un des neuf qu'on connaît, s'il vit encore
   const niv = typeof profondeur === 'function' ? profondeur() : 0, vivants = NM_GENS.filter(g => !NM.moi.morts.includes(g.nom));
   const POIDS = { marchand: 3, conteur: 2.5, dresseur: 2, cartographe: 2, egare: 1.5, devin: niv >= 3 ? 1.3 : 0,
-    herboriste: 2, forgeron: 1.5, musicien: 1.5, chasseur: niv >= 2 ? 1.6 : 0, collectionneur: niv >= 2 ? 1.2 : 0, erudit: niv >= 3 ? 1 : 0 };   // (§122)
+    herboriste: 2, forgeron: 1.5, musicien: 1.5, chasseur: niv >= 2 ? 1.6 : 0, collectionneur: niv >= 2 ? 1.2 : 0, erudit: niv >= 3 ? 1 : 0,
+    ancien: typeof hadrikVient === 'function' && hadrikVient() ? 1.4 : 0 };   // (§208) Hadrik, le vieux dompteur (dons.js)   // (§122)
   const nb = force && force.n ? force.n : 1 + (Math.random() < .55 ? 1 : 0) + (Math.random() < .25 ? 1 : 0), roles = [];
   if (force && force.roles) roles.push(...force.roles);
   while (roles.length < nb) { const L = Object.keys(POIDS).filter(r => POIDS[r] && !roles.includes(r)); let x = Math.random() * L.reduce((a, r) => a + POIDS[r], 0); for (const r of L) if ((x -= POIDS[r]) < 0) { roles.push(r); break; } }
-  const qui = roles.map(r => { const L = vivants.filter(g => g.role === r); return L.length && Math.random() < .5 ? L[Math.random() * L.length | 0] : nmVoyageur(r); });
+  const qui = roles.map(r => { const L = vivants.filter(g => g.role === r); return L.length && (r === 'ancien' || Math.random() < .5) ? L[Math.random() * L.length | 0] : nmVoyageur(r); });
   // la halte : un replat sec, de préférence au bord de l'eau, sur une hauteur ou près de l'arche, à 14-32 cases d'un joueur
   const Js = typeof joueursFaune === 'function' ? joueursFaune() : [P], J = pour || (Js.length ? Js[Math.random() * Js.length | 0] : P);
   let lieu = null, best = -1e9;
@@ -383,6 +384,10 @@ function nmOs(f) {
   } else if (role === 'musicien') {                                                // (§122) un béret à plume, le luth dans le dos
     add([-.01, 0, tz + .07], [-.02, .02, tz + .11], .17, .15, clair); add([-.03, -.05, tz + .1], [-.14, -.1, tz + .2], .02, .02, lueur);
     add([-.15, 0, hz + .02], [-.15, 0, hz + .18], .2, .06, [176, 120, 70]); add([-.15, 0, hz + .18], [-.15, 0, cou + .2], .035, .035, [120, 82, 50]);
+  } else if (role === 'ancien') {                                                 // (§208) Hadrik : une barbe blanche, un long bâton noueux, un collier de crocs
+    add([.06, 0, tz - .07], [.075, 0, tz - .005], .1, .05, [232, 228, 218]);
+    add([.13, .15, .01], [.15, .15, tz + .16], .035, .035, [96, 74, 52]); add([.15, .15, tz + .16], [.15, .15, tz + .21], .07, .07, lueur);
+    for (const s2 of [-1, 0, 1]) add([.07, s2 * .05, cou - .03], [.075, s2 * .05, cou - .07], .02, .02, [236, 230, 210]);
   } else if (role === 'dresseur') {
     const cb = Math.sin(ph * 2) * .02 * v + Math.sin(f.t * 1.3) * .006;          // la cape
     add([-.09, 0, cou - .01], [-.12 - cb, 0, hz - .08], .24, .025, clair);
