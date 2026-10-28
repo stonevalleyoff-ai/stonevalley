@@ -894,6 +894,10 @@
 <script src="coop.js"></script>
 <script src="faune.js"></script>
 <script src="flore.js"></script>
+<script src="lignees.js"></script>
+<script src="conduites.js"></script>
+<script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/sv-1/';</script>
+<script src="orvane/corps.js"></script><script src="orvane/tampon.js"></script><script src="orvane/correspondance.js"></script><script src="orvane/orvane-sv.js"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -5688,7 +5692,7 @@ const COGNE = 1.2;
 // marcher ne sème personne, courir si, un temps — et à bout de souffle on est une proie.
 const VIT_MARCHE = 4.2, VIT_COURSE = 5.8, VIT_EPUISE = 3.2;   // la marche au pas de l'ancien sprint, le sprint plus vif encore
 const ENDU_COURSE = 8, ENDU_REPRISE = .12, ENDU_REPOS = .24, ENDU_SEUIL = .35;
-const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1) / (b && b.gangue > t ? 1.5 : 1) * (typeof vyrelDur === 'function' ? vyrelDur(b) : 1);   // l'escouade est blindée
+const robuste = b => ((b && b.sp && b.sp.dur) || 1) * ((b && b.blinde) || 1) / (b && b.gangue > t ? 1.5 : 1) * (typeof vyrelDur === 'function' ? vyrelDur(b) : 1) * (typeof conduitesDur === 'function' && b && b.sp ? conduitesDur(b) : 1);   // (§211) carapace, cuir   // l'escouade est blindée
 const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.7, effet('robuste') * .25)) * vieK() * (typeof pacteSubi === 'function' ? pacteSubi() : 1);   // (§164) les pactes de Fer et de Hâte   // peau dure : −25 % par niveau, −70 % au plus (§168)
 const degJoueur = (deg, b) => deg / danger() / robuste(b) * forceK() * (b && b.sp && b.sp.roi && typeof roiDegK === 'function' ? roiDegK(b) : 1);   // (§164) le bouclier du forgeron, (§165) la pierre des gargouilles   // coups puissants : +25 % par niveau
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
@@ -9444,7 +9448,7 @@ function naitre(sp, x, y, age) {
 }
 function poser(sp) {
   const q = automate(sp) ? placeAutomate(sp) : sp.roche ? placeFourmi() : null;   // l'oglodon, à la fourmilière
-  const vr = b => { b.variante = tirerVariante(sp); return b; };   // une robe, une forme rares, parfois
+  const vr = b => { b.variante = tirerVariante(sp); if (typeof orvaneNaissance === 'function') orvaneNaissance(b); return b; };   // (§211) son phénotype, ses conduites   // une robe, une forme rares, parfois
   if (q) return vr(naitre(sp, q[0], q[1]));
   if (sp.volant) { const v = poserVolant(sp); return v ? vr(v) : null; }
   if (sp.dragon) { const v = poserDragon(sp); return v ? vr(v) : null; }
@@ -9475,6 +9479,7 @@ const HABITATS_RARES = { brouteur: [9, 11], glaneur: [9, 10, 11], bosseu: [9, 10
   lentigrade: [9, 11], cotonnier: [9, 23], carillonneur: [10, 12], felin: [9, 11] };
 for (const sp of SPEC) for (const b of HABITATS_RARES[sp.id] || []) if (!sp.bio.includes(b)) sp.bio.push(b);
 for (const sp of SPEC) if (automate(sp)) sp.bio.push(15, 16);   // l'île des automates est à eux, jusqu'aux flaques
+if (typeof orvaneEspeces === 'function') orvaneEspeces();   // (§210) les lignées nées dans Orvane rejoignent les fiches (orvane-sv.js)
 // ---------- le hasard de la graine ----------
 // Un tirage pseudo-aléatoire (mulberry32) : la même graine rend la même suite, sur tous les appareils.
 function alea(graine) {
@@ -9522,6 +9527,7 @@ function loadWorld() {
   if (ileVolcan) volcanCharge();                      // (§195) les geysers repartent de zéro
   placerPortailIle(); placerLutrins();               // l'arche d'abord : les sentinelles la gardent
   poserLasers();                                     // sur l'île des automates, les barrières
+  if (typeof orvaneAppliquer === 'function') orvaneAppliquer();   // (§209) Orvane règle poids et comptes d'après l'état du vivant
   especesIle = tirerBestiaire();                     // ce que la graine met sur cette île
   // et chaque sol rare, son Tellurien — sauf les chasseurs, qui attendent la troisième exploration
   for (const sp of SPEC) if (sp.biome && RaresIle.includes(sp.biome) && (!sp.chasse || profondeur() >= NIV_RAMPANTS || Array.isArray(globalThis.__RARES))) especesIle.add(sp.id);   // les bancs choisissent
@@ -11238,7 +11244,7 @@ function menaceEtProie(b, vue) {
   let men = null, dM = 1e9, pr = null, dP = 1e9;
   const sp = b.sp;
   const presse = b.soif > .95 || b.faim > 1;
-  const rayonEveil = presse ? 5 : vue * (.45 + .55 * sp.peur);
+  const rayonEveil = (presse ? 5 : vue * (.45 + .55 * sp.peur)) * (b.fq || 1);   // (§212) l'audacieuse s'éveille plus tard
   for (const o of beasts) {
     if (o === b || o.pv <= 0 || o.dead) continue;
     const d = (b.x - o.x) ** 2 + (b.y - o.y) ** 2;
@@ -11292,8 +11298,8 @@ const proieCalme = b => !b.tame && b.sp.peur > .3 && !b.sp.chasse && !automate(b
 // la distance qu'elle garde : grande au début, un pas à peine une fois habituée
 const distGarde = b => .8 + b.sp.sz * .45 + (1 - (b.aise || 0)) * 2.4 * b.sp.peur;
 function rayonPeurJoueur(b, vue) {
-  if (!proieCalme(b) || !calmeDe(JC)) return vue * .55;
-  return Math.max(0, distGarde(b) - 1.6) * (1 - (b.aise || 0));   // trop près trop tôt : elle détale quand même
+  if (!proieCalme(b) || !calmeDe(JC)) return vue * .55 * (b.fq || 1);   // (§212) l'audacieuse laisse approcher plus près
+  return Math.max(0, distGarde(b) - 1.6) * (1 - (b.aise || 0)) * (b.fq || 1);   // trop près trop tôt : elle détale quand même
 }
 // Le coursier est plus long à gagner : quatre fois plus lent à s'habituer (deux minutes, immobile),
 // trois fois moins quand on marche, et il perd sa confiance deux fois plus vite.
@@ -11452,7 +11458,7 @@ function majSilencieux(b, dt) {
           P.vx += Math.cos(b.dirT) * 9; P.vy += Math.sin(b.dirT) * 9; say('le Silencieux vous saisit', 2); }
         else if (estJoueur(c)) {                        // un joueur d'en face : même prise, encaissée chez lui
           const pv0 = c.pv; frapperJoueur(b, c, pv0 > .35 ? Math.min(.5, pv0 - .08) : .5, { kb: [Math.cos(b.dirT) * 9, Math.sin(b.dirT) * 9, 0], sh: .8, m: 'le Silencieux vous saisit' }); }
-        else { porterCoup(b, c, 1.2); if (c.pv <= 0 && !c.dead) mourirBete(c, 'chassé'); }
+        else { porterCoup(b, c, 1.2); if (c.pv <= 0 && !c.dead) mourirBete(c, 'proie'); }   // (§209) une proie du Silencieux : la nature, pas le joueur
         burst(c.x, c.y, (c.z || 0) + .6, 14, '#c84040');
       }
       if (b.saisirT > 1.4) { b.etat = 'errer'; b.frappe = 0; b.prise = null; b.repuT = b.t + 3.5; b.son = null; }
@@ -11520,7 +11526,7 @@ function silencieuxLie(b, dt) {
   if (b.etat === 'saisir') {
     b.saisirT += dt; const c = b.prise;
     if (c && !c.dead) b.dirT = Math.atan2(c.y - b.y, c.x - b.x);
-    if (b.saisirT > .55 && !b.frappe && c && !c.dead) { b.frappe = 1; porterCoup(b, c, 1.2); burst(c.x, c.y, (c.z || 0) + .6, 14, '#c84040'); if (c.pv <= 0 && !c.dead) mourirBete(c, 'chassé'); }
+    if (b.saisirT > .55 && !b.frappe && c && !c.dead) { b.frappe = 1; porterCoup(b, c, 1.2); burst(c.x, c.y, (c.z || 0) + .6, 14, '#c84040'); if (c.pv <= 0 && !c.dead) mourirBete(c, 'compagne'); }   // (§209) le Silencieux lié chasse pour le joueur
     if (b.saisirT > 1.4) { b.etat = 'errer'; b.frappe = 0; b.prise = null; }
   } else if (m && m !== P && !m.dead && m.pv > 0) {
     const d = Math.hypot(m.x - b.x, m.y - b.y);
@@ -11769,7 +11775,7 @@ function majMille(b, dt) {
         b.etat = 'jaillir'; b.jT = 0; sonHorreur(b.au[0], b.au[1], g + 2, 'criMille'); if (Math.hypot(P.x - b.au[0], P.y - b.au[1]) < 30) { P.secousse = t; P.secousseK = 1; }
         for (let k = 0; k < 26; k++) parts.push({ x: b.au[0], y: b.au[1], z: sol(b.au[0], b.au[1]) + .2, vx: (Math.random() - .5) * 5, vy: (Math.random() - .5) * 5, vz: 3 + Math.random() * 4, g: 10, life: .8, age: 0, col: '#2c2a36', tl: .1 });
         if (!b.tame && !b.ami) for (const Q of joueursFaune()) if (Math.hypot(Q.x - b.au[0], Q.y - b.au[1]) < 1.7) frapperJoueur(b, Q, .3, { kb: [0, 0, 6], m: 'le Mille-gueules jaillit sous vous' });
-        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && !sousTerre(o) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < 1.7) { porterCoup(b, o, 1); if (o.pv <= 0) mourirBete(o, 'chassé'); }
+        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && !sousTerre(o) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < 1.7) { porterCoup(b, o, 1); if (o.pv <= 0) mourirBete(o, b.tame ? 'compagne' : 'proie'); }
         { const E = EMBUSCADE[potBete(b, 'comp')];           // l'embuscade : ce qui entoure le trou reste cloué
           if (E) for (const o of beasts) if (o !== b && prenable(o) && Math.hypot(o.x - b.au[0], o.y - b.au[1]) < E.r) engluer(o, E.dur); }
       }
@@ -11794,7 +11800,7 @@ function majMille(b, dt) {
         b.frappe = 1; if (Math.hypot(P.x - T[0], P.y - T[1]) < 30) { P.secousse = t; P.secousseK = .9; }
         for (let k = 0; k < 18; k++) parts.push({ x: T[0], y: T[1], z: g + .1, vx: (Math.random() - .5) * 4, vy: (Math.random() - .5) * 4, vz: 2 + Math.random() * 2, g: 9, life: .6, age: 0, col: '#3a3644', tl: .09 });
         if (!b.tame) for (const Q of joueursFaune()) if (Math.hypot(Q.x - T[0], Q.y - T[1]) < 1.9 && Math.abs(Q.z - g) < 1.5) frapperJoueur(b, Q, .25, { kb: [(Q.x - T[0]) * 5, (Q.y - T[1]) * 5, 0] });
-        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && !sousTerre(o) && Math.hypot(o.x - T[0], o.y - T[1]) < 1.9) { porterCoup(b, o, .8); if (o.pv <= 0) mourirBete(o, 'chassé'); }
+        for (const o of beasts) if (o !== b && !o.dead && o.pv > 0 && !(b.tame && o.tame) && !sousTerre(o) && Math.hypot(o.x - T[0], o.y - T[1]) < 1.9) { porterCoup(b, o, .8); if (o.pv <= 0) mourirBete(o, b.tame ? 'compagne' : 'proie'); }
       }
       if (b.frT > .75) { b.etat = 'plonger'; b.plT = 0; b.frappe = 0; }
       break;
@@ -13381,6 +13387,7 @@ function mourirBete(b, cause) {
   lacherParoi(b);                                   // morte sur une paroi, elle tombe
   if (b.comp) { assommer(b, cause); return; }       // une compagne ne meurt pas : le lien la reprend
   b.dead = 0.001; b.hit = .2; b.cause = cause;
+  if (typeof orvaneEvenement === 'function') orvaneEvenement('prelevement', b, cause);   // (§209) Orvane compte les prélèvements du joueur
   burst(b.x, b.y, b.z + .3, 12, '#c88a7a');
   if (typeof vyrelMort === 'function') vyrelMort(b);   // (§184) un charnier qui brûle, une bête malade qui crève en miasme
 }
@@ -13443,6 +13450,7 @@ function terrasse() {
 }
 // Le joueur vient de blesser une bête : elle s'en souvient, et une meute répond pour elle.
 function blesseParJoueur(b) {
+  if (typeof conduitesBlesse === 'function') conduitesBlesse(b);   // (§211) le dard, la peau irritante, le repli
   if (typeof pacteCoup === 'function') pacteCoup(b);          // (§164) les pactes de Braise et de Sang
   if (typeof volcanCoupArme === 'function') volcanCoupArme(b);  // (§200) la lame d'obsidienne fait saigner
   if (effet('vampire')) P.pv = Math.min(1, P.pv + .022 * effet('vampire'));
@@ -13459,6 +13467,7 @@ function blesseParJoueur(b) {
         && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) o.colere = Math.max(o.colere || 0, 15);
 }
 function porterCoup(b, c, deg) {
+  if (typeof conduitesCoup === 'function') deg = conduitesCoup(b, c, deg);   // (§211) les longs crocs ; la carapace, le dard de la bête mordue
   const dx = c.x - b.x, dy = c.y - b.y, d = Math.hypot(dx, dy) || 1;
   if (c !== P && estJoueur(c)) {
     // un joueur d'en face : c'est son appareil qui encaisse (armure, épines, recul, chute), comme
@@ -13511,7 +13520,7 @@ function porterCoup(b, c, deg) {
   if (b.comp && c.sp.chasse && !c.tame && c.pv > 0 && Math.random() < .55) { c.riposteA = b; c.riposteT = c.t + 6; }
   if (c.pv <= 0) {
     const assomme = !!c.comp;                          // une compagne à terre n'est pas une proie
-    mourirBete(c, b.comp ? 'compagne' : b.sp.chasse ? 'chassé' : 'défense');
+    mourirBete(c, b.comp ? 'compagne' : b.sp.chasse ? 'proie' : 'défense');   // (§209) « proie » : un chasseur de l'île ; Orvane ne la compte pas au joueur
     if (assomme) return true;
     // ce qu'une compagne abat, elle le rapporte : des os pour le sac
     if (b.comp) {
@@ -13806,11 +13815,11 @@ function escHud() {
 // ============================================================
 const CORPS_CASE = 2, CORPS_JOUEUR_H = 1.5, DEMELE_VIT = 1.6;
 var corpsGrille = new Map();                         // var : les bêtes marchent dès le peuplement
-const rayonCorps = b => b.sp.batiment ? (b.forme === 'puits' ? .85 : b.forme === 'foyer' ? .7 : b.forme === 'longue' ? .98 : b.forme === 'haute' ? 1.3 : 1.45) : .38 * b.sp.sz * (b.ech || 1);
+const rayonCorps = b => b.sp.batiment ? (b.forme === 'puits' ? .85 : b.forme === 'foyer' ? .7 : b.forme === 'longue' ? .98 : b.forme === 'haute' ? 1.3 : 1.45) : .38 * b.sp.sz * (b.ech || 1) * (b.tq || 1);
 // (§194) le point d'un corps le plus proche de (x, y) : son centre, ou, pour un corps allongé (la maison longue :
 // demiL de part et d'autre de son axe), le point de cet axe — le corps est alors une gélule et non plus un disque
 const ptCorps = (o, x, y) => { if (!o.demiL) return o; const c = Math.cos(o.dir || 0), s = Math.sin(o.dir || 0), q = Math.max(-o.demiL, Math.min(o.demiL, (x - o.x) * c + (y - o.y) * s)); return { x: o.x + c * q, y: o.y + s * q }; };
-const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1));
+const hautCorps = b => Math.max(.5, 1.1 * b.sp.sz * (b.ech || 1) * (b.tq || 1));
 const aCorps = b => !b.sp.cercle && !b.sp.volant && !b.sp.boss && !b.sp.horreur && !b.sp.illusion && !b.sp.plante && !b.cache && !(b.sp.dragon && b.enVol) && !b.dead && !b.retire && b.pv > 0 && !b.mur && !(b.enfoui > 0) && b !== P.monture;
 const rayonJoueur = () => P.monture ? Math.max(R, rayonCorps(P.monture)) : R;
 function grilleCorps() {
@@ -14724,7 +14733,7 @@ function majCoursier(b, dt) {
   if (!b.tame && b.age > sp.mat && b.faim < .38 && beasts.length < 240 && populationSauvage(sp) < capEsp(sp) && Math.random() < dt * .02) {
     let nx = b.x + (Math.random() - .5) * 2, ny = b.y + (Math.random() - .5) * 2;
     if (hAt(nx | 0, ny | 0) <= SEA) { nx = b.x; ny = b.y; }
-    const petit = naitre(sp, nx, ny, 0); petit.variante = tirerVariante(sp); beasts.push(petit); b.faim += .35;
+    const petit = naitre(sp, nx, ny, 0); petit.variante = tirerVariante(sp); if (typeof orvaneNaissance === 'function') orvaneNaissance(petit, b); beasts.push(petit); b.faim += .35;   // (§213) il tient de sa mère
   }
   if (!b.tame && b.age > sp.mat * 9) b.pv -= dt * .02;
 }
@@ -15311,7 +15320,7 @@ function majBete(b, dt) {
   if (b.colere > 0) b.colere -= dt;
   if (b.accule > 0 && !b.as) b.accule -= dt;
 
-  const vue = sp.vue;
+  const vue = typeof conduitesVue === 'function' ? conduitesVue(b, sp.vue) : sp.vue;   // (§211) yeux de nuit, vibrisses, éblouissement
   majAise(b, dt);
   let [men, dM, pr, dP] = menaceEtProie(b, vue);
   const furie = (typeof fureurIci === 'function' ? fureurIci(b) : null) || (typeof vyrelFurie === 'function' ? vyrelFurie(b) : null);   // (§184) ou malade du Vyrel   // la brume sanglante (brume.js) : la cible de sa fureur
@@ -15361,7 +15370,9 @@ function majBete(b, dt) {
   const presse = !!men && (dM < 9 || men.cible === b || (!!men.as && men.as.c === b));
   if (b.brame > t && !b.tame) { b.as = null; b.riposteA = null; }   // sous le brame, plus d'assaut : il fuit
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
-  if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
+  const cond = typeof conduitesBete === 'function' && !b.as && !furie ? conduitesBete(b, dt, men, dM, J, dJ) : null;   // (§211) une conduite d'Orvane : cracher, se figer, se replier, détaler à l'alerte
+  if (cond) { etat = cond.etat; vit = cond.vit ?? 0; tx = cond.tx ?? b.x; ty = cond.ty ?? b.y; if (cond.dirT != null) b.dirT = cond.dirT; if (cond.sprint) sprint = cond.sprint; if (cond.men) { men = cond.men; dM = (b.x - men.x) ** 2 + (b.y - men.y) ** 2; } }
+  else if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
   else if (b.as) etat = 'assaut';
   else if (furie) etat = 'furie';
   else if (b.brame > t && b.brameDe && !b.brameDe.dead && !b.tame) { etat = 'fuir'; men = b.brameDe; dM = (b.x - men.x) ** 2 + (b.y - men.y) ** 2; }   // le brame d'un bramard lié
@@ -15541,6 +15552,7 @@ function majBete(b, dt) {
   if (sp.corps === 'bramard') { const r = instinctBramard(b, etat, tx, ty, vit, sprint, dt); etat = b.etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; sprint = r[4]; }
   if (sp.camo) { const r = instinctFelin(b, etat, tx, ty, vit, sprint, pr, dP, dt); etat = b.etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; sprint = r[4]; }
   if (typeof vyrelVit === 'function') vit *= vyrelVit(b);   // (§184) malade du Vyrel : un peu plus lente
+  if (typeof conduitesVit === 'function') vit *= conduitesVit(b, etat);   // (§211) longues pattes, métabolisme lent
   const x0 = b.x, y0 = b.y;
   if (b.mur) majParoi(b, tx, ty, vit, sprint, dt);      // sur une paroi, le chemin mène la bête
   else {
@@ -15600,7 +15612,7 @@ function majBete(b, dt) {
       if (hAt(nx | 0, ny | 0) <= SEA) { nx = b.x; ny = b.y; }
       const petit = naitre(sp, nx, ny, 0); if (sp.biome) petit.home = b.home.slice();   // un Tellurien : le sol de sa mère
       if (doux(sp)) { petit.mere = b; petit.home = b.home.slice(); }                    // un petit Doux suit sa mère
-      petit.variante = tirerVariante(sp);
+      petit.variante = tirerVariante(sp); if (typeof orvaneNaissance === 'function') orvaneNaissance(petit, b);   // (§213) il tient de sa mère
       beasts.push(petit);
       b.faim += .35; b.nrj -= .3;
     }
@@ -15900,6 +15912,7 @@ function lier(b, voie) {
   const plein = enJeu() >= enJeuMax();
   P.compagnes.push(c);
   apprivoiser(b, c);
+  if (typeof orvaneEvenement === 'function') orvaneEvenement('capture', b);   // (§209) Orvane compte les captures
   burst(b.x, b.y, b.z + .5, 20, '#ffd68a'); burst(b.x, b.y, b.z + .6, 12, '#e8404e'); SON.jouer('lien', {}, b.x, b.y, b.z + .5);
   say(c.nom + ' · ' + b.sp.n.toLowerCase() + ' · liée' + (voie === 'appel' ? ' par l\'appel' : '')
     + (plein ? ' · six déjà en jeu : elle rentre dans le sac' : ''), 2.8);
@@ -16774,6 +16787,7 @@ const FEMININ = new Set(['sentinelle', 'salamandre']);
 const P_ROBE = 1 / 1140, P_FORME = 1 / 18000;          // par bête, au départ
 const chanceVariante = () => 1 + 2 * Math.min(profondeur(), NIV_LOIN) / NIV_LOIN;
 function tirerVariante(sp, r = Math.random) {
+  if (typeof orvaneVariante === 'function') { const v = orvaneVariante(sp, r); if (v !== undefined) return v; }   // (§209) Orvane tire le phénotype
   const k = chanceVariante(), v = [];
   if (r() < P_ROBE * k) { const l = ROBES[automate(sp) ? 'automate' : 'vivant']; v.push(l[r() * l.length | 0].id); }
   if (r() < P_FORME * k) { const o = ORNEMENTS_DE[familleBete(sp)]; v.push((r() < .6 ? 'geant' : 'nain') + '-' + o[r() * o.length | 0]); }
@@ -16896,8 +16910,9 @@ function foeBones(f) {
   const B0 = osDeBase(f), B = f.variante ? varier(f, B0) : B0;
   if (f.etat === 'furie' && f.sp.oeil) for (let i = 0; i < B.length; i++) if (memeCouleur(B[i].c, f.sp.oeil) || memeCouleur(B[i].c, f.variante ? OEIL_ROBE[(lireVariante(f.variante) || {}).robe] : null))
     B[i] = Object.assign({}, B[i], { c: [255, 40, 30], luit: true });   // la fureur de la brume : les yeux rouges, qui luisent
-  if (typeof vyrelOs === 'function' && f.sp && (f.sp.vyMere || (f.comp && f.comp.vyrel) || (typeof ETAT !== 'undefined' && ETAT.id === 'vyrel'))) return formesAuto(f, vyrelOs(f, B));   // (§184) malade du Vyrel
-  return formesAuto(f, B);                                               // (§188) en formes
+  const Bc = typeof conduitesOs === 'function' ? conduitesOs(f, B) : B;   // (§211) la gorge qui gonfle, le corps fondu dans le sol, les yeux de nuit
+  if (typeof vyrelOs === 'function' && f.sp && (f.sp.vyMere || (f.comp && f.comp.vyrel) || (typeof ETAT !== 'undefined' && ETAT.id === 'vyrel'))) return formesAuto(f, vyrelOs(f, Bc));   // (§184) malade du Vyrel
+  return formesAuto(f, Bc);                                               // (§188) en formes
 }
 // Le carnet : chaque variante croisée, une fois pour toutes — on la compte ensuite.
 function noterVariante(b) {
@@ -16936,13 +16951,14 @@ function blocRumeurs() {
 function blocCarnet() {
   const l = P.variantes.filter(e => specById[e[0].split(':')[0]] && lireVariante(e[0].split(':')[1]));
   let h = `<h3>Carnet des variantes <span class="compte">${l.length} croisée${l.length > 1 ? 's' : ''}</span></h3>`;
-  if (!l.length) return h + `<p class="note" style="margin:2px 2px 8px">Aucune encore. Une robe rare, une forme plus rare encore : leurs chances montent à chaque exploration.</p>`;
+  const cond = typeof orvaneCarnet === 'function' ? orvaneCarnet() : '';   // (§211) les conduites observées
+  if (!l.length) return h + `<p class="note" style="margin:2px 2px 8px">Aucune encore. Une robe rare, une forme plus rare encore : leurs chances montent à chaque exploration.</p>` + cond;
   for (const [cle, n] of l.slice(0, 40)) {
     const [id, s] = cle.split(':'), sp = specById[id], v = lireVariante(s);
     h += `<div class="obj"><div style="flex:1;min-width:0"><div class="n ${clRar(Math.max(rareEspece(sp), v.taille ? 5 : 3))}">${ESC(sp.n + ' ' + nomVariante(sp, s))}</div>`
       + `<div class="d">${v.taille ? 'forme extrêmement rare' : 'robe rare'} · croisée ${n} fois</div></div></div>`;
   }
-  return h;
+  return h + cond;
 }
 function osDeBase(f) {
   const sp = f.sp;
@@ -16959,6 +16975,7 @@ function osDeBase(f) {
   if (sp && sp.plante) return osPlante(f);
   if (sp && sp.villageois) return osVillageois(f);
   if (sp && sp.batiment) return osMaison(f);
+  if (sp && sp.orvane && sp.orvane.genere && typeof osOrvane === 'function') return osOrvane(f);   // (§210) une lignée d'Orvane : son corps construit (lignees.js)
   if (trottin(sp)) return osTrottin(f);                 // (§137) les Trottins
   if (automate(sp)) return automateBones(f);
   if (coursier(sp)) return coursierBones(f);
@@ -17092,7 +17109,7 @@ function osBossu(f) {
 //  Le crapaud, lui, avance vraiment par bonds : son allure s'arrête au sol et file en l'air.
 // ============================================================
 const FOULEE = { magmaton: .55, basilic: .8, bramard: .9, felin: .95, crapaud: .8, saurien: .7, myconide: .32, cerf: .95, lentigrade: .8, cotonnier: .35, carillon: .95, oglodon: .6 };
-const echB = f => f.sp.sz * (f.ech || 1);                   // la taille de la bête, un petit plus petit   // l'onde du tronc et le balancier des bras
+const echB = f => f.sp.sz * (f.ech || 1) * (f.tq || 1);     // la taille de la bête, un petit plus petit, (§212) sa taille propre   // l'onde du tronc et le balancier des bras
 const PATTES_T = {
   saurien:  { pieds: [[.10, .25], [-.12, .25]], duree: .15, haut: .06, seuil: .15 },
   cerf:     { pieds: [[.14, .075], [-.19, .075]], duree: .18, haut: .10, seuil: .20 },
@@ -17539,6 +17556,7 @@ function toucheSpore(f, nx, ny, nz) {
   return false;
 }
 function eclaterSpore(f) {                               // le nuage vert, et le poison
+  if (f.orvane && typeof orvaneImpact === 'function') return orvaneImpact(f);   // (§211) le jet d'une glande : l'irritation
   const x = f.x, y = f.y, z = Math.max(f.z, sol(x, y)), c = f.c, col = `rgb(${c[0]},${c[1]},${c[2]})`;
   for (let k = 0; k < 20; k++) parts.push({ x, y, z: z + .15, vx: (Math.random() - .5) * 2.2, vy: (Math.random() - .5) * 2.2, vz: Math.random() * 1.3,
     g: -.1, life: .9 + Math.random() * .9, age: 0, col: k % 3 ? '#c4e486' : col, luit: 1, tl: .075 });
@@ -18187,7 +18205,7 @@ function peuplerDoux() {
       const x = m.x - Math.cos(m.dir) * (.6 + k * .5), y = m.y - Math.sin(m.dir) * (.6 + k * .5);
       if (hAt(x | 0, y | 0) <= SEA || eauAt(x | 0, y | 0) || vide(x | 0, y | 0)) continue;
       const p = naitre(m.sp, x, y, m.sp.mat * (.1 + Math.random() * .5));
-      p.mere = m; p.home = m.home.slice(); p.variante = tirerVariante(m.sp); p.dir = p.dirT = m.dir;
+      p.mere = m; p.home = m.home.slice(); p.variante = tirerVariante(m.sp); if (typeof orvaneNaissance === 'function') orvaneNaissance(p, m); p.dir = p.dirT = m.dir;   // (§213) il tient de sa mère
       beasts.push(p);
     }
   }
@@ -25322,6 +25340,7 @@ function statutsJoueur() {
   else if ((P.korlazExpo || 0) > .5 && typeof KORLAZ_SEUIL !== 'undefined')
     add('spore', 'mal', 'Spores de Korlaz', 'à 100 %, c\'est l\'infection · éloignez-vous de la roche rongée', null, Math.round(Math.min(1, P.korlazExpo / KORLAZ_SEUIL) * 100) + ' %');
   if (typeof vyrelStatuts === 'function') vyrelStatuts(add);   // (§184) le Vyrel
+  if (typeof orvaneStatuts === 'function') orvaneStatuts(add);   // (§211) irrité
   if (P.poison > t) add('st_poison', 'mal', 'Empoisonné', 'la vie baisse peu à peu · le poison ne tue pas', P.poison);
   if (P.brulure > t) add('st_brulure', 'mal', 'Brûlure', 'la vie brûle', P.brulure);
   else if (biomeIci === 14 && P.ground && !P.monture && !effet('braise')) add('st_brulure', 'mal', 'Braises', 'les plaques vives brûlent qui s\'y attarde');
@@ -25679,6 +25698,7 @@ function majCible() {
     else { nom = nomEspeceDe(o);
       info = (tellurien(o.sp) ? 'tellurien · ' : '') + `${DITS_ETAT[o.etat] || o.etat} · faim ${Math.round(o.faim * 100)} % · confiance ${Math.round(o.conf * 100)} %`
 ; }
+    if (typeof orvaneCibleDit === 'function' && o.sp) info += orvaneCibleDit(o);   // (§211) ce qu'on sait de ses conduites, ou son présage
     const E = o.sp && !o.tame && !o.loin && liensLibres() > 0 ? etatLien(o) : null;   // (§145) la chance du lien, et ce qui est rempli
     const vr = CIB.verrou && CIB.o === o, loinL = E && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 >= LIEN_PORTEE * LIEN_PORTEE;
     html = `<b class="${o.sp && !o.sp.pnj && !o.pnjSuit && !o.sp.villageois ? clRar(rareBete(o)) : ''}">${ESC(nom)}</b><div class="br"><i style="width:${Math.round(Math.max(0, o.pv) * 100)}%"></i></div><small>${ESC(info)}</small>`
@@ -27356,7 +27376,7 @@ function photo() {
     sac: Object.assign({}, P.sac),
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), ceinture: nivCeinture(), barre: P.barre | 0, guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
-    variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(),
+    variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(), cond: typeof conduitesPhoto === 'function' ? conduitesPhoto() : undefined,   // (§211)
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
     vyrel: P.vyrel ? { duree: Math.round(P.vyrel.duree) } : null, vyrelGueries: (P.vyrelGueries || []).slice(-300), vyrelVu: P.vyrelVu ? 1 : 0, korlazVu: P.korlazVu ? 1 : 0, dons: typeof donsSauve === 'function' ? donsSauve() : {},   // (§184, §203, §204)
@@ -27454,6 +27474,7 @@ function appliquer(d, vivantes) {
   P.ogConf = (Array.isArray(d.ogConf) ? d.ogConf : []).filter(e => Array.isArray(e) && (typeof e[0] === 'number' || typeof e[0] === 'string'))
     .slice(0, 20).map(e => [e[0], nb(e[1], 0, 1, 0)]);
   nmAppliquer(d.nm);                                   // ce que les nomades savent de vous
+  if (typeof conduitesRelire === 'function') conduitesRelire(d.cond);   // (§211) le carnet des conduites, ce que les compagnes tiennent d'Orvane
   P.fleches = nb(d.fleches, 0, 1e5, 0) | 0; P.baumes = nb(d.baumes, 0, 1e4, 0) | 0; P.encre = nb(d.encre, 0, 1e4, 0) | 0;
   P.defense = { mur: nb(d.defense && d.defense.mur, 0, 3, 0) | 0, tours: nb(d.defense && d.defense.tours, 0, 3, 0) | 0 };
   P.soins = {}; for (const o of OBJETS) if (o.emp === 'soin') { const n = nb(d.soins && d.soins[o.id], 0, 1e4, 0) | 0; if (n) P.soins[o.id] = n; }
@@ -27692,6 +27713,7 @@ async function envoyer(forcer, garder, reprise) {
     const r = await rpc('vp_sauver_compte', { p_donnees: donnees, p_rev: forcer ? null : Sauve.rev }, garder);
     if (r && r.ok) {
       Sauve.rev = r.rev; Sauve.quand = Date.now(); Sauve.etat = 'enligne'; Sauve.erreur = ''; Sauve.conflit = null;
+      if (typeof orvaneEnvoyer === 'function') orvaneEnvoyer(rpc, Compte.uid);   // (§209) le lot de pressions part avec la sauvegarde
       if (signature() === sig) Sauve.sale = false;      // rien n'a bougé pendant l'envoi
       Sauve.pos = [donnees.pos[0], donnees.pos[1]];
     } else if (r && r.conflit && sienne(r) && !reprise) {   // (§155) notre envoi d'avant, arrivé sans réponse : on reprend sa révision, et on renvoie

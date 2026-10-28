@@ -10,11 +10,14 @@ Le dossier à mettre en ligne :
 | `manifest.webmanifest` | le nom, les couleurs et les icônes de l'application installable |
 | `sw.js` | le service worker : garde la page et ses images pour jouer hors ligne |
 | `icone-192.png`, `icone-512.png`, `icone-maskable-512.png` | les icônes |
+| `orvane/corps.js`, `orvane/tampon.js`, `orvane/correspondance.js`, `orvane/orvane-sv.js` | le branchement sur Orvane, le monde vivant (§209–213), chargés par `index.html` : à déposer avec lui |
+| `lignees.js` | le corps des lignées nées dans Orvane, construit d'après leur silhouette (§210) |
+| `conduites.js` | ce que les organes d'Orvane font faire aux bêtes : cracher, se figer, donner l'alerte… (§211) |
 
 ## 1. Mettre en ligne sur GitHub Pages
 
 1. Sur github.com, nouveau dépôt **public** nommé `stone-valley`.
-2. Déposer les fichiers (index.html, donjon.js, nomades.js, etats.js, village.js, coop.js, flore.js, sw.js, manifest et icônes) à la racine du dépôt (glisser-déposer dans « Add file › Upload files »).
+2. Déposer les fichiers (index.html, donjon.js, nomades.js, etats.js, village.js, coop.js, flore.js, lignees.js, conduites.js, sw.js, manifest, icônes, et le dossier orvane/) à la racine du dépôt (glisser-déposer dans « Add file › Upload files »).
 3. Onglet **Settings › Pages** : *Source* = `Deploy from a branch`, branche `main`, dossier `/ (root)`. Enregistrer.
 4. Au bout d'une minute, l'adresse est **https://shinjiebi.github.io/stone-valley/**.
 
@@ -6756,3 +6759,103 @@ Les conteurs et les devins disent désormais, dans leurs légendes du Héros, o�
 - **Les formules** : la plume ; le coffre de l'Horloge (rien à l'exploration 11, ni dans une autre salle) ; le trône (rien tant que vit le Roi) ; l'œuf (froid, puis brûlant sans cuirasse, puis pris avec) ; Hadrik et ses trois épreuves jusqu'à la formule, et sa venue à une halte avec son dialogue.
 - **À l'image** : les ailes, l'œuf dans son nid.
 - **Régressions** : les îles, le volcan, le Tisonnier et les lots 3 et 4, sans erreur.
+
+
+## §209 · Orvane — le monde vivant
+
+Les bêtes de Stone Valley vivent désormais dans **Orvane**, un moteur d'écosystème et d'évolution indépendant du jeu (dépôt `orvane`, dossier `mondes/sv-1/`). Chaque nuit, Orvane fait avancer le monde d'un cycle — naissances, morts, prédation, migrations, saisons, épidémies, lignées qui se séparent — et publie un **instantané**. Le jeu le lit au lancement et l'applique ; ce que font les joueurs remonte en **pressions**, et le monde en tient compte la nuit suivante.
+
+**Ce que ça change à l'écran.** Rien le premier jour (vérifié : mêmes poids, mêmes comptes, mêmes taux de variantes qu'avant). Ensuite, île par île, selon ce qu'Orvane dit des biomes de l'île :
+- **combien** de bêtes de chaque espèce vivent sur l'île (`sp.cap`) et la chance qu'une espèce soit tirée au bestiaire (`POIDS_ESPECE`) suivent les effectifs d'Orvane, rapportés à la génération 0 ; tout repart des valeurs d'origine à chaque île ; une espèce éteinte, ou tombée sous 40 **et** sous le quart de ce qu'elle était, n'apparaît plus (une espèce rare dès le départ, comme le varan ou la salamandre, reste) ; la même île donne la même faune à tous ceux qui ont le même instantané ;
+- les **variantes** (robes albinos, mélanique, dorée ; géant, nain) gardent les chances d'avant (1/1140 par robe, 1/18000 par forme) multipliées par l'écart d'Orvane depuis la génération 0 : une robe devenue deux fois plus fréquente dans le monde l'est deux fois plus à l'écran, une robe éteinte ne naît plus. Le changement glisse sur trois jours. Les bêtes déjà nées gardent leur robe. La règle « plus de variantes loin de chez soi » (`chanceVariante`) est conservée.
+
+**Ce qui remonte.** Les bêtes croisées (à moins de douze pas, une fois chacune), celles que le joueur ou ses compagnes tuent (flèche, coup, piétinement, tour, satellite… — pas la faim, pas une bête de l'île qui en tue une autre : celle-ci meurt désormais de la cause `proie`, et Orvane simule déjà la prédation), celles qu'il lie. Le lot s'accumule en `localStorage` et part avec une sauvegarde, une fois par demi-heure au plus (`vp_orvane_pression`, 48 dépôts par compte et par jour ; un refus garde le lot). Un seul joueur pèse peu ; dix joueurs qui vident leurs îles chaque soir finissent par raréfier une espèce — et les variantes qu'ils épargnent gagnent du terrain.
+
+**Le branchement** (tous les points gardés par `typeof … === 'function'` : sans Orvane, le jeu est exactement ce qu'il était ; les points 7 et 8 sont ceux du §210) :
+1. les trois scripts après `flore.js`, précédés de `ORVANE_CHEMIN` (l'adresse du monde publié) ;
+2. `orvaneAppliquer()` à l'arrivée sur l'île, avant `tirerBestiaire()` ;
+3. `orvaneVariante(sp, r)` en tête de `tirerVariante` ;
+4. `orvaneEvenement('prelevement', b, cause)` dans `mourirBete` ;
+5. `orvaneEvenement('capture', b)` dans `lier` ;
+6. `orvaneEnvoyer(rpc, Compte.uid)` après une sauvegarde réussie ;
+7. `orvaneEspeces()` une fois les fiches posées (après le `sp.bio.push(15, 16)` des automates) ;
+8. `osOrvane(f)` dans `osDeBase`, pour une lignée au corps construit.
+
+Et les causes de mort : `proie` (au lieu de `chassé`) quand une bête de l'île tue — `porterCoup`, le Silencieux, le Mille sauvage ; `compagne` quand c'est une bête liée (le Silencieux lié, le Mille lié).
+
+Côté Supabase : exécuter `traducteurs/stone-valley/supabase.sql` du dépôt Orvane (la table n'est accessible que par deux fonctions : le jeu dépose par `vp_orvane_pression`, Orvane lit par `orvane_lire_lots` avec son propre secret, les comptes pseudonymisés). Côté dépôt Orvane : le secret `ORVANE_LECTURE_SECRET` (le secret de lecture : jamais la clé de service du jeu), GitHub Pages activé — le monde est alors à `https://stonevalleyoff-ai.github.io/orvane/mondes/sv-1/instantane.json`, et l'observatoire à `…/orvane/monde/?monde=sv-1`.
+
+**Vérifié** : chaque bloc `<script>` de `index.html` compile ; le banc du traducteur (`traducteurs/stone-valley/banc.js <index.html>`) passe : le jour un ne change rien, poids et caps suivent la chasse, les espèces rares restent, variantes tirées sur 400 000 naissances, causes, lot valide, envoi espacé, refus gardé, retour dans le moteur, monde refait de zéro repris. Sans `instantane.json` joignable, rien ne change.
+
+
+## §210 · Les lignées d'Orvane — de nouvelles créatures
+
+Quand une population d'Orvane vit longtemps loin de sa niche, elle se sépare en **lignée** (« Crapaud-buffle de sylve fongique ») : une nouvelle espèce, avec sa masse, sa vitesse, ses sols, et sa **silhouette** (forme, pattes, proportions, cornes, crête, ailes, carapace, antennes, motif, couleurs), qui dérive à chaque séparation. Le jeu en fait une créature.
+
+**Sa fiche.** `orvaneEspeces()` (orvane-sv.js) inscrit chaque lignée dans `SPEC` : une copie de la fiche de son plus proche ancêtre — elle broute, chasse, fuit, se lie et récolte comme lui —, à sa mesure : son nom, sa taille d'après sa masse, sa vitesse, ses couleurs, ses sols (un Tellurien prend son sol rare). Les prédateurs de l'ancêtre la chassent ; sa viande, ses aptitudes, son combat et sa voix sont ceux de l'ancêtre. Sur une île, elle prend la part de son ancêtre à proportion de ses effectifs.
+
+**Son corps.**
+- tant qu'elle ressemble à son ancêtre, elle est **rendue par lui** : son dessin, à ses couleurs et à sa taille ;
+- dès qu'elle s'en écarte (autre forme, autres pattes, des ailes gagnées, ou une silhouette trop différente), son corps est **construit** par `lignees.js` (`osOrvane`) avec les mêmes boîtes que les autres bêtes : le moteur les arrondit, les variantes les recolorent, la fureur rougit ses yeux. Quadrupède, hexapode (six ou huit pattes), bipède, oiseau ou serpent ; cou, tête, museau (un bec chez l'oiseau), oreilles, cornes, crête, antennes, queue, carapace, ailes repliées (battantes en vol) ; et les organes des traits que porte la majorité de la lignée : crocs, dard, glandes, membrane, palmes, grands yeux de nuit, rayures d'alerte. Elle marche, dort, meurt ; son pictogramme est dessiné de profil (`dessinOrvane`).
+
+**Ce qui se garde.** Les fiches des lignées vivent en mémoire locale : une compagne liée garde la sienne même si sa lignée s'éteint, et revient au chargement. Une lignée inconnue de l'appareil (la compagne d'un autre joueur, une sauvegarde venue d'ailleurs) est rendue par son parent, sous son nom.
+
+**Aujourd'hui.** Le monde sv-1 vient de naître : ses premières lignées viendront avec le temps (une séparation demande une population installée depuis longtemps loin de sa niche). Un monde né de la genèse (`mondes/genese-7` du dépôt Orvane), branché à la place, peuple les îles de cent lignées toutes construites.
+
+**Vérifié** : dans le jeu, sur un monde d'essai accéléré (18 lignées) — inscription, apparition, mort, lien, panneau des compagnes, sauvegarde puis rechargement avec Orvane injoignable : la compagne revient, aucune erreur. Le banc d'essai du traducteur couvre les fiches, les tailles, les sols, les prédateurs, la part sur une île et la résolution d'une lignée inconnue.
+
+
+## §211 · Les conduites — ce que l'évolution fait faire aux bêtes
+
+Dans Orvane, une glande qui crache, une carapace, des yeux de nuit ou l'instinct de groupe évoluent comme le reste. Le jeu les fait désormais **agir**, bête par bête : chaque naissance tire son phénotype complet dans le monde d'Orvane. Les robes et les tailles restent au taux d'avant, et les traits qui agissent sortent à leur fréquence réelle. Si un crapaud sur cent crache dans Orvane, un crapaud sur cent crache dans le jeu ; si les cracheurs prennent le dessus, on le voit sur l'île.
+
+**Ce que les bêtes font** (`conduites.js`) :
+- **le jet** (glande à jet) : la gorge gonfle trois quarts de seconde, en vert pâle, puis un jet part, visé là où vous serez — on peut s'écarter. Touché : un voile jaune-vert gagne les bords de la vue, statut « Irrité ». Puis la bête fuit ;
+- **le dard** : qui la frappe de près est piqué — le poison du jeu ; **la peau irritante** : qui la frappe au contact s'en met plein les yeux ;
+- **la carapace** : elle encaisse (coups ÷ 1,6) ; mal en point, elle se replie, ramassée au sol, presque invulnérable deux secondes et demie ; **le cuir épais** : coups ÷ 1,25 ;
+- **le camouflage** : à votre approche, elle se fige et se fond dans la teinte du sol ; à trois pas, elle détale ;
+- **l'alerte** (grégarisme) : quand elle fuit, un cercle clair s'ouvre autour d'elle et tout le groupe détale ;
+- **la défense des petits** : approchez un petit, sa mère charge ;
+- **la vue** : yeux de nuit (elle voit 40 % plus loin la nuit, ses yeux y luisent), vibrisses (15 % plus loin), albinos (20 % moins loin au soleil) ; **les crocs** : morsure × 1,25 ; **la foulée** (pattes longues) : fuite et chasse × 1,25 ; **la lenteur** : tout × 0,85 ; **le terrier** (lignée fouisseuse au corps construit) : elle s'enterre d'un coup.
+
+**Comment le joueur l'apprend.** Désignée et de près, une bête dont on ne connaît pas encore la conduite laisse voir son **présage** (« gonfle la glande sous sa gorge », « des plaques osseuses sur le dos »). La première fois qu'on voit une conduite chez une espèce, une ligne le dit et le **carnet** la garde (« Conduites observées », sous le carnet des variantes, sauvegardé avec le compte). Ensuite, le panneau de la bête la nomme : « cracheur », « grégaire », « cuirassé ».
+
+**Ce qu'elle devient, liée.** La compagne garde son phénotype et ses conduites, sauvegardés avec elle, même quand elle rentre au sac. Une cracheuse crache sur ce qu'elle combat, ce qui l'étourdit. Une grégaire donne l'alerte quand un chasseur ou une machine vient pour vous. Des yeux de nuit débusquent les camouflés autour d'elle. Une ligne, au lien, dit ce qu'elle garde d'Orvane.
+
+**Ce qui remonte.** Une bête abattue ou liée est rapportée à Orvane avec son phénotype exact (et non plus d'après sa seule robe) : ce que les joueurs font aux cracheurs, aux grégaires, aux camouflés pèse sur leur évolution.
+
+**Le branchement** (tous gardés par `typeof … === 'function'`) : `orvaneNaissance(b)` après chaque `tirerVariante` d'une naissance (4 endroits) ; dans `majBete`, la vue (`conduitesVue`), la conduite qui s'impose avant le choix de l'état (`conduitesBete`), l'allure (`conduitesVit`) ; `conduitesDur` dans `robuste`, `conduitesBlesse` en tête de `blesseParJoueur`, `conduitesCoup` en tête de `porterCoup`, `conduitesOs` dans `foeBones`, `orvaneImpact` en tête de `eclaterSpore`, `orvaneStatuts` dans `statutsJoueur`, `orvaneCibleDit` dans le panneau de la cible, `orvaneCarnet` dans `blocCarnet`, `cond` dans `photo()` et `conduitesRelire(d.cond)` dans `appliquer`.
+
+**Vérifié** : le banc du traducteur (phénotype exact pour chaque naissance, conduites à leur fréquence réelle sur 200 000 glaneurs — grégaires 0,62 % pour 0,63 % dans le monde —, robes toujours au taux du jeu, du catalogue aux conduites, prélèvement rapporté exact). Dans le jeu, chaque conduite jouée sur le terrain : le jet (la gorge, le voile, « Irrité », le carnet, puis « cracheur » au panneau), le figé puis la fuite, l'alerte (trois congénères détalent), le repli (robustesse 1,6 → 3), la charge de la mère, la compagne qui crache et étourdit un traqueur, la sauvegarde. Aucune erreur.
+
+**En coop**, le jet d'une bête du gardien part chez les autres joueurs avec sa nature (`faune.js` : `ov` dans le message du tir) : il les irrite, il ne les empoisonne pas.
+
+
+## §212 · Les traits continus — deux bêtes d'une espèce ne sont plus identiques
+
+Dans Orvane, chaque population porte maintenant une **taille**, une **vitesse**, une **audace** et une **sociabilité** moyennes, avec leur variance, et la sélection les déplace : le froid fait grandir, la prédation rend plus vif, l'audace nourrit mieux mais se fait prendre, et **ce que font les joueurs compte**. Si l'on chasse les plus grands brouteurs d'une prairie, la population rapetisse (0,4 écart-type en trente cycles pour dix chasseurs assidus, 2 % de longueur) et ne regagne sa taille que lentement.
+
+**Ce qui se voit.** Chaque bête qui naît tire ses valeurs dans la loi de la population de l'île et les garde. Le jeu montre l'écart de cette population depuis la génération 0 : une île où l'espèce a rapetissé a des bêtes plus petites (×0,9 pour deux écarts-types), une île où elle est devenue hardie laisse approcher plus près (la distance de fuite × 0,8 pour un écart-type), une espèce devenue vive détale plus vite. Le panneau de la bête désignée le dit : « l'espèce a rapetissé ici », « l'espèce est plus farouche ici ». Le profil d'Orvane règle aussi combien de la variation propre de chaque bête se voit (`variation`) : à 0 (le réglage actuel), toutes les bêtes d'une île se ressemblent et le jour un ne change rien ; à 1, on croise des grandes, des petites, des peu farouches, et le panneau les signale (« de grande taille », « allure vive », « peu farouche »).
+
+**Ce qui remonte.** Chaque bête abattue ou liée est rapportée avec ses valeurs exactes. Tant que la variation propre ne se voit pas, les prises du joueur sont au hasard et Orvane le sait ; quand elle se verra, choisir les plus grandes pèsera.
+
+**Ce qu'elle devient, liée.** Une compagne garde sa taille, son allure et son audace, sauvegardées avec elle.
+
+**Le branchement** : `b.tq` multiplie la taille dans `rayonCorps`, `hautCorps` et `echB` ; `b.fq` la distance d'éveil face aux chasseurs (`menaceEtProie`) et la distance de fuite face au joueur (`rayonPeurJoueur`) ; `b.vq` l'allure, par `conduitesVit` (`conduites.js`) ; les mots par `orvaneCibleDit` ; la compagne les garde (`CDE.comp`, `qv`) ; en coop, la taille propre part avec la bête (`faune.js`, `tq`). Le tirage et le rapport sont dans `orvane/orvane-sv.js`, la loi de l'île dans `orvane/tampon.js` (`quantDe`). Service worker : `stone-valley-180`.
+
+**Vérifié** : le banc du traducteur (45 vérifications, dont 9 nouvelles : valeurs tirées selon la loi de la population, aucune bête changée le jour un, chasse des plus grands → la population rapetisse, le jeu le montre sur l'île suivante, variation 1 → les tailles s'étalent comme la population, le lot rapporte la taille exacte des bêtes prises et respecte le schéma). Dans le jeu, sur un monde d'essai (brouteurs à −2,2 écarts-types, glaneurs hardis à +1,5) : les brouteurs naissent en moyenne à ×0,90 de taille, les glaneurs fuient en moyenne à ×0,76 de la distance, le panneau le dit, une compagne garde ses valeurs après sauvegarde et rechargement. Aucune erreur.
+
+
+## §213 · L'hérédité — les petits ressemblent à leur mère
+
+Dans Orvane, les bêtes se reproduisent maintenant à deux. Chaque petit reçoit un allèle de sa mère et un de son père pour chaque trait. Certains traits sont **dominants** (une copie suffit), d'autres **récessifs** : l'albinisme, la robe dorée et le nanisme ne se voient qu'avec deux copies, et se cachent chez des porteurs. Les pères sont **choisis** : une robe dorée ou une grande taille attirent, un nain ou un albinos moins.
+
+**Ce qui se voit.** Une bête née d'une mère sur l'île lui ressemble : sa robe, sa forme (les mêmes cornes), ses conduites, sa taille, son allure, son audace se tirent sachant celles de la mère. Une mère albinos a environ un petit albinos sur cinquante (il faut que le père porte l'allèle), quand une naissance quelconque en donne un sur deux mille six cents. Une mère géante a la moitié de géants. Une cracheuse a souvent des petits cracheurs. Sur l'ensemble des mères, rien ne change dans les taux : seules les portées se ressemblent, et l'on apprend à suivre les bonnes mères. Cela vaut pour les trois naissances qui ont une mère : les petits des bêtes de l'île (`majBete`), le troupeau des coursiers qui grandit (`majCoursier`), les petits que les doux promènent derrière eux (cotonnier, sika, renard…, `peuplerDoux`).
+
+**Dans le monde.** Ce que font les joueurs pèse autrement : abattre tous les albinos d'une espèce ne les supprime pas, ils reviennent par les porteurs cachés ; une robe voyante attire les prédateurs mais gagne par le choix des partenaires. Le monde sv-1 a été **refait de zéro** (nouveau rodage, nouvelle naissance) pour que sa génération 0 soit l'équilibre de ces règles : le premier chargement repart de cette nouvelle génération 0, et le jour un ne change rien.
+
+**Correctif.** Le phénotype Orvane d'une bête était rangé dans `b.ph`, déjà utilisé par le jeu pour la phase de la foulée et des battements d'ailes. Dès qu'une bête marchait, il était écrasé : ses prélèvements n'étaient plus rapportés exactement, et une compagne pouvait perdre ses conduites au rechargement. Il est maintenant dans `b.phen`. Les sauvegardes gardent la même clé (`ph` dans `CDE.comp`).
+
+**Le branchement** : `orvaneNaissance(petit, mere)` aux trois naissances qui ont une mère (`majBete`, `majCoursier`, `peuplerDoux`) ; tout le reste est dans `orvane/orvane-sv.js` (`heriter`) et `orvane/tampon.js` (`sachantMere`, `exprimer`). Service worker : `stone-valley-181`.
+
+**Vérifié** : le banc du traducteur (50 vérifications, dont 5 nouvelles : les albinos abattus reviennent par les porteurs, la robe dorée gagne par le choix du partenaire, une mère albinos a 2 % de petits albinos contre 0,03 %, un trait se transmet sans que son taux bouge sur l'ensemble des mères, la taille d'un petit suit celle de sa mère avec la pente attendue). Dans le jeu, sur le monde sv-1 refait : 61 bêtes sauvages sur 61 gardent leur phénotype en marchant, un prélèvement rapporte le phénotype exact et les valeurs de la bête, et un petit né d'une mère de taille +1,6 naît en moyenne à +0,45. Aucune erreur.

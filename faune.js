@@ -145,6 +145,7 @@ function descrFaune(b) {
   if (b.mere && b.mere.num !== undefined) d.m = b.mere.num;
   if (b.male !== undefined) d.ma = b.male ? 1 : 0;
   if (b.ech && b.ech !== 1) d.ec = r2(b.ech);
+  if (b.tq && b.tq !== 1) d.tq = r3(b.tq);                 // (§212) sa taille propre
   if (b.dead) d.dd = r2(b.dead);
   const k = identiteFaune(b); if (k) d.k = k;
   const sac = sacFaune(b); if (sac) d.sa = sac;          // (s est l'espèce)
@@ -247,6 +248,7 @@ function naitreFaune(d, idx) {
   if (d.f != null) { b.faim = d.f; b.soif = d.so; b.nrj = d.nr; }
   if (d.ma != null) b.male = !!d.ma;
   if (d.ec) b.ech = d.ec;
+  if (+d.tq > .7 && +d.tq < 1.4) b.tq = +d.tq;
   if (d.dd) b.dead = d.dd;
   b.cx = b.x; b.cy = b.y; b.cz = b.z; b.cvx = b.cvy = 0; b.dirC = b.dir;
   beasts.push(b); idx.set(b.num, b);
@@ -789,6 +791,7 @@ function fauneTir(b, f) {
   if (f.feu) m.fe = 1;
   if (f.toile) m.to = 1;
   if (f.spore) { m.sp = 1; m.vol = r2(f.vol || 1); }
+  if (f.orvane) m.ov = f.orvane;                         // (§211) le jet d'une glande : il irrite, il n'empoisonne pas
   diffuser(canalIle(), 'ftir', m);
 }
 // Ce que fait une bête quand un joueur d'en face la frappe (comme blesseParJoueur, sans ce qui est à lui :
@@ -856,6 +859,7 @@ function fauneEvenement(evt, d) {
     if (d.fe) { f.feu = true; f.c = [255, 160, 60]; }
     if (d.to) { f.toile = true; f.c = [196, 232, 255]; }
     if (d.sp) { f.spore = true; f.vol = d.vol; }
+    if (d.ov) f.orvane = String(d.ov).slice(0, 16);   // (§211)
     TIRS.push(f);
     if (loc && loc.sp.fam === 'automate') loc.recul = d.o ? .35 : .22;
     SON.jouer(d.fe ? 'cracheFeu' : d.sp || d.to ? 'crachat' : d.o ? 'obus' : 'tir', {}, d.x, d.y, d.z);
