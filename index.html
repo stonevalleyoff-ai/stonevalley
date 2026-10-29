@@ -4268,12 +4268,13 @@ function butin(b) {
   P.sac.os += os; P.sac.fibre += fi;
   const vi = viandeDe(b.sp), nv = (b.sp.sz >= 1.3 ? 2 : 1) + (donA('flair') && !b.tame ? 1 : 0);   // (§204) le flair          // et sa viande, à cuire
   if (vi) gagnerDenree(vi.id, nv);
+  const tro = !b.tame && typeof orvaneTrophee === 'function' ? orvaneTrophee(b) : 0;   // (§218) une lignée rare d'Orvane : des éclats en plus
   const pl = !b.tame && (b.sp.id === 'vautour' ? Math.random() < .6 : b.sp.id === 'sterne' ? Math.random() < .25 : false); if (pl) gagnerDenree('plume', 1);   // (§204) une plume, pour les dons du Vent
   // le cerf de verre laisse ses bois, la salamandre un cœur de braise durci
   const ec = b.sp.id === 'cerf' ? 2 + (Math.random() * 2 | 0) : b.sp.id === 'salamandre' ? 1 : 0;
   P.sac.eclat += ec;
   const ba = b.sp.id === 'magmaton' ? 3 + (Math.random() * 3 | 0) : 0; if (ba) P.sac.basalte = (P.sac.basalte | 0) + ba;   // (§200) les orgues de son dos
-  say('+' + os + ' os · +' + fi + ' fibre' + (ec ? ' · +' + ec + ' éclat' + (ec > 1 ? 's' : '') : '') + (ba ? ' · +' + ba + ' basalte' : '') + (vi ? ' · +' + nv + ' ' + vi.n.toLowerCase() : '') + (pl ? ' · +1 plume' : ''), 1.8); majSac();
+  say((tro ? 'trophée · +' + tro + ' éclat' + (tro > 1 ? 's' : '') + ' · ' : '') + '+' + os + ' os · +' + fi + ' fibre' + (ec ? ' · +' + ec + ' éclat' + (ec > 1 ? 's' : '') : '') + (ba ? ' · +' + ba + ' basalte' : '') + (vi ? ' · +' + nv + ' ' + vi.n.toLowerCase() : '') + (pl ? ' · +1 plume' : ''), 1.8); majSac();
 }
 
 // ============================================================
@@ -9530,6 +9531,7 @@ function loadWorld() {
   poserLasers();                                     // sur l'île des automates, les barrières
   if (typeof orvaneAppliquer === 'function') orvaneAppliquer();   // (§209) Orvane règle poids et comptes d'après l'état du vivant
   especesIle = tirerBestiaire();                     // ce que la graine met sur cette île
+  if (typeof orvaneArrivee === 'function') orvaneArrivee(especesIle);   // (§218) l'espèce phare de l'île, annoncée
   // et chaque sol rare, son Tellurien — sauf les chasseurs, qui attendent la troisième exploration
   for (const sp of SPEC) if (sp.biome && RaresIle.includes(sp.biome) && (!sp.chasse || profondeur() >= NIV_RAMPANTS || Array.isArray(globalThis.__RARES))) especesIle.add(sp.id);   // les bancs choisissent
   if (!Fourmi) especesIle.delete('oglodon');         // pas de replat pour sa fourmilière : pas d'oglodon
@@ -14301,6 +14303,7 @@ function bestiaireGraine(graine, niv) {
   };
   let r = tir() * 100, n = 2;
   for (const [k, p] of NB_ESPECES) if ((r -= p) <= 0) { n = k; break; }
+  if (niv >= NIV_RAMPANTS) n = Math.min(8, n + (niv >= 10 ? 2 : niv >= 5 ? 1 : 0));   // (§218) plus loin, plus d'espèces : une de plus dès 5, deux dès 10
   const e = new Set();
   // (§118) une bête dont la viande est plus rare que l'île ne le permet n'y vit pas (spectre, coursier orange : dès 4)
   const okR = id => rareteOk(rareEspece(specById[id]), niv);
@@ -14317,7 +14320,8 @@ function bestiaireGraine(graine, niv) {
   if (sterneGraine(graine) && okR('sterne')) e.add('sterne');
   for (const id of trottinsGraine(graine, niv)) e.add(id);   // (§137) les Trottins, tirés à part
   if (niv >= 3 && dragonGraine(graine) && okR('dragon')) e.add('dragon');
-  { const rg = biomesGraine(graine); if (rg.includes(19)) e.add('silencieux'); if (rg.includes(20)) e.add('millegueule'); }   // l'effroi vit sur son sol          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
+  { const rg = biomesGraine(graine); if (rg.includes(19)) e.add('silencieux'); if (rg.includes(20)) e.add('millegueule'); }
+  if (typeof orvaneTirage === 'function') orvaneTirage(e, graine, niv, okR);   // (§218) Orvane : des chasseurs garantis dès la troisième exploration   // l'effroi vit sur son sol          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
   return e;
 }
 // La sterne des nues : un peu plus d'une île sur deux, dès la première. Il lui faut des îles de nuage.
@@ -16952,7 +16956,7 @@ function blocRumeurs() {
 function blocCarnet() {
   const l = P.variantes.filter(e => specById[e[0].split(':')[0]] && lireVariante(e[0].split(':')[1]));
   let h = `<h3>Carnet des variantes <span class="compte">${l.length} croisée${l.length > 1 ? 's' : ''}</span></h3>`;
-  const cond = typeof orvaneCarnet === 'function' ? orvaneCarnet() : '';   // (§211) les conduites observées
+  const cond = (typeof orvaneCarnetLignees === 'function' ? orvaneCarnetLignees() : '') + (typeof orvaneCarnet === 'function' ? orvaneCarnet() : '');   // (§218) les lignées découvertes ; (§211) les conduites observées
   if (!l.length) return h + `<p class="note" style="margin:2px 2px 8px">Aucune encore. Une robe rare, une forme plus rare encore : leurs chances montent à chaque exploration.</p>` + cond;
   for (const [cle, n] of l.slice(0, 40)) {
     const [id, s] = cle.split(':'), sp = specById[id], v = lireVariante(s);
@@ -18883,7 +18887,7 @@ INGR.fleursoufre = { id: 'fleursoufre', n: 'Fleur de soufre', court: 'fleur de s
 INGR.sangroi = { id: 'sangroi', n: 'Sang du Roi', court: 'sang du Roi', fam: 'demon', r: 6, tag: 'braise', soin: 0, c: [178, 16, 30], src: 'denree' };   // (§166) sur le Roi démon : la plus haute rareté
 INGR.poussame = { id: 'poussame', n: 'Poussière d\'âme', court: 'poussière d\'âme', fam: 'demon', r: 5, tag: 'nuit', soin: 0, c: [176, 214, 226], src: 'denree' };   // (§165) les Ossuaires
 INGR.nectar = { id: 'nectar', n: 'Nectar d\'oglodon', court: 'nectar', fam: 'douceur', r: 2, tag: 'souffle', soin: .1, c: [238, 158, 52], src: 'denree' };   // une denrée comme les autres : garde-manger, cellier
-const viandeDe = sp => INGR['v_' + sp.id] || null;
+const viandeDe = sp => INGR['v_' + sp.id] || (sp && sp.orvane && INGR['v_' + sp.orvane.base]) || null;   // (§218) une lignée d'Orvane : la viande de son gabarit
 const produitDe = fl => INGR['p_' + fl] || null;
 // ---------- le garde-manger du coffre ----------
 // Viandes, produits de la flore et poissons suivent la règle des matières : au retour d'expédition,
@@ -19426,7 +19430,7 @@ const RANG_RARE = { 'commun': 1, 'peu commun': 2, 'rare': 3, 'très rare': 4, 'e
 const clRar = r => r > 1 ? 'rar' + Math.min(6, r | 0) : '';
 const nomRare = (n, r) => r > 1 ? `<span class="${clRar(r)}">${ESC(n)}</span>` : ESC(n);
 const rareIngr = id => (INGR[id] || {}).r || 1;
-const rareEspece = sp => (sp && (INGR['v_' + sp.id] || {}).r) || 1;
+const rareEspece = sp => (sp && (sp.rarete || (viandeDe(sp) || {}).r)) || 1;   // (§218) une lignée rare d'Orvane porte sa rareté (sp.rarete)
 const rareVariante = s => { const v = s && lireVariante(s); return v ? (v.taille ? 5 : 3) : 1; };
 const rareBete = b => !b || !b.sp ? 1 : b.sp.plante ? (b.pl ? rareIngr(b.pl.ingr) : 1) : Math.max(rareEspece(b.sp), rareVariante(b.variante));
 function rareIcone(ic) {                                 // ce que porte une vignette, d'après son nom
@@ -27378,6 +27382,7 @@ function photo() {
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), ceinture: nivCeinture(), barre: P.barre | 0, guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
     variantes: P.variantes.slice(0, 200), ogConf: P.ogConf.slice(0, 20), nm: nmPhoto(), cond: typeof conduitesPhoto === 'function' ? conduitesPhoto() : undefined,   // (§211)
+    orv: typeof orvanePhoto === 'function' ? orvanePhoto() : undefined,   // (§218) les lignées d'Orvane découvertes
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
     vyrel: P.vyrel ? { duree: Math.round(P.vyrel.duree) } : null, vyrelGueries: (P.vyrelGueries || []).slice(-300), vyrelVu: P.vyrelVu ? 1 : 0, korlazVu: P.korlazVu ? 1 : 0, dons: typeof donsSauve === 'function' ? donsSauve() : {},   // (§184, §203, §204)
@@ -27476,6 +27481,7 @@ function appliquer(d, vivantes) {
     .slice(0, 20).map(e => [e[0], nb(e[1], 0, 1, 0)]);
   nmAppliquer(d.nm);                                   // ce que les nomades savent de vous
   if (typeof conduitesRelire === 'function') conduitesRelire(d.cond);   // (§211) le carnet des conduites, ce que les compagnes tiennent d'Orvane
+  if (typeof orvaneRelire === 'function') orvaneRelire(d.orv);   // (§218) le carnet des lignées d'Orvane
   P.fleches = nb(d.fleches, 0, 1e5, 0) | 0; P.baumes = nb(d.baumes, 0, 1e4, 0) | 0; P.encre = nb(d.encre, 0, 1e4, 0) | 0;
   P.defense = { mur: nb(d.defense && d.defense.mur, 0, 3, 0) | 0, tours: nb(d.defense && d.defense.tours, 0, 3, 0) | 0 };
   P.soins = {}; for (const o of OBJETS) if (o.emp === 'soin') { const n = nb(d.soins && d.soins[o.id], 0, 1e4, 0) | 0; if (n) P.soins[o.id] = n; }

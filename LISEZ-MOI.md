@@ -6900,7 +6900,7 @@ Stone Valley joue désormais sur **le monde d'Orvane**, un seul monde où tous l
 - un corps construit à sa mesure (quadrupède, hexapode, bipède, oiseau ou serpent, avec ses organes : cornes, défenses, plaques, massue, aiguillon…) ;
 - la conduite de son gabarit : un herbivore paisible est un Doux, comme le cotonnier (c'est d'eux que sont faites les premières îles) ; un herbivore plus vif broute et fuit comme un brouteur ; un omnivore glane comme un glaneur ; un carnivore chasse comme un traqueur.
 
-Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la même part d'herbivores, d'omnivores et de carnivores, dans la mesure où le monde en a. Le monde a 13 lignées de vrais carnivores (rôdeurs, traqueurs, rapaces, un serpent, des chasseurs d'eau), rares en nombre comme au sommet d'une chaîne : ce sont les chasseurs des îles. Les lignées s'y partagent la place à proportion de leurs effectifs dans le monde. Les automates, les boss et les villageois ne changent pas. Les compagnes déjà liées restent ce qu'elles sont. Une île où aucune lignée paisible ne peut se montrer garde ses Doux. Quand le monde d'Orvane arrive après que l'île a été peuplée (au premier lancement après la mise à jour, l'île l'est d'après l'ancien monde), l'île se repeuple aussitôt : les bêtes sauvages de l'ancienne faune s'en vont et les lignées viennent à leur place (`repeuplerIle`). Sans cela, leurs naissances perpétuaient l'ancienne faune tant qu'on restait sur l'île.
+Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la même part d'herbivores, d'omnivores et de carnivores, dans la mesure où le monde en a. Le monde a 13 lignées de vrais carnivores (rôdeurs, traqueurs, rapaces, un serpent, des chasseurs d'eau), rares en nombre comme au sommet d'une chaîne : ce sont les chasseurs des îles. Les lignées s'y partagent la place à proportion de leur présence dans le monde : leurs bêtes, pesées par leur taille (dix millions d'insectes ne se croisent pas plus qu'un troupeau). Une lignée sans ancêtre dans le jeu a une taille qui suit le logarithme de sa masse, d'un petit 0,5 pour un insecte à 1,6 pour une bête de 100 kg. Les automates, les boss et les villageois ne changent pas. Les compagnes déjà liées restent ce qu'elles sont. Une île où aucune lignée paisible ne peut se montrer garde ses Doux. Quand le monde d'Orvane arrive après que l'île a été peuplée (au premier lancement après la mise à jour, l'île l'est d'après l'ancien monde), l'île se repeuple aussitôt : les bêtes sauvages de l'ancienne faune s'en vont et les lignées viennent à leur place (`repeuplerIle`). Sans cela, leurs naissances perpétuaient l'ancienne faune tant qu'on restait sur l'île.
 
 **Les sols du jeu dans le monde d'Orvane.**
 
@@ -6938,7 +6938,7 @@ Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la
   - `FAUNE`, `GROUPE` ;
   - un herbivore paisible a pour gabarit le cotonnier ;
 - `orvane/tampon.js` : l'exposition par jeu, la part d'un seul jeu, le régime de fait ;
-- `sw.js` : le cache du monde survit aux mises à jour ; `stone-valley-186`.
+- `sw.js` : le cache du monde survit aux mises à jour ; `stone-valley-187`.
 
 **Vérifié** :
 - le banc du traducteur, avec 7 nouvelles vérifications sur le monde d'Orvane :
@@ -6948,3 +6948,80 @@ Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la
   - la part d'un seul jeu est plafonnée ;
   - le lot part vers le Supabase d'Orvane avec la clé du jeu, 400 événements à la fois ;
 - dans le navigateur : le passage de l'ancien monde au nouveau (l'île se repeuple dès que le monde arrive), aucune erreur, et le dépôt qui part à la bonne adresse avec les bonnes clés.
+
+## §218 · L'exploration — des chasseurs, des trophées, un carnet des lignées
+
+Avec le monde d'Orvane, une île lointaine ressemblait à la première : des petits herbivores, rien d'autre. Chaque exploration en apporte désormais un peu plus.
+
+**Plus d'espèces au loin.** Le tirage de l'île (`bestiaireGraine`) ajoute une espèce dès la cinquième exploration et deux dès la dixième, huit au plus. Les premières îles gardent leurs deux ou trois Doux.
+
+**Des chasseurs garantis.** Dès la troisième exploration, chaque île a au moins un chasseur d'Orvane qui vit sur ses sols (`orvaneTirage`, `garantirChasseur`), deux dès la huitième. Les chasseurs y sont un quart plus nombreux dès la huitième exploration, moitié plus dès la douzième, et vont en groupe de trois (ceux de 40 kg au plus).
+
+**Des trophées.** Les lignées les plus rares du monde sont des trophées, et leur rareté suit celle des viandes du jeu :
+
+| rareté | part des lignées | dès l'exploration | robustesse | butin en plus |
+| --- | --- | --- | --- | --- |
+| rare | le quart le plus rare | 4 | × 1,3 | 1 éclat |
+| exotique | le dixième le plus rare | 6 | × 1,6 | 2 éclats |
+| légendaire | les trois centièmes les plus rares | 8 | × 1,9 | 3 éclats |
+
+La rareté se mesure à la présence de la lignée dans le monde : ses bêtes, pesées par leur taille, parmi les lignées qui vivent sur les sols du jeu. Une île sur cinq porte un trophée dès la quatrième exploration, jusqu'à une sur deux à la vingtième. C'est toujours le plus rare que l'île permet. Son nom prend la couleur de sa rareté, et l'espèce phare de l'île est annoncée à l'arrivée : la plus rare des lignées tirées, sinon la plus grande.
+
+**Le carnet des lignées.** Chaque lignée d'Orvane croisée s'inscrit au carnet du journal, une fois pour toutes (« nouvelle lignée · … · notée au carnet (12/93) »). Le carnet dit combien de fois elle a été croisée et combien de trophées on en a pris. Il part avec la sauvegarde du compte, et un personnage neuf repart de zéro.
+
+**La viande des lignées.** Une lignée d'Orvane donne la viande de son gabarit (cuissot de brouteur, chair de traqueur…), comme ses autres matières.
+
+Sur 40 îles tirées à chaque niveau :
+
+| exploration | îles à trophée | îles avec un chasseur d'Orvane | lignées d'Orvane par île | espèces par île |
+| --- | --- | --- | --- | --- |
+| 1 | 0 | 0 | 2,5 | 4,5 |
+| 4 | 7 | 40 | 4,5 | 7,4 |
+| 6 | 10 | 40 | 5,5 | 8,5 |
+| 10 | 12 | 40 | 6,8 | 10,5 |
+| 15 | 16 | 40 | 6,8 | 10,6 |
+
+**Le branchement.**
+- `index.html` :
+  - `bestiaireGraine` : les espèces en plus selon la profondeur, puis le crochet `orvaneTirage(e, graine, niv, okR)` ;
+  - `loadWorld` : `orvaneArrivee(especesIle)` ;
+  - `viandeDe` : la viande du gabarit ;
+  - `rareEspece` : `sp.rarete` ;
+  - la mort d'une bête : `orvaneTrophee(b)` ;
+  - `photo` et sa relecture : `orv` (`orvanePhoto`, `orvaneRelire`) ;
+  - `blocCarnet` : `orvaneCarnetLignees()` ;
+- `orvane/orvane-sv.js` : `rangsRarete`, `placeTrophee`, `chasseurLoin`, `garantirChasseur`, `orvaneTirage`, `orvaneArrivee`, `decouvrir`, `orvaneTrophee`, le carnet ;
+- `sw.js` : `stone-valley-188`.
+
+**Vérifié** :
+- le banc du traducteur (tout passe) ;
+- les tirages ci-dessus ;
+- dans le navigateur : la rencontre qui s'inscrit au carnet (1/93), un trophée abattu (+2 éclats pour un exotique), le carnet qui part avec la sauvegarde et revient à la relecture, et la viande d'une lignée (celle du cotonnier pour un Doux). Aucune erreur.
+
+## §219 · Le dessin des lignées — des silhouettes, des têtes, des bêtes vivantes
+
+Les lignées d'Orvane se ressemblaient toutes : un tronc, quatre pattes droites, une boule pour tête. `lignees.js` les dessine désormais d'après ce qu'elles sont : leur masse, leur régime, leurs modes de déplacement, leurs traits.
+
+**Des silhouettes.** Les proportions suivent l'animal :
+- un brouteur a le cou long, le dos droit, des sabots ; un chasseur est bas, allongé, la queue longue ; un lourd (de 4 à 100 kg) s'épaissit, perd du cou et de la queue (un ours plutôt qu'un cerf) ; un petit (sous 600 g) a la tête et les oreilles plus grandes ;
+- un coureur a les pattes fines et longues, un sauteur les cuisses fortes, un fouisseur les griffes et les pattes courtes, un grimpeur la queue longue, un nageur les pieds palmés ;
+- une bête qui nage sans marcher ni ramper est un poisson : corps fuselé qui ondule, ventre clair, nageoire dorsale, pectorales, queue fourchue qui bat, pas d'oreilles ;
+- un serpent a dix anneaux, un insecte un abdomen en trois anneaux et des mandibules, un oiseau un bec (crochu chez un carnivore).
+
+**Des têtes.** Le cou a deux segments. La tête porte un crâne, un museau, une truffe sombre et une mâchoire qui s'ouvre (des crocs quand la bête mord). Les yeux sont de face chez un carnivore, sur les côtés chez une proie, avec un reflet blanc ; ils clignent. Les oreilles ont un intérieur clair, se dressent à l'alarme et frémissent. Les cornes ont deux segments, les antennes se balancent.
+
+**Des pattes.** Trois segments, la cuisse dans la couleur du corps, le genou plié par une petite cinématique inverse (`lgGenou`). Le pas se fond dans le galop quand la bête accélère, et le corps tangue au galop.
+
+**Des queues.** Cinq segments : un plumet chez un herbivore, une brosse chez un petit carnivore ou un omnivore, une palette chez un nageur. Elle se lève à l'alarme et au galop, et pend chez un lourd.
+
+**Vivantes.** La bête respire. Elle broute tête basse, traque basse et tendue, dort roulée. En veille, aux abois ou à l'alarme, elle tourne la tête vers toi (`lgRegard`) ; sinon elle jette des coups d'œil.
+
+**Le branchement.**
+- `lignees.js` : `lgMesures`, `lgGenou`, `lgRegard`, `osOrvane`, `lgPattes`, `lgTete`, `lgQueue`, `lgPoisson` (les organes et `dessinOrvane` sont inchangés) ;
+- `orvane/orvane-sv.js` : `sp.orvane` porte aussi la masse et le régime de la lignée ;
+- `sw.js` : `stone-valley-189`.
+
+**Vérifié** :
+- le banc du traducteur (tout passe) ;
+- les 112 lignées du monde d'Orvane dans sept poses chacune (errer, brouter, fuir, dormir, traquer, mordre, veiller) : 784 squelettes, 38 os en moyenne, 58 au plus, aucun os invalide ;
+- le jeu chargé sur le monde en ligne : aucune erreur.
