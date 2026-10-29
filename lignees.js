@@ -194,6 +194,8 @@ function osOrvane(f) {
   if (M.queue > .08 && !M.serpent) bout = lgQueue(f, M, add, { bz, zx, xr, Lt, Th, couche, allure, al, galop, traque, g });
   if (!bout) bout = M.bip ? [-Lt * .4, 0, bz + .01] : [xr + .01, 0, bz + Th * .15];
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
+  if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
+    for (const o of B) { o.a = T(o.a); o.b = T(o.b); } }
   return B;
 }
 // les pattes : trois segments, la cuisse épaisse ; les avant plient le coude en arrière, les arrière le genou en avant et

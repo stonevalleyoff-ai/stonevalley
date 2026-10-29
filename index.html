@@ -15294,6 +15294,7 @@ function majBete(b, dt) {
   if (sp.vautour) return majVautour(b, dt);            // (§198) le charognard de cendre (volcan.js)
   if (sp.alpha) return majTisonnier(b, dt);             // (§199) le Tisonnier, gardien du volcan (volcan.js)
   if (sp.volant) return majVolant(b, dt);              // la sterne : la vie en l'air (voir LA STERNE DES NUES)
+  if (sp.orvane && sp.orvane.vol && typeof orvaneVol === 'function' && orvaneVol(b, dt)) return;   // (§220) une lignée d'Orvane en l'air (orvane-sv.js)
   b.t += dt; b.age += dt; b.bob += dt * (3 + b.alarm * 4);
   if (b.hit > 0) b.hit -= dt;
   if (b.dead) { b.dead += dt; chute(b, dt); updateFoeLegs(b, dt); return; }

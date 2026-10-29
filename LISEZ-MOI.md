@@ -7025,3 +7025,27 @@ Les lignées d'Orvane se ressemblaient toutes : un tronc, quatre pattes droites,
 - le banc du traducteur (tout passe) ;
 - les 112 lignées du monde d'Orvane dans sept poses chacune (errer, brouter, fuir, dormir, traquer, mordre, veiller) : 784 squelettes, 38 os en moyenne, 58 au plus, aucun os invalide ;
 - le jeu chargé sur le monde en ligne : aucune erreur.
+
+## §220 · Les lignées grimpent et volent selon leurs modes
+
+Une lignée d'Orvane prend sa conduite à une fiche du jeu (le brouteur, le glaneur, le traqueur, le cotonnier). Elle en prenait aussi la paroi : les trois premières sont des Rampants, qui grimpent tous, si bien que presque toute la faune d'Orvane marchait sur les murs. Et aucune fiche ne vole : un rapace restait au sol.
+
+**La paroi.** Une lignée ne grimpe que si elle a le mode `grimpe` (21 des 112 lignées du monde) ; les autres font le tour, comme les Doux.
+
+**Le vol.** Une lignée qui a le mode `vol` (le moteur le réserve aux bêtes de 12 kg au plus : deux rapaces et un picoreur dans le monde d'Orvane) vit au sol selon sa fiche, et s'envole :
+- pour fuir, quand on l'alarme ou qu'on la touche ;
+- pour une balade en cercle autour d'où elle est partie, de 7 à 17 secondes (un chasseur, qui plane, part plus souvent et plus longtemps : de 14 à 36 secondes) ;
+- chasseuse, pour gagner une proie à plus de six cases : elle y vole, fond dessus, se pose et mord.
+
+En l'air, elle vole comme la sterne (`volerVers`) : à 3,5 à 8 cases du sol selon sa taille, les ailes battantes, l'assiette qui suit la pente, et elle vire sur l'aile. Elle ne se pose que sur un sol sec, et sinon revient d'où elle est partie. Touchée à mort, elle tombe. Liée ou montée, elle marche. Une flèche la touche où elle est dessinée.
+
+**Le branchement.**
+- `orvane/orvane-sv.js` : `appliquerDef` (la paroi et le vol, d'après les modes de la lignée), `orvaneVol`, `orvanePoser` ;
+- `index.html` : `majBete`, juste après la sterne : `orvaneVol(b, dt)` ;
+- `lignees.js` : en vol, le corps vire sur l'aile (`f.roll`) ;
+- `sw.js` : `stone-valley-190`.
+
+**Vérifié** :
+- le banc du traducteur (tout passe) ;
+- les 112 lignées dans sept poses : aucun os invalide ;
+- dans le jeu, un rapace alarmé près du joueur : il décolle, fuit en l'air, se pose au bout de dix secondes, repart quand on approche ; laissé à lui-même trois minutes, il en passe à peu près les deux tiers en l'air. Aucune erreur.
