@@ -9,6 +9,8 @@
 // Le corps se lit ainsi : la forme (quadrupède, hexapode, bipède, oiseau, serpent) et le nombre de pattes donnent le
 // squelette ; long, haut, cou, tete, museau… ses proportions ; les traits dominants de la lignée (sp.orvane.traits)
 // ajoutent leurs organes : carapace, crocs, dard, membrane, palmes, glandes, grands yeux de nuit, couleurs d'alerte.
+// Les organes de la fiche (plan.corps.organes, §215) se posent à leur place, à leur taille : cornes (une sur le nez, deux,
+// quatre), défenses, trompe, collerette, crête de tête ou de dos, plaques, épines, nageoires, massue, aiguillon, panache, pinces.
 // La conduite (brouter, chasser, fuir, se laisser lier) reste celle de la fiche dont la lignée descend.
 'use strict';
 const LG = {
@@ -34,10 +36,17 @@ function lgMesures(sp) {
     Lt: .26 + q('long') * .34, Th: .2 - q('long') * .05, Hl: (.07 + q('haut') * .36) * (tr.has('pattes-longues') ? 1.25 : 1),
     cou: q('cou'), tete: .09 + q('tete') * .09, museau: q('museau'), oreilles: q('oreilles'), queue: q('queue'), cornes: q('cornes'),
     crete: q('crete'), ailes: Math.max(q('ailes'), (sp.volant || sp.dragon) ? .8 : 0), carapace: Math.max(q('carapace'), tr.has('carapace') ? .8 : 0),
-    antennes: q('antennes'), motif: c.motif || 'uni',
+    antennes: q('antennes'), motif: c.motif || 'uni', organes: [],
     robe: sp.shell, sombre: sp.dark, ventre: sp.ventre || C.ventre || lgMix(sp.shell, [240, 236, 226], .35), oeil: sp.oeil,
   };
   M.Wd = M.Th * 1.1;
+  // (§215) les organes : la liste de la fiche (ou celle qu'on tire de ses proportions) ; les cinq d'avant s'y relisent, par place
+  const N = typeof OrvaneCorps !== 'undefined' && OrvaneCorps.normaliser, OL = Array.isArray(c.organes) ? c.organes : N ? N(c).organes : null;
+  M.organes = (OL || []).filter(o => o && Number.isFinite(o.taille) && o.taille >= .2);
+  M.org = (ty, pl) => M.organes.find(o => o.type === ty && (!pl || o.place === pl));
+  if (OL) { const tl = (ty, pl) => (M.org(ty, pl) || {}).taille || 0;
+    M.cornes = tl('cornes'); M.crete = tl('crete', 'tete'); M.antennes = tl('antennes');
+    M.ailes = Math.max(tl('ailes'), (sp.volant || sp.dragon) ? .8 : 0); M.carapace = Math.max(tl('carapace'), tr.has('carapace') ? .8 : 0); }
   M.accent = tr.has('coloration-aposematique') ? LG.ALERTE[(sp.id.length) % 2] : lgAccent(M.robe);
   if (M.hexa && M.Hl > .3) M.Hl = .3;                               // un hexapode se tient bas : ses pattes s'écartent plutôt
   return (O._m = M);
@@ -68,7 +77,7 @@ function osOrvane(f) {
   // la hauteur du dos : debout sur ses pattes, couché quand il dort ou qu'il meurt
   const bz0 = M.serpent ? Th * .42 : M.Hl + Th * .5, bz = bz0 + (Th * .5 + .01 - bz0) * couche - ram * .04 + Math.abs(Math.sin(ph * 2)) * .012 * allure;
   const xa = Lt * .5, xr = -Lt * .5;                                 // l'avant et l'arrière du tronc
-  let avant, tz = bz;                                                 // où s'attache le cou
+  let avant, bout, tz = bz;                                           // où s'attache le cou ; le bout de la queue
   // --- le tronc ---
   if (M.serpent) {
     const n = 7, L = .5 + Lt, ond = .05 + .04 * allure, pts = [];
@@ -76,7 +85,7 @@ function osOrvane(f) {
       pts.push([x, y, bz * (1 - i / n * .25)]); }
     for (let i = 0; i < n; i++) { const k = 1 - i / n * .55; add(pts[i], pts[i + 1], Wd * k, Th * k * .85, i % 2 && M.motif === 'bandes' ? M.sombre : M.robe); }
     for (let i = 0; i < n - 1; i++) add([pts[i][0], pts[i][1], pts[i][2] - Th * .38], [pts[i + 1][0], pts[i + 1][1], pts[i + 1][2] - Th * .38], Wd * .7 * (1 - i / n * .5), .03, M.ventre);
-    avant = pts[0]; tz = pts[0][2];
+    avant = pts[0]; tz = pts[0][2]; bout = pts[n];
   } else if (M.bip) {
     const pen = M.oiseau ? .25 : .55, hz = bz;                       // un bipède se tient penché ; un oiseau presque à plat
     const H = [-Lt * .35, 0, hz], S = [Lt * .35, 0, hz + Lt * pen * (1 - couche)];
@@ -154,8 +163,11 @@ function osOrvane(f) {
   }
   const dessus = tete[2] + hs * .5;
   if (M.oreilles > .25) for (const s of [-1, 1]) { const lo = .04 + M.oreilles * .12; add([tete[0] - hs * .2, s * hs * .32, dessus - .01], [tete[0] - hs * .32, s * (hs * .32 + lo * .45), dessus + lo], .016, lo * .55, M.robe); }
-  if (M.cornes > .25) for (const s of [-1, 1]) { const lc = .05 + M.cornes * .18, b0 = [tete[0], s * hs * .25, dessus - .01], b1 = [tete[0] - lc * .3, s * (hs * .3 + lc * .35), dessus + lc * .7];
-    add(b0, b1, .026, .026, LG.CORNE); if (M.cornes > .6) add(b1, [b1[0] - lc * .35, b1[1] + s * lc * .15, b1[2] + lc * .35], .02, .02, LG.CORNE); }
+  const oc = M.org('cornes'), nc = oc ? oc.nombre : 2, droites = oc && oc.forme === 'droites', ramif = oc ? oc.forme === 'ramifiees' : M.cornes > .6;
+  if (M.cornes > .25 && nc === 1) { const lc = .05 + M.cornes * .2, b0 = [nez[0] - .03, 0, nez[2] + hs * .3]; add(b0, [b0[0] + lc * .15, 0, b0[2] + lc * .85], .034, .034, LG.CORNE); }   // une corne, sur le nez
+  else if (M.cornes > .25) for (const [r, dx] of nc >= 4 ? [[1, 0], [.6, -hs * .35]] : [[1, 0]]) for (const s of [-1, 1]) {
+    const lc = (.05 + M.cornes * .18) * r, b0 = [tete[0] + dx, s * hs * .25, dessus - .01], b1 = [tete[0] + dx - lc * (droites ? .1 : .3), s * (hs * .3 + lc * (droites ? .15 : .35)), dessus + lc * (droites ? .95 : .7)];
+    add(b0, b1, .026 * r + .004, .026 * r + .004, LG.CORNE); if (ramif && r === 1) add(b1, [b1[0] - lc * .35, b1[1] + s * lc * .15, b1[2] + lc * .35], .02, .02, LG.CORNE); }
   if (M.crete > .25) { const hc = .03 + M.crete * .09; add([tete[0] - hs * .45, 0, dessus], [tete[0] + hs * .3, 0, dessus], .016, hc, M.accent);
     if (nl > .05) add(lgMix(base, tete, .2), lgMix(base, tete, .75), .014, hc * .6, M.accent); }
   if (M.antennes > .25) for (const s of [-1, 1]) { const la = .08 + M.antennes * .18; add([tete[0] + hs * .2, s * hs * .2, dessus - .01], [tete[0] + hs * .2 + la * .7, s * (hs * .2 + la * .25), dessus + la * .7], .014, .014, M.sombre); }
@@ -169,9 +181,43 @@ function osOrvane(f) {
       const q = [p[0] - Math.cos(a) * L / n, Math.sin(onde) * L / n * (i + 1) * .5, p[2] + Math.sin(a) * L / n];
       add(p, q, Th * .42 * k, Th * .38 * k, i === n - 1 && M.motif === 'bandes' ? M.sombre : M.robe); p = q;
     }
-    if (tr.has('dard')) add(p, [p[0] - .02, p[1], p[2] + .06], .03, .03, LG.DARD);
+    if (tr.has('dard') && !M.org('aiguillon')) add(p, [p[0] - .02, p[1], p[2] + .06], .03, .03, LG.DARD);
+    bout = p;
   }
+  if (!bout) bout = M.bip ? [-Lt * .4, 0, bz + .01] : [xr + .01, 0, bz + Th * .15];
+  if (M.organes.length) lgOrganes(add, M, { tete, hs, nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
   return B;
+}
+
+// (§215) les organes que les mesures ne disent pas, chacun à sa place et à sa taille
+function lgOrganes(add, M, P) {
+  const { tete, hs, nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure } = P, og = M.org, sur = (o, f) => { if (o) f(o.taille, o); };
+  const d0 = M.bip ? -Lt * .3 : xr + .02, d1 = M.bip ? Lt * .2 : xa - .04, zt = (M.bip ? bz + .02 : bz) + Th * .5;   // le dos
+  sur(og('defenses'), k => { const l = .04 + k * .14; for (const s of [-1, 1]) { const a = [nez[0] - .03, s * hs * .24, nez[2] - hs * .25], m = [a[0] + l * .6, a[1] + s * .01, a[2] - l * .25];
+    add(a, m, .024, .024, LG.CROC); add(m, [m[0] + l * .35, m[1], m[2] + l * .45], .018, .018, LG.CROC); } });
+  sur(og('trompe'), k => { const l = .06 + k * .22, a = [nez[0] - .01, 0, nez[2] - hs * .05], m = [a[0] + l * .45, 0, a[2] - l * .3], b = [m[0] + l * .15, 0, m[2] - l * .5 * (1 - couche * .5)];
+    add(a, m, hs * .32, hs * .3, M.robe); add(m, b, hs * .24, hs * .22, M.robe); });
+  sur(og('collerette'), k => add([tete[0] - hs * .62, 0, tete[2] + hs * .1], [tete[0] - hs * .55, 0, tete[2] + hs * .1], hs * (1.5 + k * 1.6), hs * (1.2 + k * 1.3), M.accent));
+  if (!M.serpent) {
+    sur(og('crete', 'dos'), k => add([d0 + .02, 0, zt + .01], [d1, 0, zt + .01], .014, .025 + k * .07, M.accent));
+    sur(og('plaques'), k => { const n = 3 + Math.round(k * 3), h = .03 + k * .07;
+      for (let i = 0; i < n; i++) { const x = d0 + (d1 - d0) * (i + .5) / n, hh = h * (.7 + .3 * Math.sin(Math.PI * (i + .5) / n)); add([x - .022, 0, zt + hh * .4], [x + .022, 0, zt + hh * .4], .012, hh, M.accent); } });
+    sur(og('nageoires'), k => { const xm = (d0 + d1) / 2; add([xm - .04, 0, zt + .02], [xm + .04, 0, zt + .02], .012, .03 + k * .06, M.sombre);
+      for (const s of [-1, 1]) add([avant[0] - .06, s * Wd * .5, bz - Th * .25], [avant[0] - .14, s * (Wd * .5 + .03 + k * .06), bz - Th * .35], .02, .03 + k * .04, M.sombre); });
+    sur(og('pinces'), k => { const l = .05 + k * .11;
+      for (const s of [-1, 1]) { const a = [avant[0] - .02, s * Wd * .45, bz - Th * .2], m = [a[0] + l, s * (Wd * .5 + .02), a[2] - Th * .1 + allure * .01];
+        add(a, m, .026, .026, M.sombre); add(m, [m[0] + l * .5, m[1], m[2] + .01], .045 + k * .03, .03, M.sombre); } });
+  }
+  for (const o of M.organes) if (o.type === 'epines') { const l = .025 + o.taille * .06, n = 3 + Math.round(o.taille * 3);
+    if (o.place === 'queue') { for (const s of [-1, 1]) add(bout, [bout[0] - l * .3, bout[1] + s * l, bout[2] + l * .6], .012, .012, LG.CORNE); }
+    else if (!M.serpent) for (let i = 0; i < n; i++) { const x = d0 + (d1 - d0) * (i + .5) / n;
+      if (o.place === 'flancs') for (const s of [-1, 1]) add([x, s * Wd * .45, bz], [x - .01, s * (Wd * .45 + l), bz + l * .3], .012, .012, LG.CORNE);
+      else add([x, 0, zt], [x - .012, 0, zt + l], .012, .012, LG.CORNE); } }
+  sur(og('massue'), (k, o) => { const r = .045 + k * .07; add([bout[0] + r * .3, bout[1], bout[2]], [bout[0] - r * .7, bout[1], bout[2]], r, r * .9, M.sombre);
+    if (o.forme === 'cloutee') for (const s of [-1, 1]) add([bout[0] - r * .2, bout[1] + s * r * .4, bout[2]], [bout[0] - r * .2, bout[1] + s * r * .85, bout[2] + r * .2], .014, .014, LG.CORNE); });
+  sur(og('aiguillon'), (k, o) => { const l = .05 + k * .1, m = [bout[0] + l * .25, bout[1], bout[2] + l * .6], c = o.forme === 'courbe';
+    add(bout, m, .03, .03, LG.DARD); add(m, [m[0] + l * (c ? .45 : .2), m[1], m[2] + l * (c ? .1 : .4)], .016, .016, LG.DARD); });
+  sur(og('panache'), (k, o) => add(bout, [bout[0] - .06 - k * .14, bout[1], bout[2] + (.06 + k * .14) * .35], o.forme === 'eventail' ? .04 + k * .08 : .03 + k * .04, .03 + k * .05, M.accent));
 }
 
 // Le pictogramme : la bête de profil, tournée vers la droite — tronc, pattes, tête, et ce qui la distingue.
@@ -189,11 +235,25 @@ function dessinOrvane(d, sp) {
   if (M.ailes > .3) d.ligne(x1 - 3, cy - 1, x0, cy - 3.5 - M.ailes * 2, M.sombre, 2);
   const hx = Math.min(13.5, x1 + .5 + M.cou * 2.2), hy = cy - 1.5 - M.cou * 4;
   if (M.cou > .15) d.ligne(x1 - 1, cy - 1, hx - .5, hy + .5, M.robe, 2);
+  const og = M.org, dos = cy - 1.6 - M.Th * 8;                        // (§215) les organes, d'abord ceux de derrière la tête
+  if (og('collerette')) d.disque(hx - 1, hy, 1.8 + og('collerette').taille * 1.6, M.accent);
+  if (og('plaques')) for (let x = Math.round(x0 + 1); x <= Math.round(x1 - 1.5); x += 2) d.ligne(x, dos, x, dos - 1 - og('plaques').taille * 1.5, M.accent);
+  else if (og('crete', 'dos')) d.ligne(x0 + 1, dos, x1 - 1.5, dos, M.accent);
+  if (og('epines', 'dos')) for (let x = Math.round(x0 + 1.5); x <= Math.round(x1 - 1.5); x += 2) d.net(x, Math.round(dos - 1), LG.CORNE);
+  if (og('nageoires')) d.ligne((x0 + x1) / 2 - 1, dos, (x0 + x1) / 2, dos - 1.5 - og('nageoires').taille * 1.5, M.sombre);
   d.disque(hx, hy, 1.1 + M.tete * 7, M.robe);
   if (M.museau > .2) d.ligne(hx + 1, hy + .3, Math.min(15, hx + 1.5 + M.museau * 2), hy + .6, M.oiseau ? LG.BEC : M.robe, 2);
   if (M.cornes > .25) d.ligne(hx - .5, hy - 1.4, hx - 2, hy - 2.5 - M.cornes * 2, LG.CORNE);
   if (M.oreilles > .3) d.ligne(hx - .6, hy - 1.2, hx - 1.4, hy - 2 - M.oreilles * 1.5, M.robe);
   if (M.crete > .3) d.ligne(hx - 1.5, hy - 1.6, hx + .5, hy - 1.8, M.accent);
   if (M.antennes > .3) d.ligne(hx + .4, hy - 1, hx + 2, hy - 3, M.sombre);
+  if (og('defenses')) d.ligne(hx + 1, hy + 1, Math.min(15, hx + 2 + og('defenses').taille * 1.5), hy + .2, LG.CROC);
+  if (og('trompe')) d.ligne(hx + 1, hy + .5, Math.min(15, hx + 2), Math.min(15, hy + 2 + og('trompe').taille * 3), M.robe, 2);
+  if (og('pinces')) { const px = Math.min(15, x1 + 1 + og('pinces').taille * 2); d.ligne(x1 - .5, cy + .5, px, cy + .5, M.sombre); d.disque(px, cy + .5, .9, M.sombre); }
+  const qx = M.queue > .15 ? Math.max(0, x0 - 1 - M.queue * 3) : x0 + .5, qy = M.queue > .15 ? cy - (M.bip ? -1 : 1.5 + M.queue) : cy;   // le bout de la queue
+  if (og('massue')) d.disque(qx, qy, 1 + og('massue').taille * 1.2, M.sombre);
+  if (og('aiguillon')) d.ligne(qx, qy, qx + 1.2, qy - 1.5 - og('aiguillon').taille * 1.5, LG.DARD);
+  if (og('panache')) d.disque(qx, qy - .5, 1 + og('panache').taille * 1.2, M.accent);
+  if (og('epines', 'queue')) { d.net(Math.round(qx), Math.round(qy - 1.5), LG.CORNE); d.net(Math.round(qx + 1), Math.round(qy - 1), LG.CORNE); }
   d.net(Math.round(hx + .6), Math.round(hy - .4), M.oeil);
 }

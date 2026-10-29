@@ -1,7 +1,7 @@
 // Stone Valley — le service worker : la page et ses images sont gardées, pour jouer hors ligne.
 // La page passe par le réseau d'abord (une nouvelle version arrive donc au premier chargement),
 // le reste par le cache d'abord. Tout ce qui va vers Supabase passe tout droit.
-const CACHE = 'stone-valley-181';
+const CACHE = 'stone-valley-185';
 const FICHIERS = ['./', './index.html', './donjon.js', './rouages.js', './forge.js', './nomades.js', './etats.js', './brume.js', './roi.js', './trone.js', './achromie.js', './vyrel.js', './village.js', './volcan.js', './dons.js', './coop.js', './faune.js', './flore.js', './lignees.js', './conduites.js', './orvane/corps.js', './orvane/tampon.js', './orvane/correspondance.js', './orvane/orvane-sv.js', './manifest.webmanifest',
   './icone-192.png', './icone-512.png', './icone-maskable-512.png'];
 
@@ -10,7 +10,7 @@ self.addEventListener('install', e => {
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys()
-    .then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k))))
+    .then(ks => Promise.all(ks.filter(k => k !== CACHE && !k.startsWith('stone-valley:')).map(k => caches.delete(k))))   // (§217) le monde d'Orvane garde son cache
     .then(() => self.clients.claim()));
 });
 self.addEventListener('fetch', e => {

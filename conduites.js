@@ -27,6 +27,7 @@ const CD = {
   vibrisses:  { nom: 'aux vibrisses', dit: 'vous sent venir de plus loin' },
   ebloui:     { nom: 'ébloui', dit: 'voit mal en plein jour' },
   crocs:      { nom: 'aux longs crocs', dit: 'mord plus fort' },
+  charge:     { nom: 'qui charge', dit: 'frappe plus fort, cornes, défenses ou queue en avant' },
   foulee:     { nom: 'coureur', dit: 'détale et poursuit plus vite' },
   lent:       { nom: 'placide', dit: 'lent en tout' },
   terrier:    { nom: 'fouisseur', dit: 's\'enterre d\'un coup pour vous échapper' },
@@ -160,11 +161,11 @@ function conduitesBete(b, dt, men, dM2, J, dJ) {
 function cdCompagne(b, dt) {
   const c = b.comp;
   if (c) { const k = String(c.id), E = CDE.comp[k];
-    if (b.phen && !E) { CDE.comp[k] = { e: b.sp.id, ph: b.phen, tr: (b.traits || []).slice(0, 12), cd: (b.conduites || []).slice(0, 12).map(x => ({ id: x.id, force: x.force, portee: x.portee, recharge: x.recharge })),
-        qv: b.q ? { q: b.q, s: b.qs, tq: b.tq, vq: b.vq, fq: b.fq } : undefined }; const L = (b.conduites || []).map(x => CD[x.id]?.nom).filter(Boolean);
+    if (b.phen && !E) { CDE.comp[k] = { e: b.sp.id, ph: b.phen, tr: (b.traits || []).slice(0, 12), cd: (b.conduites || []).slice(0, 12).map(x => ({ id: x.id, force: x.force, portee: x.portee, recharge: x.recharge, nom: x.nom })),
+        qv: b.q ? { q: b.q, s: b.qs, tq: b.tq, vq: b.vq, fq: b.fq } : undefined, hy: b.hybride }; const L = (b.conduites || []).map(x => CD[x.id]?.nom).filter(Boolean);
       if (L.length) try { say(c.nom + ' garde ce qu\'elle tient d\'Orvane : ' + L.join(', '), 3.2); } catch (e) { } }
     else if (!b.phen && E && E.e === b.sp.id) { b.phen = E.ph; b.traits = E.tr; b.conduites = E.cd && E.cd.length ? E.cd.map(x => ({ ...x })) : typeof OrvaneSV !== 'undefined' ? OrvaneSV.conduitesPour(b.sp, E.tr) : null; b.cdm = null;
-      if (E.qv) { b.q = E.qv.q; b.qs = E.qv.s; for (const j of ['tq', 'vq', 'fq']) if (E.qv[j]) b[j] = E.qv[j]; } } }   // ressortie du sac, ou rechargée : la même bête
+      if (E.qv) { b.q = E.qv.q; b.qs = E.qv.s; for (const j of ['tq', 'vq', 'fq']) if (E.qv[j]) b[j] = E.qv[j]; } if (E.hy) b.hybride = E.hy; } }   // ressortie du sac, ou rechargée : la même bête
   const m = cdM(b); if (!m) return null;
   if (m.crachat) {                                             // elle crache sur ce qui vous attaque
     let h = b.crachePret ? b.cracheCible : null;
@@ -204,6 +205,7 @@ function conduitesBlesse(b) {
 function conduitesCoup(b, c, deg) {
   const ma = cdM(b);
   if (ma && ma.crocs) { deg *= ma.crocs.force || 1.25; if (c === P) cdDecouvrir(b, 'crocs'); }
+  if (ma && ma.charge) { deg *= ma.charge.force || 1.2; if (c === P) cdDecouvrir(b, 'charge'); }   // (§215) des cornes, des défenses, une massue
   if (c && c !== P && c.sp && !(typeof estJoueur === 'function' && estJoueur(c))) { const mc = cdM(c);
     if (mc) { deg /= conduitesDur(c);
       if (mc.dard && b && b.sp && t > (c.dardT || 0) && Math.hypot(b.x - c.x, b.y - c.y) < 2.2) { c.dardT = t + 2.5; b.pv = Math.max(.05, b.pv - .06); b.etourdi = Math.max(b.etourdi || 0, .5); burst(b.x, b.y, b.z + .5, 6, '#b070d8'); } } }
@@ -232,7 +234,7 @@ function orvaneCibleDit(o) {
   if (!o || o.tame && !o.comp) return '';
   const m = o.conduites || [], d = Math.hypot(o.x - P.x, o.y - P.y), L = typeof OrvaneSV !== 'undefined' && OrvaneSV.quantMots ? OrvaneSV.quantMots(o) : [];   // (§212) sa taille, son allure, son audace
   let pres = 0;
-  for (const c of m) { const nom = CD[c.id] && CD[c.id].nom; if (!nom) continue;
+  for (const c of m) { const nom = CD[c.id] && (c.nom || CD[c.id].nom); if (!nom) continue;
     if (CDE.vues[o.sp.id + ':' + c.id] || o.tame) L.push(nom); else if (c.presage && d < 7 && pres < 2 && !(c.id === 'crachat' && o.crachePret > t)) { L.push(c.presage); pres++; } }   // pas encore vu : le présage, de près
   return L.length ? ' · ' + L.join(' · ') : '';
 }
@@ -263,6 +265,6 @@ function conduitesRelire(d) {
   if (d.v && typeof d.v === 'object') for (const [k, n] of Object.entries(d.v).slice(0, 400)) if (typeof k === 'string' && k.length < 80 && CD[k.slice(k.lastIndexOf(':') + 1)]) CDE.vues[k] = Math.max(1, Math.min(1e6, n | 0));
   if (d.c && typeof d.c === 'object') for (const [k, e] of Object.entries(d.c).slice(0, 60)) if (e && typeof e.e === 'string' && typeof e.ph === 'string' && Array.isArray(e.tr))
     CDE.comp[k] = { e: e.e.slice(0, 60), ph: e.ph.slice(0, 200), tr: e.tr.filter(x => typeof x === 'string').slice(0, 12),
-      cd: (Array.isArray(e.cd) ? e.cd : []).filter(x => x && CD[x.id]).slice(0, 12).map(x => ({ id: x.id, force: +x.force || undefined, portee: +x.portee || undefined, recharge: +x.recharge || undefined })),
-      qv: cdQv(e.qv) };
+      cd: (Array.isArray(e.cd) ? e.cd : []).filter(x => x && CD[x.id]).slice(0, 12).map(x => ({ id: x.id, force: +x.force || undefined, portee: +x.portee || undefined, recharge: +x.recharge || undefined, nom: typeof x.nom === 'string' ? x.nom.slice(0, 40) : undefined })),
+      qv: cdQv(e.qv), hy: typeof e.hy === 'string' ? e.hy.slice(0, 80) : undefined };
 }
