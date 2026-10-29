@@ -6893,14 +6893,14 @@ Orvane tient désormais, par population, ce que les bêtes ont appris des joueur
 
 ## §217 · Le monde d'Orvane — un monde pour tous les jeux
 
-Stone Valley joue désormais sur **le monde d'Orvane**, un seul monde où tous les jeux se branchent. Il est né de la genèse universelle d'Orvane : 24 biomes neutres (de la banquise aux abysses), 14 ancêtres très simples (brouteurs, fouisseur, rôdeur, insecte, oiseau, serpent, filtreurs, chasseurs d'eau douce et du large, crabe), 1 400 cycles d'évolution accélérée, et 123 lignées au bout, que personne n'a dessinées. Aucune des trente espèces de la faune habituelle n'y existe. Le premier monde du jeu (sv-1) est archivé : il ne tourne plus.
+Stone Valley joue désormais sur **le monde d'Orvane**, un seul monde où tous les jeux se branchent. Il est né de la genèse universelle d'Orvane : 24 biomes neutres (de la banquise aux abysses), 19 ancêtres très simples (des brouteurs, un fouisseur, un insecte, un oiseau, des prédateurs de toutes tailles, des filtreurs, des chasseurs d'eau douce et de mer, un crabe), 900 cycles d'évolution accélérée, et 112 lignées au bout, que personne n'a dessinées. Aucune des trente espèces de la faune habituelle n'y existe. Le premier monde du jeu (sv-1) est archivé : il ne tourne plus.
 
 **Ce qui se voit.** Sur les îles, la faune habituelle (brouteurs, crapauds, traqueurs, trottins…) cède sa place aux lignées du monde. Chacune a :
 - un nom inventé ;
 - un corps construit à sa mesure (quadrupède, hexapode, bipède, oiseau ou serpent, avec ses organes : cornes, défenses, plaques, massue, aiguillon…) ;
 - la conduite de son gabarit : un herbivore paisible est un Doux, comme le cotonnier (c'est d'eux que sont faites les premières îles) ; un herbivore plus vif broute et fuit comme un brouteur ; un omnivore glane comme un glaneur ; un carnivore chasse comme un traqueur.
 
-Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la même part d'herbivores, d'omnivores et de carnivores, dans la mesure où le monde en a. Les vrais carnivores sont rares dans le monde : il n'en a pour l'instant que deux lignées, l'une dans la jungle (la sylve fongique du jeu), l'autre dans le maquis (la cerisaie). La plupart des îles n'ont donc plus de chasseurs. Les lignées s'y partagent la place à proportion de leurs effectifs dans le monde. Les automates, les boss et les villageois ne changent pas. Les compagnes déjà liées restent ce qu'elles sont. Une île où aucune lignée paisible ne peut se montrer garde ses Doux. La toute première île après la mise à jour est encore peuplée d'après l'ancien monde ; dès que le monde d'Orvane arrive, les nouvelles bêtes sont les siennes, et les îles suivantes en entier.
+Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la même part d'herbivores, d'omnivores et de carnivores, dans la mesure où le monde en a. Le monde a 13 lignées de vrais carnivores (rôdeurs, traqueurs, rapaces, un serpent, des chasseurs d'eau), rares en nombre comme au sommet d'une chaîne : ce sont les chasseurs des îles. Les lignées s'y partagent la place à proportion de leurs effectifs dans le monde. Les automates, les boss et les villageois ne changent pas. Les compagnes déjà liées restent ce qu'elles sont. Une île où aucune lignée paisible ne peut se montrer garde ses Doux. Quand le monde d'Orvane arrive après que l'île a été peuplée (au premier lancement après la mise à jour, l'île l'est d'après l'ancien monde), l'île se repeuple aussitôt : les bêtes sauvages de l'ancienne faune s'en vont et les lignées viennent à leur place (`repeuplerIle`). Sans cela, leurs naissances perpétuaient l'ancienne faune tant qu'on restait sur l'île.
 
 **Les sols du jeu dans le monde d'Orvane.**
 
@@ -6927,6 +6927,7 @@ Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la
 - `index.html` : `ORVANE_CHEMIN` pointe sur `mondes/orvane/` ; `ORVANE_DEPOT` donne l'adresse du Supabase d'Orvane, sa clé publique et la clé du jeu ;
 - `orvane/orvane-sv.js` :
   - `orvaneEnvoyer` dépose par `orvane_deposer` ;
+  - `repeuplerIle` : l'île se repeuple quand le monde arrive après elle ;
   - le réglage vient de `jeux.json` (sinon `Corr.EXPOSITION`) ;
   - `bestiaireOrvane` (le bestiaire d'Orvane) ;
   - le régime montré est le régime de fait : un carnivore qui digère aussi les plantes est un omnivore ;
@@ -6937,13 +6938,13 @@ Elle en donne les mêmes matières. L'île garde autant de bêtes qu'avant et la
   - `FAUNE`, `GROUPE` ;
   - un herbivore paisible a pour gabarit le cotonnier ;
 - `orvane/tampon.js` : l'exposition par jeu, la part d'un seul jeu, le régime de fait ;
-- `sw.js` : le cache du monde survit aux mises à jour ; `stone-valley-185`.
+- `sw.js` : le cache du monde survit aux mises à jour ; `stone-valley-186`.
 
 **Vérifié** :
 - le banc du traducteur, avec 7 nouvelles vérifications sur le monde d'Orvane :
   - les sols de l'île sont des biomes du monde ;
-  - 26 lignées remplacent la faune du jeu sur une île à tourbière, dont 4 Doux ;
+  - 32 lignées remplacent la faune du jeu sur une île à tourbière, dont 7 Doux ;
   - chaque lot est lu avec l'exposition de son jeu ;
   - la part d'un seul jeu est plafonnée ;
   - le lot part vers le Supabase d'Orvane avec la clé du jeu, 400 événements à la fois ;
-- dans le navigateur : l'île peuplée des lignées du monde, aucune erreur, et le dépôt qui part à la bonne adresse avec les bonnes clés.
+- dans le navigateur : le passage de l'ancien monde au nouveau (l'île se repeuple dès que le monde arrive), aucune erreur, et le dépôt qui part à la bonne adresse avec les bonnes clés.
