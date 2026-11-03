@@ -7049,3 +7049,75 @@ En l'air, elle vole comme la sterne (`volerVers`) : à 3,5 à 8 cases du sol sel
 - le banc du traducteur (tout passe) ;
 - les 112 lignées dans sept poses : aucun os invalide ;
 - dans le jeu, un rapace alarmé près du joueur : il décolle, fuit en l'air, se pose au bout de dix secondes, repart quand on approche ; laissé à lui-même trois minutes, il en passe à peu près les deux tiers en l'air. Aucune erreur.
+
+## §221 · Les lignées d'eau — dans la mer et les lacs, plus sur la plage
+
+Une lignée d'Orvane qui ne fait que nager (elle ne marche, ne court, ne saute, ne rampe, ne fouit, ne grimpe ni ne vole) vivait jusqu'ici comme les autres : née sur le rivage ou dans la tourbière, elle marchait sur le sable. Elle vit maintenant dans l'eau.
+
+- **Où elle naît.** Dans l'eau qui borde ses sols : la mer à moins de cinq cases d'un rivage, les lacs et les rivières près d'une tourbière (`orvanePlaceEau`). Sans eau au bord de ses sols, l'île n'en a pas.
+- **Comment elle vit.** Elle nage juste sous la surface et n'en sort jamais : au bord, elle fait demi-tour. Elle flâne, s'arrête, repart. Elle s'éloigne de qui l'approche et fuit plus vite si on la touche. Morte, elle remonte et flotte (`orvaneNage`).
+- **Ce qu'on en fait.** On la chasse à l'arc, comme les autres. On ne la lie pas. Les chasseurs du sol ne la poursuivent pas.
+- **Ses sols.** Une lignée née dans Orvane ne vit plus que sur les sols où elle a un effectif. Une lignée des abysses, que le jeu n'a pas, ne prend plus les sols de sa fiche (le glaneur, le brouteur) : elle ne paraît pas.
+
+Cela compte d'autant plus que le monde d'Orvane va recevoir la mer d'Orvane (Orvane, docs/14), au premier cycle de nuit qui suit son dépôt : une trentaine de lignées marines, dont une vingtaine vivent au bord des rivages et des tourbières.
+
+**L'annonce.** Quand le monde d'Orvane a reçu un autre monde, le jeu le dit une fois, en arrivant sur une île (« La mer d'Orvane a rejoint le monde d'Orvane · 29 lignées nouvelles, au bord des eaux »). Ce qui a déjà été annoncé est gardé avec l'état du traducteur.
+
+**Le branchement.**
+- `index.html` : `poser` (une lignée d'eau naît dans l'eau), `majBete` (juste après le vol : `orvaneNage(b, dt)`), le choix de la proie (ce qui vit dans l'eau échappe aux chasseurs du sol) ;
+- `orvane/orvane-sv.js` : `nageurPur`, `surfaceEau`, `orvanePlaceEau`, `orvaneNage` ; `appliquerDef` (`sp.orvane.nage`, pas de lien, les sols de la lignée seulement) ; `orvaneArrivee` (l'annonce d'une fusion, `S.fusionsVues`) ;
+- `sw.js` : `stone-valley-191`.
+
+**Vérifié**, sur le monde d'Orvane après la fusion (141 lignées, 31 lignées d'eau dont 22 vivent sur les sols du jeu) :
+- six lignées d'eau posées sur une île : nées dans la mer ou un lac, aucune image hors de l'eau en vingt secondes, elles s'éloignent du joueur qui approche, flottent une fois mortes ; une lignée de tourbière sans eau au bord ne paraît pas ;
+- les 141 lignées dans sept poses : 987 squelettes, aucun os invalide ;
+- l'annonce de la fusion : dite à la première île, pas à la suivante ;
+- le banc du traducteur (tout passe) ; aucune erreur de page.
+
+## §222 · Une île, une parcelle — chaque île a sa part du monde
+
+Le monde d'Orvane se découpe désormais en parcelles : chaque biome en quatre parcelles voisines (Orvane, docs/15). Une espèce gagne la prairie de proche en proche, et une parcelle peut avoir perdu une lignée que sa voisine garde. Le jeu suit ce découpage.
+
+- **Une île a ses parcelles.** Pour chacun de ses biomes, une île tire de sa graine l'une de ses parcelles (`parcelleIle`). Deux îles de prairie n'ont donc plus forcément la même faune.
+- **Sa faune suit sa parcelle.** La présence d'une lignée sur l'île est celle de sa parcelle, ramenée à l'échelle du biome (`effectifIci`). Une lignée qui n'a pas encore gagné cette parcelle n'y paraît pas. Sur le monde d'Orvane découpé, 19 des 41 lignées de la prairie ne paraissent que sur une partie des îles, du quart aux trois quarts d'entre elles.
+- **Ce que font les joueurs y reste.** Chaque rencontre, chaque prise, chaque défrichage noté sur l'île porte sa parcelle. Orvane y pose la pression tout entière, au lieu de la répartir sur tout le biome. Chasser une île la vide un peu, et ses voisines repeuplent ensuite.
+- **Sans parcelles,** ou hors ligne avec un monde gardé d'avant, rien ne change.
+
+**Le branchement.**
+- `orvane/orvane-sv.js` : `parcelleIle`, `effectifIci`, `effectifSur` (la présence sur l'île), `noter` et `orvaneLot` (la parcelle des événements), l'abrégé gardé hors ligne (la répartition par parcelle) ;
+- `sw.js` : `stone-valley-192`.
+
+**Vérifié**, sur le monde d'Orvane avec la mer d'Orvane, découpé en 96 parcelles :
+- quarante îles se partagent également les quatre parcelles de prairie ; 22 des 41 lignées de la prairie vivent dans toutes, 19 dans certaines seulement ;
+- une rencontre notée sur une île de rivage part au lot avec sa parcelle (`cote~2`) ;
+- le banc du traducteur (tout passe) ; aucune erreur de page.
+
+## §223 · Les machines d'Orvane — la vie synthétique devient des automates
+
+Le monde d'Orvane peut avoir une seconde vie, faite de machines (Orvane, docs/16). La Mère s'éveille au volcan, assemble des machines et en conçoit de nouvelles d'après ce qui tue les siennes. Leur rôle : réguler les espèces qui débordent. Le jeu en fait des automates.
+
+- **Une machine est un automate.** Une lignée dont le régime est `synthetique` prend la conduite d'un automate du jeu : le traceur si c'est une régulatrice (elle abat le gibier de loin), le moissonneur sinon (paisible). Sa taille suit sa masse. Son blindage la rend plus dure à abattre. Son arme lui donne un tir, même si sa fiche n'en a pas. Sans pince ni arme, elle ne tire pas.
+- **Elle chasse ce qu'Orvane régule.** Sur une île, une régulatrice ne vise que les lignées que les machines régulent sur ces sols (`regulation` dans l'instantané), à sa taille. Là où rien ne déborde, elle ne chasse rien.
+- **Sa posture vient des joueurs.** Orvane donne à chaque population de machines sa posture, d'après ce que les joueurs lui font, et ses yeux la disent :
+  - neutre, les yeux bleus : elle ignore le joueur, et riposte si on la frappe, comme tout automate ;
+  - défensive, les yeux ambre : elle se tient à distance, et riposte si on la frappe ;
+  - fuyante, les yeux verts : elle fuit ;
+  - hostile, les yeux rouges : elle vise le joueur, comme un mercenaire.
+- **Chaque coup compte.** Abattre une machine part au lot comme un prélèvement. Assez de machines abattues sur une île, et Orvane rend celles de la région méfiantes, puis la Mère y envoie des machines blindées et armées. Laissez-les en paix, et elles redeviennent neutres.
+- **Elles ont leur part de l'île,** à partir de la troisième exploration, avec les chasseurs. Elle dépend de leur nombre sur ces sols : deux pour cent machines, trois pour mille, cinq pour dix mille, six au plus. Une île où il y en a en porte au moins une, deux dès la huitième exploration.
+- **L'annonce.** Une fois, à l'arrivée sur une île : « La Mère s'est éveillée au volcan · des machines peuplent le monde d'Orvane ».
+- **Sans machines dans le monde,** rien ne change.
+
+**Le branchement.**
+- `orvane/correspondance.js` : `gabaritDe` (une machine prend la fiche du traceur ou du moissonneur), `GROUPE.synthetique` ;
+- `orvane/orvane-sv.js` :
+  - `definir`, `machineDef` (la fiche de la machine) et `machineIle` (ce qu'elle chasse, sa posture, ses yeux) ;
+  - `bestiaireOrvane` (la part des machines) et `orvaneTirage` (une machine au moins) ;
+  - l'annonce de la Mère (`S.mereVue`) ;
+- `sw.js` : `stone-valley-193`.
+
+**Vérifié** sur le monde d'Orvane découpé en parcelles, avec la Mère éveillée depuis 150 cycles :
+- l'île de départ, à la sixième exploration, porte trois lignées de machines : la Vigie et le Ferrailleur, deux régulatrices nées de la Mère, et Yrvor-18, une petite régulatrice qu'elle a conçue contre ce qui débordait. Chacune chasse les lignées régulées sur l'île, et quatre automates d'Orvane paraissent ;
+- une posture hostile en fait une machine qui vise le joueur, les yeux rouges ;
+- une machine abattue part au lot comme un prélèvement, avec sa parcelle ;
+- le banc du traducteur (tout passe) ; aucune erreur de page.

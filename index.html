@@ -9454,7 +9454,8 @@ function poser(sp) {
   if (q) return vr(naitre(sp, q[0], q[1]));
   if (sp.volant) { const v = poserVolant(sp); return v ? vr(v) : null; }
   if (sp.dragon) { const v = poserDragon(sp); return v ? vr(v) : null; }
-  if (sp.horreur) { const v = poserHorreur(sp); return v ? vr(v) : null; }   // un dragon : sur son aire, au plus haut   // une sterne : sur une dalle, près de sa colonie
+  if (sp.horreur) { const v = poserHorreur(sp); return v ? vr(v) : null; }
+  if (sp.orvane && sp.orvane.nage && typeof orvanePlaceEau === 'function') { const q = orvanePlaceEau(sp); if (!q) return null; const b = naitre(sp, q[0], q[1]); b.z = q[2]; return vr(b); }   // (§221) une lignée d'eau : dans l'eau qui borde ses sols   // un dragon : sur son aire, au plus haut   // une sterne : sur une dalle, près de sa colonie
   if (sp.meute) {                                      // une meute naît ensemble : trois ou quatre autour d'un chef
     const chef = beasts.find(o => o.sp === sp && !o.tame && !o.dead && beasts.filter(m => m.sp === sp && (m.x - o.x) ** 2 + (m.y - o.y) ** 2 < 49).length < (sp.meute > 1 ? sp.meute : 4));
     if (chef) for (let k = 0; k < 30; k++) {
@@ -15295,6 +15296,7 @@ function majBete(b, dt) {
   if (sp.alpha) return majTisonnier(b, dt);             // (§199) le Tisonnier, gardien du volcan (volcan.js)
   if (sp.volant) return majVolant(b, dt);              // la sterne : la vie en l'air (voir LA STERNE DES NUES)
   if (sp.orvane && sp.orvane.vol && typeof orvaneVol === 'function' && orvaneVol(b, dt)) return;   // (§220) une lignée d'Orvane en l'air (orvane-sv.js)
+  if (sp.orvane && sp.orvane.nage && typeof orvaneNage === 'function' && orvaneNage(b, dt)) return;   // (§221) une lignée d'Orvane qui ne vit que dans l'eau
   b.t += dt; b.age += dt; b.bob += dt * (3 + b.alarm * 4);
   if (b.hit > 0) b.hit -= dt;
   if (b.dead) { b.dead += dt; chute(b, dt); updateFoeLegs(b, dt); return; }
@@ -15332,6 +15334,7 @@ function majBete(b, dt) {
   const furie = (typeof fureurIci === 'function' ? fureurIci(b) : null) || (typeof vyrelFurie === 'function' ? vyrelFurie(b) : null);   // (§184) ou malade du Vyrel   // la brume sanglante (brume.js) : la cible de sa fureur
   // une proie qui s'est bien défendue est laissée en paix un moment
   if (pr && pr === b.epargne && b.t < b.epargneT) { pr = null; dP = 1e9; }
+  if (pr && pr.sp.orvane?.nage && !sp.orvane?.nage) { pr = null; dP = 1e9; }   // (§221) ce qui vit dans l'eau échappe aux chasseurs du sol
   if (pr && !b.tame && paixIci(pr.x, pr.y)) { pr = null; dP = 1e9; }   // la cerisaie (§112) : sous les cerisiers, on ne chasse pas
   // engagement : on garde sa proie. Sans mémoire de cible, le chasseur bascule sur la
   // première proie devenue plus proche, coupe sa course, et n'aboutit presque jamais.
