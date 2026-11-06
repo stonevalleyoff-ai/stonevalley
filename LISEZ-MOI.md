@@ -7392,3 +7392,24 @@ Le régime en spectre d'Orvane (feuilles, fruits, graines, nectar…) commence �
 - `sw.js` : `stone-valley-201`.
 
 **Vérifié.** Dans le navigateur, sur une île de la quatrième exploration : 21 mangeurs de fruits. Ceux qui ont faim (4 à 6) vont au buisson, et jusqu'à 4 s'y nourrissent en même temps. Aucune erreur.
+
+## §232 · Le comportement, troisième temps : le troupeau, la meute, et des îles où les chasseurs ont à manger
+
+**L'alarme du troupeau.** Une bête d'Orvane qui vit en troupeau (sociabilité 0,4 et plus) et fuit un prédateur fait détaler les siennes à moins de dix cases, pendant deux secondes et demie. L'alarme se transmet de proche en proche, une fois par seconde au plus par bête. Devant le joueur, ce sont toujours les conduites qui jouent (l'alerte du grégarisme, §211).
+
+**La meute chasse ensemble.** Un chasseur d'Orvane qui vit en groupe prend la proie qu'un des siens poursuit à moins de quatorze cases, et la chasse même s'il n'a qu'un peu faim (plus de 0,3). Ce n'est pas le cas sous les cerisiers, où l'on ne chasse pas.
+
+**Des îles où les chasseurs ont à manger.**
+- **La part des espèces.** Au loin, la puissance (§226) faisait tirer surtout des espèces chasseuses, qui n'avaient plus rien à manger. Au plus un tiers des espèces tirées d'une île chassent maintenant (`orvaneTirage`). Les moins pesantes s'en vont, et des brouteurs ou des glaneurs, tirés selon leur poids, prennent leur place.
+- **Le nombre.** Le bonus du §218 (« un quart de plus dès la huitième exploration, moitié plus dès la douzième ») s'ajoutait à celui du jeu (`capEsp0`, « plus de crocs » au loin). Il est retiré. Les meutes restent.
+
+**Le branchement.**
+- `index.html` : `majBete` (`alerteDe`, `alerteT`, `alerteDon`, `meuteDe`) ;
+- `orvane/orvane-sv.js` : `orvaneTirage`, `chasseurLoin` ;
+- `sw.js` : `stone-valley-202`.
+
+**Vérifié.**
+- **Une scène montée dans le navigateur** : un troupeau de sept Silmévi (des glaneurs de jungle), et une meute de trois chasseurs de 35 kg, le chef affamé et deux suiveurs à moitié repus.
+  - Sur neuf secondes : 202 relevés de fuite, dont 182 par l'alarme ; jusqu'aux sept bêtes en fuite ensemble.
+  - 62 relevés de chasse en meute : les deux suiveurs ont pris la proie du chef.
+- **Quatre îles** (explorations 4 à 20) : deux espèces chasseuses sur sept au plus, aucune erreur.

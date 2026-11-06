@@ -514,7 +514,8 @@ function rangsRarete() {
 function chasseurLoin(sp) {
   if (sp.diet !== 'c' || !(sp.cap > 0)) { if (sp.orvane) delete sp.meute; return; }
   const n = prof(), m = S.lignees[sp.id]?.masse || 5;
-  sp.cap = Math.max(1, Math.round(sp.cap * (n >= 12 ? 1.5 : n >= NIV_MEUTES ? 1.25 : 1)));
+  // (§232) plus de chasseurs en nombre : le jeu en met déjà plus au loin (capEsp0, « plus de crocs »), et les deux s'ajoutaient ;
+  // restent les meutes, qui naissent ensemble
   if (n >= NIV_MEUTES && m <= 40) sp.meute = 3; else delete sp.meute;
 }
 // un trophée trop rare pour avoir sa part de l'île y a quand même une petite place, dès l'exploration que dit sa rareté (le
@@ -626,6 +627,18 @@ function orvaneTirage(e, graine, niv, okR) {
   const reste = SPEC.filter(sp => sp.orvane?.gabarit && sp.diet === 'c' && sp.cap > 0 && (POIDS_ESPECE[sp.id] || 0) > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
   let n = [...e].filter(estChasseur).length, g = (graine ^ 0x7a11e) >>> 0;
   const tir = () => { g = (Math.imul(g, 1664525) + 1013904223) >>> 0; return g / 4294967296; };
+  // (§232) au plus un tiers des espèces tirées chassent : au loin, la puissance faisait tirer surtout des chasseurs, qui n'avaient
+  // plus de quoi manger. Les moins pesants s'en vont, et des brouteurs ou des glaneurs, tirés selon leur poids, prennent leur place
+  { const C = [...e].filter(estChasseur), max = Math.max(1, Math.floor(e.size / 3));
+    if (C.length > max) {
+      const trop = C.sort((a, b) => (POIDS_ESPECE[a] || 0) - (POIDS_ESPECE[b] || 0)).slice(0, C.length - max);
+      for (const id of trop) e.delete(id);
+      const H = SPEC.filter(sp => sp.orvane?.gabarit && !sp.orvane.machine && sp.diet !== 'c' && sp.cap > 0 && (POIDS_ESPECE[sp.id] || 0) > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
+      for (let i = 0; i < trop.length && H.length; i++) {
+        let r = tir() * H.reduce((a, sp) => a + POIDS_ESPECE[sp.id], 0), k = 0;
+        for (; k < H.length - 1; k++) if ((r -= POIDS_ESPECE[H[k].id]) <= 0) break;
+        e.add(H[k].id); H.splice(k, 1); }
+      n = max; } }
   while (n < (niv >= NIV_MEUTES ? 2 : 1) && reste.length) {
     let r = tir() * reste.reduce((a, sp) => a + POIDS_ESPECE[sp.id], 0), k = 0;
     for (; k < reste.length - 1; k++) if ((r -= POIDS_ESPECE[reste[k].id]) <= 0) break;

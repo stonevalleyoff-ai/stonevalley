@@ -15362,6 +15362,10 @@ function majBete(b, dt) {
   if (b.cible && (b.cible.pv <= 0 || b.cible.dead || b.cible.enfoui > 0 || !beasts.includes(b.cible)
       || (b.x - b.cible.x) ** 2 + (b.y - b.cible.y) ** 2 > (vue * 2.2) ** 2 || b.t - b.cibleT > 16 || (!b.tame && paixIci(b.cible.x, b.cible.y)))) { b.cible = null; b.renonce = b.t; }
   if (!b.cible && pr && b.faim > .5 && b.t - b.renonce > 2.5) { b.cible = pr; b.cibleT = b.t; }
+  // (§232) LA MEUTE CHASSE ENSEMBLE : un chasseur d'Orvane qui vit en groupe prend la proie qu'un des siens poursuit, tout près
+  if (!b.cible && !b.tame && sp.orvane && sp.herd && sp.diet === 'c' && b.faim > .3 && b.t - b.renonce > 2.5) {
+    const m = beasts.find(o => o !== b && o.sp === sp && !o.tame && !o.dead && o.cible && !o.cible.dead && o.etat === 'chasser' && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 196);
+    if (m && !paixIci(m.cible.x, m.cible.y)) { b.cible = m.cible; b.cibleT = b.t; b.meuteDe = m; } }
   if (b.cible) { pr = b.cible; dP = (b.x - pr.x) ** 2 + (b.y - pr.y) ** 2; }
   // Le joueur comme proie. Un chasseur qui renonce ne revient pas avant vingt secondes.
   // (J : le joueur que cette bête considère — le plus proche, quand cet appareil est le gardien)
@@ -15407,6 +15411,7 @@ function majBete(b, dt) {
   else if (furie) etat = 'furie';
   else if (b.brame > t && b.brameDe && !b.brameDe.dead && !b.tame) { etat = 'fuir'; men = b.brameDe; dM = (b.x - men.x) ** 2 + (b.y - men.y) ** 2; }   // le brame d'un bramard lié
   else if (panique) { etat = 'fuir'; men = J; dM = dJ * dJ; }
+  else if (!b.tame && b.alerteDe && b.alerteT > t && !b.alerteDe.dead && sp.peur > .15) { etat = 'fuir'; men = b.alerteDe; dM = (b.x - men.x) ** 2 + (b.y - men.y) ** 2; }   // (§232) l'alarme du troupeau
   else if (men && dM < (vue * 1.05) ** 2 && sp.peur > .15 && (!besoin || presse) && !(b.tame && (b.rappel > 0 || (b.role === 'defense' && b.pv > .3)))) etat = b.accule > 0 && dM < 20 ? 'acculé' : 'fuir';
   else if (b.decroche > 0 && b.epargne && !b.epargne.dead) etat = 'décrocher';
   else if (b.tame) {
@@ -15416,13 +15421,20 @@ function majBete(b, dt) {
   else if (b.traque) etat = 'traquer';
   else if (assoiffe) etat = 'boire';
   else if (b.soif > .98 && dEau === EAU_LOIN) b.soif = .98;               // pas de source connue : on n'en meurt pas non plus (la vie baisse au-delà de 1)
-  else if (b.faim > (sp.biome ? .75 : .5) && sp.diet !== 'h' && pr) etat = 'chasser';   // un Tellurien vit d'abord de son sol
+  else if ((b.faim > (sp.biome ? .75 : .5) || (b.meuteDe && b.cible && b.faim > .3)) && sp.diet !== 'h' && pr) etat = 'chasser';   // un Tellurien vit d'abord de son sol ; (§232) la meute suit
   else if (b.faim > .55 && sp.diet === 'c') etat = 'quête';
   else if (b.faim > .35 && sp.diet !== 'c') etat = 'brouter';
   else if (!actif || b.nrj < .30 || (b.etat === 'dormir' && b.nrj < .80)) etat = 'dormir';
   else if (sp.herd) etat = 'troupeau';
   if ((etat === 'errer' || etat === 'troupeau' || (etat === 'brouter' && b.faim < .6)) && curieuse(b, dJ, dzJ)) etat = 'curieux';
   b.etat = etat;
+  if (etat !== 'chasser') b.meuteDe = null;
+  // (§232) L'ALARME DU TROUPEAU : une bête d'Orvane qui vit en troupeau et fuit un prédateur (pas le joueur : c'est l'affaire des
+  // conduites) fait détaler les siennes à moins de dix cases, deux secondes et demie ; une fois par seconde au plus
+  if (etat === 'fuir' && sp.herd && sp.orvane && men && men !== J && men.sp && !b.tame && !(b.alerteDon > t)) {
+    b.alerteDon = t + 1;
+    for (const o of beasts) if (o !== b && o.sp === sp && !o.tame && !o.dead && !(o.alerteT > t) && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 100) { o.alerteDe = men; o.alerteT = t + 2.5; o.alarm = Math.max(o.alarm || 0, .8); }
+  }
   // Vingt secondes à fuir ou à faire front devant ce qui ne l'attaque pas : elle s'y fait, et ne le
   // craint plus de vingt-cinq secondes, sauf s'il approche à deux cases et demie ou s'en prend à elle.
   if (etat === 'fuir' || etat === 'acculé') b.peurT = (b.peurT || 0) + dt; else b.peurT = 0;
