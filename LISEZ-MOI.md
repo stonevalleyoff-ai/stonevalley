@@ -7651,3 +7651,37 @@ Il revient toutes les dix à seize secondes, plus vite chez les plus puissantes 
 - **En jeu** : un envol (battements forts), la spirale (le battement s'éteint, elle monte à 0,9 par seconde, penchée), la glissade (elle descend, quelques battements).
 - **Les corps** : 852, au repos et dans cinq poses de vol, aucun os invalide.
 - **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-210`.
+
+## §241 · La démarche, refaite ; plus de quadrupèdes aux parois
+
+**Les parois** (`orvane-sv.js`, `appliquerDef`). Toute lignée qui grimpe dans Orvane recevait la marche aux parois du jeu (faite pour les insectes d'autrefois) : un mammifère montait aux falaises comme une araignée. Elle est réservée aux insectes et aux serpents ; une autre grimpeuse franchit deux cubes d'un bond.
+
+**La foulée** (`lignees.js`, `lgFoulee`). Elle avance d'après le chemin parcouru, et l'allure dépend de la vitesse rapportée à celle de l'espèce :
+- le **pas** sous la moitié, le **trot** ensuite, le **galop** au-delà de la vitesse ordinaire (quand elle fuit ou chasse) ; le **bond** chez une petite sauteuse ;
+- ni galop pour un insecte, ni vrai galop pour une bête très lourde, qui reste au trot rapide ;
+- les allures se fondent l'une dans l'autre ;
+- un cycle couvre une fois et demie la longueur de la patte au pas, deux fois et demie au trot, près de quatre au galop (une épique fait de plus grands pas) ;
+- le pied passe 65 % du cycle au sol au pas, la moitié au trot, un gros tiers au galop.
+
+**Les pattes** (`lgPattes`, `lgOffsets`) :
+- trois **os de longueur fixe** (la cuisse, la jambe, le pied), le genou par cinématique inverse : la patte plie, elle ne rétrécit plus en se levant ;
+- le **pied posé ne glisse plus** : il recule sous le corps exactement à la vitesse de la bête, puis se lève et revient en arc, le paturon replié, la pointe du pied qui tombe ;
+- l'ordre des pieds :
+
+| allure | quadrupède | insecte | bipède |
+|---|---|---|---|
+| pas | séquence latérale : arrière gauche, avant gauche, arrière droit, avant droit | une vague, de l'arrière vers l'avant | en alternance |
+| trot | par diagonales | en trépied | en alternance |
+| galop | rotatif : les deux arrière, puis les deux avant, un peu décalés | en trépied | une course avec un temps en l'air |
+| bond (petite sauteuse) | les deux arrière ensemble, puis les deux avant | — | à pieds joints |
+
+- **arrêtée**, elle repose ses pieds sous elle ;
+- **le corps** : deux petits creux par cycle au pas, deux rebonds au trot, un grand au galop, avec le tangage ;
+- **le saut** : à l'impulsion, l'avant replié et l'arrière tendu, le nez levé ; à la descente, l'avant tendu pour se recevoir, le nez bas ; à la **réception**, le corps s'écrase un instant et les pattes encaissent ;
+- un bipède balance ses petits bras à la marche.
+
+**Vérifié.**
+- **Au studio**, de profil : le pas, le trot, le galop et le saut, sur un chasseur de 5 kg et un herbivore de 60 kg.
+- **En jeu** : plus aucun quadrupède aux parois (deux serpents y grimpent) ; un saut (en l'air, puis la réception).
+- **Les corps** : 852, à l'arrêt, au pas, au trot, au galop, à la montée et à la descente d'un saut, aucun os invalide.
+- **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-211`.

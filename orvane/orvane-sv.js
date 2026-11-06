@@ -224,12 +224,15 @@ function appliquerDef(sp, def, base) {
     masse: def.masse, regime: def.regime || ({ c: 'carnivore', h: 'herbivore', o: 'omnivore' })[base.diet] || 'omnivore' };   // (§219) le dessin lit sa masse et son régime
   if (def.gabarit) {                                                  // (§220) sa fiche ne lui prête que sa conduite : elle grimpe et vole
     const loco = def.locomotion || [];                                //   selon ses propres modes, pas selon ceux de sa fiche
-    sp.grimpe = loco.includes('grimpe') ? Math.max(base.grimpe || 0, .6) : 0;
+    // (§241) marcher aux parois, c'est l'affaire d'un insecte ou d'un serpent ; une autre grimpeuse (sur quatre pattes, sur deux) saute
+    // deux cubes : elle ne monte plus aux falaises comme une araignée
+    const paroi = loco.includes('grimpe') && (def.forme === 'hexapode' || def.forme === 'serpent');
+    sp.grimpe = paroi ? Math.max(base.grimpe || 0, .6) : 0;
     sp.orvane.vol = loco.includes('vol');
     // (§225) ce que dit le monde, et plus la fiche : le troupeau suit sa sociabilité, une sauteuse franchit deux cubes, une
     // butineuse change les baies en nectar (comme l'oglodon d'autrefois), et sa viande vient de son corps
     if (def.social != null) sp.herd = def.social >= .4 ? 1 : 0;
-    if (loco.includes('saut')) sp.bond = Math.max(sp.bond || 0, 2); else delete sp.bond;
+    if (loco.includes('saut') || (loco.includes('grimpe') && !paroi)) sp.bond = Math.max(sp.bond || 0, 2); else delete sp.bond;
     if ((def.diete?.nectar || 0) >= .2) sp.nectar = 1; else delete sp.nectar;
     sp.orvane.fruits = (def.diete?.fruits || 0) + (def.diete?.nectar || 0) >= .3;   // (§231) elle va aux buissons à baies
     if (Corr.SOCLES?.[def.base]) sp.orvane.viande = classeViande(def);

@@ -124,17 +124,29 @@ function lgMesures(sp) {
   if (M.hexa && M.Hl > .3) M.Hl = .3;                               // un hexapode se tient bas : ses pattes s'écartent plutôt
   return (O._m = M);
 }
-// la foulée : avancée d'après le chemin parcouru, comme une roue (aucun autre système ne la tient pour ces bêtes)
+// (§241) LA FOULÉE. Elle avance d'après le chemin parcouru, pas d'après le temps : un pied posé ne glisse pas. L'allure dépend de la
+// vitesse rapportée à celle de l'espèce : le pas (en dessous de la moitié), le trot, puis le galop (au-dessus de la vitesse ordinaire,
+// quand elle fuit ou qu'elle chasse) — le bond chez une petite sauteuse, ni galop ni trot rapide chez un insecte ou une bête très
+// lourde. Les allures se fondent l'une dans l'autre. Un cycle couvre une fois et demie la longueur de la patte au pas, deux fois et
+// demie au trot, près de quatre au galop ; chaque pied y passe une part au sol (l'appui : 65 % au pas, la moitié au trot, un gros tiers au galop) et
+// le reste en l'air.
 function lgFoulee(f, M) {
   const dtl = Math.min(.1, Math.max(0, t - (f._lgT ?? t))); f._lgT = t;
   const dx = f.x - (f._lgX ?? f.x), dy = f.y - (f._lgY ?? f.y); f._lgX = f.x; f._lgY = f.y;
   const d = Math.min(.5, Math.hypot(dx, dy)), k = echB(f) || 1;
   const vInst = dtl > 0 ? d / dtl : 0; f._lgV = (f._lgV || 0) + (vInst - (f._lgV || 0)) * Math.min(1, dtl * 8);
-  const avant = f._lgPh || 0; f._lgPh = (avant + d / Math.max(.15, (.22 + M.Hl * 1.4) * k * (1 + .35 * (M.epique || 0)))) % 1;   // (§226) une épique : de grands pas
+  const r = (f._lgV || 0) / Math.max(.6, f.sp.spd || 2.5), lourd = lgCl(M.lourd || 0, 0, 1);
+  let wG = lgCl((r - .95) / .3, 0, 1) * (M.hexa ? 0 : 1 - .8 * lourd), wT = lgCl((r - .38) / .22, 0, 1) - wG; wT = Math.max(0, wT);
+  const W = f._lgW || (f._lgW = { p: 1, t: 0, g: 0 }), km = Math.min(1, dtl * 4);
+  W.g += (wG - W.g) * km; W.t += (wT - W.t) * km; W.p = Math.max(0, 1 - W.g - W.t);
+  const legW = (M.Hl + M.Th * .5) * k * (1 + .3 * (M.epique || 0));
+  f._lgD = Math.max(.12, legW * (1.65 * W.p + 2.4 * W.t + 3.7 * W.g));   // la longueur d'un cycle, dans le monde
+  f._lgB = .65 * W.p + .5 * W.t + (M.bip ? .38 : .36) * W.g;           // la part de l'appui
+  const avant = f._lgPh || 0; f._lgPh = (avant + d / f._lgD) % 1;
   // (§226) une épique lourde pose le pied : un nuage de poussière à chaque pas
   if ((M.epique || 0) > (M.el ? .25 : .5) && !f.dead && !f.enVol && d > .01 && Math.floor(avant * 2) !== Math.floor(f._lgPh * 2) && typeof burst === 'function')
     try { burst(f.x, f.y, (f.z || 0) + .05, 2 + Math.round(M.epique * 2), M.el ? M.partEl : '#9a8a70'); } catch (e) { }   // (§237) braises, givre, étincelles…
-  return f.dead ? 0 : Math.min(1.6, Number.isFinite(f.vit) && f.vit > 0 ? f.vit : f._lgV);
+  return f.dead ? 0 : Math.min(1.6, f._lgV || 0);
 }
 // une patte à deux os qui va de la hanche h à la cheville c : le genou est là où les deux longueurs se rejoignent,
 // plié vers l'avant (sens > 0) ou vers l'arrière ; dans le plan x-z de la bête
@@ -163,7 +175,7 @@ function osOrvane(f) {
     for (const s of [-1, 1]) add([M.Lt * .3, s * M.tete * .3, tz * 1.2], [M.Lt * .3 + .02, s * M.tete * .3, tz * 1.2], .03, .035, M.oeil);
     return B;
   }
-  const v = lgFoulee(f, M), ph = f._lgPh * 6.2832, allure = Math.min(1, v / 1.2), galop = lgCl((v - .9) / .6, 0, 1) * (M.coureur || M.chasseur ? 1 : .5);
+  const v = lgFoulee(f, M), ph = f._lgPh * 6.2832, allure = Math.min(1, v / 1.2), galop = (f._lgW ? f._lgW.g : 0);
   // (§226) LES ÉTATS SE FONDENT : se coucher, traquer, brouter, regarder ne passent plus d'une image à l'autre
   const dtA = Math.min(.1, Math.max(0, t - (f._lgA ?? t))); f._lgA = t;
   const lisse = (k, c, vit) => { const x = Number.isFinite(f[k]) ? f[k] : c; return (f[k] = x + (c - x) * Math.min(1, dtA * vit)); };
@@ -183,9 +195,14 @@ function osOrvane(f) {
   // la hauteur du dos : debout sur ses pattes, couché quand il dort ou qu'il meurt ; un galop tangue, une traque s'aplatit
   const bz0 = M.serpent ? Th * .42 : M.Hl + Th * .5;
   const saut = cu * allure * Math.abs(Math.sin(ph * 2)) * (.045 + .035 * cu) * (1 - couche);   // (§226) la mignonne sautille
-  const bz = bz0 + (Th * .5 + .01 - bz0) * Math.max(couche, geste.roule * .6) - ram * .04 - traque * M.Hl * .3 + Math.abs(Math.sin(ph * 2)) * (.014 + .02 * ep) * allure * (1 + galop) + saut - M.Hl * .45 * geste.assis;
+  const Wg = f._lgW || { p: 1, t: 0, g: 0 }, mv = lgCl(v / .2, 0, 1) * (1 - couche);   // (§241) le rebond suit l'allure : deux petits creux au pas, deux rebonds au trot, un grand au galop
+  const rebond = mv * M.Hl * (.025 * Wg.p * Math.cos(ph * 2) + .06 * Wg.t * Math.abs(Math.sin(ph * 2)) + .13 * Wg.g * Math.sin(ph));
+  const air = lisse('_lgAir', !vol && !f.dead && !f.mur && !f.tang && !f.enfoui && typeof sol === 'function' && (f.z || 0) - sol(f.x, f.y) > .12 ? 1 : 0, 9);   // en l'air (un saut, une chute)
+  if (air < .3 && (f._lgAirP || 0) >= .3) f._lgRecep = t + .2; f._lgAirP = air;                    // la réception : le corps s'écrase un instant
+  const recep = f._lgRecep > t ? (f._lgRecep - t) / .2 : 0;
+  const bz = bz0 + (Th * .5 + .01 - bz0) * Math.max(couche, geste.roule * .6) - ram * .04 - traque * M.Hl * .3 + rebond * (1 + .5 * ep) + saut - M.Hl * .45 * geste.assis - recep * M.Hl * .3;
   const dresse = lisse('_lgDr', ep * Math.max(al, f.etat === 'veille' || f.etat === 'acculé' || f.etat === 'défendre' ? .9 : 0), 2.5);   // (§226) l'épique se dresse, poitrail haut
-  const tangage = (Math.sin(ph) * .09 * galop - traque * .06 - broute * .05 - dresse * .2 - .3 * geste.assis + .2 * geste.etire - .14 * geste.rugit) * (1 - couche);   // l'avant plonge et remonte au galop ; (§234) assise, l'avant se lève ; étirée, il plonge
+  const tangage = (Math.sin(ph) * .1 * Wg.g * mv + air * ((f.vz || 0) > 0 ? .22 : -.14) - traque * .06 - broute * .05 - dresse * .2 - .3 * geste.assis + .2 * geste.etire - .14 * geste.rugit) * (1 - couche);   // l'avant plonge et remonte au galop ; (§234) assise, l'avant se lève ; étirée, il plonge
   const xa = Lt * .5, xr = -Lt * .5;                                 // l'avant et l'arrière du tronc
   const zx = x => bz + x * tangage;                                  // la ligne du dos penche avec le tangage
   let avant, bout, tz = bz;                                           // où s'attache le cou ; le bout de la queue
@@ -242,7 +259,7 @@ function osOrvane(f) {
           : { a: [x, 0, zt - .01], b: [x - hh * .55, 0, zt + hh], w: .022 * (1 + M.lourd * .4), h: .026, c: lgMix(M.sombre, M.lueur || M.sombre, .2), fin: 0, pans: 6 }); } }   // une épine : un cône couché vers l'arrière
   }
   // --- les pattes ---
-  if (M.pattes && !M.serpent) lgPattes(f, M, add, { bz, zx, xa, xr, ph, allure, galop, couche, vol, dk, traque, avant });
+  if (M.pattes && !M.serpent) lgPattes(f, M, add, { bz, zx, xa, xr, ph, allure, galop, couche, vol, dk, traque, avant, v, air, recep });
   // --- les ailes (§240) : un squelette, une surface, des rémiges ou des membranes ; repliées en Z au repos, battantes ou planées en vol ---
   if (M.ailes > .3 && !M.poisson) lgAiles(f, M, add, B, { xa, xr, bz, avant, vol, couche, al, g, geste, dresse, style: M.hexa ? 'insecte' : M.oiseau || (M.org('ailes') || {}).forme !== 'membranes' ? 'plumes' : 'membranes' });
   // --- le cou et la tête ---
@@ -319,43 +336,78 @@ function lgStyle(f, M, B) {
   }
   return B;
 }
-// les pattes : trois segments, la cuisse épaisse ; les avant plient le coude en arrière, les arrière le genou en avant et
-// le jarret en arrière ; la foulée suit l'allure (pas, trot, galop : au galop, les deux avant puis les deux arrière)
+// (§241) LES PATTES. Trois segments de longueur fixe — la cuisse, la jambe, le pied — et le genou là où ils se rejoignent (cinématique
+// inverse) : la patte plie, elle ne rétrécit plus. Chaque pied suit la foulée (lgFoulee) : posé, il reste où il est pendant que le corps
+// passe au-dessus ; levé, il revient vers l'avant en arc, le paturon replié. Qui pose quoi, et quand :
+//  - au pas, l'un après l'autre (arrière gauche, avant gauche, arrière droit, avant droit) ; au trot, par diagonales ; au galop, les
+//    deux arrière puis les deux avant, un peu décalés — ensemble au bond, chez une petite sauteuse ;
+//  - un insecte va en trépied (l'avant et l'arrière d'un côté avec le milieu de l'autre), une vague quand il va lentement ;
+//  - un bipède alterne, avec un temps en l'air à la course ; une sauteuse bipède saute à pieds joints.
+// Arrêtée, elle repose ses pieds sous elle. En l'air, elle replie l'avant et tend l'arrière à l'impulsion, tend l'avant pour se
+// recevoir ; à la réception, les pattes encaissent.
+const lgEase = q => q * q * (3 - 2 * q);
+function lgOffsets(M, i, s, paires, W, bond) {
+  const g = s > 0 ? 0 : 1;                                           // s > 0 : la gauche
+  if (M.bip) { const p = g * .5; return { p, t: p, g: M.sauteur ? g * .06 : p }; }
+  if (M.hexa || paires > 2) {
+    const tri = ((i % 2) * .5 + g * .5) % 1, vague = ((paires - 1 - i) / paires * .5 + g * .5) % 1;
+    return { p: vague, t: tri, g: tri };
+  }
+  const av = i === 0;
+  return { p: av ? (g ? .75 : .25) : (g ? .5 : 0), t: av ? (g ? .5 : 0) : (g ? 0 : .5),
+    g: bond ? (av ? .5 + g * .04 : g * .04) : (av ? (g ? .45 : .55) : (g ? .1 : 0)) };
+}
 function lgPattes(f, M, add, A) {
-  const { bz, zx, xa, xr, ph, allure, galop, couche, vol, dk, traque } = A, { Lt, Th, Wd } = M;
-  const paires = M.pattes / 2, plie = Math.max(couche, vol ? 1 : 0), amp = (.5 + .25 * galop) * allure * (1 - plie);
+  const { bz, zx, xa, xr, couche, vol, dk, traque, v, air, recep } = A, { Lt, Th, Wd } = M;
+  const W = f._lgW || { p: 1, t: 0, g: 0 }, beta = f._lgB || .65, k = (typeof echB === 'function' ? echB(f) : 1) || 1, D = (f._lgD || .5) / k;
+  const paires = M.pattes / 2, plie = Math.max(couche, vol ? 1 : 0), mv = lgCl((v || 0) / .2, 0, 1) * (1 - plie) * (1 - (air || 0));
   const ecart = M.hexa ? .12 + M.Hl * .3 : .012 + M.lourd * .02, ep = M.hexa ? .032 : M.ep;
+  const bond = !!(M.sauteur || M.petit > .5) && !M.lourd;
+  const S = D * beta, lift = (M.Hl + .02) * (.2 * W.p + .3 * W.t + .4 * W.g) * (M.hexa ? .7 : 1);
+  const hzR = M.bip ? M.Hl + Th * .3 : M.Hl + Th * .25;               // la hauteur de la hanche, debout : elle fixe la longueur des os
+  const vz = f.vz || 0, monte = vz > 0;
   for (let i = 0; i < paires; i++) for (const s of [-1, 1]) {
     const arriere = !M.bip && i === paires - 1 && paires > 1, devant = !M.bip && i === 0;
     const xh = M.bip ? -Lt * .18 : paires === 1 ? 0 : xa - .06 - (Lt - .12) * i / (paires - 1);
-    // la phase de chaque patte : diagonales au pas et au trot, paires ensemble au galop
-    const offPas = M.bip ? (s > 0 ? 0 : .5) : M.hexa ? ((i % 2) * .5 + (s > 0 ? 0 : .5)) % 1 : ((i * .5) + (s > 0 ? 0 : .5)) % 1;
-    const offGal = (arriere ? .5 : 0) + (s > 0 ? .08 : 0), off = offPas * (1 - galop) + offGal * galop;
-    const a = Math.sin(ph + off * 6.2832) * amp, lev = Math.max(0, Math.cos(ph + off * 6.2832)) * (.05 + .03 * galop) * allure * (1 - plie);
+    // la phase de ce pied, d'après l'allure ; puis où il est : au sol (il recule sous le corps), ou en l'air (il revient)
+    const O = lgOffsets(M, i, s, paires, W, bond), off = O.p * W.p + O.t * W.t + O.g * W.g;
+    const u = ((f._lgPh || 0) + off + 10) % 1;
+    let px, pz, flex = 0;
+    if (u < beta) { px = S * (.5 - u / beta); pz = 0; }
+    else { const q = (u - beta) / (1 - beta); px = S * (-.5 + lgEase(q)); pz = lift * Math.sin(Math.PI * q); flex = Math.sin(Math.PI * q); }
+    px *= mv; pz *= mv; flex *= mv;
+    if (air) {                                                       // en l'air : l'impulsion, puis l'arrivée
+      const tx = devant || M.bip ? (monte ? .18 : .34) * hzR : (monte ? -.42 : .08) * hzR, tz = devant || M.bip ? (monte ? .42 : .06) * hzR : (monte ? .08 : .32) * hzR;
+      px += (tx - px) * air; pz += (tz - pz) * air; flex = Math.max(flex, air * (monte === !!devant ? .8 : .2));
+    }
     const hz = (M.bip ? bz - Th * .2 : zx(xh) - Th * .25), hy = s * Wd * .42;
-    const sol = plie * (M.hexa ? .03 : Th * .25), pied = [xh + a * M.Hl * .75 + (dk ? .05 * s : 0), s * (Wd * .5 + ecart + dk * .08), lev + sol];
+    const sol = plie * (M.hexa ? .03 : Th * .25), pied = [xh + px + (dk ? .05 * s : 0), s * (Wd * .5 + ecart + dk * .08), pz + sol];
     if (M.hexa) {                                                      // une patte d'insecte : le fémur monte, le tibia descend en s'écartant
-      const genou = [xh + a * M.Hl * .3, s * (Wd * .5 + ecart * .75), Math.max(hz + .035, pied[2] + M.Hl * .75)];
+      const genou = [xh + px * .35, s * (Wd * .5 + ecart * .75), Math.max(hz + .035, pied[2] + M.Hl * .75)];
       add([xh, hy, hz], genou, ep, ep, M.sombre); add(genou, pied, ep * .75, ep * .75, M.sombre);
       if (M.fouisseur && i === 0) add(pied, [pied[0] + .03, pied[1], pied[2] + .01], .03, .015, M.griffe);
       continue;
     }
     const cuisse = arriere || M.bip ? 1.45 + .2 * M.sauteur : 1.2;     // la cuisse, épaisse, surtout derrière
-    const lH = (hz - pied[2]) || .05, l1 = lH * (arriere || M.bip ? .42 : .5) * (1 + .1 * M.sauteur), l2 = lH * (arriere || M.bip ? .45 : .5);
+    const lH = Math.max(.05, hzR), l1 = lH * (arriere || M.bip ? .42 : .5) * (1 + .1 * M.sauteur), l2 = lH * (arriere || M.bip ? .45 : .5);
     const pd = arriere || M.bip ? lH * (.26 + .1 * M.sauteur) : lH * .12;   // le pied (le métatarse derrière, le paturon devant)
-    const cheville = [pied[0] - (arriere || M.bip ? pd * .45 : -pd * .2), pied[1], pied[2] + pd * (arriere || M.bip ? .9 : 1)];
+    // la cheville : au-dessus du pied ; en l'air, le paturon se replie (l'avant vers l'arrière, l'arrière plus encore)
+    const cheville = arriere || M.bip ? [pied[0] - pd * (.45 + .35 * flex), pied[1], pied[2] + pd * (.9 - .25 * flex)]
+      : [pied[0] + pd * (.2 - .9 * flex), pied[1], pied[2] + pd * (1 - .3 * flex)];
     const genou = lgGenou([xh, hy, hz], cheville, l1, l2, arriere || M.bip ? 1 : -1);
     if (plie) { genou[2] = Math.max(genou[2], pied[2] + .02); }
     add([xh, hy, hz + ep * .3], genou, ep * cuisse, ep * cuisse * 1.05, M.robe);   // la cuisse, de la couleur du corps
     add(genou, cheville, ep * .82, ep * .82, M.sombre); add(cheville, pied, ep * .72, ep * .72, M.sombre);
-    if (M.sabot) add([pied[0] - .012, pied[1], pied[2] + .008], [pied[0] + .022, pied[1], pied[2] + .008], ep * .95, .03, LG.SABOT);   // un sabot
-    else if (lgTr(M, 'palmes')) add([pied[0] - .02, pied[1], pied[2] + .006], [pied[0] + .045, pied[1], pied[2] + .006], .075, .012, M.sombre);
-    else { const lp = .03 + .02 * M.fouisseur * devant; add([pied[0] - .015, pied[1], pied[2] + .01], [pied[0] + lp, pied[1], pied[2] + .01], ep * 1.05, .024, M.sombre);   // une patte, ses griffes
-      if (M.chasseur || (M.fouisseur && devant)) add([pied[0] + lp - .005, pied[1], pied[2] + .006], [pied[0] + lp + .008 + .02 * M.fouisseur, pied[1], pied[2] + .002], ep * .7, .01, M.griffe); }
+    const ang = flex * (arriere || M.bip ? .9 : 1.3), ca = Math.cos(ang), sa = Math.sin(ang), orteil = l => [pied[0] + l * ca, pied[1], pied[2] + .008 + l * sa * (arriere || M.bip ? -.4 : .8)];   // en l'air, la pointe du pied tombe
+    if (M.sabot) add([pied[0] - .012, pied[1], pied[2] + .008], orteil(.022), ep * .95, .03, LG.SABOT);   // un sabot
+    else if (lgTr(M, 'palmes')) add([pied[0] - .02, pied[1], pied[2] + .006], orteil(.045), .075, .012, M.sombre);
+    else { const lp = .03 + .02 * M.fouisseur * devant; add([pied[0] - .015, pied[1], pied[2] + .01], orteil(lp), ep * 1.05, .024, M.sombre);   // une patte, ses griffes
+      if (M.chasseur || (M.fouisseur && devant)) add(orteil(lp - .005), orteil(lp + .008 + .02 * M.fouisseur), ep * .7, .01, M.griffe); }
   }
   if (M.tr.has('membrane-planante') && !M.bip) for (const s of [-1, 1]) add([xr + .03, s * Wd * .6, bz - .01], [xa - .04, s * Wd * .6, bz - .01], .012, Math.min(.12, M.Hl * .6), lgMix(M.ventre, M.robe, .3));
-  if (M.bip && !M.oiseau && M.ailes < .3) for (const s of [-1, 1]) { const ep = A.avant; add([ep[0] - .03, s * Wd * .5, ep[2] - .02], [ep[0] + .04, s * Wd * .55, ep[2] - .07 + allure * .02], .03, .03, M.robe);   // de petits bras
-    add([ep[0] + .04, s * Wd * .55, ep[2] - .07], [ep[0] + .07, s * Wd * .55, ep[2] - .05], .024, .02, M.griffe); }
+  if (M.bip && !M.oiseau && M.ailes < .3) for (const s of [-1, 1]) { const ep = A.avant, bras = Math.sin(((f._lgPh || 0) + (s > 0 ? .5 : 0)) * 6.2832) * .03 * mv;   // de petits bras, qui balancent à la marche
+    add([ep[0] - .03, s * Wd * .5, ep[2] - .02], [ep[0] + .04 + bras, s * Wd * .55, ep[2] - .07 + (A.v > 1 ? .02 : 0)], .03, .03, M.robe);
+    add([ep[0] + .04 + bras, s * Wd * .55, ep[2] - .07], [ep[0] + .07 + bras, s * Wd * .55, ep[2] - .05], .024, .02, M.griffe); }
 }
 const lgTr = (M, k) => M.tr.has(k);
 // le cou et la tête : un crâne, un museau, une mâchoire qui s'ouvre (pour mordre, pour mâcher), un nez, des yeux qui
