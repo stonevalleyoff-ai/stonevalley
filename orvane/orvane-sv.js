@@ -230,6 +230,7 @@ function appliquerDef(sp, def, base) {
     if (def.social != null) sp.herd = def.social >= .4 ? 1 : 0;
     if (loco.includes('saut')) sp.bond = Math.max(sp.bond || 0, 2); else delete sp.bond;
     if ((def.diete?.nectar || 0) >= .2) sp.nectar = 1; else delete sp.nectar;
+    sp.orvane.fruits = (def.diete?.fruits || 0) + (def.diete?.nectar || 0) >= .3;   // (§231) elle va aux buissons à baies
     if (Corr.SOCLES?.[def.base]) sp.orvane.viande = classeViande(def);
     sp.orvane.chasseur = !!def.chasseur;
   }

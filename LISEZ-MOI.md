@@ -7379,3 +7379,16 @@ Les lignées portaient presque toutes la texture de carapace d'insecte des ancie
 - `sw.js` : `stone-valley-200`.
 
 **Vérifié.** Dans le navigateur, sur une île de la douzième exploration : la carte graphique tient, aucune erreur, aucune panne de dessin.
+
+## §231 · Le comportement, deuxième temps : les mangeurs de fruits vont aux buissons
+
+Le régime en spectre d'Orvane (feuilles, fruits, graines, nectar…) commence à se voir.
+
+**Ce qui change.** Une lignée dont les fruits et le nectar font au moins 30 % du régime (`sp.orvane.fruits`) cherche, quand elle a faim, le buisson à baies mûres le plus proche, à 24 cases au plus. Elle y va et s'y nourrit mieux que sur l'herbe. Elle ne cueille pas : les baies restent au joueur. Sur l'île du campement, rien ne repousserait : les bêtes n'y viennent pas. Elle revoit son choix toutes les trois à cinq secondes, et retourne brouter si aucun buisson n'est mûr.
+
+**Le branchement.**
+- `orvane/orvane-sv.js` : `appliquerDef` (`sp.orvane.fruits`) ;
+- `index.html` : `buissonFruit`, et l'état `brouter` de `majBete` ;
+- `sw.js` : `stone-valley-201`.
+
+**Vérifié.** Dans le navigateur, sur une île de la quatrième exploration : 21 mangeurs de fruits. Ceux qui ont faim (4 à 6) vont au buisson, et jusqu'à 4 s'y nourrissent en même temps. Aucune erreur.

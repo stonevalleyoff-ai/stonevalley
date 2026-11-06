@@ -15505,20 +15505,25 @@ function majBete(b, dt) {
     if (!b.mur && auBordDeLEau(b.x, b.y)) { b.soif = Math.max(0, b.soif - dt * .9); vit = 0; }
     else { const w = versLEau(b.x, b.y, b); if (w) { tx = w[0]; ty = w[1]; } }
   } else if (etat === 'brouter') {
-    const f = b.mur ? 0 : sp.roche ? (ROCHE.includes(bAt(b.x | 0, b.y | 0)) ? .8 : b.tame ? .5 : 0)   // l'oglodon grignote la pierre
-      : sp.biome && sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? (sp.diet === 'h' ? .8 : .5)
-      : sp.volcan ? (sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? (sp.diet === 'h' ? .7 : .45) : .05)   // (§198) la faune du volcan vit de sa cendre
-      : BIOME[bAt(b.x | 0, b.y | 0)].food;
-    if (f > .15) { b.faim = Math.max(0, b.faim - dt * .30 * f); vit *= .25; b.brouteVain = 0; }
-    else if (b.tame) {                                // une compagne cherche l'herbe près d'elle, sans s'égarer
-      const h = herbePres(b);
-      if (h) { tx = h[0]; ty = h[1]; }
-      else if (b.role === 'recolte' || b.mode === 'autonome') { const e = explorer(b); if (e) { tx = e[0]; ty = e[1]; } }
-      else { const A = ancre(b) || P; tx = A.x; ty = A.y; }
-      // une herbe en vue mais hors d'atteinte, derrière une marche : elle y renonce un moment
-      if ((b.brouteVain = (b.brouteVain || 0) + dt) > 8) { b.jeune = b.t + 20; b.brouteVain = 0; }
+    // (§231) un mangeur de fruits ou de nectar d'Orvane va au buisson mûr le plus proche, et s'y nourrit mieux (il ne cueille pas : les baies restent au joueur)
+    const brF = sp.orvane && sp.orvane.fruits && !b.tame && !b.mur ? buissonFruit(b) : null;
+    if (brF) { if ((brF.x - b.x) ** 2 + (brF.y - b.y) ** 2 > 1.6) { tx = brF.x; ty = brF.y; vit *= .7; } else { b.faim = Math.max(0, b.faim - dt * .45); vit *= .2; b.brouteVain = 0; } }
+    else {
+      const f = b.mur ? 0 : sp.roche ? (ROCHE.includes(bAt(b.x | 0, b.y | 0)) ? .8 : b.tame ? .5 : 0)   // l'oglodon grignote la pierre
+        : sp.biome && sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? (sp.diet === 'h' ? .8 : .5)
+        : sp.volcan ? (sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? (sp.diet === 'h' ? .7 : .45) : .05)   // (§198) la faune du volcan vit de sa cendre
+        : BIOME[bAt(b.x | 0, b.y | 0)].food;
+      if (f > .15) { b.faim = Math.max(0, b.faim - dt * .30 * f); vit *= .25; b.brouteVain = 0; }
+      else if (b.tame) {                                // une compagne cherche l'herbe près d'elle, sans s'égarer
+        const h = herbePres(b);
+        if (h) { tx = h[0]; ty = h[1]; }
+        else if (b.role === 'recolte' || b.mode === 'autonome') { const e = explorer(b); if (e) { tx = e[0]; ty = e[1]; } }
+        else { const A = ancre(b) || P; tx = A.x; ty = A.y; }
+        // une herbe en vue mais hors d'atteinte, derrière une marche : elle y renonce un moment
+        if ((b.brouteVain = (b.brouteVain || 0) + dt) > 8) { b.jeune = b.t + 20; b.brouteVain = 0; }
+      }
+      else { const a = b.dirT + (Math.random() - .5); tx = b.x + Math.cos(a) * 12; ty = b.y + Math.sin(a) * 12; }
     }
-    else { const a = b.dirT + (Math.random() - .5); tx = b.x + Math.cos(a) * 12; ty = b.y + Math.sin(a) * 12; }
   } else if (etat === 'dormir' || etat === 'enfoui') { vit = 0; b.vx *= .85; b.vy *= .85; }
   else if (etat === 'défendre') {
     // la cible de son ordre : ce que vous frappez, ce qui vous attaque, l'intrus du campement,
@@ -18166,6 +18171,14 @@ function entreeProche(b) {
 }
 // Un buisson mûr, à moins de soixante pas de la fourmilière, que nul autre oglodon ne vise : parmi
 // les quatre plus proches, au hasard.
+// (§231) le buisson à baies mûres le plus proche d'un mangeur de fruits (vingt-quatre cases au plus), revu toutes les trois à cinq secondes
+function buissonFruit(b) {
+  if (campIci()) return null;                          // chez vous, rien ne repousserait : les bêtes n'y viennent pas
+  if (b.brF && baieMure(b.brF) && t < (b.brFT || 0)) return b.brF;
+  b.brFT = t + 3 + Math.random() * 2; b.brF = null; let best = 576;
+  for (const br of berries) { if (!baieMure(br)) continue; const d = (br.x - b.x) ** 2 + (br.y - b.y) ** 2; if (d < best) { best = d; b.brF = br; } }
+  return b.brF;
+}
 function buissonPourOglodon(b) {
   if (campIci()) return null;                          // (§124) chez vous, les oglodons ne cueillent pas : rien n'y repousserait
   const F = Fourmi, L = [];
