@@ -22,7 +22,7 @@
 'use strict';
 const LG = {
   BEC: [214, 172, 92], CORNE: [232, 220, 192], CROC: [244, 240, 228], DARD: [60, 40, 52], GLANDE: [196, 208, 84],
-  ALERTE: [[236, 190, 40], [222, 70, 46]], NEZ: [44, 36, 34], BLANC: [246, 244, 236], LANGUE: [214, 72, 86], SABOT: [58, 46, 40],
+  ALERTE: [[236, 190, 40], [222, 70, 46]], NEZ: [44, 36, 34], BLANC: [246, 244, 236], LANGUE: [214, 72, 86], SABOT: [58, 46, 40], PUPILLE: [30, 24, 30],
 };
 const lgMix = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
 const lgAdd = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]];
@@ -63,6 +63,20 @@ function lgMesures(sp) {
     antennes: q('antennes'), motif: c.motif || 'uni', organes: [],
     robe: sp.shell, sombre: sp.dark, ventre: sp.ventre || C.ventre || lgMix(sp.shell, [240, 236, 226], .35), oeil: sp.oeil,
   };
+  // (§226) LE STYLE DE STONE VALLEY : la puissance de la lignée (orvane-sv.js, puissances : son rang dans le monde, de 0 à 1) règle son
+  // allure. En bas, une bête mignonne : la tête et les yeux grands, le corps rond et court sur pattes, la robe adoucie, les organes à
+  // l'état de bourgeons. En haut, une bête épique : la tête petite et forte, les pattes longues, les organes exagérés, la robe
+  // contrastée, des marques qui luisent, des épines sur le dos. Entre les deux, la silhouette d'Orvane telle quelle.
+  const pu = Number.isFinite(O.puissance) ? O.puissance : .5;
+  M.cute = lgCl((.35 - pu) / .35, 0, 1); M.epique = lgCl((pu - .65) / .35, 0, 1);
+  if (M.cute || M.epique) {
+    const cu = M.cute, ep = M.epique;
+    M.tete *= 1 + .6 * cu - .12 * ep; M.Th *= 1 + .32 * cu + .06 * ep; M.Lt *= 1 - .26 * cu + .06 * ep; M.Hl *= 1 - .36 * cu + .14 * ep;
+    M.museau = lgCl(M.museau * (1 - .65 * cu) + .1 * ep, 0, 1); M.oreilles = lgCl(M.oreilles * (1 + .5 * cu) + .1 * cu, 0, 1); M.queue = lgCl(M.queue * (1 - .25 * cu + .15 * ep), 0, 1);
+    M.cou *= 1 - .4 * cu;
+    const doux = c => lgMix(c, [252, 246, 236], .22 * cu), fort = c => { const g = (c[0] + c[1] + c[2]) / 3; return c.map(v => lgCl(g + (v - g) * (1 + .45 * ep) - 14 * ep, 0, 255)); };
+    M.robe = fort(doux(M.robe)); M.sombre = lgMix(fort(M.sombre), [26, 20, 28], .25 * ep); M.ventre = doux(M.ventre);
+  }
   M.Wd = M.Th * (1.08 + .12 * M.lourd);
   M.ep = (.046 + M.Th * .15) * (1 + .7 * lourd - .15 * coureur);        // l'épaisseur d'une patte
   M.griffe = lgMix(M.sombre, LG.CORNE, .45);
@@ -76,6 +90,14 @@ function lgMesures(sp) {
   if (OL) { const tl = (ty, pl) => (M.org(ty, pl) || {}).taille || 0;
     M.cornes = tl('cornes'); M.crete = tl('crete', 'tete'); M.antennes = tl('antennes');
     M.ailes = Math.max(tl('ailes'), (sp.volant || sp.dragon) ? .8 : 0); M.carapace = Math.max(tl('carapace'), tr.has('carapace') ? .8 : 0); }
+  if (M.cute || M.epique) {                                           // (§226) les organes : des bourgeons, ou exagérés
+    const cu = M.cute, ep = M.epique;
+    M.organes = M.organes.map(o => ({ ...o, taille: o.taille * (1 - .35 * cu + .7 * ep) })).filter(o => o.taille >= .2);
+    const tl = (ty, pl) => (M.org(ty, pl) || {}).taille || 0;
+    M.cornes = Math.max(tl('cornes'), M.cornes * (1 - .35 * cu)); M.crete = Math.max(tl('crete', 'tete'), M.crete * (1 + .5 * ep));
+    M.lueur = ep > .3 ? lgMix(lgAccent(M.robe), [255, 240, 200], .25) : null;   // les marques qui luisent
+    M.epines = ep > .45 && M.carapace <= .3 && !M.org('epines') && !M.org('plaques');   // des épines sur le dos
+  }
   if (poisson) M.oreilles = 0;                                        // un poisson n'a pas d'oreilles
   M.accent = tr.has('coloration-aposematique') ? LG.ALERTE[(sp.id.length) % 2] : lgAccent(M.robe);
   if (M.hexa && M.Hl > .3) M.Hl = .3;                               // un hexapode se tient bas : ses pattes s'écartent plutôt
@@ -175,6 +197,14 @@ function osOrvane(f) {
     else if (M.motif === 'bandes') add([x0, 0, zt], [x1, 0, zt], Wd * .35, .014, M.sombre);
     if (tr.has('coloration-aposematique')) for (let i = 0; i < 3; i++) { const x = x0 + (x1 - x0) * (.2 + i * .3); add([x, 0, zt + .006], [x + .03, 0, zt + .006], Wd * 1.06, .014, M.accent); }
     if (tr.has('glande-irritante')) for (const s of [-1, 1]) add([x1 - .02, s * Wd * .32, zt - .01], [x1 + .02, s * Wd * .32, zt + .02], .045, .045, LG.GLANDE);
+    // (§226) une bête épique : des marques qui luisent le long du dos et des flancs, et des épines si elle n'a ni carapace ni plaques
+    if (M.lueur) { const n = 3 + Math.round(M.epique * 2), pul = .75 + .25 * Math.sin(t * 2.2 + g);
+      for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (.12 + i * .76 / Math.max(1, n - 1));
+        add([x, 0, zt + .006], [x + .03, 0, zt + .006], Wd * .22, .012, lgMix(M.robe, M.lueur, pul), 1);
+        for (const s2 of [-1, 1]) add([x, s2 * Wd * .5, zt - Th * .3], [x + .025, s2 * Wd * .52, zt - Th * .36], .014, .03, lgMix(M.sombre, M.lueur, pul * .8), 1); } }
+    if (M.epines && !M.oiseau) { const n = 3 + Math.round(M.epique * 3), hE = (.025 + M.epique * .04) * (1 + M.lourd * .4) * (1 + Th * 2);
+      for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (.12 + i * .76 / Math.max(1, n - 1)), k = 1 - Math.abs(i - (n - 1) / 2) / n, hh = hE * (.55 + .6 * k);
+        B.push({ a: [x, 0, zt - .01], b: [x - hh * .55, 0, zt + hh], w: .022 * (1 + M.lourd * .4), h: .026, c: lgMix(M.sombre, M.lueur || M.sombre, .2), fin: 0, pans: 6 }); } }   // une épine : un cône couché vers l'arrière
   }
   // --- les pattes ---
   if (M.pattes && !M.serpent) lgPattes(f, M, add, { bz, zx, xa, xr, ph, allure, galop, couche, vol, dk, traque, avant });
@@ -196,6 +226,24 @@ function osOrvane(f) {
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
   if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
     for (const o of B) { o.a = T(o.a); o.b = T(o.b); } }
+  return lgStyle(f, M, B);
+}
+// (§226) LA PASSE DE STYLE. Les largeurs suivent la taille de la bête, comme pour les corps faits main : sans cela, une bête de
+// 20 g était dodue et une de 50 kg toute maigre (posBete n'agrandit que les positions). Puis, de près, la forme de chaque os : tout
+// en rondeurs chez une mignonne (des boules, des membres arrondis), en arêtes chez une épique (des prismes qui s'effilent) ; entre
+// les deux, les formes du moteur (formeOs). Ce qui est plat, très fin, ou a déjà sa forme garde la sienne.
+function lgStyle(f, M, B) {
+  const k = (typeof echB === 'function' ? echB(f) : 1) || 1;
+  for (const o of B) { o.w *= k; o.h *= k; }
+  const cu = M.cute || 0, ep = M.epique || 0; if (cu < .05 && ep < .05) return B;
+  try { if (typeof formesDist === 'function' && typeof P !== 'undefined' && (f.x - P.x) ** 2 + (f.y - P.y) ** 2 > formesDist() ** 2) return B; } catch (e) { }
+  for (const o of B) {
+    if (o.boule || o.pans || o.fin !== undefined || o.tex) continue;
+    const m = Math.max(o.w, o.h), n = Math.min(o.w, o.h), L = Math.hypot(o.b[0] - o.a[0], o.b[1] - o.a[1], o.b[2] - o.a[2]) * k;
+    if (n < .028 || n < .5 * m) continue;                                // un fil, une plaque : le moteur s'en charge
+    if (cu >= ep) { if (L < 2.2 * m) { o.boule = 4; o.rond = .72 + .25 * cu; } else { o.pans = 6; o.rond = .85 + .12 * cu; o.fin = .9; } }
+    else { o.pans = 6; o.rond = .45 - .25 * ep; o.fin = L > 2 * m ? .62 - .12 * ep : .84; }
+  }
   return B;
 }
 // les pattes : trois segments, la cuisse épaisse ; les avant plient le coude en arrière, les arrière le genou en avant et
@@ -272,13 +320,15 @@ function lgTete(f, M, add, A) {
   if (M.tr.has('crocs-allonges')) for (const s of [-1, 1]) add(lgAdd(nez, [-.01, s * hs * .16, -hs * .15]), lgAdd(nez, [-.005, s * hs * .16, -hs * .15 - .05]), .018, .018, LG.CROC);
   // les yeux (la couleur exacte de la fiche : la fureur et les robes les reconnaissent) : devant chez un chasseur, sur les
   // côtés chez une proie ; un reflet ; plus grands chez une petite bête ou une bête de nuit
-  const yeux = (M.tr.has('yeux-nocturnes') ? .055 : .03 + M.tete * .08) * (1 + .3 * M.petit), cote = M.chasseur ? .34 : .5, av = M.chasseur ? .3 : .18;
+  const yeux = (M.tr.has('yeux-nocturnes') ? .055 : .03 + M.tete * .08) * (1 + .3 * M.petit) * (1 + .9 * (M.cute || 0) - .2 * (M.epique || 0)), cote = M.chasseur ? .34 : .5, av = M.chasseur ? .3 : .18;   // (§226) grands chez une mignonne
   const cligne = (t * .9 + g) % 5 < .12 ? .2 : 1;                     // un clignement, de temps en temps
   for (const s of [-1, 1]) {
     if (M.motif === 'masque') add(P(hs * .05, s * hs * .48, hs * .1), P(hs * .36, s * hs * .48, hs * .1), .02, hs * .34, M.sombre);
     const o = P(hs * av, s * hs * cote, hs * .14);
     add(o, lgAdd(o, [yeux * .5 * D[0], yeux * .5 * D[1] + s * .006, 0]), yeux * .62, yeux * cligne, M.oeil, M.tr.has('yeux-nocturnes'));
-    if (cligne === 1) add(lgAdd(o, [yeux * .2 * D[0], s * yeux * .32, yeux * .24]), lgAdd(o, [yeux * .3 * D[0], s * yeux * .32, yeux * .24]), .012, .012, LG.BLANC, 1);   // le reflet
+    // (§226) une mignonne : une grande pupille sombre, un gros reflet (l'œil garde sa couleur : la fureur la reconnaît)
+    if (M.cute > .3 && cligne === 1) add(lgAdd(o, [yeux * .22 * D[0], s * yeux * .2, -yeux * .05]), lgAdd(o, [yeux * .34 * D[0], s * yeux * .22, -yeux * .05]), yeux * .42, yeux * .62, LG.PUPILLE);
+    if (cligne === 1) { const r = .012 * (1 + 1.4 * (M.cute || 0)); add(lgAdd(o, [yeux * .2 * D[0], s * yeux * .32, yeux * .24]), lgAdd(o, [yeux * .3 * D[0], s * yeux * .32, yeux * .24]), r, r, LG.BLANC, 1); }   // le reflet
   }
   const dessus = tete[2] + hs * .5;
   // les oreilles : de côté et larges chez un brouteur, droites et pointues chez un chasseur ; elles se dressent à l'alarme

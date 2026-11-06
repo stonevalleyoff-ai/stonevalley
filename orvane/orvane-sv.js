@@ -212,6 +212,7 @@ function definir(t) {
     masse: t.plan.masse_kg, masseRef: ref?.plan?.masse_kg || 25 * base.sz ** 3, vit: t.plan.vitesse_rel, vitRef: ref?.plan?.vitesse_rel || base.spd * 2,
     nocturne: t.plan.activite === 'nocturne', locomotion: t.plan.locomotion || [], regime: regime(t), vu: Date.now(),
     activite: t.plan.activite, social: t.plan.sociabilite, taille: t.plan.taille_m, diete: { ...(t.plan.diete || {}) }, chasseur, forme: corps?.forme || null,   // (§225)
+    temperament: t.plan.temperament,                                                                                   // (§226)
     ...(t.plan.regime === 'synthetique' ? { machine: { role: t.plan.role, modules: { ...(t.plan.modules || {}) } } } : {}) };   // (§223) une machine d'Orvane
 }
 // la fiche du jeu : une copie de celle de l'ancêtre (sa conduite), à la mesure de la lignée
@@ -238,6 +239,7 @@ function appliquerDef(sp, def, base) {
   // (une lignée sans ancêtre du jeu : sa taille suit le logarithme de sa masse, de 0,5 pour un insecte de 10 g à 1,6 pour une bête
   // de 100 kg — à la racine cubique, presque tout le monde d'Orvane, qui pèse de 20 g à 5 kg, aurait la taille d'un caillou)
   sp.sz = def.gabarit ? r2(clamp(.5 + (Math.log10(Math.max(.001, def.masse || 1)) + 2) * .275, .5, 2)) : r2(base.sz * k);
+  sp.orvane.sz0 = sp.sz;                                              // (§226) la taille d'après la masse ; la puissance la retouche (chaines)
   sp.spd = r2(base.spd * clamp((def.vit || 1) / (def.vitRef || 1), .7, 1.4));
   const rang = def.gabarit ? S.rangs?.[def.id] || 0 : 0;               // (§218) une lignée rare du monde : un trophée, plus robuste
   if (rang) { sp.rarete = rang; sp.dur = r2((base.dur || 1) * (1 + .3 * (rang - 2))); } else { delete sp.rarete; if (base.dur) sp.dur = base.dur; else delete sp.dur; }
@@ -358,6 +360,21 @@ function classesProie(d) {
   if ((d.locomotion || []).includes('vol') || ((d.locomotion || []).includes('course') && (d.vit || 0) >= 6)) C.push('gibier-vif');
   return C;
 }
+// (§226) LA PUISSANCE D'UNE LIGNÉE : son rang parmi les lignées du monde, de 0 (la plus douce) à 1 (la plus redoutable), d'après
+// sa masse, la chasse, ses organes (cornes, massue, crêtes…), son tempérament et sa rareté. Elle règle son allure (lignees.js : ronde
+// et mignonne en bas, anguleuse et épique en haut), sa taille (un peu plus petite en bas, jusqu'à un tiers plus grande en haut) et
+// les îles où on la croise (attrait : les premières îles tirent les plus douces, les lointaines les plus redoutables).
+function scorePuissance(d, sp) {
+  const m = clamp((Math.log10(Math.max(.001, d.masse || 1)) + 1.7) / 3.5, 0, 1);
+  const org = (d.corps?.organes || []).reduce((a, o) => a + (Number.isFinite(o?.taille) ? o.taille : 0) * (o.type === 'antennes' || o.type === 'nageoires' ? .3 : 1), 0);
+  return .5 * m + .25 * (d.chasseur ? 1 : 0) + .2 * Math.min(1, org / 1.5) + .1 * clamp(d.temperament ?? .4, 0, 1) + .05 * (sp.rarete >= 3 ? (sp.rarete - 2) / 3 : 0);
+}
+function puissances(L) {
+  const R = L.filter(sp => !sp.orvane.machine).map(sp => [sp, scorePuissance(S.lignees[sp.id], sp)]).sort((a, b) => a[1] - b[1]), n = R.length;
+  R.forEach(([sp], i) => { const p = n > 1 ? i / (n - 1) : .5, cute = clamp((.35 - p) / .35, 0, 1), epique = clamp((p - .65) / .35, 0, 1);
+    sp.orvane.puissance = r2(p); sp.sz = r2((sp.orvane.sz0 || sp.sz) * (1 - .08 * cute + .32 * epique)); sp.orvane._m = null; });
+}
+const attrait = sp => { const p = sp.orvane?.puissance ?? .5, c = clamp(prof() / 16, 0, 1) * .9; return .12 + Math.exp(-((p - c) ** 2) / .125); };
 function chaines() {
   if (typeof SPEC === 'undefined') return;
   const L = SPEC.filter(sp => sp.orvane && Corr.SOCLES?.[sp.orvane.base] && S.lignees[sp.id]);
@@ -367,6 +384,7 @@ function chaines() {
     sp.chasse = L.filter(o => o !== sp && !nageurPur(S.lignees[o.id].locomotion) && appetence(a, S.lignees[o.id]) >= SEUIL_APPETENCE).map(o => o.id);
     if ((a.masse || 0) >= 10) sp.chasse.push('villageois');
   }
+  puissances(L);
   for (const o of SPEC) {                                             // les espèces du jeu qui chassent : par classe de proies
     if (o.orvane || !Array.isArray(o.chasse) || !o.chasse.length) continue;
     const vise = new Set(o.chasse.filter(k => Corr.CLASSES_PROIE?.includes(k)));
@@ -444,7 +462,7 @@ function appliquerIle() {
   S.repartition = ORV ? ORV.repartition : null;                        // (§225) pour la part de chaque espèce tirée (repartirIle)
   for (const sp of SPEC) {
     if (ORV && ORV.retire(sp)) { sp.cap = 0; delete POIDS_ESPECE[sp.id]; continue; }
-    if (ORV && sp.orvane?.gabarit) { const r = ORV.part(sp) || (sp.orvane.machine ? null : placeTrophee(sp, ile)); if (!r) { sp.cap = 0; delete POIDS_ESPECE[sp.id]; } else { sp.cap = r.cap; POIDS_ESPECE[sp.id] = r.poids; }
+    if (ORV && sp.orvane?.gabarit) { const r = ORV.part(sp) || (sp.orvane.machine ? null : placeTrophee(sp, ile)); if (!r) { sp.cap = 0; delete POIDS_ESPECE[sp.id]; } else { sp.cap = r.cap; POIDS_ESPECE[sp.id] = sp.orvane.machine ? r.poids : +(r.poids * attrait(sp)).toFixed(4); }   // (§226) la puissance et la profondeur
       if (sp.orvane.machine) machineIle(sp, ile); else chasseurLoin(sp); continue; }
     const tid = taxonDe(sp); if (!tid) continue;
     const L = sp.orvane, baseId = L ? L.base : sp.id;

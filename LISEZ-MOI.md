@@ -7247,3 +7247,43 @@ Le premier lot du chantier décrit dans `AUDIT-FAUNE-FLORE.md` : passer la faune
 - **Hors ligne, les mêmes six îles** :
   - avant, toute l'ancienne faune revenait (60 à 118 bêtes faites main par île) ;
   - maintenant, le monde de secours donne les mêmes îles qu'en ligne (35 à 91 bêtes d'Orvane, la même composition).
+
+## §226 · Le style de Stone Valley, premier temps : du mignon à l'épique
+
+Les créatures du jeu sont toutes des lignées d'Orvane (§225). Ce paragraphe leur donne une allure propre au jeu : mignonnes au début, de plus en plus épiques à mesure qu'on explore. Comme décidé, la progression passe par les espèces : chacune a une seule allure, et l'île choisit les espèces.
+
+**La puissance d'une lignée** (`orvane-sv.js`, `puissances`). C'est son rang parmi les lignées du monde, de 0 (la plus douce) à 1 (la plus redoutable). Il se calcule d'après :
+- sa masse ;
+- la chasse ;
+- ses organes : cornes, massue, crêtes… (les antennes et les nageoires comptent peu) ;
+- son tempérament ;
+- sa rareté.
+
+Dans le monde d'Orvane d'aujourd'hui, les plus douces sont de minuscules brouteuses de 9 à 90 g (Soméne, Kivine, Anka, Musilnou). Les plus redoutables sont des chasseurs de 1 à 60 kg : les rapaces Mufir et Elnedun, les fureteurs Tiskata et Nesil, Kaorvi des fonds.
+
+**L'île choisit selon la puissance.** Le poids d'une lignée au tirage d'une île est multiplié par son attrait (`attrait`). Il est le plus fort quand sa puissance est proche de la profondeur de l'île : 0 près du campement, 0,9 à partir de la seizième exploration. Il ne tombe jamais sous 0,12, pour que les îles gardent de la variété. Les premières îles tirent donc les plus douces, et les lointaines les plus redoutables.
+
+**L'allure suit la puissance** (`lignees.js`, `lgMesures`).
+- **Les mignonnes** (puissance sous 0,35, au plus fort à 0) :
+  - la tête 60 % plus grosse, les yeux deux fois plus grands, avec une grande pupille sombre et un gros reflet ;
+  - le corps plus court et plus rond, les pattes, le cou et le museau courts, les oreilles plus grandes ;
+  - la robe adoucie vers le pastel, les organes à l'état de bourgeons ;
+  - la taille un peu plus petite.
+- **Entre 0,35 et 0,65** : la silhouette d'Orvane telle quelle.
+- **Les épiques** (au-dessus de 0,65, au plus fort à 1) :
+  - jusqu'à un tiers plus grandes ; la tête plus petite et plus forte, les pattes longues ;
+  - les organes exagérés (jusqu'à 1,7 fois), la robe contrastée et plus sombre ;
+  - à partir de 0,75, des marques qui luisent et battent doucement le long du dos et des flancs ;
+  - à partir de 0,8, des épines en cônes couchés vers l'arrière sur le dos, si la bête n'a ni carapace ni plaques et n'est pas un oiseau.
+- **La passe de style** (`lgStyle`), de près : tout en rondeurs chez une mignonne (des boules, des membres arrondis), en arêtes chez une épique (des prismes qui s'effilent). Entre les deux, les formes du moteur, comme avant (`formeOs`).
+
+**Correctif.** Les largeurs des os d'une lignée suivent enfin sa taille, comme pour les corps faits main. `posBete` n'agrandissait que les positions : une bête de 20 g était dodue, une bête de 50 kg toute maigre.
+
+**Le branchement.**
+- `orvane/orvane-sv.js` : `scorePuissance`, `puissances` (dans `chaines`), `attrait` (au poids d'une lignée dans `appliquerIle`), `sp.orvane.puissance`, `sp.orvane.sz0` ;
+- `lignees.js` : `lgMesures` (proportions, couleurs, organes, `lueur`, `epines`), `lgTete` (les yeux), `osOrvane` (marques et épines), `lgStyle` ;
+- `sw.js` : `stone-valley-196`.
+
+**Vérifié.**
+- **Toutes les lignées du monde**, chacune dans sept poses et à trois puissances (0 ; 0,5 ; 1) : 5 061 corps, aucun os invalide, 44 os en moyenne, 79 au plus.
+- **Dans le navigateur, six îles** de l'exploration 0 à 20 : aucune erreur, aucune panne de dessin. Les rapaces et les rôdeurs paraissent plus loin, les petites brouteuses dominent près du campement.
