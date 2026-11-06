@@ -150,7 +150,7 @@ function nmVenir(force, pour) {
   // les machines d'en bas, la faune faite main retirée, et ce qui n'est pas une bête (maisons, plantes, visions, boss, horreurs…)
   const lignees = SPEC.filter(sp => sp.orvane && !sp.orvane.machine && !sp.orvane.nage && (sp.lien || 0) > 0);
   const esp = lignees.length ? lignees : SPEC.filter(sp => !automate(sp) && !sp.donjon && !sp.pnj && !sp.boss && !sp.horreur && !sp.plante && !sp.batiment
-    && !sp.illusion && !sp.achromie && !sp.villageois && !sp.brume && !sp.vyrel && !sp.volcan && !sp.dragon && (sp.lien || 0) > 0 && !(typeof retiree === 'function' && retiree(sp)));
+    && !sp.illusion && !sp.achromie && !sp.villageois && !sp.brume && !sp.vyrel && !sp.volcan && (sp.lien || 0) > 0 && !(typeof retiree === 'function' && retiree(sp)));
   const bsp = esp[Math.random() * esp.length | 0];
   NM.car = { arche, lieu, centre, gens: [], betes: [], qui, bsp, t0: t, fin: t + NM_SEJOUR, hostile: false, hostileFin: 0,
     sortis: 0, trocs: nmTirerTrocs() };
@@ -286,10 +286,8 @@ function majNomade(b, dt) {
   b.dir += Math.max(-5 * dt, Math.min(5 * dt, dd));
   const mv = Math.hypot(b.x - x0, b.y - y0);
   b.vit = (b.vit || 0) + (mv / Math.max(dt, 1e-3) - (b.vit || 0)) * Math.min(1, dt * 8);
-  if (b.pnjSuit) {
-    if (coursier(b.sp) && typeof animCoursier === 'function') { b.couT = .35; b.aileT = Math.min(.5, b.vit / 12); b.bob += dt * b.vit * 1.1; animCoursier(b, dt); }
-    updateFoeLegs(b, dt);
-  } else b.ph = ((b.ph || 0) + mv / .62) % 1;
+  if (b.pnjSuit) updateFoeLegs(b, dt);
+  else b.ph = ((b.ph || 0) + mv / .62) % 1;
 }
 
 // ---------- ce qu'on voit ----------
@@ -753,8 +751,8 @@ Object.assign(NM_DIALOGUES, {
   },
 });
 // ---------- le cartographe : il marque des lieux de l'île à la boussole (§110) ----------
-// Ce qu'il sait : les lutrins jamais vus, la trappe du souterrain, le cercle des mages, la fourmilière, l'aire du
-// dragon, l'antre de la Tisseuse, le cœur des biomes rares. Ce qu'il a marqué reste à la boussole tant qu'on est là.
+// Ce qu'il sait : les lutrins jamais vus, la trappe du souterrain, le cercle des mages, l'antre de la Tisseuse,
+// le cœur des biomes rares. Ce qu'il a marqué reste à la boussole tant qu'on est là.
 function nmCoeurBiome(r) {
   let best = null, bs = 0;
   for (let y = 6; y < WS - 6; y += 3) for (let x = 6; x < WS - 6; x += 3) {
@@ -769,9 +767,7 @@ function nmLieux() {
   if (typeof LUTRINS !== 'undefined') for (const l of LUTRINS) if (!l.vu && !l.lu && !tomeAcquis(l.m, l.n || 1)) L.push({ cle: 'lu' + (l.x | 0) + '.' + (l.y | 0), n: 'un lutrin de pierre, et son ' + nomTome(cleTome(l.m, l.n || 1)), x: l.x, y: l.y, prix: 10, lut: l });
   if (typeof DJ !== 'undefined' && DJ.trappe) L.push({ cle: 'trappe', n: 'la trappe du souterrain', x: DJ.trappe.x, y: DJ.trappe.y, prix: 14 });
   if (typeof SANG !== 'undefined' && SANG.cercle && SANG.phase === 'chant') L.push({ cle: 'cercle', n: 'le cercle des mages', x: SANG.cercle.x, y: SANG.cercle.y, prix: 8 });
-  if (typeof Fourmi !== 'undefined' && Fourmi) L.push({ cle: 'fourmi', n: 'la fourmilière', x: Fourmi.x, y: Fourmi.y, prix: 6 });
   for (const o of beasts) { if (o.dead) continue;
-    if (o.sp.dragon && o.nid) L.push({ cle: 'dragon', n: 'l\'aire du dragon', x: o.nid.x, y: o.nid.y, prix: 10 });
     if (Array.isArray(o.antre)) L.push({ cle: 'antre', n: 'l\'antre de la Tisseuse', x: o.antre[0], y: o.antre[1], prix: 12 }); }
   if (typeof RaresIle !== 'undefined') for (const r of new Set(RaresIle.map(famille))) { const R = rareDe(r), c = R && nmCoeurBiome(r); if (c) L.push({ cle: 'b' + r, n: 'le cœur : ' + R.n, x: c[0], y: c[1], prix: 6 }); }
   const vus = new Set(); return L.filter(l => !deja.has(l.cle) && !vus.has(l.cle) && vus.add(l.cle)).slice(0, 5);
@@ -1132,9 +1128,7 @@ function nmIndicesVivants() {
   }
   if (typeof DJ !== 'undefined' && DJ.trappe) ajoute('i:trappe:' + SEED, 'Sous les tôles de cette île, ' + dir(DJ.trappe.x, DJ.trappe.y) + ', il y a une trappe. Elle ne se voit pas : il faut marcher dessus.', 'ici', { cle: 'trappe', x: DJ.trappe.x, y: DJ.trappe.y, n: 'trappe du souterrain' });
   if (typeof SANG !== 'undefined' && SANG.cercle && SANG.phase === 'chant') ajoute('i:cercle:' + SEED, 'Le chant vient ' + dir(SANG.cercle.x, SANG.cercle.y) + ' : six mages en cercle. Tue-les avant la fin de l\'incantation, ou c\'est un démon qui sortira.', 'ici', { cle: 'cercle', x: SANG.cercle.x, y: SANG.cercle.y, n: 'cercle des mages' });
-  if (typeof Fourmi !== 'undefined' && Fourmi) ajoute('i:fourmi:' + SEED, 'Une fourmilière, ' + dir(Fourmi.x, Fourmi.y) + '. Leur nectar remet sur pied, si l\'on sait le prendre sans se faire mordre.', 'ici', { cle: 'fourmi', x: Fourmi.x, y: Fourmi.y, n: 'fourmilière' });
   for (const o of beasts) { if (o.dead) continue;
-    if (o.sp.dragon && o.nid) ajoute('i:dragon:' + SEED, 'Un dragon a son aire ' + dir(o.nid.x, o.nid.y) + '. N\'y monte pas sans une bonne armure, ni sans un plan pour redescendre.', 'ici', { cle: 'dragon', x: o.nid.x, y: o.nid.y, n: 'aire du dragon' });
     if (Array.isArray(o.antre)) ajoute('i:antre:' + SEED, 'La Tisseuse de fer dort dans son antre, ' + dir(o.antre[0], o.antre[1]) + '. Elle porte un troisième tome dans son ventre.', 'ici', { cle: 'antre', x: o.antre[0], y: o.antre[1], n: 'antre de la Tisseuse' }); }
   if (typeof RaresIle !== 'undefined') for (const r of new Set(RaresIle.map(famille))) { const R = rareDe(r); if (!R || P.biomes.includes(r)) continue; const c = nmCoeurBiome(r);
     if (c) ajoute('i:b' + r + ':' + SEED, R.n + ' pousse sur cette île, ' + dir(c[0], c[1]) + '. Tu n\'y as encore jamais mis les pieds.', 'ici', { cle: 'b' + r, x: c[0], y: c[1], n: R.n }); }

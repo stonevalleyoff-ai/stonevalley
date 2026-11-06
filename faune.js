@@ -16,13 +16,13 @@
 //  - LES GESTES : un coup d'un suiveur sur une bête (« fcoup »), une bête qu'il lie ou monte (« flien ») ;
 //    le coup d'une bête sur un joueur d'en face (« morsure », encaissé chez lui) ; le tir d'un automate
 //    (« ftir »), rejoué chez les suiveurs, où chacun encaisse ce qui le touche.
-//  - LES BÊTES À PART (section 58) : la Tisseuse, le dragon, les horreurs, les plantes épiques, les
+//  - LES BÊTES À PART (section 58) : la Tisseuse, les horreurs, les plantes épiques, les
 //    villageois, les nomades et leur seuil, l'escouade, les machines du souterrain (un gardien par étage).
 //    Elles disent en plus leur « sac » (s) : ce qui se voit de leur état et qu'un suiveur ne devine pas
-//    (la tête du Mille-gueules sous la terre, l'arme que la Tisseuse arme, la gorge du dragon…). Chez le
+//    (la tête du Mille-gueules sous la terre, l'arme que la Tisseuse arme…). Chez le
 //    suiveur, chacune a sa marionnette (VISUEL_FAUNE) : le pas de la Tisseuse, les anneaux du
-//    Mille-gueules, le battement du dragon, ses sons et ses secousses.
-//  - LE MONDE : le temps qu'il fait et les éclairs, le nectar de la fourmilière, le seuil des nomades,
+//    Mille-gueules, ses sons et ses secousses.
+//  - LE MONDE : le temps qu'il fait et les éclairs, le seuil des nomades,
 //    le portail de l'escouade — dits par le gardien ; les gestes d'un suiveur sur ce monde (un sort, une
 //    offrande, puiser) passent par « fgeste ».
 // Restent propres à chaque appareil : les compagnes (déjà partagées par leur maître) et les visions du
@@ -225,7 +225,6 @@ function fauneEntete(now) {
       // (§200) le masque filtrant ; (§203) le Korlaz, qu'un équipier peut guérir   // (§184) le masque à bec, la maladie du Vyrel
   const e = { fv: 1, fg: FA.role === 'gardien' && maintenant() >= FA.ecoute ? 1 : 0, fa: Math.round(ancienneteFaune()), fx };
   const br = bruitJoueur(); if (br) e.br = r2(br);          // ce que le Silencieux entend de lui
-  if (Fourmi) e.oc = r2(confColonie());                     // ce que la colonie des oglodons pense de lui
   if (FA.role === 'gardien' && now - FA.dernierF >= FAUNE_PAS * .8) {
     const suiv = fauneSuiveurs();
     if (suiv.length) { FA.dernierF = now; e.f = chargeFaune(suiv); }
@@ -392,9 +391,9 @@ function glisserFaune(b, dt) {
 // Leur sorte décide de leur sac, de leur identité et de leur marionnette.
 function sorteFaune(b) {
   const sp = b.sp;
-  return sp.corps === 'araignon' ? 'arai' : sp.boss ? 'tiss' : sp.horreur ? (sp.corps === 'silencieux' ? 'sil' : 'mille') : sp.dragon ? 'dragon' : sp.plante ? 'plante'
+  return sp.corps === 'araignon' ? 'arai' : sp.boss ? 'tiss' : sp.horreur ? (sp.corps === 'silencieux' ? 'sil' : 'mille') : sp.plante ? 'plante'
     : sp.villageois ? 'vill' : sp.pnj ? (sp.arche ? 'arche' : 'nomade') : b.pnjSuit ? 'nmbete' : b.escouade ? 'esc' : sp.donjon ? 'dj'
-    : sp.corps === 'myconide' ? 'myco' : sp.brume ? 'brume' : '';
+    : sp.brume ? 'brume' : '';
 }
 // Le sac : [champ, codage, champ où le poser chez le suiveur]. n : un nombre ; v : tel quel ; a : des
 // nombres en tableau ; o : un petit objet ; t : un instant du jeu (dit en écart à maintenant, chaque
@@ -403,11 +402,9 @@ const SAC_FAUNE = {
   sil: [['saisirT', 'n'], ['conf', 'n'], ['calmeT', 'bt']],
   mille: [['tete', 'a', 'teteC'], ['au', 'a'], ['coup', 'a'], ['fenT', 'n'], ['frT', 'n'], ['conf', 'n'], ['calmeT', 'bt']],
   tiss: [['act', 'o'], ['vise', 'a'], ['phase', 'v'], ['eveilT', 'bt'], ['toileT', 't'], ['reculT', 't'], ['mortierT', 't'], ['mortT', 'bt']],
-  dragon: [['tang', 'n'], ['feuT', 'n'], ['gueuleT', 't'], ['pres', 'v'], ['v', 'n'], ['conf', 'n'], ['colere', 'n']],
   plante: [['armeT', 'n'], ['frappeT', 'n'], ['cible', 'n']],
   vill: [['cache', 'v'], ['assis', 'v'], ['porte', 'v'], ['peche', 'v'], ['cuisine', 'v'], ['gesteT', 't']],
   arche: [['ouv', 'n'], ['camo', 'n']],
-  myco: [['lanceT', 't'], ['rireT', 't'], ['nuageT', 't'], ['farce', 'o']],
   brume: [['actT', 't'], ['vise', 'a'], ['emerge', 'n'], ['sonne', 't'], ['place', 'n'], ['impact', 'a'], ['saut', 'a'], ['sautT', 't']],   // la brume sanglante (brume.js)
 };
 function codeSac(b, v, c) {
@@ -437,7 +434,7 @@ function appliquerSac(b, s, idx) {
   L.forEach(([k, c, dest], i) => { if (i < s.length) b[dest || k] = decodeSac(b, s[i], c, idx); });
 }
 // Qui elle est : ce qui ne change pas et que la naissance ne dit pas (le nom du nomade, le maître de sa
-// bête, l'aire du dragon, l'antre de la Tisseuse, la machine d'en bas qu'elle est).
+// bête, l'antre de la Tisseuse, la machine d'en bas qu'elle est).
 function identiteFaune(b) {
   const k = {};
   if (b.nm && b.sp.pnj) k.nm = typeof nmIdentite === 'function' ? nmIdentite(b.nm) : b.nm.nom;   // un inconnu (§110) : tout ce qui le fait
@@ -446,7 +443,6 @@ function identiteFaune(b) {
   if (b.pnjSuit && b.pnjSuit.num !== undefined) k.ps = b.pnjSuit.num;
   if (b.escouade) { k.es = 1; k.fr = r3(b.frappe || 1); k.bl = r3(b.blinde || 1); }
   else if (b.blinde) k.bl = r3(b.blinde);
-  if (b.nid) k.ni = [r2(b.nid.x), r2(b.nid.y), r2(b.nid.z)];
   if (b.antre) k.an = [r2(b.antre[0]), r2(b.antre[1])];
   if (b.djIdx !== undefined) { k.di = b.djIdx; k.ds = b.djSalle; }
   if (b.pl && b.pl.id) k.pl = b.pl.id;                     // (§162) une plante rare semée en cours de partie : laquelle
@@ -459,7 +455,6 @@ function poserIdentite(b, k, idx) {
   if (k.ps !== undefined) { const m = idx.get(k.ps); if (m) b.pnjSuit = m; else b.pnjSuitN = k.ps; }
   if (k.es) { b.escouade = true; b.frappe = +k.fr || 1; }
   if (k.bl) b.blinde = +k.bl;
-  if (Array.isArray(k.ni)) b.nid = { x: k.ni[0], y: k.ni[1], z: k.ni[2] };
   if (Array.isArray(k.an)) b.antre = k.an.slice();
   if (k.di !== undefined) { b.djIdx = k.di; b.djSalle = k.ds; }
   if (k.pl && typeof rarePar === 'function') { const pl = rarePar(k.pl); if (pl) b.pl = pl; }
@@ -469,7 +464,6 @@ function poserIdentite(b, k, idx) {
 // Le nectar de la fourmilière, le seuil des nomades et leur halte, le portail de l'escouade.
 function mondeFaune() {
   const w = {};
-  if (typeof Fourmi !== 'undefined' && Fourmi) w.fo = Fourmi.nectar | 0;
   const C = NM.car;
   if (C && C.arche && C.arche.num !== undefined && !C.arche.dead)
     w.nm = [C.arche.num, r2(C.lieu[0]), r2(C.lieu[1]), r2(C.centre[0]), r2(C.centre[1]), Math.round(C.fin - t), C.hostile ? 1 : 0, C.depart ? 1 : 0, C.ferme ? 1 : 0, C.bsp ? C.bsp.id : '', C.sortis | 0];
@@ -482,7 +476,6 @@ function mondeFaune() {
 function appliquerMonde(w, idx) {
   if (w.br && typeof brumeAppliquer === 'function') brumeAppliquer(w.br);
   if (w.vy && typeof vyrelAppliquer === 'function') vyrelAppliquer(w.vy);
-  if (Number.isFinite(w.fo) && typeof Fourmi !== 'undefined' && Fourmi) Fourmi.nectar = Math.max(0, w.fo | 0);
   // les nomades : la caravane du gardien, dont on se fait un double pour leur parler et troquer
   const N = Array.isArray(w.nm) ? w.nm : null, arche = N && idx.get(N[0]);
   if (arche) {
@@ -546,15 +539,7 @@ function gesteDistantFaune(d) {
     b.calmeT = b.t + 8;
     if (sil) { b.etat = 'écouter'; b.ecT = 3; } else { b.etat = 'plonger'; b.plT = 0; b.frappe = 1; b.cdT = b.t + 8; }
   } else if (d.k === 'mange') {                          // une baie, un poisson, tendus d'en face
-    if (b && !b.tame) { b.faim = Math.max(0, b.faim - Math.max(0, Math.min(.8, +d.f || 0))); b.alarm = 0; if (d.d) b.doute = Math.max(0, (b.doute || 0) - Math.min(.6, +d.d || 0)); }
-  } else if (d.k === 'nourrir') {                        // de la viande au dragon
-    if (!b || !b.sp.dragon || b.enVol) return;
-    b.faim = Math.max(0, b.faim - .35); b.etat = 'manger'; b.mangeT = 2;
-    if (Number.isFinite(d.c)) b.conf = Math.max(b.conf || 0, Math.min(1, d.c));
-  } else if (d.k === 'puise') {                          // le nectar de la fourmilière
-    if (typeof Fourmi === 'undefined' || !Fourmi) return;
-    Fourmi.nectar = Math.max(0, Fourmi.nectar - Math.max(0, Math.min(4, d.q | 0)));
-    if (d.f) for (const o of beasts) if (o.sp.roche && !o.tame && !o.dead && (o.x - Fourmi.x) ** 2 + (o.y - Fourmi.y) ** 2 < 484) o.colere = Math.max(o.colere || 0, 14);
+    if (b && !b.tame) { b.faim = Math.max(0, b.faim - Math.max(0, Math.min(.8, +d.f || 0))); b.alarm = 0; }
   } else if (d.k === 'aube') {                           // le sort de l'Aube : le jour se lève pour toute l'île
     horloge = .26;
   } else if (d.k === 'escouade' || d.k === 'nomades') {   // l'onglet Bêta d'un suiveur : c'est le gardien qui les fait venir, près de lui
@@ -666,28 +651,6 @@ const VISUEL_FAUNE = {
     }
     b._actK = k1;
   },
-  // le dragon : le battement de ses ailes, sa tête qui balaie quand il est perché, son grondement
-  dragon(b, dt) {
-    b.t += dt; b.age += dt; b.ech = 1; if (b.hit > 0) b.hit -= dt;
-    if (b.dead) {
-      b.dead += dt; b.bat = 0;
-      if (b.solMort === undefined) {
-        b.enVol = false; b.vz = (b.vz || 0) - 14 * dt; b.z += b.vz * dt; b.roll = (b.roll || 0) + dt * 1.5; b.tang = Math.max(-.8, (b.tang || 0) - dt);
-        const fl = Math.max(floorUnder(b.x, b.y, b.z + .05), hRendu(b.x, b.y));
-        if (b.z <= fl) { b.z = fl; b.vz = 0; b.v = 0; b.solMort = fl; b.roll = 1.3; b.tang = 0; burst(b.x, b.y, b.z + .3, 16, '#9a8f80'); P.secousse = t; P.secousseK = .5; }
-      }
-      return;
-    }
-    const d0 = b.dir, d = glisserFaune(b, dt); let rot = b.dir - d0; while (rot > Math.PI) rot -= 6.2832; while (rot < -Math.PI) rot += 6.2832;
-    b.vit = b.enVol ? (b.v || d / Math.max(dt, 1e-3)) : b.etat === 'dormir' ? 0 : Math.min(1.4, d / Math.max(dt, 1e-3) + Math.abs(rot) / Math.max(dt, 1e-3) * .55);   // au sol : des pas quand il se tourne, rien quand il dort
-    if (b.enVol && b.bat > .05) b.ph = ((b.ph || 0) + dt * (4.2 + b.bat * 3 + (b.etat === 'cracher' ? 1.8 : 0)) * 6.2832) % 62.832;
-    if (!b.enVol && b.etat !== 'dormir') gestesPerche(b);
-    if (b.etatNeuf) {
-      if (b.etat === 'menacer') SON.jouer('rugissement', {}, b.x, b.y, b.z + 1.6);
-      else if (b.etat === 'cracher') SON.jouer('rugissement', { court: 1 }, b.x, b.y, b.z + 1);
-      else if (b.etatAvant === 'décoller' && b.enVol) burst(b.x, b.y, b.z + .2, 5, '#f4f4f0');
-    }
-  },
   // la plante épique : elle s'arme, frappe, se remet ; et son pollen
   plante(b, dt) { majPlante(b, dt, true); },
   // le villageois : son pas, ses gestes de métier, le salut quand on passe
@@ -720,20 +683,8 @@ const VISUEL_FAUNE = {
   },
   arche(b, dt) { b.t += dt; b.pv = 1; if (b.dead) b.dead += dt; },
 };
-// Ce qu'ajoutent, à la marionnette ordinaire, certaines bêtes : le vesseron rit et crache ses spores.
-const APRES_FAUNE = {
-  myco(b) {
-    if (Number.isFinite(b.rireT) && t - b.rireT < .5 && Math.abs(b.rireT - (b._rireVu ?? -99)) > .3) {
-      b._rireVu = b.rireT; SON.jouer('rire', { f: 820 + ((b.capT || .5) * 380), n: 5 }, b.x, b.y, b.z + .6);
-    }
-    if (Number.isFinite(b.nuageT) && t - b.nuageT < .6 && Math.abs(b.nuageT - (b._nuageVu ?? -99)) > .3) {
-      b._nuageVu = b.nuageT;                               // le nuage : on le voit, et l'on s'y engourdit si l'on est dedans
-      for (let k = 0; k < 26; k++) parts.push({ x: b.x + (Math.random() - .5) * .6, y: b.y + (Math.random() - .5) * .6, z: b.z + .5 * b.sp.sz,
-        vx: (Math.random() - .5) * 1.6, vy: (Math.random() - .5) * 1.6, vz: Math.random() * .6, g: -.08, life: 1.6 + Math.random(), age: 0, col: '#d6b8f0', luit: 1, tl: .09 });
-      if ((P.x - b.x) ** 2 + (P.y - b.y) ** 2 < 7) { P.spores = t + 3.5; say('les spores vous engourdissent', 1.8); }
-    }
-  },
-};
+// Ce qu'ajoutent, à la marionnette ordinaire, certaines bêtes (aucune pour l'heure : le vesseron s'en est allé, §225).
+const APRES_FAUNE = {};
 
 // ---------- les gestes ----------
 // Un coup d'ici sur une bête du gardien : on le voit tout de suite, et on le lui dit. C'est lui qui compte.
@@ -760,7 +711,7 @@ function fauneLien(b) {
 }
 // Le coup d'une bête du gardien sur un joueur d'en face : il l'encaisse chez lui.
 function fauneMorsure(b, j, deg) {
-  const m = { u: Compte.uid, a: j.u, n: b.num, s: b.sp.id, x: r2(b.x), y: r2(b.y), z: r2(b.z), d: r3(deg), ch: b.sp.roche && b.as ? 1 : 0 };
+  const m = { u: Compte.uid, a: j.u, n: b.num, s: b.sp.id, x: r2(b.x), y: r2(b.y), z: r2(b.z), d: r3(deg) };
   const o = FA.extra; FA.extra = null;
   if (o) { if (o.kb) m.kb = o.kb.map(r2); if (o.sh) m.sh = r2(o.sh); if (o.m) m.m = String(o.m).slice(0, 60); if (o.br) m.br = 1; }
   diffuser(canalIle(), 'morsure', m);
@@ -799,8 +750,6 @@ function fauneTir(b, f) {
 function colereDistante(b) {
   b.colere = 20; b.aise = 0; b.joue = 0;
   if (b.sp.pnj || b.pnjSuit) b.colereD = true;          // un nomade : c'est l'autre qu'il gardera en mémoire
-  if (b.sp.roche) for (const o of beasts) if (o !== b && o.sp === b.sp && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 196) o.colere = Math.max(o.colere || 0, 12);
-  if (trottin(b.sp)) for (const o of beasts) if (o !== b && trottin(o.sp) && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) o.colere = Math.max(o.colere || 0, 12);   // (§137) les Trottins : toute la bande
   if (b.sp.chasse && b.sp.herd) for (const o of beasts) if (o !== b && o.sp === b.sp && !o.tame && !o.dead && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 144) o.colere = Math.max(o.colere || 0, 15);
 }
 function fauneEvenement(evt, d) {
@@ -829,7 +778,7 @@ function fauneEvenement(evt, d) {
     if (d.a !== moi) return true;
     // celle qui mord, telle qu'on la voit ici (sa marionnette), ou ce qu'il en faut pour encaisser
     const loc = indexFaune().get(d.n);
-    const src = { x: d.x, y: d.y, z: d.z, sp: specById[d.s] || (loc && loc.sp) || { n: 'bête' }, as: d.ch ? {} : null, tame: false, pv: 99, t: 0, dead: 0 };
+    const src = { x: d.x, y: d.y, z: d.z, sp: specById[d.s] || (loc && loc.sp) || { n: 'bête' }, as: null, tame: false, pv: 99, t: 0, dead: 0 };
     const touche = porterCoup(src, P, +d.d || 0);
     if (touche && Array.isArray(d.kb)) { P.vx += +d.kb[0] || 0; P.vy += +d.kb[1] || 0; if (d.kb[2]) P.vz = (P.vz || 0) + (+d.kb[2] || 0); }
     if (touche && d.m) say(String(d.m).slice(0, 60), 1.8);
@@ -872,7 +821,7 @@ function fauneDistant(j, d) {
   j.fv = d.fv === 1; j.fg = !!d.fg; j.fa = +d.fa || 0;
   const x = d.fx | 0;
   j.fx = { calme: !!(x & 1), abri: !!(x & 2), invisible: !!(x & 4), silence: !!(x & 8), repousse: !!(x & 16), masque: !!(x & 32), vyrel: !!(x & 64), filtre: !!(x & 128), korlaz: !!(x & 256), plane: !!(x & 512), titan: !!(x & 1024), ailes: !!(x & 2048) };
-  j.br = Math.max(0, Math.min(1, +d.br || 0)); j.oc = Math.max(0, Math.min(1, +d.oc || 0));
+  j.br = Math.max(0, Math.min(1, +d.br || 0));
   if (!d.f || FA.role !== 'suiveur' || j.u !== FA.gardien || !faunePossible()) return;
   if (FA.inventaire) appliquerFaune(d.f); else demanderInventaire(false);
 }
