@@ -7456,3 +7456,30 @@ Elle garde son nom, son niveau et ses potions. Le jeu le dit, une fois (« Pompo
   - la page rechargée, ils deviennent trois lignées, gardent leurs noms, sont dehors, et le jeu le dit ;
   - le premier se monte (MONTER), et en selle il suit le cavalier ;
   - aucune erreur.
+
+## §234 · L'animation, deuxième temps : les gestes de repos, et les attaques signature
+
+**Les gestes de repos** (`lignees.js`, `lgGeste`). Une bête au calme (elle erre, suit son troupeau, regarde, se repose, suit le joueur) fait de temps en temps un geste. Il tient d'une à quatre secondes, entre et sort en douceur, puis elle attend six à vingt secondes. C'est rien que pour l'œil : la conduite ne change pas.
+- elle s'assoit, l'avant levé ;
+- elle s'ébroue, la tête secouée ;
+- elle s'étire, l'avant plongé ;
+- une mignonne se roule par terre, un tour complet sur le dos. Ce n'est jamais le cas d'un serpent, d'un poisson ou d'un oiseau ;
+- une épique lève la tête et rugit, gueule ouverte.
+
+**Les attaques signature**, d'après les organes (`orvane-sv.js`, `talentsFiche`, la table `COMBAT` du jeu) :
+- des cornes ou des défenses : une charge, de loin et vite (on l'esquive de côté) ;
+- une massue : un coup lourd qui repousse loin, lent à revenir ;
+- un aiguillon : une piqûre vive ;
+- une épique frappe jusqu'à 40 % plus fort.
+
+**Les herbivores armés ripostent.** Un herbivore qui porte des cornes, des défenses ou une massue ne fuit plus au premier pas (peur 0,5 au plus) : frappé, il riposte (`riposte`, comme le bossu d'autrefois).
+
+**Le branchement.**
+- `lignees.js` : `lgGeste`, `LG_GESTES`, et dans `osOrvane` la hauteur, le tangage, le regard, la gueule et la roulade ;
+- `orvane/orvane-sv.js` : `talentsFiche` (`COMBAT`, `riposte`, `peur`) ;
+- `sw.js` : `stone-valley-204`.
+
+**Vérifié.**
+- **Chaque geste forcé** à mi-course sur toutes les lignées, à trois puissances : 3 615 corps, aucun os invalide.
+- **Au studio** : une mignonne qui se roule, pattes en l'air ; une bête assise ; une épique qui rugit, tête levée.
+- **Dans le navigateur** : six îles et le chemin des compagnes (migration, monture), aucune erreur.

@@ -155,14 +155,16 @@ function osOrvane(f) {
   // la respiration : vive et ample chez une mignonne, lente et profonde chez une épique
   const souffle = Math.sin(t * (2.1 + 2.5 * Math.max(allure, al)) * (1 + .3 * cu - .35 * ep) + g) * (1 - couche * .6) * vivant * (1 + .6 * cu + .5 * ep);
   const R = lgRegard(f, M, g); R.lacet = lisse('_lgLacet', R.lacet, 7 - 5 * ep); R.tang = lisse('_lgTang', R.tang, 6);   // une épique tourne la tête lentement
-  const bouche = Math.max(f.etat === 'mord' || f.etat === 'charger' || f.etat === 'acculé' ? .8 : 0, broute * Math.max(0, Math.sin(t * 7 + g)) * .5);
+  const geste = lgGeste(f, M, allure, al, vol);                        // (§234) un geste de repos
+  R.lacet += Math.sin(t * 28) * .45 * geste.ebroue; R.tang -= .45 * geste.rugit;   // elle s'ébroue ; elle lève la tête pour rugir
+  const bouche = Math.max(f.etat === 'mord' || f.etat === 'charger' || f.etat === 'acculé' ? .8 : 0, broute * Math.max(0, Math.sin(t * 7 + g)) * .5, geste.rugit);
   if (M.poisson) return lgStyle(f, M, lgPoisson(f, M, B, add, { v, ph, allure, dk, couche, souffle, R, bouche, g }));   // (§226) un poisson aussi, à l'échelle
   // la hauteur du dos : debout sur ses pattes, couché quand il dort ou qu'il meurt ; un galop tangue, une traque s'aplatit
   const bz0 = M.serpent ? Th * .42 : M.Hl + Th * .5;
   const saut = cu * allure * Math.abs(Math.sin(ph * 2)) * (.045 + .035 * cu) * (1 - couche);   // (§226) la mignonne sautille
-  const bz = bz0 + (Th * .5 + .01 - bz0) * couche - ram * .04 - traque * M.Hl * .3 + Math.abs(Math.sin(ph * 2)) * (.014 + .02 * ep) * allure * (1 + galop) + saut;
+  const bz = bz0 + (Th * .5 + .01 - bz0) * Math.max(couche, geste.roule * .6) - ram * .04 - traque * M.Hl * .3 + Math.abs(Math.sin(ph * 2)) * (.014 + .02 * ep) * allure * (1 + galop) + saut - M.Hl * .45 * geste.assis;
   const dresse = lisse('_lgDr', ep * Math.max(al, f.etat === 'veille' || f.etat === 'acculé' || f.etat === 'défendre' ? .9 : 0), 2.5);   // (§226) l'épique se dresse, poitrail haut
-  const tangage = (Math.sin(ph) * .09 * galop - traque * .06 - broute * .05 - dresse * .2) * (1 - couche);   // l'avant plonge et remonte au galop
+  const tangage = (Math.sin(ph) * .09 * galop - traque * .06 - broute * .05 - dresse * .2 - .3 * geste.assis + .2 * geste.etire - .14 * geste.rugit) * (1 - couche);   // l'avant plonge et remonte au galop ; (§234) assise, l'avant se lève ; étirée, il plonge
   const xa = Lt * .5, xr = -Lt * .5;                                 // l'avant et l'arrière du tronc
   const zx = x => bz + x * tangage;                                  // la ligne du dos penche avec le tangage
   let avant, bout, tz = bz;                                           // où s'attache le cou ; le bout de la queue
@@ -237,6 +239,9 @@ function osOrvane(f) {
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
   if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
     for (const o of B) { o.a = T(o.a); o.b = T(o.b); } }
+  if (geste.roule > 0 && geste.tour) {                                // (§234) la mignonne se roule par terre : un tour sur le dos
+    const c = Math.cos(geste.tour), s = Math.sin(geste.tour), zc = bz, vu = new Set();
+    for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); const y = p[1], z = p[2] - zc; p[1] = y * c - z * s; p[2] = zc + y * s + z * c; } }
   lgSignes(f, M, add, T, { couche, dort, al }, B);
   // (§226) la mignonne s'écrase en touchant le sol et s'étire en l'air ; toute bête recule d'un coup quand on la frappe (l'épique à peine)
   const sq = cu * allure * Math.cos(ph * 4) * .12 * (1 - couche), coup = f.hit > 0 && !f.dead ? Math.min(1, f.hit * 4) * (1 - .7 * ep) : 0;
@@ -255,6 +260,29 @@ function lgSignes(f, M, add0, T, A, B) {
     add([h[0], 0, z + u * .9], [h[0], 0, z + u * 2.6], u * .55, u * .55, [255, 214, 70], 1); add([h[0], 0, z], [h[0], 0, z + u * .45], u * .55, u * .55, [255, 214, 70], 1); }
   if (A.dort > .7) for (let i = 0; i < 3; i++) { const q = ((t * .45 + i / 3 + lgGraine(f) * .1) % 1), u = (.025 + .02 * q) / k, z = z0 + q * .35 / k, y = Math.sin(q * 6 + i) * .04 / k;
     add([h[0] - .02 / k, y, z], [h[0] + .02 / k, y, z], u, u * .35, [196, 214, 255], 1); }
+}
+// (§234) LES GESTES DE REPOS. Une bête au calme (elle erre, suit son troupeau, regarde, se repose) fait de temps en temps un geste :
+// elle s'assoit, s'ébroue, s'étire ; une mignonne se roule aussi par terre, une épique lève la tête et rugit. Le geste tient d'une à
+// quatre secondes, entre et sort en douceur, puis elle attend six à vingt secondes. Rien que pour l'œil : la conduite ne change pas.
+const LG_GESTES = { assis: 4, ebroue: .9, etire: 1.6, roule: 1.8, rugit: 1.8 };
+function lgGeste(f, M, allure, al, vol) {
+  const R = { assis: 0, ebroue: 0, etire: 0, roule: 0, rugit: 0, tour: 0 };
+  const calme = !f.dead && !vol && !f.enfoui && allure < .06 && al < .2 && ['errer', 'troupeau', 'curieux', 'suivre', 'garder', 'repos', 'patrouiller'].includes(f.etat);
+  let G = f._lgG;
+  if (!calme) { if (G && G.fin > t) G.fin = t; }
+  else if (!G || t > G.fin + G.pause) {
+    const cu = M.cute || 0, ep = M.epique || 0, W = { assis: 1.5 - cu * .5, ebroue: 1, etire: 1, roule: M.serpent || M.poisson || M.oiseau ? 0 : 2.5 * cu, rugit: 2 * ep };
+    if (M.serpent || M.poisson) W.assis = 0;
+    let r = Math.random() * Object.values(W).reduce((a, x) => a + x, 0), k = 'ebroue';
+    for (const [n, w] of Object.entries(W)) if ((r -= w) <= 0) { k = n; break; }
+    G = f._lgG = { k, debut: t, fin: t + LG_GESTES[k], pause: 6 + Math.random() * 14 };
+  }
+  if (G && t >= G.debut && t <= G.fin + .35) {
+    const a = t - G.debut, b = G.fin - t, x = lgCl(Math.min(a, b + .35) * 3, 0, 1);
+    R[G.k] = x;
+    if (G.k === 'roule') { const p = lgCl(a / (G.fin - G.debut), 0, 1); R.tour = 6.2832 * p * p * (3 - 2 * p); }
+  }
+  return R;
 }
 // (§226) LA PASSE DE STYLE. Les largeurs suivent la taille de la bête, comme pour les corps faits main : sans cela, une bête de
 // 20 g était dodue et une de 50 kg toute maigre (posBete n'agrandit que les positions). Puis, de près, la forme de chaque os : tout

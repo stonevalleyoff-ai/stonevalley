@@ -441,6 +441,15 @@ function talentsFiche(sp) {
   let k = 0; for (let i = 0; i < 8; i++) if (i !== 5 && Q.apt[i] > Q.apt[k]) k = i;
   sp.metier = METIERS[k];
   try { APT[sp.id] = Q.apt; } catch (e) { }                           // (la défense suit la puissance, connue maintenant)
+  // (§234) LES ATTAQUES SIGNATURE, d'après les organes : des cornes ou des défenses chargent de loin et vite (on l'esquive de côté),
+  // une massue frappe lourd et repousse loin, un aiguillon pique vif ; une épique frappe jusqu'à 40 % plus fort. Un herbivore armé
+  // ne fuit plus au premier pas : frappé, il riposte.
+  const org = d.corps?.organes || [], gros = ty => org.some(o => o.type === ty && o.taille >= .3), ep = clamp(((sp.orvane.puissance ?? .5) - .65) / .35, 0, 1);
+  const C = gros('cornes') || gros('defenses') ? { deg: .16, ramasse: .6, bond: .42, portee: 4.2, recul: .9, pause: 1.6 }
+    : gros('massue') ? { deg: .22, ramasse: .8, bond: .2, portee: 2.2, recul: 1.4, pause: 2.4 }
+    : gros('aiguillon') ? { deg: .12, ramasse: .25, bond: .32, portee: 2.6, recul: .5, pause: 1 } : null;
+  try { if (C && d.chasseur) COMBAT[sp.id] = { ...C, deg: r2(C.deg * (1 + .4 * ep)) }; else if (d.chasseur && Corr.SOCLES?.carnivore?.tables?.combat) COMBAT[sp.id] = { ...Corr.SOCLES.carnivore.tables.combat, deg: r2(.13 * (1 + .4 * ep)) }; } catch (e) { }
+  if (C && !d.chasseur) { sp.riposte = r2(.6 + .3 * ep); sp.peur = Math.min(sp.peur ?? 1, .5); } else if (!d.chasseur) delete sp.riposte;
 }
 // (§233) LA MIGRATION DES COMPAGNES. Une compagne d'une espèce faite main, retirée de la nature (index.html, FAITE_MAIN), devient la
 // lignée d'Orvane la plus proche : même régime, taille voisine, qui vole si elle volait, qu'on peut monter si c'était une monture. Elle
