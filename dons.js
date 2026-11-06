@@ -715,7 +715,7 @@ function donsTaille(J) {
   return 1 + .5 * Math.max(0, Math.min(a, b));
 }
 // ---------- le Roi des bêtes : un regard, et une bête sauvage se range à vos côtés ----------
-const donsVassaleOk = b => donCible(b) && !b.sp.boss && !b.sp.alpha && !b.sp.dragon && !b.sp.horreur && !b.sp.achromie && !b.sp.brume && !b.sp.vyrel && !b.sp.villageois
+const donsVassaleOk = b => donCible(b) && !b.sp.boss && !b.sp.alpha && !b.sp.horreur && !b.sp.achromie && !b.sp.brume && !b.sp.vyrel && !b.sp.villageois
   && !b.sp.plante && !b.gardeCamp && b.sp.corps !== 'araignon' && b.sp.corps !== 'roi' && !(typeof automate === 'function' && automate(b.sp)) && !b.sp.donjon;
 function donsRegard() {
   let pr = null, bd = 144;

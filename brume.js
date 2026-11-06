@@ -108,7 +108,7 @@ function brumeSang() { return ETAT.id === 'brume' && !(typeof djIci === 'functio
 // La fureur : la cible la plus proche, joueur ou bête, revue toutes les 0,6 s (et gardée tant qu'elle vit).
 // Ne sont jamais prises pour cibles : les visions, la flore, les maisons, les nomades, ce qui est caché.
 const proieDeFureur = (o, b) => o !== b && !o.dead && o.pv > 0 && !o.sp.illusion && !o.sp.plante && !o.sp.batiment
-  && !o.sp.pnj && !o.sp.villageois && !o.cache && !(o.enfoui > 0) && !(o.sp.dragon && o.enVol) && !o.loin && !o.sp.brume;   // (la brume protège les siens)
+  && !o.sp.pnj && !o.sp.villageois && !o.cache && !(o.enfoui > 0) && !o.enVol && !o.loin && !o.sp.brume;   // (la brume protège les siens)
 function fureurIci(b) {
   if (!(brumeSang() > .3) || b.sp.brume) { b.furC = null; return null; }
   const c = b.furC;
@@ -668,7 +668,7 @@ function enferCss() {
 const enferMusique = () => enferIci() && SANG.phase === 'demon';   // le combat garde la valse, sans la brume
 // La faune ordinaire : nulle tant que l'île est démoniaque, elle revient avec la guérison (capEsp, index.html).
 const fauneOrdinaire = b => !b.tame && !b.comp && !b.sp.brume && !b.sp.plante && !b.sp.batiment && !b.sp.pnj && !b.sp.villageois && !b.sp.illusion
-  && !b.sp.boss && !b.sp.dragon && !b.sp.horreur && !b.retire && !(typeof automate === 'function' && automate(b.sp));
+  && !b.sp.boss && !b.sp.horreur && !b.retire && !(typeof automate === 'function' && automate(b.sp));
 function enferFaune(sp) { return !enferIci() || sp.brume || sp.plante ? 1 : enLisse(.55, 1, enferG()); }
 
 function debutEnfer(vague) {

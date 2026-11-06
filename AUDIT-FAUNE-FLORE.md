@@ -470,17 +470,16 @@ Sept lots. Après chacun, le jeu tourne, chaque `<script>` compile, et une secti
 
 **Où on en est.**
 - **Lot 0 fait** (§224).
-- **Lot 1 fait** (§225). La migration des compagnes a glissé au lot 5 : une compagne faite main garde ses talents (monture, pêche, soins) tant que les lignées ne savent pas les reprendre par leurs traits.
+- **Lot 1 fait** (§225).
 - **Lot 2 bien avancé** (§226, §229, §230) :
   - fait : la puissance, le tirage des îles par la puissance, l'allure du mignon à l'épique, les largeurs à l'échelle, les vraies lueurs la nuit, la matière du corps ;
-  - reste : un liseré de lumière dans le shader, les nouvelles formes (segmenté, rayonné, tentacules), les portraits.
-- **Lot 3 commencé** (§227) :
-  - fait : les états qui se fondent, le ressort des mignonnes, le poids des épiques, le recul, les signes « ! » et « z » ;
-  - reste : les gestes de repos, les parades et les attaques signature.
-- **Lot 4 commencé** (§228, §231) :
-  - fait : les rythmes (crépusculaires, jour et nuit), le joueur qui n'est plus une proie pour les petites bêtes, les mangeurs de fruits aux buissons ;
-  - reste : les groupes (meutes, chefs, sentinelles), les nids, les réactions entre bêtes, l'équilibre des chasseurs au loin.
-- **Lots 5 et 6** : pas commencés.
+  - reste : un liseré de lumière dans le shader, les nouvelles formes (segmenté, rayonné, tentacules), les portraits du carnet.
+- **Lot 3 fait** (§227, §234) : les états fondus, le ressort des mignonnes, le poids des épiques, le recul, les signes « ! » et « z », les gestes de repos, les parades, les attaques signature.
+- **Lot 4 bien avancé** (§228, §231, §232) :
+  - fait : les rythmes, le joueur qui n'est plus une proie pour les petites bêtes, les mangeurs de fruits aux buissons, l'alarme du troupeau, la meute, l'équilibre des chasseurs ; (§235) les familles des Doux, en file derrière leur mère ;
+  - reste : les nids, les réactions entre bêtes ; quelques chasseurs sans proie sur certaines îles (8 sur l'île 55555).
+- **Lot 5 fait** (§233) : talents par traits (métier, compétence, monture, pêche, friandises), migration des compagnes et des viandes d'avant ; (§235) le rodéo pour les montures sauvages. Reste : les portraits du carnet.
+- **Lot 6 fait** (§235) : le code des trente espèces s'en est allé (3 800 lignes). Restent, voulus : la liste des trente (pour relire les sauvegardes), la génération 0 d'Orvane dans `correspondance.js`, les clés internes des compétences.
 
 L'ordre 0 → 1 → 2 → 3 → 4 → 5 → 6 garde le jeu jouable à chaque étape. Les anciennes créatures disparaissent des îles dès le lot 1, et leur code part au lot 6, une fois que plus rien n'en dépend.
 

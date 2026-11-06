@@ -150,7 +150,7 @@ function conduitesBete(b, dt, men, dM2, J, dJ) {
   if (m.carapace && b.repliT > t) return { etat: 'replié', vit: 0 };
   if (m.crachat) { const o = cdCrachat(b, m.crachat, joueur && dJ < 9 ? J : null); if (o) return o; }
   if (m.camouflage && joueur) { const o = cdCamouflage(b, dt, J, dJ); if (o) return o; }
-  if (m.terrier && joueur && dJ < 3.2 && !(b.enfoui > 0) && t > (b.terrierT || 0) && (b.sp.orvane?.genere || b.sp.corps === 'crapaud')) {
+  if (m.terrier && joueur && dJ < 3.2 && !(b.enfoui > 0) && t > (b.terrierT || 0) && b.sp.orvane?.genere) {
     b.enfoui = 3 + cdHasard() * 3; b.terrierT = t + 12; burst(b.x, b.y, b.z + .2, 14, '#8a6a48'); cdDecouvrir(b, 'terrier'); return null;
   }
   if (m.parent && joueur) cdParent(b, J);

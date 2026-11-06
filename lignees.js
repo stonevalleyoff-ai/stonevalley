@@ -59,7 +59,7 @@ function lgMesures(sp) {
     tete: (.09 + q('tete') * .09) * (1 + .38 * petit - (.22 + .12 * brouteur) * lourd + .15 * chasseur),
     museau: lgCl(q('museau') + .15 * chasseur + .05 * brouteur - .1 * petit, 0, 1), oreilles: lgCl(q('oreilles') * (1 - .6 * fouisseur) + .12 * brouteur + .15 * petit, 0, 1),
     queue: lgCl((q('queue') + .3 * grimpeur + .15 * chasseur) * (1 - .7 * lourd * (1 - grimpeur)), 0, 1), cornes: q('cornes'),
-    crete: q('crete'), ailes: Math.max(q('ailes'), (sp.volant || sp.dragon) ? .8 : 0), carapace: Math.max(q('carapace'), tr.has('carapace') ? .8 : 0),
+    crete: q('crete'), ailes: q('ailes'), carapace: Math.max(q('carapace'), tr.has('carapace') ? .8 : 0),
     antennes: q('antennes'), motif: c.motif || 'uni', organes: [],
     robe: sp.shell, sombre: sp.dark, ventre: sp.ventre || C.ventre || lgMix(sp.shell, [240, 236, 226], .35), oeil: sp.oeil,
   };
@@ -89,7 +89,7 @@ function lgMesures(sp) {
   M.org = (ty, pl) => M.organes.find(o => o.type === ty && (!pl || o.place === pl));
   if (OL) { const tl = (ty, pl) => (M.org(ty, pl) || {}).taille || 0;
     M.cornes = tl('cornes'); M.crete = tl('crete', 'tete'); M.antennes = tl('antennes');
-    M.ailes = Math.max(tl('ailes'), (sp.volant || sp.dragon) ? .8 : 0); M.carapace = Math.max(tl('carapace'), tr.has('carapace') ? .8 : 0); }
+    M.ailes = tl('ailes'); M.carapace = Math.max(tl('carapace'), tr.has('carapace') ? .8 : 0); }
   if (M.cute || M.epique) {                                           // (§226) les organes : des bourgeons, ou exagérés
     const cu = M.cute, ep = M.epique;
     M.organes = M.organes.map(o => ({ ...o, taille: o.taille * (1 - .35 * cu + .7 * ep) })).filter(o => o.taille >= .2);

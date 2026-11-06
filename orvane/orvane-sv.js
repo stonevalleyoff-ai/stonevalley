@@ -251,11 +251,6 @@ function appliquerDef(sp, def, base) {
   if (def.machine) machineDef(sp, def, base);                         // (§223) une machine d'Orvane : un automate à la mesure de ses modules
   if (def.gabarit) sp.bio = (def.bio || []).slice();                  // (§221) une lignée sans ancêtre ne vit que sur les sols où elle a un effectif :
   else if (def.bio && def.bio.length) sp.bio = def.bio.slice();       //   sans aucun, elle ne paraît pas (elle ne prend plus les sols de sa fiche)
-  if (base.biome) {                                                   // un Tellurien : son sol rare, s'il en a un ; sinon, les sols ordinaires
-    let rares = []; try { rares = typeof RARES !== 'undefined' ? RARES : []; } catch (e) { }
-    const r = (def.bio || []).find(b => rares.some(x => x.b === b));
-    if (r) { sp.biome = r; const h = rares.find(x => x.b === r).coul; sp.pierre = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16)); } else delete sp.biome;
-  }
   return sp;
 }
 // (§223) une machine d'Orvane (Orvane docs/16) devient un automate du jeu : sa fiche (traceur, moissonneur) lui prête sa
@@ -343,16 +338,22 @@ function matiereDe(def) {
   if (tr.has('peau-epaisse') || (loco.includes('nage') && loco.includes('marche'))) return 'peau';
   return 'pelage';
 }
-// (§225) LA VOIX D'UNE LIGNÉE, d'après son corps et sa taille (SON.VOIX : trille, grogne, siffle, cri…). Un poisson se tait.
+// (§225) LA VOIX D'UNE LIGNÉE, d'après son corps et sa taille (SON.VOIX). Un poisson se tait. (§235) Un oiseau crie, un petit
+// gazouille, un serpent siffle, un insecte stridule s'il est gros ; un grand chasseur rugit, un coureur hennit, un amphibien
+// coasse, un géant pousse de longs soupirs graves ; les autres grognent. Les petites voix d'abord, les grandes pour les épiques.
 function voixDe(sp) {
-  const d = S.lignees[sp.id] || {}, m = d.masse || 1, f = d.forme, loco = d.locomotion || [];
+  const d = S.lignees[sp.id] || {}, m = d.masse || 1, f = d.forme, loco = d.locomotion || [], lg = Math.log10;
   if (nageurPur(loco)) return null;
-  if (f === 'oiseau' || loco.includes('vol')) return { k: 'cri', f: clamp(2400 - 500 * Math.log10(m * 10), 900, 2600) };
-  if (f === 'hexapode') return { k: 'trille', f: clamp(4200 - 900 * Math.log10(m * 100), 2200, 5200), n: 4, vite: 1 };
-  if (f === 'serpent') return { k: 'siffle', f: clamp(1300 - 250 * Math.log10(m * 10), 600, 1400) };
-  if (d.chasseur) return { k: 'grogne', f: clamp(220 - 60 * Math.log10(m * 10), 60, 240), d: clamp(.3 + .15 * Math.log10(m * 10), .3, .9), rauque: 1 };
-  if (m < 1) return { k: 'trille', f: clamp(3600 - 1200 * Math.log10(m * 100), 1800, 5400), n: m < .1 ? 2 : 3 };
-  return { k: 'grogne', f: clamp(180 - 50 * Math.log10(m), 55, 180), d: clamp(.3 + .2 * Math.log10(m), .3, 1.1) };
+  if (f === 'oiseau' || loco.includes('vol')) return { k: 'cri', f: clamp(2400 - 500 * lg(m * 10), 900, 2600) };
+  if (f === 'hexapode') return m >= 5 ? { k: 'stridule', f: clamp(2600 - 400 * lg(m), 1200, 2600) } : { k: 'trille', f: clamp(4200 - 900 * lg(m * 100), 2200, 5200), n: 4, vite: 1 };
+  if (f === 'serpent') return { k: 'siffle', f: clamp(1300 - 250 * lg(m * 10), 600, 1400) };
+  if (d.chasseur) return m >= 80 ? { k: 'rugit', f: clamp(150 - 30 * lg(m), 70, 110) }
+    : { k: 'grogne', f: clamp(220 - 60 * lg(m * 10), 60, 240), d: clamp(.3 + .15 * lg(m * 10), .3, .9), rauque: 1 };
+  if (m < 1) return { k: 'trille', f: clamp(3600 - 1200 * lg(m * 100), 1800, 5400), n: m < .1 ? 2 : 3 };
+  if (loco.includes('nage') && loco.includes('marche') && m < 10) return { k: 'coasse', f: clamp(200 - 60 * lg(m * 10), 100, 220) };
+  if (loco.includes('course') && m >= 10 && m < 400) return { k: 'hennit', f: clamp(1000 - 200 * lg(m), 480, 820) };
+  if (m >= 150) return { k: 'soupir', f: clamp(130 - 30 * lg(m), 45, 95) };
+  return { k: 'grogne', f: clamp(180 - 50 * lg(m), 55, 180), d: clamp(.3 + .2 * lg(m), .3, 1.1) };
 }
 // (§225) QUI CHASSE QUI : la règle d'Orvane (moteur/orvane.js, appetence) — une proie d'un tiers de sa masse est idéale, rien
 // au-delà d'une fois et demie ni sous un cinquantième ; une proie plus vive échappe ; un oiseau est hors de portée d'un marcheur ;
@@ -438,6 +439,8 @@ function talentsFiche(sp) {
   if (Q.comp) sp.comp = Q.comp; else delete sp.comp;
   if (Q.montable) sp.monture = { marche: r2(3.4 + .3 * Math.min(4, vit / 2)), course: r2(4.8 + .4 * Math.min(4, vit / 1.5)), saut: 10.5, endu: Math.round(10 + 14 * clamp((Math.log10(m) - .9) / 1, 0, 1)), fougue: 6 };
   else delete sp.monture;
+  // (§235) une monture sauvage se dompte au rodéo : domptée, elle accepte le lien presque à coup sûr (index.html, COND_LIEN.dompte)
+  try { if (Q.montable) { const L0 = FACONS[sp.id] || Corr.SOCLES?.[sp.orvane.base]?.tables?.lien; if (L0) FACONS[sp.id] = { ...L0, ou: ['dompte', .9] }; } } catch (e) { }
   let k = 0; for (let i = 0; i < 8; i++) if (i !== 5 && Q.apt[i] > Q.apt[k]) k = i;
   sp.metier = METIERS[k];
   try { APT[sp.id] = Q.apt; } catch (e) { }                           // (la défense suit la puissance, connue maintenant)

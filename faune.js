@@ -338,7 +338,7 @@ function fauneMarionnette(b, dt) {
   if (b.dead) { b.dead += dt; chute(b, dt); updateFoeLegs(b, dt); return; }
   if (b.cx === undefined) { b.cx = b.x; b.cy = b.y; b.cz = b.z; b.cvx = b.cvy = 0; b.dirC = b.dir; }
   glisserFaune(b, dt);
-  if (b.sp.volant && b.bat > .05) b.ph = ((b.ph || 0) + dt * (4.2 + b.bat * 3) * 6.2832) % 62.832;   // le battement d'ailes
+  if (b.enVol && b.bat > .05) b.ph = ((b.ph || 0) + dt * (4.2 + b.bat * 3) * 6.2832) % 62.832;   // le battement d'ailes
   updateFoeLegs(b, dt);
 }
 

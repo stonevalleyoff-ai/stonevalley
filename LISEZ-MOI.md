@@ -7483,3 +7483,33 @@ Elle garde son nom, son niveau et ses potions. Le jeu le dit, une fois (« Pompo
 - **Chaque geste forcé** à mi-course sur toutes les lignées, à trois puissances : 3 615 corps, aucun os invalide.
 - **Au studio** : une mignonne qui se roule, pattes en l'air ; une bête assise ; une épique qui rugit, tête levée.
 - **Dans le navigateur** : six îles et le chemin des compagnes (migration, monture), aucune erreur.
+
+## §235 · Le grand nettoyage : plus rien des trente espèces faites main
+
+Les trente espèces faites main (les Rampants, les Telluriens, les Doux d'avant, les coursiers, le félin, le bramard, la sterne, le dragon, le renard et les cinq Trottins) avaient quitté la nature au §225. Leur code restait. Il s'en va : **3 800 lignes** de moins, dont 2 800 dans `index.html` (de 2,2 Mo à 1,96 Mo).
+
+**Ce qui part.**
+- leurs fiches (`SPEC`, premier temps du lot) ; leurs corps (`osDragon`, `osSterne`, `coursierBones`, `osTellurien`, `osDoux`…), leurs dessins du carnet, leurs pattes, leurs conduites (`majDragon`, `majVolant`, `majCoursier`, `instinctTellurien`, `instinctOglodon`, `instinctFelin`, `instinctBramard`, `instinctTrottin`…), leurs tirages à part (`ogloGraine`, `felinGraine`, `dragonGraine`…), la fourmilière des oglodons et son nectar, l'aire du dragon, le nid de la sterne, la colonie, le rut, l'affût ;
+- leurs lignes dans les tables du jeu : les aptitudes (`APT`), le combat (`COMBAT`), les voix (`SON.VOIX`), les pattes (`FOULEE`, `PATTES_T`), les matières (`MAT_CORPS`), les façons de se lier (`FACONS`), les poids du tirage, les habitats rares, les viandes (`VIANDES`) ;
+- leurs drapeaux dans le code vivant (`sp.biome`, `sp.roche`, `sp.camo`, `sp.volant`, `sp.dragon`, `sp.carillon`, `sp.arc`, `sp.duvet`) ; dans `faune.js`, la marionnette du dragon et celle du vesseron ; chez les Nomades, les repères de la fourmilière et de l'aire ;
+- une compétence sans plus personne pour la porter (les soins des Trottins, le souffle de braise du dragon) ; les commentaires qui décrivaient encore ces bêtes sont réécrits.
+
+**Ce qui reste, et pourquoi.**
+- `FAITE_MAIN` (index.html) et `ANCIENNES` (orvane-sv.js) : la liste des trente, pour qu'une sauvegarde d'avant retrouve ses compagnes (§233) et ses viandes. Une viande d'avant gardée dans un plat ou la marmite se lit comme celle qui la remplace, sans paraître dans aucune liste ;
+- `orvane/correspondance.js` décrit toujours la génération 0 d'Orvane (`FAUNE`, `CORPS_ESPECE`) : c'est le contrat avec le monde d'Orvane, qui simule ces espèces comme ancêtres ;
+- les clés internes des compétences (`coursier`, `sterne`, `felin`, `bramard`, `tellurien`) : elles servent aussi aux recettes de potions déjà apprises. Leurs noms affichés sont neutres (Charge et ruade, Vigie, Voile de brume, Brame, Secousse).
+
+**Ce qui passe aux lignées d'Orvane.**
+- **Le rodéo.** Une lignée assez grande pour qu'on la monte se dompte, sauvage, comme le coursier d'avant : on lui saute sur le dos, on tient, sa fougue passe (six secondes), et domptée elle accepte le lien à 90 % (`COND_LIEN.dompte`, `talentsFiche`) ;
+- **les familles.** Les Doux (les lignées paisibles) naissent en famille : autour d'une mère sur trois, un à trois petits, plus nombreux chez les petites espèces, qui la suivent en file indienne (`peuplerDoux`, `guideDe`) ;
+- **les voix.** Les sons des anciennes bêtes reviennent aux lignées d'après leur corps : un gros insecte stridule, un grand chasseur rugit, un coureur hennit, un amphibien coasse (et chante en chœur la nuit), un géant pousse de longs soupirs graves (`voixDe`) ;
+- **le vol.** Ce qui était à la sterne vaut pour les lignées qui volent : le bruit d'ailes à l'envol, les dalles des îles volantes, la laisse longue, les murs qu'elles survolent.
+
+**Le branchement.**
+- `index.html`, `faune.js`, `nomades.js`, `brume.js`, `dons.js`, `conduites.js`, `lignees.js` : les retraits ;
+- `orvane/orvane-sv.js` : `voixDe`, `talentsFiche` (le lien après le rodéo) ; le sol rare des Telluriens n'est plus posé ;
+- `sw.js` : `stone-valley-205`.
+
+**Vérifié.**
+- **Le code** : tous les scripts s'analysent ; aucune référence vers une déclaration retirée (contrôle `no-undef` sur l'ensemble : seules restent les fonctions qu'Orvane publie au chargement, toutes gardées par un test).
+- **Dans le navigateur** : six îles en ligne et hors ligne, aucune erreur de page ; des familles qui suivent leur mère ; 5 061 corps construits, aucun os invalide ; trois compagnes d'avant devenues lignées, leurs viandes au garde-manger, la monture qui se monte ; un rodéo complet sur une monture sauvage (domptée, lien à 90 %).
