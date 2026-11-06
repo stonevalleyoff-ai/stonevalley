@@ -100,6 +100,27 @@ function lgMesures(sp) {
   }
   if (poisson) M.oreilles = 0;                                        // un poisson n'a pas d'oreilles
   M.accent = tr.has('coloration-aposematique') ? LG.ALERTE[(sp.id.length) % 2] : lgAccent(M.robe);
+  M.corne = LG.CORNE; M.corneLuit = 0;
+  // (§237) LA FANTAISIE : l'élément de la lignée (orvane-sv.js, fantaisie) transforme chaque trait. Tout le monde en a un peu — des yeux
+  // qui luisent, des runes, un bout de queue élémentaire, une crinière, une gemme au front pour les mignonnes —, et plus on est puissant,
+  // plus il y en a : des cornes de cristal, de glace ou d'obsidienne qui poussent même à qui n'en avait pas, des éclats qui tournent
+  // autour du corps, une gemme frontale, des ailes d'éther pour les plus grands, une aura qui ne s'éteint pas.
+  if (O.el) {
+    const el = M.el = O.el, I = M.fant = lgCl(.3 + .7 * pu, 0, 1);
+    M.lueurEl = O.lueurEl || M.accent; M.partEl = O.partEl || '#ffffff';
+    M.lueur = lgMix(M.lueurEl, [255, 255, 255], .12);
+    M.accent = tr.has('coloration-aposematique') ? M.accent : lgMix(M.lueurEl, M.robe, .15);
+    M.corne = O.corneEl || LG.CORNE; M.corneLuit = ['givre', 'cristal', 'aurore', 'orage', 'abysse'].includes(el) ? 1 : 0;
+    const quad = !serpent && !poisson && !M.oiseau && !M.hexa;
+    if (M.cornes > .25) M.cornes = Math.min(1.2, M.cornes * (1.2 + .5 * M.epique));
+    else if (quad && pu > .5) M.cornes = .3 + .55 * lgCl((pu - .5) / .5, 0, 1);   // une couronne de cornes, à qui n'en avait pas
+    M.criniere = quad || M.bip || serpent ? I : 0;
+    M.queueEl = I; M.gemme = pu < .35 ? 'bourgeon' : pu > .62 ? 'oeil' : null;
+    M.orbites = pu >= .6 ? 1 + Math.round(3 * (pu - .6) / .4) : 0;
+    M.ether = pu >= .88 && quad;                                       // des ailes d'éther, repliées sur le dos
+    M.aura = .25 + 2.6 * pu;                                           // des particules par seconde
+    if (!M.epines && pu > .6 && M.carapace <= .3 && !M.org('epines') && !M.org('plaques') && !M.oiseau) M.epines = true;
+  }
   if (M.hexa && M.Hl > .3) M.Hl = .3;                               // un hexapode se tient bas : ses pattes s'écartent plutôt
   return (O._m = M);
 }
@@ -111,8 +132,8 @@ function lgFoulee(f, M) {
   const vInst = dtl > 0 ? d / dtl : 0; f._lgV = (f._lgV || 0) + (vInst - (f._lgV || 0)) * Math.min(1, dtl * 8);
   const avant = f._lgPh || 0; f._lgPh = (avant + d / Math.max(.15, (.22 + M.Hl * 1.4) * k * (1 + .35 * (M.epique || 0)))) % 1;   // (§226) une épique : de grands pas
   // (§226) une épique lourde pose le pied : un nuage de poussière à chaque pas
-  if ((M.epique || 0) > .5 && !f.dead && !f.enVol && d > .01 && Math.floor(avant * 2) !== Math.floor(f._lgPh * 2) && typeof burst === 'function')
-    try { burst(f.x, f.y, (f.z || 0) + .05, 2 + Math.round(M.epique * 2), '#9a8a70'); } catch (e) { }
+  if ((M.epique || 0) > (M.el ? .25 : .5) && !f.dead && !f.enVol && d > .01 && Math.floor(avant * 2) !== Math.floor(f._lgPh * 2) && typeof burst === 'function')
+    try { burst(f.x, f.y, (f.z || 0) + .05, 2 + Math.round(M.epique * 2), M.el ? M.partEl : '#9a8a70'); } catch (e) { }   // (§237) braises, givre, étincelles…
   return f.dead ? 0 : Math.min(1.6, Number.isFinite(f.vit) && f.vit > 0 ? f.vit : f._lgV);
 }
 // une patte à deux os qui va de la hanche h à la cheville c : le genou est là où les deux longueurs se rejoignent,
@@ -135,7 +156,7 @@ function lgRegard(f, M, g) {
 
 function osOrvane(f) {
   const sp = f.sp, M = lgMesures(sp), B = [], tr = M.tr, g = lgGraine(f);
-  const add = (a, b, w, h, c, luit) => B.push(luit ? { a, b, w, h, c, luit: 1 } : { a, b, w, h, c });
+  const add = (a, b, w, h, c, luit, lu) => B.push(luit ? (lu ? { a, b, w, h, c, luit: 1, lueur: 1 } : { a, b, w, h, c, luit: 1 }) : { a, b, w, h, c });
   if (f.enfoui > 0 && !f.dead) {                                     // enterré (conduites.js, terrier) : un dos de terre, deux yeux
     const tz = Math.max(.04, M.Th * .3), terre = [118, 92, 64];
     add([-M.Lt * .45, 0, tz * .5], [M.Lt * .45, 0, tz * .5], M.Wd * 1.3, tz, terre); add([-M.Lt * .2, 0, tz], [M.Lt * .25, 0, tz], M.Wd * .8, tz * .6, M.robe);
@@ -211,13 +232,14 @@ function osOrvane(f) {
     if (tr.has('coloration-aposematique')) for (let i = 0; i < 3; i++) { const x = x0 + (x1 - x0) * (.2 + i * .3); add([x, 0, zt + .006], [x + .03, 0, zt + .006], Wd * 1.06, .014, M.accent); }
     if (tr.has('glande-irritante')) for (const s of [-1, 1]) add([x1 - .02, s * Wd * .32, zt - .01], [x1 + .02, s * Wd * .32, zt + .02], .045, .045, LG.GLANDE);
     // (§226) une bête épique : des marques qui luisent le long du dos et des flancs, et des épines si elle n'a ni carapace ni plaques
-    if (M.lueur) { const n = 3 + Math.round(M.epique * 2), pul = .75 + .25 * Math.sin(t * 2.2 + g);
+    if (M.lueur) { const n = 3 + Math.round(M.epique * 2) + (M.el ? 1 : 0), pul = .75 + .25 * Math.sin(t * 2.2 + g), k = M.el ? 1.5 : 1;   // (§237) des runes, plus grandes
       for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (.12 + i * .76 / Math.max(1, n - 1));
-        add([x, 0, zt + .006], [x + .03, 0, zt + .006], Wd * .22, .012, lgMix(M.robe, M.lueur, pul), 1); B[B.length - 1].lueur = 1;   // (§229) elles luisent vraiment
-        for (const s2 of [-1, 1]) { add([x, s2 * Wd * .5, zt - Th * .3], [x + .025, s2 * Wd * .52, zt - Th * .36], .014, .03, lgMix(M.sombre, M.lueur, pul * .8), 1); B[B.length - 1].lueur = 1; } } }
+        add([x, 0, zt + .006], [x + .03 * k, 0, zt + .006], Wd * .22 * k, .012 * k, lgMix(M.robe, M.lueur, pul), 1); B[B.length - 1].lueur = 1;   // (§229) elles luisent vraiment
+        for (const s2 of [-1, 1]) { add([x, s2 * Wd * .5, zt - Th * .3], [x + .025 * k, s2 * Wd * .52, zt - Th * .36 * k], .014 * k, .03 * k, lgMix(M.sombre, M.lueur, pul * .8), 1); B[B.length - 1].lueur = 1; } } }
     if (M.epines && !M.oiseau) { const n = 3 + Math.round(M.epique * 3), hE = (.025 + M.epique * .04) * (1 + M.lourd * .4) * (1 + Th * 2);
       for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (.12 + i * .76 / Math.max(1, n - 1)), k = 1 - Math.abs(i - (n - 1) / 2) / n, hh = hE * (.55 + .6 * k);
-        B.push({ a: [x, 0, zt - .01], b: [x - hh * .55, 0, zt + hh], w: .022 * (1 + M.lourd * .4), h: .026, c: lgMix(M.sombre, M.lueur || M.sombre, .2), fin: 0, pans: 6 }); } }   // une épine : un cône couché vers l'arrière
+        B.push(M.el ? { a: [x, 0, zt - .01], b: [x - hh * .35, 0, zt + hh * 1.3], w: .03 * (1 + M.lourd * .4), h: .034, c: M.corneLuit ? M.corne : lgMix(M.corne, M.lueur, .25), fin: 0, pans: 4, ...(M.corneLuit ? { luit: 1, lueur: 1 } : {}) }   // (§237) un éclat de cristal, de glace, d'obsidienne…
+          : { a: [x, 0, zt - .01], b: [x - hh * .55, 0, zt + hh], w: .022 * (1 + M.lourd * .4), h: .026, c: lgMix(M.sombre, M.lueur || M.sombre, .2), fin: 0, pans: 6 }); } }   // une épine : un cône couché vers l'arrière
   }
   // --- les pattes ---
   if (M.pattes && !M.serpent) lgPattes(f, M, add, { bz, zx, xa, xr, ph, allure, galop, couche, vol, dk, traque, avant });
@@ -227,7 +249,7 @@ function osOrvane(f) {
     const ax = M.bip ? avant[0] - .05 : xa - Lt * .3, az = (M.bip ? (avant[2] + bz) / 2 : bz) + Th * (vol ? .35 : .12);
     for (const s of [-1, 1]) {
       if (vol) { const ang = .25 + bat * .9, bout2 = [ax - .06, s * (Wd * .45 + env * Math.cos(ang)), az + env * Math.sin(ang)];
-        add([ax, s * Wd * .45, az], lgMix([ax, s * Wd * .45, az], bout2, .55), env * .5, .02, M.robe); add(lgMix([ax, s * Wd * .45, az], bout2, .5), bout2, env * .42, .016, M.sombre); }
+        add([ax, s * Wd * .45, az], lgMix([ax, s * Wd * .45, az], bout2, .55), env * .5, .02, M.robe); add(lgMix([ax, s * Wd * .45, az], bout2, .5), bout2, env * .42, .016, M.el ? lgMix(M.sombre, M.lueur, .55) : M.sombre, M.el ? 1 : 0, M.el ? 1 : 0); }
       else { add([ax + .02, s * Wd * .52, az], [ax - env * .55, s * Wd * .58, az - .01], .02, Th * .62, M.robe); add([ax - env * .3, s * Wd * .56, az - .02], [ax - env * .9, s * Wd * .52, az - .03 - env * .08], .016, Th * .45, M.sombre); }
     }
   }
@@ -237,6 +259,7 @@ function osOrvane(f) {
   if (M.queue > .08 && !M.serpent) bout = lgQueue(f, M, add, { bz, zx, xr, Lt, Th, couche, allure, al, galop, traque, g });
   if (!bout) bout = M.bip ? [-Lt * .4, 0, bz + .01] : [xr + .01, 0, bz + Th * .15];
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
+  if (M.el) lgFantaisie(f, M, add, B, { T, avant, bout, bz, xa, xr, couche, allure, dk, g, vol, al });
   if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
     for (const o of B) { o.a = T(o.a); o.b = T(o.b); } }
   if (geste.roule > 0 && geste.tour) {                                // (§234) la mignonne se roule par terre : un tour sur le dos
@@ -381,7 +404,7 @@ function lgTete(f, M, add, A) {
   for (const s of [-1, 1]) {
     if (M.motif === 'masque') add(P(hs * .05, s * hs * .48, hs * .1), P(hs * .36, s * hs * .48, hs * .1), .02, hs * .34, M.sombre);
     const o = P(hs * av, s * hs * cote, hs * .14);
-    add(o, lgAdd(o, [yeux * .5 * D[0], yeux * .5 * D[1] + s * .006, 0]), yeux * .62, yeux * cligne, M.oeil, M.tr.has('yeux-nocturnes'));
+    add(o, lgAdd(o, [yeux * .5 * D[0], yeux * .5 * D[1] + s * .006, 0]), yeux * .62, yeux * cligne, M.oeil, M.tr.has('yeux-nocturnes') || M.el ? 1 : 0, M.el ? 1 : 0);   // (§237) les yeux de légende luisent
     // (§226) une mignonne : une grande pupille sombre, un gros reflet (l'œil garde sa couleur : la fureur la reconnaît)
     if (M.cute > .3 && cligne === 1) add(lgAdd(o, [yeux * .22 * D[0], s * yeux * .2, -yeux * .05]), lgAdd(o, [yeux * .34 * D[0], s * yeux * .22, -yeux * .05]), yeux * .42, yeux * .62, LG.PUPILLE);
     if (cligne === 1) { const r = .012 * (1 + 1.4 * (M.cute || 0)); add(lgAdd(o, [yeux * .2 * D[0], s * yeux * .32, yeux * .24]), lgAdd(o, [yeux * .3 * D[0], s * yeux * .32, yeux * .24]), r, r, LG.BLANC, 1); }   // le reflet
@@ -394,11 +417,12 @@ function lgTete(f, M, add, A) {
       const b0 = P(-hs * .25, s * hs * .32, hs * .42), b1 = lgAdd(b0, [-lo * (.35 - dresse * .25), s * lo * ouv, lo * (.45 + dresse * .55)]);
       add(b0, b1, .018, lo * (M.chasseur ? .5 : .62), M.robe); add(lgAdd(b0, [.006, -s * .004, .006]), lgMix(b0, b1, .8), .012, lo * (M.chasseur ? .32 : .42), M.oreille); } }
   const oc = M.org('cornes'), nc = oc ? oc.nombre : 2, droites = oc && oc.forme === 'droites', ramif = oc ? oc.forme === 'ramifiees' : M.cornes > .6;
-  if (M.cornes > .25 && nc === 1) { const lc = .05 + M.cornes * .2, b0 = lgAdd(nez, [-.03, 0, hs * .3]); add(b0, [b0[0] + lc * .15, b0[1], b0[2] + lc * .85], .034, .034, LG.CORNE); }   // une corne, sur le nez
+  const cl = M.corneLuit, pointe = b => { if (M.el) add(b, lgAdd(b, [0, 0, .012]), .026, .026, M.lueur, 1, 1); };   // (§237) la pointe luit
+  if (M.cornes > .25 && nc === 1) { const lc = .05 + M.cornes * .2, b0 = lgAdd(nez, [-.03, 0, hs * .3]), b1 = [b0[0] + lc * .15, b0[1], b0[2] + lc * .85]; add(b0, b1, .034, .034, M.corne, cl, cl); pointe(b1); }   // une corne, sur le nez
   else if (M.cornes > .25) for (const [r, dx] of nc >= 4 ? [[1, 0], [.6, -hs * .35]] : [[1, 0]]) for (const s of [-1, 1]) {
     const lc = (.05 + M.cornes * .18) * r, b0 = P(dx, s * hs * .25, hs * .48), b1 = [b0[0] - lc * (droites ? .1 : .3), b0[1] + s * lc * (droites ? .15 : .35), b0[2] + lc * (droites ? .95 : .7)];
-    const mid = lgMix(b0, b1, .5); add(b0, mid, .03 * r + .006, .03 * r + .006, LG.CORNE); add(mid, b1, .02 * r + .004, .02 * r + .004, LG.CORNE);
-    if (ramif && r === 1) add(b1, [b1[0] - lc * .35, b1[1] + s * lc * .15, b1[2] + lc * .35], .018, .018, LG.CORNE); }
+    const mid = lgMix(b0, b1, .5); add(b0, mid, .03 * r + .006, .03 * r + .006, M.corne, cl, cl); add(mid, b1, .02 * r + .004, .02 * r + .004, M.corne, cl, cl);
+    if (ramif && r === 1) { const b2 = [b1[0] - lc * .35, b1[1] + s * lc * .15, b1[2] + lc * .35]; add(b1, b2, .018, .018, M.corne, cl, cl); pointe(b2); } else pointe(b1); }
   if (M.crete > .25) { const hc = .03 + M.crete * .09; add(P(-hs * .45, 0, hs * .5), P(hs * .3, 0, hs * .5), .016, hc, M.accent);
     if (nl > .05) add(lgMix(base, tete, .2), lgMix(base, tete, .75), .014, hc * .6, M.accent); }
   if (M.antennes > .25) for (const s of [-1, 1]) { const la = .08 + M.antennes * .18, o = Math.sin(t * 2.3 + g + s) * .03; const b0 = P(hs * .2, s * hs * .2, hs * .45);
@@ -449,7 +473,73 @@ function lgPoisson(f, M, B, add, A) {
   for (const s of [-1, 1]) { const o = [tt[0] - L * .06, s * Wd * .36, bz + haut * .12]; add(o, [o[0] + ye * .4, o[1] + s * .006, o[2]], ye * .7, ye, M.oeil, M.tr.has('yeux-nocturnes'));
     add([o[0] + ye * .15, o[1] + s * ye * .35, o[2] + ye * .25], [o[0] + ye * .25, o[1] + s * ye * .35, o[2] + ye * .25], .01, .01, LG.BLANC, 1); }
   if (M.organes.length) lgOrganes(add, M, { tete: tt, hs: haut * .6, nez: [tt[0] + .03, tt[1], bz], avant: tt, bout: q, bz, xa: L * .5, xr: -L * .5, Lt: L, Th, Wd, couche, allure });
+  if (M.el) lgFantaisie(f, M, add, B, { T: { tete: tt, hs: haut * .6, nez: [tt[0] + .03, tt[1], bz] }, avant: tt, bout: q, bz, xa: L * .5, xr: -L * .5, couche, allure, dk, g, vol: false, al: f.alarm || 0 });   // (§237)
   return B;
+}
+
+// (§237) LA FANTAISIE DU CORPS. Ce que l'élément ajoute à la bête : une crinière (des flammes, des éclats de givre ou de cristal, des
+// feuilles, des nageoires, des étincelles, de la fumée d'ombre, des plumes d'aurore), le bout de la queue de même, une gemme au front
+// (un bourgeon de lumière chez une mignonne, un troisième œil chez une puissante), des éclats qui tournent autour d'elle, des ailes
+// d'éther repliées sur le dos des plus grandes, et une aura de particules. Tout cela luit, de jour comme de nuit.
+const LG_AURORE = [[255, 124, 150], [255, 204, 96], [150, 255, 170], [112, 204, 255], [204, 146, 255]];
+function lgTouffe(B, M, p, dir, l, w, g, i) {
+  const luit = { luit: 1, lueur: 1 }, q = (k, dx = 0, dy = 0, dz = 0) => [p[0] + dir[0] * l * k + dx, p[1] + dir[1] * l * k + dy, p[2] + dir[2] * l * k + dz];
+  switch (M.el) {
+    case 'braise': { const fl = .72 + .28 * Math.sin(t * 11 + i * 1.9 + g), m = q(.55 * fl), b = q(fl, Math.sin(t * 9 + i) * .012, Math.cos(t * 8 + i * 2) * .012);
+      B.push({ a: p, b: m, w, h: w, c: lgMix(M.lueur, [255, 84, 30], .45), fin: .6, ...luit }, { a: m, b, w: w * .6, h: w * .6, c: [255, 236, 150], fin: 0, ...luit }); break; }
+    case 'givre': B.push({ a: p, b: q(1), w: w * .9, h: w * .9, c: M.corne, pans: 4, fin: 0, ...luit }); break;
+    case 'cristal': B.push({ a: p, b: q(1.1), w, h: w, c: lgMix(M.corne, M.lueur, .3), pans: 6, fin: 0, ...luit }); break;
+    case 'sylve': B.push({ a: p, b: q(1), w: w * 1.6, h: w * .3, c: lgMix(M.robe, [120, 220, 90], .5), fin: .2 }, { a: q(1), b: q(1.08), w: w * .55, h: w * .55, c: M.lueur, boule: 4, ...luit }); break;
+    case 'abysse': B.push({ a: p, b: q(1), w: .014, h: l * .7, c: lgMix(M.robe, M.lueur, .55), fin: .3, ...luit }); break;
+    case 'orage': if ((t * 7 + i * 3.3 + g) % 1 < .75) { const m = q(.5, (i % 2 ? .018 : -.018)); B.push({ a: p, b: m, w: w * .45, h: w * .45, c: M.lueur, ...luit }, { a: m, b: q(1, (i % 2 ? -.012 : .012)), w: w * .38, h: w * .38, c: [255, 255, 230], ...luit }); } break;
+    case 'ombre': for (let k = 0; k < 2; k++) { const u = ((t * .7 + i * .37 + k * .5) % 1); B.push({ a: q(u), b: q(u + .05), w: w * (1.3 - u * .8), h: w * (1.3 - u * .8), c: lgMix(M.sombre, M.lueur, .5), boule: 4, ...luit }); } break;
+    default: B.push({ a: p, b: q(1), w: w * 1.4, h: w * .3, c: LG_AURORE[i % LG_AURORE.length], fin: .3, ...luit });   // l'aurore : des plumes de toutes ses couleurs
+  }
+}
+function lgFantaisie(f, M, add, B, A) {
+  const { T, avant, bout, bz, xa, xr, couche, allure, dk, g, vol, al } = A, { Lt, Th, Wd } = M, I = M.fant || .3, ep = M.epique || 0;
+  if (dk > .6) return;
+  try { if (typeof P !== 'undefined' && (f.x - P.x) ** 2 + (f.y - P.y) ** 2 > 900) return; } catch (e) { }   // au loin, seulement les yeux, les cornes et les couleurs
+  const sw = i => Math.sin(t * 2.2 + i * .9 + g) * .25 * (1 - couche);
+  // la crinière : de l'arrière du crâne au garrot (sur la tête seule, chez un serpent)
+  if (M.criniere && T && T.tete) {
+    const hs = T.hs, h0 = [T.tete[0] - hs * .35, T.tete[1], T.tete[2] + hs * .38], fin = M.serpent ? [T.tete[0] - hs * .9, T.tete[1], T.tete[2] + hs * .2] : [xa - Lt * .35, 0, bz + Th * .55];
+    const n = M.serpent ? 4 : 4 + Math.round(6 * I), l = (.05 + .15 * I) * (1 - .35 * couche), w = .026 + .04 * I;
+    for (let i = 0; i < n; i++) { const k = n > 1 ? i / (n - 1) : 0, p = k < .4 ? lgMix(h0, avant, k / .4) : lgMix(avant, fin, (k - .4) / .6), a = sw(i);
+      lgTouffe(B, M, p, [-.5 + a * .3, a * .4, .86], l * (1 - .35 * Math.abs(k - .35)), w, g, i); }
+  }
+  // le bout de la queue
+  if (M.queueEl && bout && !M.poisson) { const l = .06 + .14 * M.queueEl, w = .03 + .04 * M.queueEl, a = sw(9);
+    for (let i = 0; i < (M.el === 'braise' || M.el === 'ombre' ? 3 : M.el === 'givre' || M.el === 'cristal' ? 2 : 1); i++)
+      lgTouffe(B, M, bout, [-.62 + i * .2, a * .5 + (i - 1) * .25, .72], l * (1 - .15 * i), w, g, i + 20); }
+  // la gemme du front : un bourgeon de lumière, ou un troisième œil
+  if (M.gemme && T && T.tete && T.nez) { const hs = T.hs, p = lgAdd(lgMix(T.tete, T.nez, .22), [0, 0, hs * .46]);
+    if (M.gemme === 'bourgeon') B.push({ a: p, b: lgAdd(p, [0, 0, .026]), w: .036, h: .036, c: M.lueur, boule: 4, luit: 1, lueur: 1 });
+    else { const r = .04 + .03 * ep; B.push({ a: lgAdd(p, [0, 0, -r * .2]), b: lgAdd(p, [0, 0, r]), w: r, h: r * .8, c: M.lueur, pans: 6, fin: 0, luit: 1, lueur: 1 },
+      { a: lgAdd(p, [0, 0, -r * .2]), b: lgAdd(p, [0, 0, -r * .7]), w: r, h: r * .8, c: M.lueur, pans: 6, fin: 0, luit: 1, lueur: 1 }); } }
+  // des éclats en orbite, au-dessus du dos
+  if (M.orbites) { const cx = (xa + xr) / 2, cz = bz + Th * 1.2 + .12, r = Lt * .55 + .14;
+    for (let i = 0; i < M.orbites; i++) { const an = t * 1.1 + i * 6.2832 / M.orbites + g, p = [cx + Math.cos(an) * r, Math.sin(an) * r * .8, cz + Math.sin(t * 2.3 + i) * .05], e = .065 + .05 * ep;
+      const c = M.el === 'ombre' ? lgMix(M.sombre, M.lueur, .6) : M.lueur;
+      B.push({ a: p, b: lgAdd(p, [0, 0, e]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }, { a: p, b: lgAdd(p, [0, 0, -e * .6]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }); } }
+  // des ailes d'éther, repliées sur le dos ; elles s'ouvrent à l'alarme
+  if (M.ether && !vol) { const S = (.3 + .28 * ep) * (1 + Lt * .3), ouv = .3 + .5 * (al || 0) + .08 * Math.sin(t * 1.3 + g);
+    for (const s of [-1, 1]) { const b0 = [xa - Lt * .32, s * Wd * .42, bz + Th * .45], c1 = [b0[0] - S * .25, s * (Wd * .55 + S * (.2 + .5 * ouv)), b0[2] + S * (.6 - .1 * ouv)],
+      c2 = [b0[0] - S * .8, s * (Wd * .6 + S * (.15 + .7 * ouv)), b0[2] + S * (.4 + .1 * Math.sin(t * 1.3 + g))];
+      B.push({ a: b0, b: c1, w: .02, h: S * .3, c: lgMix(M.lueur, M.robe, .55), fin: .8, luit: 1, lueur: 1 }, { a: c1, b: c2, w: .016, h: S * .26, c: lgMix(M.lueur, M.robe, .3), fin: .25, luit: 1, lueur: 1 });
+      add(b0, c1, .02, .02, M.sombre); add(c1, c2, .016, .016, M.sombre); } }
+  // l'aura : des particules qui montent (ou tombent, pour le givre), d'autant plus nombreuses qu'elle est puissante
+  try {
+    const dtA = Math.min(.1, Math.max(0, t - (f._lgAuT ?? t))); f._lgAuT = t;
+    if (typeof parts !== 'undefined' && typeof P !== 'undefined' && !f.dead && parts.length < 1400 && (f.x - P.x) ** 2 + (f.y - P.y) ** 2 < 324) {
+      f._lgAu = (f._lgAu || 0) + dtA * M.aura;
+      const k = (typeof echB === 'function' ? echB(f) : 1) || 1;
+      while (f._lgAu >= 1) { f._lgAu -= 1; const a = Math.random() * 6.2832, r = Math.random() * Lt * .6 * k, x = f.x + Math.cos(a) * r, y = f.y + Math.sin(a) * r, z = (f.z || 0) + (bz + Th * (.2 + Math.random())) * k;
+        const el = M.el, tombe = el === 'givre', vive = el === 'orage';
+        parts.push({ x, y, z: z + (tombe ? .35 * k : 0), vx: (Math.random() - .5) * (vive ? 1.6 : .3), vy: (Math.random() - .5) * (vive ? 1.6 : .3), vz: tombe ? -.15 : vive ? Math.random() : .25 + Math.random() * (el === 'braise' ? .8 : .35),
+          g: tombe ? .03 : vive ? .4 : -.04, life: vive ? .35 + Math.random() * .3 : 1 + Math.random() * 1.2, age: 0, col: el === 'aurore' ? 'rgb(' + LG_AURORE[(Math.random() * 5) | 0].join(',') + ')' : M.partEl, luit: 1, tl: .04 + .03 * ep }); }
+    }
+  } catch (e) { }
 }
 
 // (§215) les organes que les mesures ne disent pas, chacun à sa place et à sa taille
@@ -506,7 +596,8 @@ function dessinOrvane(d, sp) {
   if (og('nageoires')) d.ligne((x0 + x1) / 2 - 1, dos, (x0 + x1) / 2, dos - 1.5 - og('nageoires').taille * 1.5, M.sombre);
   d.disque(hx, hy, 1.1 + M.tete * 7, M.robe);
   if (M.museau > .2) d.ligne(hx + 1, hy + .3, Math.min(15, hx + 1.5 + M.museau * 2), hy + .6, M.oiseau ? LG.BEC : M.robe, 2);
-  if (M.cornes > .25) d.ligne(hx - .5, hy - 1.4, hx - 2, hy - 2.5 - M.cornes * 2, LG.CORNE);
+  if (M.cornes > .25) d.ligne(hx - .5, hy - 1.4, hx - 2, hy - 2.5 - M.cornes * 2, M.corne || LG.CORNE);
+  if (M.el && M.criniere && !M.serpent) d.ligne(hx - 1.2, hy - 1, x1 - 2, cy - 1.8 - M.Th * 8, M.lueur);   // (§237) la crinière
   if (M.oreilles > .3) d.ligne(hx - .6, hy - 1.2, hx - 1.4, hy - 2 - M.oreilles * 1.5, M.robe);
   if (M.crete > .3) d.ligne(hx - 1.5, hy - 1.6, hx + .5, hy - 1.8, M.accent);
   if (M.antennes > .3) d.ligne(hx + .4, hy - 1, hx + 2, hy - 3, M.sombre);
@@ -519,4 +610,5 @@ function dessinOrvane(d, sp) {
   if (og('panache')) d.disque(qx, qy - .5, 1 + og('panache').taille * 1.2, M.accent);
   if (og('epines', 'queue')) { d.net(Math.round(qx), Math.round(qy - 1.5), LG.CORNE); d.net(Math.round(qx + 1), Math.round(qy - 1), LG.CORNE); }
   d.net(Math.round(hx + .6), Math.round(hy - .4), M.oeil);
+  if (M.el) { d.net(Math.round(qx), Math.round(qy - 1), M.lueur); if (M.gemme) d.net(Math.round(hx), Math.round(hy - 1.6), M.lueur); }   // (§237) le bout de la queue, la gemme
 }

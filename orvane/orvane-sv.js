@@ -213,6 +213,7 @@ function definir(t) {
     nocturne: t.plan.activite === 'nocturne', locomotion: t.plan.locomotion || [], regime: regime(t), vu: Date.now(),
     activite: t.plan.activite, social: t.plan.sociabilite, taille: t.plan.taille_m, diete: { ...(t.plan.diete || {}) }, chasseur, forme: corps?.forme || null,   // (§225)
     temperament: t.plan.temperament,                                                                                   // (§226)
+    milieu: [...(t.populations || [])].sort((a, b) => (b.effectif || 0) - (a.effectif || 0))[0]?.biome || null,          // (§237) son milieu d'origine
     ...(t.plan.regime === 'synthetique' ? { machine: { role: t.plan.role, modules: { ...(t.plan.modules || {}) } } } : {}) };   // (§223) une machine d'Orvane
 }
 // la fiche du jeu : une copie de celle de l'ancêtre (sa conduite), à la mesure de la lignée
@@ -290,6 +291,7 @@ function enregistrer(def) {
   try { if (typeof DESSINS !== 'undefined') DESSINS['bete_' + sp.id] = d => sp.orvane.genere || !DESSINS['bete_' + def.base] ? (typeof dessinOrvane === 'function' ? dessinOrvane(d, sp) : null) : DESSINS['bete_' + def.base](d); } catch (e) { }
   if (!Corr.SOCLES?.[def.base]) for (const o of SPEC) if (o !== sp && Array.isArray(o.chasse) && o.chasse.includes(def.base) && !o.chasse.includes(sp.id)) o.chasse.push(sp.id);   // une lignée d'une espèce du jeu : ses prédateurs sont ceux de son ancêtre
   completer(sp);
+  try { fantaisie(sp); } catch (e) { }                                 // (§237) la couche de fantaisie
   return sp;
 }
 // les tables du jeu tenues par espèce : la lignée prend les lignes de son ancêtre (sa viande, ses aptitudes, son combat,
@@ -391,7 +393,7 @@ function scorePuissance(d, sp) {
 function puissances(L) {
   const R = L.filter(sp => !sp.orvane.machine).map(sp => [sp, scorePuissance(S.lignees[sp.id], sp)]).sort((a, b) => a[1] - b[1]), n = R.length;
   R.forEach(([sp], i) => { const p = n > 1 ? i / (n - 1) : .5, cute = clamp((.35 - p) / .35, 0, 1), epique = clamp((p - .65) / .35, 0, 1);
-    sp.orvane.puissance = r2(p); sp.sz = r2((sp.orvane.sz0 || sp.sz) * (1 - .08 * cute + .32 * epique)); sp.orvane._m = null; });
+    sp.orvane.puissance = r2(p); sp.sz = r2(Math.min(2.6, (sp.orvane.sz0 || sp.sz) * (1 - .08 * cute + .6 * epique))); sp.orvane._m = null; });   // (§237) une épique : une stature de légende
 }
 const attrait = sp => { const p = sp.orvane?.puissance ?? .5, c = clamp(prof() / 16, 0, 1) * .9; return .12 + Math.exp(-((p - c) ** 2) / .125); };
 function chaines() {
@@ -453,6 +455,93 @@ function talentsFiche(sp) {
     : gros('aiguillon') ? { deg: .12, ramasse: .25, bond: .32, portee: 2.6, recul: .5, pause: 1 } : null;
   try { if (C && d.chasseur) COMBAT[sp.id] = { ...C, deg: r2(C.deg * (1 + .4 * ep)) }; else if (d.chasseur && Corr.SOCLES?.carnivore?.tables?.combat) COMBAT[sp.id] = { ...Corr.SOCLES.carnivore.tables.combat, deg: r2(.13 * (1 + .4 * ep)) }; } catch (e) { }
   if (C && !d.chasseur) { sp.riposte = r2(.6 + .3 * ep); sp.peur = Math.min(sp.peur ?? 1, .5); } else if (!d.chasseur) delete sp.riposte;
+}
+// (§237) LA FANTAISIE. Orvane fait des bêtes vraies ; Stone Valley en fait des créatures de légende. Chaque lignée reçoit un élément,
+// tiré de son milieu d'origine dans Orvane, de son rythme et de son corps : la braise (savanes, déserts, volcans), le givre (toundras,
+// sommets, banquises), le cristal (montagnes, déserts froids, grottes), la sylve (forêts, jungles), l'abysse (lacs, côtes, récifs, le
+// large), l'orage (steppes, hauteurs), l'ombre (la nuit, les grottes, les profondeurs) ou l'aurore (prairies, toundras). L'élément
+// donne sa palette, vive et lumineuse, à la place des bruns d'Orvane, et son nom : le genre d'Orvane, puis ce qu'elle est en légende
+// (« Orvi, vouivre des braises »). Le corps, lui, se transforme au dessin (lignees.js, lgFantaisie) : cornes de cristal, crinière de
+// flammes, queue élémentaire, runes, éclats en orbite, ailes d'éther — de plus en plus à mesure que la lignée est puissante.
+const ELEMENTS = {
+  braise:  { n: 'des braises',  robe: [222, 92, 44],   sombre: [74, 30, 32],  ventre: [255, 196, 120], oeil: [255, 226, 96],  lueur: [255, 150, 40],  corne: [46, 34, 40],   part: '#ffb24a' },
+  givre:   { n: 'du givre',     robe: [170, 214, 242], sombre: [58, 96, 152], ventre: [238, 248, 255], oeil: [120, 240, 255], lueur: [150, 236, 255], corne: [214, 244, 255], part: '#e4f8ff' },
+  cristal: { n: 'de cristal',   robe: [156, 118, 214], sombre: [58, 38, 112], ventre: [226, 204, 252], oeil: [255, 130, 226], lueur: [236, 150, 255], corne: [206, 170, 255], part: '#efd2ff' },
+  sylve:   { n: 'des mousses',  robe: [72, 156, 92],   sombre: [28, 64, 46],  ventre: [206, 236, 150], oeil: [226, 255, 120], lueur: [176, 255, 104], corne: [122, 86, 52],  part: '#cdff86' },
+  abysse:  { n: 'des abysses',  robe: [38, 122, 166],  sombre: [14, 40, 82],  ventre: [150, 232, 222], oeil: [100, 255, 240], lueur: [70, 255, 222],  corne: [255, 128, 150], part: '#8cfff2' },
+  orage:   { n: 'de l\'orage',  robe: [74, 86, 138],   sombre: [24, 28, 62],  ventre: [196, 206, 244], oeil: [255, 250, 160], lueur: [255, 244, 120], corne: [226, 228, 255], part: '#fff6a8' },
+  ombre:   { n: 'des ombres',   robe: [56, 42, 90],    sombre: [18, 12, 36],  ventre: [118, 96, 168], oeil: [206, 162, 255], lueur: [176, 120, 255], corne: [34, 22, 54],   part: '#b896ff' },
+  aurore:  { n: 'de l\'aurore', robe: [250, 228, 196], sombre: [196, 132, 62], ventre: [255, 252, 240], oeil: [255, 204, 92],  lueur: [255, 214, 120], corne: [255, 222, 130], part: '#fff2b8' },
+};
+const MILIEUX_EL = {
+  prairie: { aurore: 3, sylve: 1, orage: 1 }, savane: { braise: 2, aurore: 1, orage: 1 }, steppe: { orage: 2, braise: 1, aurore: 1 },
+  maquis: { braise: 1, sylve: 1, aurore: 1 }, desert: { braise: 3, cristal: 1 }, 'desert-froid': { cristal: 2, givre: 1 }, volcan: { braise: 3 },
+  montagne: { cristal: 2, orage: 1, givre: 1 }, sommets: { givre: 2, orage: 1 }, toundra: { givre: 2, aurore: 1 }, taiga: { givre: 1, ombre: 1, sylve: 1 },
+  banquise: { givre: 3 }, 'mer-froide': { givre: 2, abysse: 1 }, foret: { sylve: 2, ombre: 1 }, jungle: { sylve: 2, ombre: 1 },
+  marais: { sylve: 1, abysse: 1, ombre: 1 }, mangrove: { sylve: 1, abysse: 1 }, grotte: { ombre: 2, cristal: 1 },
+  cote: { abysse: 2, orage: 1 }, lac: { abysse: 2, sylve: 1 }, riviere: { abysse: 2, sylve: 1 }, recif: { abysse: 2, cristal: 1 },
+  abysses: { abysse: 2, ombre: 1 }, large: { abysse: 2, orage: 1 },
+};
+const MILIEUX_NOMS = { 'prairie': 'prairie', 'savane': 'savane', 'steppe': 'steppe', 'maquis': 'maquis', 'désert froid': 'desert-froid', 'désert': 'desert',
+  'volcan': 'volcan', 'montagne': 'montagne', 'sommets': 'sommets', 'toundra': 'toundra', 'taïga': 'taiga', 'banquise': 'banquise', 'mer froide': 'mer-froide',
+  'forêt': 'foret', 'jungle': 'jungle', 'marais': 'marais', 'mangrove': 'mangrove', 'grotte': 'grotte', 'côte': 'cote', 'lac': 'lac', 'rivière': 'riviere',
+  'récif': 'recif', 'abysses': 'abysses', 'haute mer': 'large', 'large': 'large' };
+const hacher = s => { let h = 2166136261 >>> 0; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619) >>> 0; return h; };
+function milieuDe(d) {
+  if (d.milieu && MILIEUX_EL[d.milieu]) return d.milieu;
+  const n = (d.nom || '').toLowerCase(); let best = null;
+  for (const [k, v] of Object.entries(MILIEUX_NOMS)) if (n.endsWith(' ' + k) || n.endsWith('\'' + k)) { if (!best || k.length > best[0].length) best = [k, v]; }
+  return best ? best[1] : 'prairie';
+}
+function elementDe(sp, d) {
+  const W = { ...(MILIEUX_EL[milieuDe(d)] || MILIEUX_EL.prairie) }, plus = (k, w) => { W[k] = (W[k] || 0) + w; };
+  if (d.nocturne || sp.nuit) plus('ombre', 2); else if (d.activite === 'crepusculaire') { plus('ombre', .7); plus('aurore', .7); }
+  if (d.forme === 'hexapode') plus('cristal', 1);
+  if (d.forme === 'oiseau' || (d.locomotion || []).includes('vol')) { plus('orage', 1); plus('aurore', .5); }
+  if (d.chasseur) { plus('braise', .5); plus('orage', .3); }      // (le rang n'y entre pas : il bouge d'un monde à l'autre, l'élément reste)
+  const tot = Object.values(W).reduce((a, x) => a + x, 0); let r = (hacher(sp.id) % 1000) / 1000 * tot;
+  for (const [k, w] of Object.entries(W)) if ((r -= w) <= 0) return k;
+  return Object.keys(W)[0];
+}
+// tourner une teinte autour du gris de la couleur (un peu de variété d'une lignée à l'autre, dans le même élément)
+function teinte(c, deg) {
+  const a = deg * Math.PI / 180, cs = Math.cos(a), sn = Math.sin(a), k = 1 / 3, sq = Math.sqrt(k);
+  const M = [[cs + (1 - cs) * k, k * (1 - cs) - sq * sn, k * (1 - cs) + sq * sn], [k * (1 - cs) + sq * sn, cs + k * (1 - cs), k * (1 - cs) - sq * sn], [k * (1 - cs) - sq * sn, k * (1 - cs) + sq * sn, cs + k * (1 - cs)]];
+  return M.map(r => clamp(Math.round(r[0] * c[0] + r[1] * c[1] + r[2] * c[2]), 0, 255));
+}
+// ce qu'elle est en légende, d'après son corps et son régime ; son rang (la puissance) choisit dans la liste : des noms d'enfant
+// pour les mignonnes, de géant pour les épiques, et le hasard de la lignée entre ceux d'un même rang
+const ROLES = {
+  eau:     [['ondin', 'bulleur', 'perlin'], ['naïade', 'ondoyeur'], ['kraken', 'hydre'], ['léviathan']],
+  serpent: [['serpentin', 'anguillon'], ['guivre', 'couleuvrine'], ['naga', 'hydre'], ['vouivre', 'wyrm']],
+  vol:     [['sylphe', 'plumeau', 'pépiot'], ['harpie', 'oiseau-lyre'], ['griffon', 'roc'], ['roc-tonnerre', 'roc']],
+  insecte: [['scarabée-gemme', 'luciole'], ['mante', 'scarabée-runique'], ['mante-reine', 'scolopendre'], ['colosse-scarabée']],
+  chasse:  [['diablotin', 'griffon-nain'], ['warg', 'lynx-runique'], ['chimère', 'manticore'], ['tarasque', 'chimère']],
+  cornu:   [['faon', 'cabri'], ['cerf-runique', 'bélier'], ['bélier-titan', 'élan-des-légendes'], ['béhémoth']],
+  licorne: [['licorneau'], ['licorne'], ['licorne'], ['licorne-reine']],
+  herbe:   [['pompon', 'follet', 'mousseron', 'trottinet'], ['lutin', 'faon', 'trotteur'], ['colosse', 'mammouth-runique'], ['béhémoth', 'titan']],
+  omni:    [['farfadet', 'grignon'], ['glouton', 'kobold'], ['troll-des-bois', 'ogre'], ['titan']],
+};
+function roleDe(sp, d) {
+  const f = d.forme || 'quadrupede', ch = !!d.chasseur, pu = sp.orvane.puissance ?? .5, loco = d.locomotion || [];
+  const org = d.corps?.organes || [], a = ty => org.some(o => o.type === ty && o.taille >= .3), el = sp.orvane.el;
+  const rang = pu < .35 ? 0 : pu < .7 ? 1 : pu < .9 ? 2 : 3;
+  const cat = nageurPur(loco) ? 'eau' : f === 'serpent' ? 'serpent' : f === 'oiseau' || loco.includes('vol') ? 'vol' : f === 'hexapode' ? 'insecte'
+    : ch ? 'chasse' : org.some(o => o.type === 'cornes' && o.taille >= .3 && o.nombre === 1) ? 'licorne' : a('cornes') ? 'cornu' : d.regime === 'omnivore' ? 'omni' : 'herbe';
+  if (cat === 'vol' && el === 'braise' && rang >= 2) return 'phénix';
+  if (cat === 'chasse' && rang >= 1 && (a('aiguillon') || a('dard'))) return 'manticore';
+  const L = ROLES[cat][rang]; return L[(hacher(sp.id) >>> 4) % L.length];
+}
+function fantaisie(sp) {
+  const d = S.lignees[sp.id]; if (!sp.orvane || sp.orvane.machine || !d || !Corr.SOCLES?.[sp.orvane.base]) return;
+  const el = sp.orvane.el = elementDe(sp, d), E = ELEMENTS[el], h = hacher(sp.id), rot = ((h >>> 8) % 37) - 18;
+  sp.shell = teinte(E.robe, rot); sp.dark = teinte(E.sombre, rot); sp.ventre = teinte(E.ventre, rot * .5);
+  sp.leg = sp.dark.map(v => v * .8 | 0); sp.oeil = E.oeil.slice();
+  sp.orvane.lueurEl = E.lueur.slice(); sp.orvane.corneEl = E.corne.slice(); sp.orvane.partEl = E.part;
+  if (el === 'braise' && d.chasseur && (sp.orvane.puissance ?? 0) > .7) sp.brule = 1; else if (sp.brule && !sp.volcan) delete sp.brule;   // sa morsure brûle
+  const genre = String(d.nom || sp.n || '').split(/[\s,]/)[0] || sp.id;
+  sp.orvane.nomOrvane = d.nom; sp.n = genre + ', ' + roleDe(sp, d) + ' ' + E.n;
+  sp.orvane._m = null;
 }
 // (§233) LA MIGRATION DES COMPAGNES. Une compagne d'une espèce faite main, retirée de la nature (index.html, FAITE_MAIN), devient la
 // lignée d'Orvane la plus proche : même régime, taille voisine, qui vole si elle volait, qu'on peut monter si c'était une monture. Elle
@@ -524,6 +613,7 @@ function inscrireLignees() {
   for (const def of Object.values(S.lignees)) enregistrer(def);
   chaines();
   try { for (const sp of SPEC) if (sp.orvane) talentsFiche(sp); } catch (e) { }   // (§233) après la puissance : la défense en dépend
+  try { for (const sp of SPEC) if (sp.orvane) fantaisie(sp); } catch (e) { }      // (§237) et la fantaisie, qui grandit avec elle
 }
 // une espèce inconnue « parent.biome » : on la rend par son parent, le temps qu'Orvane dise qui elle est
 function especeDeSecours(id) {

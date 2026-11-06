@@ -7528,3 +7528,42 @@ Les trente espèces faites main (les Rampants, les Telluriens, les Doux d'avant,
 **Vérifié.**
 - **Le service worker** : un script changé sur le serveur (servi avec dix minutes de cache) arrive dès le rechargement ; hors ligne, le jeu part, avec la dernière version gardée, et ses lignées.
 - **Dans le navigateur** : six îles, aucune erreur ; le site en ligne, ouvert par un nouveau joueur, montre les lignées d'Orvane dès l'île de départ.
+
+## §237 · La fantaisie : des créatures de légende, plus des bêtes d'Orvane
+
+**Le constat.** Le traducteur gardait la biologie d'Orvane presque telle quelle : des bruns de mammifère, « mangeur d'herbe de prairie ». Orvane fait des bêtes vraies ; Stone Valley doit en faire des créatures de légende.
+
+**L'élément** (`orvane-sv.js`, `fantaisie`, `elementDe`). Chaque lignée reçoit l'un de huit éléments, tiré de son milieu d'origine dans Orvane (la population la plus nombreuse), de son rythme et de son corps, puis du hasard de la lignée. Il ne dépend pas du rang : une lignée garde son élément d'un monde à l'autre.
+- la **braise** : savanes, déserts, volcans ; la morsure des grands chasseurs brûle ;
+- le **givre** : toundras, sommets, banquises ;
+- le **cristal** : montagnes, déserts froids, grottes, et les insectes ;
+- la **sylve** : forêts, jungles, marais ;
+- l'**abysse** : lacs, rivières, côtes, récifs, le large ;
+- l'**orage** : steppes, hauteurs, et les oiseaux ;
+- l'**ombre** : la nuit, les grottes, les profondeurs ;
+- l'**aurore** : prairies, toundras.
+
+L'élément donne sa palette, vive (huit palettes, une teinte tournée d'une lignée à l'autre), à la place des couleurs d'Orvane : les variantes et la fureur la reconnaissent, puisqu'elle devient celle de la fiche.
+
+**Le nom.** Le genre d'Orvane, puis ce qu'elle est en légende, d'après son corps, son régime et son rang : « Soméne, luciole de l'aurore », « Ouysbel, mammouth-runique de cristal », « Tiskata, tarasque de l'orage », « Firtisor, phénix des braises ». Des noms d'enfant pour les mignonnes (pompon, follet, luciole, ondin), de géant pour les épiques (béhémoth, léviathan, tarasque, chimère, vouivre). Le nom d'Orvane reste dans la fiche (`orvane.nomOrvane`).
+
+**Le corps** (`lignees.js`, `lgFantaisie`, `lgTouffe`). L'élément transforme chaque trait :
+- les **yeux** luisent, de jour comme de nuit ;
+- les **cornes** sont de cristal, de glace, d'obsidienne, de corail, de bois vivant, et leur pointe luit ; une lignée puissante qui n'en avait pas en reçoit une couronne ;
+- une **crinière** de l'élément, de la nuque au garrot : des flammes qui dansent, des éclats de givre ou de cristal, des feuilles, des nageoires, des étincelles, une fumée d'ombre, des plumes d'aurore ;
+- le **bout de la queue** de même (la flamme, le cristal, l'orbe) ;
+- les **épines** du dos deviennent des éclats ; les **marques** deviennent des runes, plus grandes ;
+- une **gemme au front** : un bourgeon de lumière chez une mignonne, un troisième œil chez une puissante ;
+- dès le rang 0,6, des **éclats en orbite** au-dessus du dos (un à quatre) ;
+- les plus grandes (rang 0,88 et plus) : des **ailes d'éther** repliées sur le dos, qui s'ouvrent à l'alarme ;
+- une **aura** de particules (braises qui montent, flocons qui tombent, pollen, bulles, étincelles, fumée, poussière d'aurore), d'autant plus dense que la créature est puissante ; ses pas laissent la trace de son élément.
+
+**La stature.** Une épique grandit davantage (jusqu'à 60 % de plus, au lieu de 32 %).
+
+**Le coût.** 65 os par créature en moyenne (45 avant) ; au-delà de trente cases, les ajouts de fantaisie ne se dessinent pas, et l'aura ne part que près du joueur.
+
+**Vérifié.**
+- **Les corps** : 1 704 corps construits en jeu (toutes les lignées, six états, au calme et alarmées), aucun os invalide.
+- **Au studio et en jeu**, de jour et de nuit : les couleurs, les runes, les cristaux, les orbites, les ailes d'éther.
+- **Dans le navigateur** : six îles, aucune erreur ; les compagnes d'avant deviennent des lignées, la monture se monte.
+- `sw.js` : `stone-valley-207`, et `?v=207` aux scripts.
