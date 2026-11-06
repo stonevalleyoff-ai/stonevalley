@@ -7287,3 +7287,38 @@ Dans le monde d'Orvane d'aujourd'hui, les plus douces sont de minuscules brouteu
 **Vérifié.**
 - **Toutes les lignées du monde**, chacune dans sept poses et à trois puissances (0 ; 0,5 ; 1) : 5 061 corps, aucun os invalide, 44 os en moyenne, 79 au plus.
 - **Dans le navigateur, six îles** de l'exploration 0 à 20 : aucune erreur, aucune panne de dessin. Les rapaces et les rôdeurs paraissent plus loin, les petites brouteuses dominent près du campement.
+
+## §227 · L'animation, premier temps : des bêtes qui ont du poids, ou du ressort
+
+Le style du §226 se joue aussi dans le mouvement (`lignees.js`).
+
+**Les états se fondent.** Se coucher pour dormir, se baisser pour traquer, baisser la tête pour brouter, tourner la tête vers ce qui inquiète : tout cela passait d'une image à l'autre. Chaque bête garde maintenant où elle en est, et y va en douceur (`lisse`).
+
+**Les mignonnes ont du ressort.**
+- Elles sautillent en marchant et en courant, et s'écrasent un peu en touchant le sol pour s'étirer en l'air.
+- Leur respiration est plus vive et plus ample.
+
+**Les épiques ont du poids.**
+- Elles font de grands pas, et le dos monte et descend davantage.
+- Un nuage de poussière se soulève à chaque pas (puissance 0,82 et plus).
+- Elles respirent lentement et profondément, et tournent la tête lentement.
+- Face à une menace (en veille, acculées, en défense, à l'alarme), elles se dressent, poitrail haut.
+
+**Les coups se voient.** Une bête touchée recule d'un coup ; une épique, à peine.
+
+**Les signes**, au-dessus de la tête, comme dans un livre d'images, de la même taille quelle que soit la bête, et qui luisent :
+- un « ! » jaune pendant une seconde, quand la bête s'alarme ;
+- des « z » qui montent, quand elle dort. Une compagne endormie les a aussi.
+
+**Correctif.** Les poissons passent aussi par la passe de style : leurs largeurs suivent leur taille.
+
+**Le branchement.**
+- `lignees.js` :
+  - `osOrvane` (`lisse`, le sautillement, le pas lourd, `dresse`, l'écrasement, le recul), `lgFoulee` (la foulée et la poussière) ;
+  - `lgSignes` (nouveau) ;
+- `sw.js` : `stone-valley-197`.
+
+**Vérifié.**
+- **Toutes les lignées**, dans sept poses et à trois puissances, en mouvement, touchées ou endormies : 5 061 corps, aucun os invalide, 80 os au plus.
+- **Au studio** : les « z » au-dessus d'une mignonne endormie, le « ! » au-dessus d'une épique alarmée qui se dresse.
+- **Dans le navigateur, six îles** : aucune erreur, aucune panne de dessin. On y voit des troupeaux, des petits qui suivent leur mère et des bêtes endormies.

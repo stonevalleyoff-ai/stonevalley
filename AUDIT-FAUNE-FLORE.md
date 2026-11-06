@@ -471,6 +471,8 @@ Sept lots. Après chacun, le jeu tourne, chaque `<script>` compile, et une secti
 **Où on en est.**
 - **Lot 0 fait** (§224).
 - **Lot 1 fait** (§225). La migration des compagnes a glissé au lot 5 : une compagne faite main garde ses talents (monture, pêche, soins) tant que les lignées ne savent pas les reprendre par leurs traits.
+- **Lot 2 commencé** (§226) : la puissance, le tirage des îles par la puissance, l'allure du mignon à l'épique, les largeurs à l'échelle. Restent le shader (liseré, vraies lueurs la nuit), les matières, les nouvelles formes et les portraits.
+- **Lot 3 commencé** (§227) : les états qui se fondent, le ressort des mignonnes, le poids des épiques, le recul, les signes « ! » et « z ». Restent les gestes de repos, les parades et les attaques signature.
 
 L'ordre 0 → 1 → 2 → 3 → 4 → 5 → 6 garde le jeu jouable à chaque étape. Les anciennes créatures disparaissent des îles dès le lot 1, et leur code part au lot 6, une fois que plus rien n'en dépend.
 

@@ -109,7 +109,10 @@ function lgFoulee(f, M) {
   const dx = f.x - (f._lgX ?? f.x), dy = f.y - (f._lgY ?? f.y); f._lgX = f.x; f._lgY = f.y;
   const d = Math.min(.5, Math.hypot(dx, dy)), k = echB(f) || 1;
   const vInst = dtl > 0 ? d / dtl : 0; f._lgV = (f._lgV || 0) + (vInst - (f._lgV || 0)) * Math.min(1, dtl * 8);
-  f._lgPh = ((f._lgPh || 0) + d / Math.max(.15, (.22 + M.Hl * 1.4) * k)) % 1;
+  const avant = f._lgPh || 0; f._lgPh = (avant + d / Math.max(.15, (.22 + M.Hl * 1.4) * k * (1 + .35 * (M.epique || 0)))) % 1;   // (§226) une épique : de grands pas
+  // (§226) une épique lourde pose le pied : un nuage de poussière à chaque pas
+  if ((M.epique || 0) > .5 && !f.dead && !f.enVol && d > .01 && Math.floor(avant * 2) !== Math.floor(f._lgPh * 2) && typeof burst === 'function')
+    try { burst(f.x, f.y, (f.z || 0) + .05, 2 + Math.round(M.epique * 2), '#9a8a70'); } catch (e) { }
   return f.dead ? 0 : Math.min(1.6, Number.isFinite(f.vit) && f.vit > 0 ? f.vit : f._lgV);
 }
 // une patte à deux os qui va de la hanche h à la cheville c : le genou est là où les deux longueurs se rejoignent,
@@ -140,18 +143,26 @@ function osOrvane(f) {
     return B;
   }
   const v = lgFoulee(f, M), ph = f._lgPh * 6.2832, allure = Math.min(1, v / 1.2), galop = lgCl((v - .9) / .6, 0, 1) * (M.coureur || M.chasseur ? 1 : .5);
-  const dk = Math.min(1, (f.dead || 0) * 2.6), dort = f.etat === 'dormir' && !f.dead ? 1 : 0, vol = !!f.enVol;
+  // (§226) LES ÉTATS SE FONDENT : se coucher, traquer, brouter, regarder ne passent plus d'une image à l'autre
+  const dtA = Math.min(.1, Math.max(0, t - (f._lgA ?? t))); f._lgA = t;
+  const lisse = (k, c, vit) => { const x = Number.isFinite(f[k]) ? f[k] : c; return (f[k] = x + (c - x) * Math.min(1, dtA * vit)); };
+  const cu = M.cute || 0, ep = M.epique || 0;
+  const dk = Math.min(1, (f.dead || 0) * 2.6), dort = lisse('_lgDort', f.etat === 'dormir' && !f.dead ? 1 : 0, 2.2), vol = !!f.enVol;
   const ram = f.ramasse || 0, al = f.alarm || 0, vivant = 1 - dk;
   const { Lt, Th, Wd } = M, couche = Math.max(dk, dort * .85, f.repliT > t ? .9 : 0);   // replié sous sa carapace (conduites.js) : couché, ramassé
-  const broute = f.etat === 'brouter' && !couche && v < .3 ? Math.max(0, Math.sin(t * .45 + g)) ** .6 : 0;   // la tête au sol, par moments
-  const traque = (f.etat === 'traquer' || (f.etat === 'chasser' && v < 1)) && M.chasseur ? 1 : 0;           // un chasseur qui approche se baisse
-  const souffle = Math.sin(t * (2.1 + 2.5 * Math.max(allure, al)) + g) * (1 - couche * .6) * vivant;          // la respiration
-  const R = lgRegard(f, M, g), bouche = Math.max(f.etat === 'mord' || f.etat === 'charger' || f.etat === 'acculé' ? .8 : 0, broute * Math.max(0, Math.sin(t * 7 + g)) * .5);
-  if (M.poisson) return lgPoisson(f, M, B, add, { v, ph, allure, dk, couche, souffle, R, bouche, g });
+  const broute = lisse('_lgBr', f.etat === 'brouter' && couche < .3 && v < .3 ? 1 : 0, 3) * Math.max(0, Math.sin(t * .45 + g)) ** .6;   // la tête au sol, par moments
+  const traque = lisse('_lgTr', (f.etat === 'traquer' || (f.etat === 'chasser' && v < 1)) && M.chasseur ? 1 : 0, 5);   // un chasseur qui approche se baisse
+  // la respiration : vive et ample chez une mignonne, lente et profonde chez une épique
+  const souffle = Math.sin(t * (2.1 + 2.5 * Math.max(allure, al)) * (1 + .3 * cu - .35 * ep) + g) * (1 - couche * .6) * vivant * (1 + .6 * cu + .5 * ep);
+  const R = lgRegard(f, M, g); R.lacet = lisse('_lgLacet', R.lacet, 7 - 5 * ep); R.tang = lisse('_lgTang', R.tang, 6);   // une épique tourne la tête lentement
+  const bouche = Math.max(f.etat === 'mord' || f.etat === 'charger' || f.etat === 'acculé' ? .8 : 0, broute * Math.max(0, Math.sin(t * 7 + g)) * .5);
+  if (M.poisson) return lgStyle(f, M, lgPoisson(f, M, B, add, { v, ph, allure, dk, couche, souffle, R, bouche, g }));   // (§226) un poisson aussi, à l'échelle
   // la hauteur du dos : debout sur ses pattes, couché quand il dort ou qu'il meurt ; un galop tangue, une traque s'aplatit
   const bz0 = M.serpent ? Th * .42 : M.Hl + Th * .5;
-  const bz = bz0 + (Th * .5 + .01 - bz0) * couche - ram * .04 - traque * M.Hl * .3 + Math.abs(Math.sin(ph * 2)) * .014 * allure * (1 + galop);
-  const tangage = (Math.sin(ph) * .09 * galop - traque * .06 - broute * .05) * (1 - couche);   // l'avant plonge et remonte au galop
+  const saut = cu * allure * Math.abs(Math.sin(ph * 2)) * (.045 + .035 * cu) * (1 - couche);   // (§226) la mignonne sautille
+  const bz = bz0 + (Th * .5 + .01 - bz0) * couche - ram * .04 - traque * M.Hl * .3 + Math.abs(Math.sin(ph * 2)) * (.014 + .02 * ep) * allure * (1 + galop) + saut;
+  const dresse = lisse('_lgDr', ep * Math.max(al, f.etat === 'veille' || f.etat === 'acculé' || f.etat === 'défendre' ? .9 : 0), 2.5);   // (§226) l'épique se dresse, poitrail haut
+  const tangage = (Math.sin(ph) * .09 * galop - traque * .06 - broute * .05 - dresse * .2) * (1 - couche);   // l'avant plonge et remonte au galop
   const xa = Lt * .5, xr = -Lt * .5;                                 // l'avant et l'arrière du tronc
   const zx = x => bz + x * tangage;                                  // la ligne du dos penche avec le tangage
   let avant, bout, tz = bz;                                           // où s'attache le cou ; le bout de la queue
@@ -226,7 +237,23 @@ function osOrvane(f) {
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
   if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
     for (const o of B) { o.a = T(o.a); o.b = T(o.b); } }
+  lgSignes(f, M, add, T, { couche, dort, al });
+  // (§226) la mignonne s'écrase en touchant le sol et s'étire en l'air ; toute bête recule d'un coup quand on la frappe (l'épique à peine)
+  const sq = cu * allure * Math.cos(ph * 4) * .12 * (1 - couche), coup = f.hit > 0 && !f.dead ? Math.min(1, f.hit * 4) * (1 - .7 * ep) : 0;
+  if (sq || coup) { const vu = new Set(); for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); p[2] *= 1 - sq; p[0] = p[0] * (1 + sq * .5) - coup * .07; } }   // (un point partagé par deux os ne bouge qu'une fois)
   return lgStyle(f, M, B);
+}
+// (§226) LES SIGNES, au-dessus de la tête, comme dans un livre d'images : « ! » quand la bête s'alarme (une seconde), des « z » qui
+// montent quand elle dort. Ils gardent la même taille quelle que soit la bête, et luisent.
+function lgSignes(f, M, add, T, A) {
+  if (f.dead || f.tame && f.etat !== 'dormir') return;
+  const k = (typeof echB === 'function' ? echB(f) : 1) || 1, h = T && T.tete ? T.tete : [0, 0, .4], hs = (T && T.hs) || .1, z0 = h[2] + hs * .8 + .1 / k;
+  if (A.al > .6 && !(f._lgAl > .6)) f._lgEx = t + 1.1;
+  f._lgAl = A.al;
+  if (f._lgEx > t) { const u = .05 / k, monte = Math.min(1, (1.1 - (f._lgEx - t)) * 6), z = z0 + u * 1.2 * monte;
+    add([h[0], 0, z + u * .9], [h[0], 0, z + u * 2.6], u * .55, u * .55, [255, 214, 70], 1); add([h[0], 0, z], [h[0], 0, z + u * .45], u * .55, u * .55, [255, 214, 70], 1); }
+  if (A.dort > .7) for (let i = 0; i < 3; i++) { const q = ((t * .45 + i / 3 + lgGraine(f) * .1) % 1), u = (.025 + .02 * q) / k, z = z0 + q * .35 / k, y = Math.sin(q * 6 + i) * .04 / k;
+    add([h[0] - .02 / k, y, z], [h[0] + .02 / k, y, z], u, u * .35, [196, 214, 255], 1); }
 }
 // (§226) LA PASSE DE STYLE. Les largeurs suivent la taille de la bête, comme pour les corps faits main : sans cela, une bête de
 // 20 g était dodue et une de 50 kg toute maigre (posBete n'agrandit que les positions). Puis, de près, la forme de chaque os : tout
