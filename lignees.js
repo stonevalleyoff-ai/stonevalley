@@ -211,8 +211,8 @@ function osOrvane(f) {
     // (§226) une bête épique : des marques qui luisent le long du dos et des flancs, et des épines si elle n'a ni carapace ni plaques
     if (M.lueur) { const n = 3 + Math.round(M.epique * 2), pul = .75 + .25 * Math.sin(t * 2.2 + g);
       for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (.12 + i * .76 / Math.max(1, n - 1));
-        add([x, 0, zt + .006], [x + .03, 0, zt + .006], Wd * .22, .012, lgMix(M.robe, M.lueur, pul), 1);
-        for (const s2 of [-1, 1]) add([x, s2 * Wd * .5, zt - Th * .3], [x + .025, s2 * Wd * .52, zt - Th * .36], .014, .03, lgMix(M.sombre, M.lueur, pul * .8), 1); } }
+        add([x, 0, zt + .006], [x + .03, 0, zt + .006], Wd * .22, .012, lgMix(M.robe, M.lueur, pul), 1); B[B.length - 1].lueur = 1;   // (§229) elles luisent vraiment
+        for (const s2 of [-1, 1]) { add([x, s2 * Wd * .5, zt - Th * .3], [x + .025, s2 * Wd * .52, zt - Th * .36], .014, .03, lgMix(M.sombre, M.lueur, pul * .8), 1); B[B.length - 1].lueur = 1; } } }
     if (M.epines && !M.oiseau) { const n = 3 + Math.round(M.epique * 3), hE = (.025 + M.epique * .04) * (1 + M.lourd * .4) * (1 + Th * 2);
       for (let i = 0; i < n; i++) { const x = x0 + (x1 - x0) * (.12 + i * .76 / Math.max(1, n - 1)), k = 1 - Math.abs(i - (n - 1) / 2) / n, hh = hE * (.55 + .6 * k);
         B.push({ a: [x, 0, zt - .01], b: [x - hh * .55, 0, zt + hh], w: .022 * (1 + M.lourd * .4), h: .026, c: lgMix(M.sombre, M.lueur || M.sombre, .2), fin: 0, pans: 6 }); } }   // une épine : un cône couché vers l'arrière
@@ -237,7 +237,7 @@ function osOrvane(f) {
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
   if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
     for (const o of B) { o.a = T(o.a); o.b = T(o.b); } }
-  lgSignes(f, M, add, T, { couche, dort, al });
+  lgSignes(f, M, add, T, { couche, dort, al }, B);
   // (§226) la mignonne s'écrase en touchant le sol et s'étire en l'air ; toute bête recule d'un coup quand on la frappe (l'épique à peine)
   const sq = cu * allure * Math.cos(ph * 4) * .12 * (1 - couche), coup = f.hit > 0 && !f.dead ? Math.min(1, f.hit * 4) * (1 - .7 * ep) : 0;
   if (sq || coup) { const vu = new Set(); for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); p[2] *= 1 - sq; p[0] = p[0] * (1 + sq * .5) - coup * .07; } }   // (un point partagé par deux os ne bouge qu'une fois)
@@ -245,8 +245,9 @@ function osOrvane(f) {
 }
 // (§226) LES SIGNES, au-dessus de la tête, comme dans un livre d'images : « ! » quand la bête s'alarme (une seconde), des « z » qui
 // montent quand elle dort. Ils gardent la même taille quelle que soit la bête, et luisent.
-function lgSignes(f, M, add, T, A) {
+function lgSignes(f, M, add0, T, A, B) {
   if (f.dead || f.tame && f.etat !== 'dormir') return;
+  const add = (...x) => { add0(...x); if (B && B.length) B[B.length - 1].lueur = 1; };   // (§229) ils luisent vraiment, la nuit aussi
   const k = (typeof echB === 'function' ? echB(f) : 1) || 1, h = T && T.tete ? T.tete : [0, 0, .4], hs = (T && T.hs) || .1, z0 = h[2] + hs * .8 + .1 / k;
   if (A.al > .6 && !(f._lgAl > .6)) f._lgEx = t + 1.1;
   f._lgAl = A.al;

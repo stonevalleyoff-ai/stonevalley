@@ -7343,3 +7343,20 @@ La plupart des chasseurs d'Orvane sont crépusculaires : le plein jour est plus 
 - `sw.js` : `stone-valley-198`.
 
 **Vérifié.** Dans le navigateur, sur six îles en plein jour : de 5 à 35 bêtes dorment (les crépusculaires), aucune erreur, aucune panne de dessin.
+
+## §229 · Le style de Stone Valley, deuxième temps : ce qui luit traverse la nuit
+
+Les marques des bêtes épiques (§226) et les signes au-dessus des têtes (§227) étaient dessinés « sans ombre » (`luit`), mais la nuit les assombrissait comme tout le reste.
+
+**Ce qui change.** Un os peut maintenant porter une vraie lueur (`lueur`). Le shader des volumes l'ajoute après la nuit et le brouillard, comme il le fait pour la lave du volcan : de nuit, les marques des épiques battent dans le noir, et les « z » d'une bête endormie se voient de loin. Rien d'autre ne luit ainsi pour l'instant.
+
+**Le branchement.**
+- `index.html` :
+  - `DECOR_VS` (`vLueur`, le bit 2^18 des drapeaux) et `DECOR_FS` (`lu += c * 0.8`) ;
+  - les trois boucles de dessin des volumes (`o.lueur`) ;
+- `lignees.js` : les marques (`osOrvane`) et `lgSignes` posent `lueur` ;
+- `sw.js` : `stone-valley-199`.
+
+**Vérifié.**
+- **Les os** : toutes les lignées, aucun os invalide.
+- **Dans le navigateur, de nuit**, sur une île de la vingtième exploration (55 bêtes épiques) : la carte graphique tient (le shader compile), aucune erreur, aucune panne de dessin.
