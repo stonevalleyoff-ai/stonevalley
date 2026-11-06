@@ -7413,3 +7413,46 @@ Le régime en spectre d'Orvane (feuilles, fruits, graines, nectar…) commence �
   - Sur neuf secondes : 202 relevés de fuite, dont 182 par l'alarme ; jusqu'aux sept bêtes en fuite ensemble.
   - 62 relevés de chasse en meute : les deux suiveurs ont pris la proie du chef.
 - **Quatre îles** (explorations 4 à 20) : deux espèces chasseuses sur sept au plus, aucune erreur.
+
+## §233 · Les compagnes, d'après leur lignée ; et celles d'avant deviennent des lignées
+
+**Les talents d'une compagne** viennent de sa lignée, et plus d'une espèce faite main (`orvane-sv.js`, `talents`, `talentsFiche`).
+- **Ses aptitudes** (la table `APT` : bois, pierre, fibre, baies, éclats, ferraille, chasse, défense) suivent son régime (les feuilles pour la fibre, les fruits, les graines et le nectar pour les baies), sa taille, ses organes (des cornes, des défenses, une massue pour le bois et les éclats ; une carapace, des plaques pour la défense), sa façon d'aller (une fouisseuse creuse la pierre, une grimpeuse cueille mieux) et sa puissance (la défense, la chasse). Son métier dit en est tiré.
+- **Elle pêche** si elle nage sans ne vivre que dans l'eau (16 lignées). **Elle aime les friandises** si les fruits et le nectar font 30 % de son régime (23). **Elle atteint les îles volantes** si elle saute ou vole (26).
+- **Sa compétence** vient de ce qu'elle est :
+
+| la lignée | sa compétence | combien |
+| --- | --- | --- |
+| un quadrupède de 8 kg et plus | Charge et ruade | 7 |
+| un oiseau, ou une bête qui vole | Vigie | 5 |
+| une camouflée | Voile de brume | 7 |
+| un grand herbivore en troupeau | Brame | 1 |
+| une fouisseuse, ou une lourde | Secousse | 9 |
+| les autres | celle de leur famille (Trouvaille pour les Doux, Boule visqueuse sinon) | 113 |
+
+- **Une monture.** Un quadrupède lié de 8 kg et plus se monte (MONTER à son contact), avec une allure et un souffle d'après sa vitesse et sa masse. En selle, il va où va le cavalier, et son souffle revient à pied. Le rodéo reste celui des coursiers : une lignée se lie d'abord à sa façon.
+
+**Les compagnes d'avant deviennent des lignées** (`orvaneMigrer`). Au chargement d'une sauvegarde, une compagne ou une gardienne de campement d'une espèce faite main retirée devient la lignée d'Orvane la plus proche :
+- même régime ;
+- une taille voisine, lue à l'échelle des lignées ;
+- une bête qui vole si elle volait (la sterne, le dragon) ;
+- une monture si elle en était une (les coursiers) ;
+- une variété : une lignée déjà choisie l'est un peu moins.
+
+Elle garde son nom, son niveau et ses potions. Le jeu le dit, une fois (« Pompon est devenue Losilmé mangeur d'herbe de prairie… »). La sauvegarde suivante porte la lignée.
+
+**Le branchement.**
+- `orvane/orvane-sv.js` : `talents`, `talentsFiche` (après la puissance), `METIERS`, `orvaneMigrer`, `completer` (`APT`, `PECHE_APT`, `FRIANDISE_APT`, `BONDIT`) ;
+- `index.html` :
+  - `appliquer` : la migration, avant le filtre qui écartait une espèce inconnue ;
+  - les gardiennes ;
+  - `typeComp` (`sp.comp`), `coursierAuContact` (une lignée liée qui se monte), `majBete` (la lignée montée) ;
+- `sw.js` : `stone-valley-203`.
+
+**Vérifié.**
+- **Le traducteur** : la répartition ci-dessus. Les trente espèces retirées trouvent chacune une lignée : les coursiers des montures, la sterne et le dragon des oiseaux, les Doux et les Trottins de petits brouteurs.
+- **Dans le navigateur** :
+  - un coursier, un cotonnier nommé Pompon et un félin, liés puis sauvegardés ;
+  - la page rechargée, ils deviennent trois lignées, gardent leurs noms, sont dehors, et le jeu le dit ;
+  - le premier se monte (MONTER), et en selle il suit le cavalier ;
+  - aucune erreur.

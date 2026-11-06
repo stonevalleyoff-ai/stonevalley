@@ -5407,7 +5407,8 @@ function raidLu(r) {
     || typeof r.jeton !== 'string' || !/^[0-9a-f-]{36}$/i.test(r.jeton)) return null;
   const coffre = {};
   for (const k of COFFRE_R) coffre[k] = Math.max(0, Math.min(1e6, Number((r.coffre || {})[k]) | 0));
-  const gardiennes = (Array.isArray(r.gardiennes) ? r.gardiennes : []).filter(o => o && specById[o.esp] && !coursier(specById[o.esp]))
+  const gardiennes = (Array.isArray(r.gardiennes) ? r.gardiennes : []).map(o => o && typeof orvaneMigrer === 'function' ? Object.assign({}, o, { esp: orvaneMigrer(o.esp) }) : o)   // (§233)
+    .filter(o => o && specById[o.esp] && !coursier(specById[o.esp]))
     .slice(0, 6).map(o => ({ esp: o.esp, pv: Math.max(.05, Math.min(1, Number(o.pv) || 1)), v: varianteSure(o.v) }));
   const ko = (Array.isArray(r.ko) ? r.ko : []).filter(i => Number.isInteger(i) && i >= 0 && i < 6);
   const borne = v => Math.max(0, Math.min(3, Number(v) | 0)), mur = borne(r.niv_mur ?? r.mur), tours = borne(r.niv_tours ?? r.tours);
@@ -14962,7 +14963,7 @@ function majRodeo(dt) {
 // Le coursier au contact : le sien, sorti, ou un sauvage.
 function coursierAuContact() {
   let pr = null, dp = 1.8 * 1.8;
-  for (const b of beasts) if (!b.dead && b.pv > 0 && coursier(b.sp) && Math.abs(b.z - P.z) < 2 && (!b.tame || (b.comp && b.comp.dehors))) {
+  for (const b of beasts) if (!b.dead && b.pv > 0 && (coursier(b.sp) || (b.sp.orvane && b.sp.monture && b.tame)) && Math.abs(b.z - P.z) < 2 && (!b.tame || (b.comp && b.comp.dehors))) {   // (§233) une lignée liée qui se monte
     const d = (b.x - P.x) ** 2 + (b.y - P.y) ** 2;
     if (d < dp) { dp = d; pr = b; }
   }
@@ -15319,6 +15320,12 @@ function majBete(b, dt) {
   b.t += dt; b.age += dt; b.bob += dt * (3 + b.alarm * 4);
   if (b.hit > 0) b.hit -= dt;
   if (b.dead) { b.dead += dt; chute(b, dt); updateFoeLegs(b, dt); return; }
+  // (§233) une lignée montée : elle va où va le cavalier ; à pied, son souffle revient
+  if (sp.orvane && sp.monture) {
+    if (b.endu === undefined) b.endu = 1;
+    if (b === P.monture && !P.rodeo) { b.x = P.x; b.y = P.y; b.z = P.z; b.vx = P.vx; b.vy = P.vy; b.vz = P.vz; b.dir = b.dirT = P.faceS; b.etat = 'monté'; b.vit = Math.hypot(P.vx || 0, P.vy || 0) / 3; return; }
+    b.endu = Math.min(1, b.endu + dt * .05); if (b.endu > .5) b.essouffle = false;
+  }
   const actif = sp.volcan ? sp.id !== 'magmaton' || lumiere() > .3
     : sp.activite === 'continue' ? true : sp.activite === 'crepusculaire' ? lumiere() > .31 && lumiere() < .8   // (§228) les rythmes d'Orvane : jour et nuit, ou l'aube et le soir
     : sp.nuit ? lumiere() < .55 : lumiere() > .45;   // (§198) le basilic chasse jour et nuit, à la lueur de la lave
@@ -19627,7 +19634,8 @@ const NOM_TYPE = { rampant: 'Rampant', coursier: 'Coursier', tellurien: 'Telluri
 // Le type d'une compagne. familleBete range « rampant » tout ce qui n'est d'aucune famille : les vrais Rampants sont
 // ceux qui n'ont pas de corps à eux (brouteur, bossu, glaneur, traqueur, spectre). Le félin, le bramard, la sterne,
 // le dragon, le silencieux et le mille-gueules sont des créatures à part : pas de type : une compétence à chacun.
-const typeComp = c => { const sp = c && specById[c.esp]; if (!sp) return ''; const f = familleBete(sp); return f === 'rampant' && sp.corps ? 'apart' : f; };
+const typeComp = c => { const sp = c && specById[c.esp]; if (!sp) return ''; if (sp.comp && COMPETENCES[sp.comp]) return sp.comp;   // (§233) une lignée : la compétence de ses traits
+  const f = familleBete(sp); return f === 'rampant' && sp.corps ? 'apart' : f; };
 const compDe = c => { const f = typeComp(c); return COMPETENCES[f] ? f : f === 'apart' && COMPETENCES[c.esp] ? c.esp : null; };   // le type, ou l'espèce pour une créature à part
 const potComp = (c, g) => c && c.pot ? Math.max(0, Math.min(g === 'comp' ? COMP_MAX : ALCH_MAX, c.pot[g] | 0)) : 0;
 const potBete = (b, g) => b && b.tame && b.comp ? potComp(b.comp, g) : 0;
@@ -27676,11 +27684,16 @@ function appliquer(d, vivantes) {
   // Les compagnes, après la position : celles qui sont dehors reprennent leur place sur la même
   // île, ou se posent près du joueur. Jamais plus de compagnes que de liens.
   P.liens = nb(d.liens, 0, LIENS_BORNE, 0) | 0;
+  const migrees = [];                                  // (§233) celles qui ont changé d'espèce : on le dit, une fois
   const place = p => d.graine === SEED && Array.isArray(p) && p.length === 2 && p.every(Number.isFinite)
     && p[0] >= 3 && p[1] >= 3 && p[0] < WS - 3 && p[1] < WS - 3 ? p : null;
   const liste = [];
-  for (const r of Array.isArray(d.compagnes) ? d.compagnes : []) {
+  for (const r0 of Array.isArray(d.compagnes) ? d.compagnes : []) {
     if (liste.length >= P.liens) break;
+    // (§233) une compagne d'une espèce faite main retirée devient la lignée d'Orvane la plus proche (orvane-sv.js, orvaneMigrer)
+    const nv = r0 && typeof r0 === 'object' && typeof orvaneMigrer === 'function' ? orvaneMigrer(r0.esp) : r0 && r0.esp;
+    const r = r0 && nv !== r0.esp ? Object.assign({}, r0, { esp: nv }) : r0;
+    if (r !== r0) migrees.push([r0.esp, r]);
     if (!r || typeof r !== 'object' || !specById[r.esp]) continue;
     liste.push({ id: Number.isInteger(r.id) && r.id > 0 && r.id < 1e6 ? r.id : 0, esp: r.esp,
       nom: typeof r.nom === 'string' && r.nom.trim() ? r.nom.trim().slice(0, 24) : null,
@@ -27688,6 +27701,8 @@ function appliquer(d, vivantes) {
       pv: nb(r.pv, .05, 1, 1), faim: nb(r.faim, 0, 1.2, .2), soif: nb(r.soif, 0, 1.2, .2), nrj: nb(r.nrj, 0, 1, 1),
       pos: place(r.pos), variante: varianteSure(r.variante), pot: potLue(r.pot), vyrel: r.vy ? 1 : 0 });
   }
+  if (migrees.length) setTimeout(() => { try { for (const [a, r] of migrees.slice(0, 4)) { const sa = specById[a], sb = specById[r.esp];
+    say((r.nom || ('Votre ' + (sa ? sa.n.toLowerCase() : 'compagne'))) + ' est devenue ' + (sb ? sb.n : 'une bête d\'Orvane') + ' : la faune du jeu vient toute d\'Orvane', 5); } } catch (e) { } }, 4000);
   // Le travail en votre absence : une fois par départ, et seulement de retour chez soi. Une copie
   // plus ancienne qui porterait le même départ ne le fait pas payer deux fois.
   const dejaSolde = P.solde;

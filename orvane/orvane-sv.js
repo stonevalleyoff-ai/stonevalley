@@ -304,8 +304,11 @@ function completer(sp) {
   const voix = (() => { try { return typeof SON !== 'undefined' ? SON.VOIX : null; } catch (e) { return null; } })();
   const S0 = Corr.SOCLES?.[b];
   if (S0) {                                                           // (§225) un socle : ses lignes à lui, sa voix et sa viande d'après le corps
-    const T = S0.tables || {};
-    try { if (T.apt && APT[id] === undefined) APT[id] = T.apt.slice(); } catch (e) { }
+    const T = S0.tables || {}, Q = talents(sp);                         // (§233) ses talents de compagne, d'après la lignée
+    try { if (APT[id] === undefined) APT[id] = Q.apt; } catch (e) { }
+    try { if (Q.peche && PECHE_APT[id] === undefined) PECHE_APT[id] = Q.peche; } catch (e) { }
+    try { if (Q.friandise && FRIANDISE_APT[id] === undefined) FRIANDISE_APT[id] = Q.friandise; } catch (e) { }
+    try { if (Q.bondit && BONDIT[id] === undefined) BONDIT[id] = 1; } catch (e) { }
     try { if (T.lien && FACONS[id] === undefined) FACONS[id] = T.lien; } catch (e) { }
     try { if (T.combat && COMBAT[id] === undefined) COMBAT[id] = T.combat; } catch (e) { }
     try { if (voix && !voix[id]) voix[id] = voixDe(sp); } catch (e) { }
@@ -408,6 +411,59 @@ function chaines() {
     for (const sp of L) if (!o.chasse.includes(sp.id) && classesProie(S.lignees[sp.id]).some(c => vise.has(c))) o.chasse.push(sp.id);
   }
 }
+// (§233) LES TALENTS D'UNE COMPAGNE, d'après sa lignée, et plus d'après une espèce faite main. Ses aptitudes (bois, pierre, fibre,
+// baies, éclats, ferraille, chasse, défense : la table APT du jeu) suivent son régime, sa taille, ses organes et sa façon d'aller ;
+// une nageuse pêche, une mangeuse de fruits aime les friandises, une sauteuse ou une volante atteint les îles volantes ; sa
+// compétence vient de ce qu'elle est (une monture charge, un oiseau fait la vigie, une camouflée voile de brume, un grand
+// herbivore en troupeau brame, une fouisseuse ou une lourde secoue le sol) ; un quadrupède de huit kilos et plus se monte.
+const METIERS = ['abat le bois mort, et vous en rapporte', 'creuse, et vous rapporte des pierres', 'coupe les herbes, les fleurs et les roseaux',
+  'cueille les baies', 'déniche des éclats', 'ramasse la ferraille', 'chasse quand elle a faim, et rapporte les os', 'vous défend'];
+function talents(sp) {
+  const d = S.lignees[sp.id] || {}, loco = d.locomotion || [], m = d.masse || 1, die = d.diete || {}, tr = new Set(d.traits || []), org = d.corps?.organes || [], f = d.forme;
+  const n = v => Math.max(1, Math.min(5, Math.round(v))), pu = clamp(sp.orvane?.puissance ?? .4, 0, 1), lourd = clamp((Math.log10(m) - .3) / 1.3, 0, 1);
+  const fouit = loco.includes('fouissage'), grimpe = loco.includes('grimpe'), nage = loco.includes('nage') && !nageurPur(loco), vol = loco.includes('vol') || f === 'oiseau', saut = loco.includes('saut');
+  const arme = org.some(o => ['cornes', 'defenses', 'massue'].includes(o.type) && o.taille >= .3), cuir = org.some(o => o.type === 'carapace' || o.type === 'plaques');
+  const apt = [n(1 + 2.5 * lourd + (arme ? 1.5 : 0)), n(1 + (fouit ? 3 : 0) + 1.5 * lourd), n(1 + 4 * (die.feuilles || 0)),
+    n(1 + 4 * ((die.fruits || 0) + (die.graines || 0) * .5 + (die.nectar || 0)) + (grimpe ? 1 : 0)), n(1 + (tr.has('vibrisses') || tr.has('yeux-nocturnes') ? 2 : 0) + (arme ? 1 : 0)), 1,
+    d.chasseur ? n(2 + 3 * pu) : 0, n(1 + 3 * pu + (cuir ? 1 : 0))];
+  const montable = f === 'quadrupede' && m >= 8 && !nageurPur(loco);
+  const comp = montable ? 'coursier' : vol ? 'sterne' : tr.has('camouflage') ? 'felin' : sp.herd && m >= 5 && !d.chasseur ? 'bramard' : fouit || lourd >= .5 ? 'tellurien' : null;
+  return { apt, montable, comp, bondit: saut || vol, peche: nage ? n(2 + 2 * (die.viande || 0) + (die.insectes || 0)) : 0,
+    friandise: (die.fruits || 0) + (die.nectar || 0) >= .3 ? n(3 + 2 * ((die.fruits || 0) + (die.nectar || 0))) : 0 };
+}
+// les talents qui tiennent à la fiche elle-même (la compétence, la monture, le métier dit), posés à l'inscription
+function talentsFiche(sp) {
+  if (!Corr.SOCLES?.[sp.orvane?.base] || sp.orvane.machine) return;
+  const Q = talents(sp), d = S.lignees[sp.id] || {}, m = d.masse || 1, vit = d.vit || 4;
+  if (Q.comp) sp.comp = Q.comp; else delete sp.comp;
+  if (Q.montable) sp.monture = { marche: r2(3.4 + .3 * Math.min(4, vit / 2)), course: r2(4.8 + .4 * Math.min(4, vit / 1.5)), saut: 10.5, endu: Math.round(10 + 14 * clamp((Math.log10(m) - .9) / 1, 0, 1)), fougue: 6 };
+  else delete sp.monture;
+  let k = 0; for (let i = 0; i < 8; i++) if (i !== 5 && Q.apt[i] > Q.apt[k]) k = i;
+  sp.metier = METIERS[k];
+  try { APT[sp.id] = Q.apt; } catch (e) { }                           // (la défense suit la puissance, connue maintenant)
+}
+// (§233) LA MIGRATION DES COMPAGNES. Une compagne d'une espèce faite main, retirée de la nature (index.html, FAITE_MAIN), devient la
+// lignée d'Orvane la plus proche : même régime, taille voisine, qui vole si elle volait, qu'on peut monter si c'était une monture. Elle
+// garde son nom, son niveau et ses potions. Le choix est fait une fois : la sauvegarde suivante porte la lignée.
+const MIGREES = {};
+function orvaneMigrer(esp) {
+  try { if (typeof FAITE_MAIN === 'undefined' || !FAITE_MAIN.has(esp) || typeof SPEC === 'undefined') return esp; } catch (e) { return esp; }
+  if (MIGREES[esp]) return MIGREES[esp];
+  const v = typeof specById !== 'undefined' ? specById[esp] : null, g = Corr.GROUPE?.[Corr.FAUNE?.[esp]] || 'herbivore';
+  // sa masse, lue à l'échelle des lignées (appliquerDef : la taille suit le logarithme de la masse) : la compagne garde à peu près sa taille
+  const m0 = Math.pow(10, clamp(((v?.sz || 1) - .5) / .275 - 2, -2, 2)), vole = !!(v && (v.volant || v.dragon)), monte = !!(v && v.monture), chasse = g === 'carnivore';
+  const deja = {}; for (const k in MIGREES) deja[MIGREES[k]] = (deja[MIGREES[k]] || 0) + 1;
+  let best = null, bs = -1e9;
+  for (const sp of SPEC) {
+    if (!sp.orvane || sp.orvane.machine || sp.orvane.nage || !Corr.SOCLES?.[sp.orvane.base]) continue;
+    const d = S.lignees[sp.id] || {}, gg = d.chasseur ? 'carnivore' : Corr.GROUPE?.[d.regime] || 'omnivore', vol = !!sp.orvane.vol;
+    const sc = (gg === g ? 3 : 0) + (vole ? (vol ? 5 : -2) : vol ? -2 : 0) + (monte ? (sp.monture ? 4 : -2) : 0) + (chasse === !!d.chasseur ? 1.5 : 0)
+      - 1.2 * Math.abs(Math.log10(Math.max(.001, d.masse || 1) / m0)) + (taxon(S.courant, sp.id) && !taxon(S.courant, sp.id).eteint ? .5 : 0) - .6 * (deja[sp.id] || 0);
+    if (sc > bs || (sc === bs && best && sp.id < best.id)) { bs = sc; best = sp; }
+  }
+  if (best) MIGREES[esp] = best.id;
+  return best ? best.id : esp;
+}
 function inscrireLignees() {
   if (!S.pret || !Corps) return;
   if (S.courant) for (const t of S.courant.taxons) {
@@ -420,6 +476,7 @@ function inscrireLignees() {
     for (const id of ids.filter(i => !vivants.has(i)).sort((a, b) => (S.lignees[a].vu || 0) - (S.lignees[b].vu || 0)).slice(0, ids.length - LIGNEES_MAX)) delete S.lignees[id]; }
   for (const def of Object.values(S.lignees)) enregistrer(def);
   chaines();
+  try { for (const sp of SPEC) if (sp.orvane) talentsFiche(sp); } catch (e) { }   // (§233) après la puissance : la défense en dépend
 }
 // une espèce inconnue « parent.biome » : on la rend par son parent, le temps qu'Orvane dise qui elle est
 function especeDeSecours(id) {
@@ -975,7 +1032,7 @@ const hachage = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = (Mat
 racine.orvaneEspeces = orvaneEspeces; racine.orvaneAppliquer = orvaneAppliquer; racine.orvaneVariante = orvaneVariante; racine.orvaneEvenement = orvaneEvenement;
 racine.orvaneTirage = orvaneTirage; racine.orvaneArrivee = orvaneArrivee; racine.orvaneTrophee = orvaneTrophee; racine.orvanePhoto = orvanePhoto;
 racine.orvaneRelire = orvaneRelire; racine.orvaneCarnetLignees = orvaneCarnetLignees; racine.orvaneVol = orvaneVol; racine.orvaneNage = orvaneNage; racine.orvanePlaceEau = orvanePlaceEau;
-racine.orvaneLot = orvaneLot; racine.orvaneEnvoyer = orvaneEnvoyer; racine.orvaneNaissance = orvaneNaissance;
+racine.orvaneLot = orvaneLot; racine.orvaneMigrer = orvaneMigrer; racine.orvaneEnvoyer = orvaneEnvoyer; racine.orvaneNaissance = orvaneNaissance;
 racine.OrvaneSV = { S, purger, parcelleIle, effectifIci, repeuplerIle, rangsRarete, ligneesDuJeu, garantirChasseur, conduitesPour, loiQ, tirerQuant, quantMots, apprisDe, apprisFuite, heriter, zoneHybride, hybrider, charger, avancement, effectifSur, biomesIle, releverRencontres, inscrireLignees, definir, enregistrer, especeDeSecours, ancetreJeu, nomJeu, CAUSES_JOUEUR, SEUIL_CORPS };
 lire();
 if (typeof window !== 'undefined' && typeof fetch === 'function') { charger(); setInterval(releverRencontres, PERIODE_RENCONTRE); }
