@@ -7705,3 +7705,47 @@ On voyait les créatures trembler sur place, changer d'idée sans arrêt, et se 
 | 31337 (niv. 12) | 1,3 · 0,1 · 46 | 0,6 · 0,6 · 1 |
 
 **Vérifié.** Six îles, aucune erreur, aucun chasseur nouveau sans proie ; les compagnes, la monture. `sw.js` : `stone-valley-212`.
+
+## §243 · L'eau, refaite : on la voit, on y nage, les bêtes la respectent
+
+Les créatures marchaient dans les lacs et les rivières comme sur l'herbe, y broutaient le fond, y dormaient. Pour elles, seule la mer faisait obstacle. L'eau douce était un bloc opaque, posé au-dessus du sol. La mer n'avait pas de surface à elle : on la dessinait sur son fond (0 au large, 2 près des côtes), et l'on marchait dessus.
+
+**Une surface, une profondeur** (`surfEau`, `profEau`, `MER_Z`). La mer a maintenant une surface, une seule pour toute l'île, un demi-cube sous la plage (`MER_Z = SEA + .5`). Les hauts-fonds (fond 2) font un gué ; au large (fond 0), on nage. Chaque case d'eau (la mer, un lac, une rivière, un bain du volcan) a sa surface et sa profondeur. Les rivières ont un courant, vers l'aval (`EauF`, tiré de l'arbre d'écoulement de `calcEaux`). `hRendu` rend la surface de la mer.
+
+**Les bêtes.** Chacune a sa mesure : sous le ventre (la moitié de sa taille), elle passe **à gué**, freinée d'autant que l'eau monte ; au-delà, elle **nage**, la tête et le dos dehors, à moitié de son allure. Une amphibie (une lignée d'Orvane qui nage aussi) nage presque à son aise.
+- **Au calme** (elle erre, broute, dort, boit, suit son troupeau), elle n'entre pas dans l'eau : elle longe la rive, change de cap devant l'eau, prend sa place au sec dans le troupeau. Elle ne passe un gué que si c'est le chemin trouvé par le détour (`cheminNav` : l'eau y coûte, la nage plus que le gué).
+- **Dans l'eau au calme** (tombée, poussée, jetée par un coup), elle en sort d'abord, vers la rive la plus proche (`riveBete`), avant de dormir ou de brouter.
+- Elle ne **nage que poussée** : en fuite, en chasse, derrière vous ; une amphibie, toujours.
+- Le fond d'un lac ne se broute pas, et aucune bête n'y naît. La carte de la soif mène à la rive, et plus au fond du lac.
+- **L'eau la porte** (`chute`) : elle s'y enfonce doucement, s'y balance, et une chute s'y amortit ; morte, elle flotte. Elle y entre en éclaboussant, laisse des ronds en nageant, fait gicler le gué (`eauSillage`, `eclabousser`, avec un plouf près de vous).
+- Les lignées qui ne vivent que dans l'eau nagent un peu sous la surface.
+
+**Le joueur** nage :
+- jusqu'aux hanches (la monture : sous le ventre), il marche dans l'eau, freiné d'autant qu'elle monte ;
+- au-delà, il **nage**, la tête et les épaules dehors, deux fois plus lentement, en faisant la brasse ;
+- il remonte sur une berge basse en y arrivant (jusqu'à un demi-cube au-dessus de l'eau) ;
+- le saut, depuis l'eau, n'est qu'un coup de jambes (ni double saut, ni troisième) ;
+- au large, il nage au lieu de couler, et le courant le ramène au bord de la carte ;
+- une chute dans l'eau éclabousse sans choc ;
+- le dernier sol sûr n'est jamais dans l'eau.
+La monture nage aussi, son cavalier au sec.
+
+**Ce qu'on voit** (carte graphique) :
+- **Le fond** : le sol à sa vraie hauteur, du sable sous la mer, des galets sous l'eau douce (`TEX.galets`), plus sombres à mesure qu'on descend.
+- **L'eau**, translucide, posée après tout ce qui est opaque (`EAU_VS`, `EAU_FS`, une nappe par tronçon, `eauCase`). On voit le sable des hauts-fonds, les pattes d'une bête au gué, le nageur sous la surface. Sa couleur suit sa profondeur : turquoise sur les hauts-fonds, bleu nuit au large, plus verte en eau douce, laiteuse dans un bain.
+- **La houle** : deux houles de bruit, au grain du décor (seize texels par cube), qui filent vers l'aval dans une rivière.
+- **Les reflets** : le ciel s'y reflète, d'autant plus qu'on la regarde de biais ; le soleil y jette des éclats sur les crêtes ; ses reflets dansent au fond des hauts-fonds.
+- **L'écume** : elle borde les rives d'une fine bande qui va et vient ; elle blanchit les rapides.
+- **Les cascades** : un flanc d'eau, là où une rivière descend un palier ou où la mer tombe dans un gouffre, est une cascade, avec ses filets et son écume au pied.
+- **Les ronds dans l'eau** : un rond s'élargit et s'efface à chaque éclaboussure, et derrière chaque nageur.
+- L'ombre d'un nageur se pose sur l'eau. Les poissons de la pêche nagent sous la surface.
+- La nuit, la brume, l'Achromie la traitent comme le décor. Sur l'île démoniaque et chez le Roi, elle devient de la lave, opaque.
+- La mer du large est au même niveau que celle de l'île. Le canvas de secours garde l'eau opaque, mais à la même hauteur de mer.
+
+**Vérifié.**
+- **Dans l'eau** (sondé après 25 secondes, quatre îles) : plus aucune bête terrestre ; il n'y reste que les lignées qui y vivent. Avant, sept bêtes sur cinquante-sept marchaient ou dormaient au fond des lacs de l'île de départ.
+- **Au bord d'un lac** : une bête épuisée, jetée au milieu, nage jusqu'à la rive avant de dormir. Une bête qui erre sur la berge, tournée vers l'eau, n'y met pas une patte (0 demi-seconde sur 24).
+- **Le joueur** nage à la moitié de son pas, remonte sur la berge ; la monture nage.
+- **Les vibrations** (§242) restent basses : chevauchements 0, 0, 0 sur trois îles.
+- **Les vues** : en isométrie et en première personne, de jour, au soir, de nuit ; une cascade ; le canvas de secours.
+- **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-213`.

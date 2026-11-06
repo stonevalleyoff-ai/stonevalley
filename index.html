@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=212"></script>
-<script src="rouages.js?v=212"></script>
-<script src="forge.js?v=212"></script>
-<script src="nomades.js?v=212"></script>
-<script src="etats.js?v=212"></script>
-<script src="brume.js?v=212"></script>
-<script src="roi.js?v=212"></script>
-<script src="trone.js?v=212"></script>
-<script src="achromie.js?v=212"></script>
-<script src="vyrel.js?v=212"></script>
-<script src="village.js?v=212"></script>
-<script src="volcan.js?v=212"></script>
-<script src="dons.js?v=212"></script>
-<script src="coop.js?v=212"></script>
-<script src="faune.js?v=212"></script>
-<script src="flore.js?v=212"></script>
-<script src="lignees.js?v=212"></script>
-<script src="conduites.js?v=212"></script>
-<script src="pouvoirs.js?v=212"></script>
+<script src="donjon.js?v=213"></script>
+<script src="rouages.js?v=213"></script>
+<script src="forge.js?v=213"></script>
+<script src="nomades.js?v=213"></script>
+<script src="etats.js?v=213"></script>
+<script src="brume.js?v=213"></script>
+<script src="roi.js?v=213"></script>
+<script src="trone.js?v=213"></script>
+<script src="achromie.js?v=213"></script>
+<script src="vyrel.js?v=213"></script>
+<script src="village.js?v=213"></script>
+<script src="volcan.js?v=213"></script>
+<script src="dons.js?v=213"></script>
+<script src="coop.js?v=213"></script>
+<script src="faune.js?v=213"></script>
+<script src="flore.js?v=213"></script>
+<script src="lignees.js?v=213"></script>
+<script src="conduites.js?v=213"></script>
+<script src="pouvoirs.js?v=213"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=212"></script><script src="orvane/tampon.js?v=212"></script><script src="orvane/correspondance.js?v=212"></script><script src="orvane/secours.js?v=212"></script><script src="orvane/orvane-sv.js?v=212"></script>
+<script src="orvane/corps.js?v=213"></script><script src="orvane/tampon.js?v=213"></script><script src="orvane/correspondance.js?v=213"></script><script src="orvane/secours.js?v=213"></script><script src="orvane/orvane-sv.js?v=213"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -2447,11 +2447,24 @@ const Eau = new Uint8Array(WS * WS);
 const EauT = new Uint8Array(WS * WS);                // 1 : un lac, 2 : une rivière (pour la pêche)
 const eauAt = (x, y) => (x | 0) < 0 || (y | 0) < 0 || (x | 0) >= WS || (y | 0) >= WS ? 0 : Eau[(y | 0) * WS + (x | 0)];
 // hauteur de ce qu'on VOIT : la surface de l'eau si elle couvre le sol, sinon le sol
+// (§243) LA SURFACE DE L'EAU. La mer n'avait pas de surface à elle : on la dessinait sur son fond, au niveau 0 au large et
+// 2 près des côtes, et l'on marchait dessus. Elle a maintenant une surface, une seule pour toute l'île, un demi-cube sous
+// la plage : un gué sur les hauts-fonds (fond 2), la nage au large (fond 0). surfEau rend la hauteur de l'eau (0 : à sec),
+// profEau ce qu'il y a d'eau sous elle — la mer, un lac, une rivière, un bain du volcan, jamais un gouffre.
+const MER_Z = SEA + .5;
+const EauF = new Int8Array(WS * WS * 2);              // (§243) le sens du courant d'une rivière (vers l'aval), case par case
+const surfEau = (x, y) => {
+  x |= 0; y |= 0;
+  if (x < 0 || y < 0 || x >= WS || y >= WS) return MER_Z;
+  const i = y * WS + x;
+  return Eau[i] > Hgt[i] ? Eau[i] : Hgt[i] <= SEA && Bio[i] !== 8 ? MER_Z : 0;
+};
+const profEau = (x, y) => { const s = surfEau(x, y); return s ? s - hAt(x | 0, y | 0) : 0; };
 const hRendu = (x, y) => {
   x |= 0; y |= 0;
-  if (x < 0 || y < 0 || x >= WS || y >= WS) return 0;
+  if (x < 0 || y < 0 || x >= WS || y >= WS) return MER_Z;
   const i = y * WS + x;
-  return Eau[i] || Hgt[i];
+  return Eau[i] > Hgt[i] ? Eau[i] : Hgt[i] <= SEA && Bio[i] !== 8 ? MER_Z : Hgt[i];
 };
 const VOISINS4 = [[1, 0], [-1, 0], [0, 1], [0, -1]];   // les quatre voisins (SIDES vient plus bas)
 const RIV_SEUIL = 220;                               // cases drainées à partir desquelles c'est une rivière
@@ -2563,6 +2576,9 @@ function calcEaux() {
     Hgt[i] = Math.max(SEA + 1, Hgt[i] - 1);
     Eau[i] = Math.min(255, Math.max(surface, Hgt[i] + 1)); EauT[i] = 2;
   }
+  // (§243) le courant : chaque case verse dans celle par où le remplissage l'a atteinte, donc vers l'exutoire
+  EauF.fill(0);
+  for (let i = 0; i < N; i++) if (EauT[i] === 2 && par[i] >= 0) { EauF[2 * i] = (par[i] % WS) - (i % WS); EauF[2 * i + 1] = ((par[i] / WS) | 0) - ((i / WS) | 0); }
 }
 const vide = (x, y) => bAt(x, y) === 8;              // gouffre : on tombe au travers
 const eau = (x, y) => (hAt(x, y) <= SEA || eauAt(x, y) > 0) && !vide(x, y);
@@ -8995,7 +9011,7 @@ function majBiome(dt) {
   const x = P.x | 0, y = P.y | 0;
   // le sol sous les pieds — pas celui qu'on survole d'une île volante, ni le fond d'un lac ;
   // en l'air on garde le dernier, pour que la ligne du HUD ne clignote pas à chaque saut
-  if (P.ground) biomeIci = !eauAt(x, y) && Math.abs(P.z - hAt(x, y)) < .45 ? bAt(x, y) : 0;
+  if (P.ground) biomeIci = !profEau(x, y) && Math.abs(P.z - hAt(x, y)) < .45 ? bAt(x, y) : 0;   // (§243) ni la mer
   if (typeof roiIci === 'function' && roiIci()) biomeIci = 0;   // (§165) chez le Roi, le sol n'est d'aucun biome : ni découverte, ni braise qui brûle
   const R = rareDe(biomeIci);
   if ((biomeIci === 15 || biomeIci === 16) && !P.biomes.includes(15)) {
@@ -9116,7 +9132,7 @@ function voileNuit(g, fps) {
 
 function sol(x, y) { return hAt(x | 0, y | 0); }
 function bonBiome(sp, x, y) {
-  const h = hAt(x | 0, y | 0); return h > SEA && sp.bio.includes(bAt(x | 0, y | 0)); }
+  const h = hAt(x | 0, y | 0); return h > SEA && !profEau(x, y) && sp.bio.includes(bAt(x | 0, y | 0)); }   // (§243) pas au fond d'un lac
 function naitre(sp, x, y, age) {
   const b = { sp, x, y, z: sol(x, y), vx: 0, vy: 0, vz: 0, dir: Math.random() * 6.28, dirT: 0,
     faim: Math.random() * .4, soif: Math.random() * .3, nrj: .6 + Math.random() * .4, pv: 1,
@@ -10152,6 +10168,14 @@ function update(dt) {
   if (P.toile > t) SPD *= .3;
   if (typeof pacteVitesse === 'function') SPD *= pacteVitesse();   // (§164) les pactes de Fer et de Hâte                         // pris dans la toile de la Tisseuse
   if (!M && floreFreine(P.x, P.y, P.z)) SPD *= .72;   // les herbes hautes, les buissons, les roseaux (la monture les enjambe)
+  // (§243) L'EAU. Jusqu'aux hanches (la monture : sous le ventre), on y marche, freiné d'autant qu'elle monte ; au-delà, on
+  // nage : la tête et les épaules dehors, deux fois plus lentement, et l'on remonte sur la berge en y arrivant (elle ne doit
+  // pas dépasser l'eau de plus d'un demi-cube). Dans la mer du large, on nage au lieu de couler.
+  const seJ = surfEau(P.x, P.y), pJ = seJ ? seJ - hAt(P.x | 0, P.y | 0) : 0, gueJ = M ? .5 * Mt.sp.sz : .55;
+  const nageJ = pJ > gueJ && P.z < seJ + .25, flotJ = M ? .62 * Mt.sp.sz : .5;
+  P.nage = nageJ && P.z < seJ;
+  if (nageJ) SPD *= M ? .55 : .5;
+  else if (pJ > 0 && P.z < seJ) SPD *= 1 - .4 * Math.min(1, (seJ - P.z) / gueJ);
   if (P.anim && P.anim.k === 'recolte' && im > .3) { P.anim = null; annoncer('stop', 0); }               // on se remet en marche : le geste s'interrompt
   const glisse = biomeIci === 16 && P.ground && !M;     // l'huile : on accélère mal, on s'arrête plus mal encore
   const ACC = glisse ? 7 : 26, FRIC = glisse ? 1.6 : 20;
@@ -10174,6 +10198,10 @@ function update(dt) {
     if (P.englue > t) { if (axis === 'x') P.vx = 0; else P.vy = 0; return; }   // englué : cloué sur place
     if (MURS.length && murJoueur(P.x, P.y, nx, ny)) { if (axis === 'x') P.vx = 0; else P.vy = 0; return; }   // le rempart d'un campement
     if (SORTS_POSES.length && murSort(P.x, P.y, nx, ny, P.z, true)) { if (axis === 'x') P.vx = 0; else P.vy = 0; return; }   // le mur de sort d'un autre joueur
+    if (nx < 1.5 || ny < 1.5 || nx > WS - 1.5 || ny > WS - 1.5) { if (axis === 'x') P.vx = 0; else P.vy = 0; if (t - (P.largeT || 0) > 6) { P.largeT = t; say('le courant du large vous ramène', 1.6); } return; }   // (§243) le large
+    // (§243) dans l'eau, contre une berge basse : on y remonte
+    if (seJ && P.z < seJ + .1 && blockedAt(nx, ny, P.z) && !blockedAt(nx, ny, seJ + .25) && !corpsBarre(nx, ny)) {
+      const f2 = floorUnder(nx, ny, seJ + .6); if (f2 > -50) { P.z = f2; P.x = nx; P.y = ny; P.vz = 0; return; } }
     if (!blockedAt(nx, ny, P.z)) {                    // la flore se règle après, en glissant (repousserFlore)
       if (!corpsBarre(nx, ny) || P.fantome > t) { P.x = nx; P.y = ny; return; }   // (§206) la ruée fantôme traverse
       if (axis === 'x') P.vx = 0; else P.vy = 0; return;   // une bête : un obstacle, on glisse le long d'elle sur l'autre axe
@@ -10214,7 +10242,8 @@ function update(dt) {
   // --- vertical ---
   if (jumpQ) { P.buf = .14; jumpQ = false; }
   P.buf -= dt; P.coyote = P.ground ? .12 : P.coyote - dt;
-  if (P.buf > 0 && P.coyote > 0 && !(P.englue > t)) { P.vz = M ? M.saut : 6.6 * sautK(); P.buf = 0; P.coyote = 0; P.ground = false; P.saut2 = !M; burst(P.x, P.y, P.z, M ? 8 : 4, M ? '#d9b283' : '#cfd6e4'); }
+  if (P.buf > 0 && P.coyote > 0 && !(P.englue > t)) { const dO = P.nage;   // (§243) depuis l'eau : un coup de jambes, pas un saut
+    P.vz = dO ? (M ? 4.8 : 4.4) : M ? M.saut : 6.6 * sautK(); P.buf = 0; P.coyote = 0; P.ground = false; P.saut2 = !M && !dO; if (dO) { P.saut3 = false; eclabousser(P.x, P.y, seJ, .5); } else burst(P.x, P.y, P.z, M ? 8 : 4, M ? '#d9b283' : '#cfd6e4'); }
   // Second souffle en l'air : c'est lui qui ouvre le relief vertical. Un peu plus court que
   // le premier, et il repart de la vitesse courante — sauter au sommet de l'arc monte le plus
   // haut, sauter tard porte le plus loin.
@@ -10234,15 +10263,20 @@ function update(dt) {
   // d'une île volante on descend de plus d'un cube par image — bien au-delà de la tolérance
   // de 0,35 — si bien que le sol passait sous le radar et qu'on le traversait. Même défaut
   // que sur les flèches : un pas d'intégration trop gros pour la géométrie qu'il franchit.
-  const fl = Math.max(floorUnder(P.x, P.y, Math.max(z0, P.z)), P.monture ? -99 : floreSol(P.x, P.y, Math.max(z0, P.z)));   // les cubes, et le dessus des pierres
+  let fl = Math.max(floorUnder(P.x, P.y, Math.max(z0, P.z)), P.monture ? -99 : floreSol(P.x, P.y, Math.max(z0, P.z)));   // les cubes, et le dessus des pierres
+  const flE = pJ > gueJ ? seJ - flotJ + Math.sin(t * 2.1) * .025 : -99;   // (§243) l'eau porte
+  if (flE > fl) fl = flE;
   const wasAir = !P.ground;
   P.ground = false;
   if (P.vz <= 0 && P.z <= fl && fl > -50) {
-    if (wasAir && P.vz < -3) { P.land = 0.20; burst(P.x, P.y, P.z, 5, '#b9c2d6'); }
-    if (wasAir && !M && typeof donsAtterrir === 'function') donsAtterrir(P.vz);   // (§206) le choc, la faille
-    P.z = fl; P.vz = 0; P.ground = true; P.saut2 = true; P.saut3 = typeof donA === 'function' && donA('troisieme');
-    if (fl > SEA) P.sol = [P.x, P.y, fl];            // dernier sol sûr : on y revient après une chute
+    const dansL = fl === flE;
+    if (wasAir && P.vz < -3 && !dansL) { P.land = 0.20; burst(P.x, P.y, P.z, 5, '#b9c2d6'); }
+    if (wasAir && dansL && P.vz < -1.5) eclabousser(P.x, P.y, seJ, Math.min(1.6, .35 - P.vz * .1));   // (§243) on tombe dans l'eau
+    if (wasAir && !M && !dansL && typeof donsAtterrir === 'function') donsAtterrir(P.vz);   // (§206) le choc, la faille
+    P.z = fl; P.vz = 0; P.ground = true; P.saut2 = !dansL; P.saut3 = !dansL && typeof donA === 'function' && donA('troisieme');
+    if (fl > SEA && !pJ) P.sol = [P.x, P.y, fl];     // dernier sol sûr : on y revient après une chute (§243 : pas dans l'eau)
   }
+  eauJoueur(dt, seJ, pJ);
   if (P.land > 0) P.land = Math.max(0, P.land - dt * 4.5);
   if (P.z < -6) { respawn(); }
   P.bob += dt * (P.ground ? Math.hypot(P.vx, P.vy) * 1.6 : 0);
@@ -10378,9 +10412,9 @@ function colonnesVisibles() {
 }
 // Les masques d'arête, communs aux deux rendus. Les bits suivent le repère de l'image :
 // 1 = v0, 2 = v1, 4 = u0, 8 = u1. Dessus : un bord là où le voisin décroche.
-function masqueHaut(x, y, h) {
-  return (hRendu(x, y - 1) !== h ? 1 : 0) | (hRendu(x, y + 1) !== h ? 2 : 0)
-       | (hRendu(x - 1, y) !== h ? 4 : 0) | (hRendu(x + 1, y) !== h ? 8 : 0);
+function masqueHaut(x, y, h, hr = hRendu) {
+  return (hr(x, y - 1) !== h ? 1 : 0) | (hr(x, y + 1) !== h ? 2 : 0)
+       | (hr(x - 1, y) !== h ? 4 : 0) | (hr(x + 1, y) !== h ? 8 : 0);
 }
 // Limite de biome : seulement à plat, sinon elle brouillerait le voile d'arête du ressaut.
 function masqueBiome(x, y, h, bi) {
@@ -10389,12 +10423,12 @@ function masqueBiome(x, y, h, bi) {
   return (lim(0, -1) ? 1 : 0) | (lim(0, 1) ? 2 : 0) | (lim(-1, 0) ? 4 : 0) | (lim(1, 0) ? 8 : 0);
 }
 // Flanc : u court le long du pan et v monte — sommet et pied toujours, les bouts au besoin.
-function masqueFlanc(x, y, dx, dy, h) {
+function masqueFlanc(x, y, dx, dy, h, hr = hRendu) {
   let mc = 1 | 2;
   const bouts = dx !== 0 ? [[0, -1], [0, 1]] : [[-1, 0], [1, 0]];
   for (let e = 0; e < 2; e++) {
-    const [ex, ey] = bouts[e], hv = hRendu(x + ex, y + ey);
-    if (!(hv === h && hv > hRendu(x + ex + dx, y + ey + dy))) mc |= e === 0 ? 4 : 8;
+    const [ex, ey] = bouts[e], hv = hr(x + ex, y + ey);
+    if (!(hv === h && hv > hr(x + ex + dx, y + ey + dy))) mc |= e === 0 ? 4 : 8;
   }
   return mc;
 }
@@ -10402,7 +10436,8 @@ function masqueFlanc(x, y, dx, dy, h) {
 function emitColonne(x, y, view, out) {
   // L'eau douce se dessine comme la mer : la colonne monte jusqu'à sa surface et en prend les
   // couleurs. Le sol reste celui que hAt annonce à la physique — on marche donc dans l'eau.
-  const nap = eauAt(x, y);
+  // (§243) Le canvas de secours garde cette eau opaque ; la mer y monte à sa surface (MER_Z), comme sur la carte graphique.
+  const nap = surfEau(x, y);
   const h = nap || hAt(x, y), bi = nap ? (bAt(x, y) === BIO_BAIN ? BIO_BAIN : 0) : bAt(x, y), b = BIOME[bi];   // (§195) un bain brûlant garde sa couleur
   const tex = view === VIEW_ISO;              // la 1re personne est en perspective : pas de placage affine
   const dd = Math.hypot(x + .5 - P.x, y + .5 - P.y);
@@ -10772,12 +10807,13 @@ function heroBonesBase(J) {
   const HC = J.HC || HC_HERO;                          // la peau : celle du héros, ou d'un automate
   const spd = J.veille ? 0 : Math.min(1, Math.hypot(J.vx, J.vy) / 4.2);
   const air = !J.ground, up = J.vz > 0.4, down = J.vz < -0.4;
-  const ph = J.bob * 2.3;
+  const nage = !!J.nage && !J.selle;                   // (§243) à la nage : la brasse, ou l'on fait du surplace
+  const ph = nage ? t * (2 + spd * 2.6) : J.bob * 2.3;
   const br = Math.sin(t * 2.2) * 0.008 * (1 - spd);        // respiration au repos
   const land = Math.max(0, J.land || 0);
   const sq = 1 - land * 0.9, st = air ? 1.06 : 1;           // écrasement / étirement
   const bob = air ? 0 : -Math.abs(Math.sin(ph)) * 0.035 * spd;
-  const lean = spd * 0.30 + (air ? 0.12 : 0);
+  const lean = nage ? .3 + spd * .5 : spd * 0.30 + (air ? 0.12 : 0);
   const Z = k => (k + bob + br) * sq * st;
 
   const affaisse = J.veille ? 0.05 : 0;                // en veille, l'automate s'affaisse un peu
@@ -10788,6 +10824,7 @@ function heroBonesBase(J) {
     const hp = [hip[0], sd * (selle ? 0.13 : 0.068), hip[2]];
     let th, kn;
     if (selle) { th = 1.0; kn = 1.7; }
+    else if (nage) { th = -.45 + Math.sin(phase) * .3; kn = .25 + Math.max(0, Math.sin(phase + 1)) * .7; }
     else if (air) { th = up ? 0.75 : 0.25 + sd * 0.18; kn = up ? 1.25 : 0.45; }
     else { th = Math.sin(phase) * 0.95 * spd; kn = Math.max(0, -Math.sin(phase + 1.0)) * 1.35 * spd + 0.06; }
     const knee = v3.add(hp, [Math.sin(th) * 0.155, 0, -Math.cos(th) * 0.155]);
@@ -10801,6 +10838,7 @@ function heroBonesBase(J) {
     const sh = [neck[0], sd * 0.115, neck[2] - 0.02];
     let sa2, el;
     if (selle) { sa2 = 0.95; el = 0.35; }
+    else if (nage) { sa2 = 1.35 + Math.sin(ph) * .55; el = .15 + Math.max(0, -Math.sin(ph)) * .9; }
     else if (air) { sa2 = up ? -1.5 : -0.75; el = 0.55; }
     else { sa2 = Math.sin(phase) * 0.85 * spd; el = 0.28 + Math.max(0, Math.sin(phase)) * 0.55 * spd; }
     const elb = v3.add(sh, [Math.sin(sa2) * 0.125, sd * 0.012, -Math.cos(sa2) * 0.125]);
@@ -12144,13 +12182,82 @@ function dessinTisseuse(d, sp) {                          // le pictogramme
 //  d'atteinte, elle va au plus près et s'y tient, au lieu de piétiner contre la paroi. Rien ne se
 //  calcule tant qu'elle avance, ni quand la voie est libre (une bousculade n'est pas un relief).
 // ============================================================
+// ============================================================
+//  (§243) L'EAU, POUR UNE BÊTE
+//  Elle ne marchait que contre la mer : un lac, une rivière, elle y entrait comme sur l'herbe, y broutait le fond, y
+//  dormait. L'eau a maintenant une profondeur, et la bête une mesure : sous le ventre (la moitié de sa taille), elle passe à
+//  gué, plus lentement ; au-delà, elle nage, la tête et le dos hors de l'eau, à moitié de son allure. Au calme (elle erre,
+//  broute, dort, boit, suit son troupeau), elle n'y entre pas : elle longe la rive, ou prend un gué si c'est son chemin ;
+//  et si elle s'y trouve, elle en sort avant de faire quoi que ce soit d'autre. Elle ne nage que poussée : en fuite, en
+//  chasse, derrière vous — ou si elle est amphibie, et alors l'eau est chez elle.
+// ============================================================
+const gueBete = b => .5 * (b.sp.sz || 1);
+function eauBete(b, x, y) { const p = profEau(x, y); return p <= .05 ? 0 : p <= gueBete(b) ? 1 : 2; }   // 0 : au sec · 1 : à gué · 2 : à la nage
+const hNage = (x, y) => Math.floor(surfEau(x, y) + .01);    // à la nage, on se tient au niveau de la rive
+const hPasBete = (b, x, y) => eauBete(b, x, y) === 2 ? hNage(x, y) : hAt(x | 0, y | 0);
+const ETATS_CALMES = new Set(['errer', 'troupeau', 'brouter', 'dormir', 'curieux', 'boire', 'quête', 'suivre sa mère', 'repos', 'garder', 'patrouiller', 'récolter', 'enfoui']);
+const amphibie = b => !!(b.sp.orvane && b.sp.orvane.amphibie);
+const auCalme = b => ETATS_CALMES.has(b.etat) && !amphibie(b);
+function nageOk(b) { return !auCalme(b) || eauBete(b, b.x, b.y) === 2; }   // poussée, amphibie, ou déjà à l'eau (elle en sort)
+let NAV_CHEMIN = false;                                    // cheminNav cherche : un gué est un chemin comme un autre
+// La rive la plus proche : une case sèche, à sa hauteur (ou à un pas), où sortir de l'eau. Gardée deux secondes.
+function riveBete(b) {
+  if (b.rive && b.t < b.rive[2]) return b.rive;
+  const cx = b.x | 0, cy = b.y | 0, h0 = hPasBete(b, b.x, b.y);
+  let best = null, bd = 1e9;
+  for (let r = 1; r <= 9 && !best; r++) for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) {
+    if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+    const x = cx + dx, y = cy + dy; if (x < 3 || y < 3 || x >= WS - 3 || y >= WS - 3) continue;
+    const h = hAt(x, y); if (h <= SEA || profEau(x, y) || PlT[y * WS + x] || bAt(x, y) === 8 || Math.abs(h - h0) > Math.max(1, b.sp.bond || 0) + 1) continue;
+    const d = dx * dx + dy * dy + Math.abs(h - h0) * 2; if (d < bd) { bd = d; best = [x + .5, y + .5, b.t + 2]; }
+  }
+  return (b.rive = best);
+}
+// Les éclaboussures : un rond qui s'élargit sur l'eau, des gouttes ; un plouf si c'est près de vous.
+const RONDS = [];
+let EAU_CLAIRE = false;                                  // (§243) la carte graphique dessine l'eau translucide : on voit dessous
+function rondEau(x, y, z, r, a, v) { if (RONDS.length < 90) RONDS.push({ x, y, z, r0: r, v: v || 1.1, a, t0: t, vie: 1.3 + r * .6 }); }
+function eclabousser(x, y, z, k) {
+  rondEau(x, y, z, .25 + .25 * k, .55); if (k > .6) rondEau(x, y, z, .1, .4, .7);
+  const n = Math.round(4 + k * 10);
+  for (let i = 0; i < n; i++) { const a = Math.random() * 6.2832, v = (.5 + Math.random()) * (.6 + k * .9);
+    parts.push({ x: x + Math.cos(a) * .15, y: y + Math.sin(a) * .15, z: z + .02, vx: Math.cos(a) * v, vy: Math.sin(a) * v, vz: 1.4 + Math.random() * 2.2 * (.5 + k), life: .4 + Math.random() * .35, age: 0, col: Math.random() < .4 ? '#ffffff' : '#cfe8f6' }); }
+  if (k > .25 && (x - P.x) ** 2 + (y - P.y) ** 2 < 400) SON.jouer('plouf', {}, x, y, z);
+}
+// Le joueur dans l'eau : il y entre en éclaboussant, nage en laissant un sillage, et le gué gicle sous ses pas.
+function eauJoueur(dt, se, p) {
+  const dans = se && P.z < se + .05 ? (p > .55 ? 2 : 1) : 0, v = Math.hypot(P.vx, P.vy);
+  if (dans && !P.mouille && P.ground) eclabousser(P.x, P.y, se, Math.min(1, .35 + v * .1));
+  P.mouille = dans;
+  if (!dans || (P.sillT = (P.sillT || 0) - dt) > 0) return;
+  P.sillT = dans === 2 ? (v > .5 ? .28 : 1.1) : (v > .5 ? .3 : 9);
+  rondEau(P.x - P.vx * .05, P.y - P.vy * .05, se, dans === 2 ? .28 : .18, dans === 2 ? .5 : .32, v > .5 ? 1.3 : .7);
+  if (v > .5) for (let i = 0; i < (dans === 2 ? 3 : 2); i++) parts.push({ x: P.x + (Math.random() - .5) * .3, y: P.y + (Math.random() - .5) * .3, z: se + .02, vx: (Math.random() - .5) * 1.2 + P.vx * .2, vy: (Math.random() - .5) * 1.2 + P.vy * .2, vz: .8 + Math.random() * 1.3, life: .35, age: 0, col: '#e2f2fa' });
+}
+// Dans l'eau : elle s'y annonce en entrant, laisse des ronds en nageant, des gouttes en passant le gué.
+function eauSillage(b, dt, se, vz0) {
+  const e = se && b.z < se + .15 ? eauBete(b, b.x, b.y) : 0, v = Math.hypot(b.vx || 0, b.vy || 0), k = b.sp.sz || 1;
+  if (e && !b.mouille && b.t > .5) eclabousser(b.x, b.y, se, Math.min(1.4, .3 + v * .12 + Math.max(0, -(vz0 || 0)) * .14) * Math.min(1.3, k));
+  b.mouille = e;
+  if (!e || (b.x - P.x) ** 2 + (b.y - P.y) ** 2 > 900) return;
+  if ((b.sillT = (b.sillT || 0) - dt) > 0) return;
+  b.sillT = e === 2 ? (v > .3 ? .32 : 1.4) : (v > .3 ? .45 : 9);
+  rondEau(b.x - Math.cos(b.dir) * .2 * k, b.y - Math.sin(b.dir) * .2 * k, se, .2 * k, e === 2 ? .45 : .3, e === 2 && v > .3 ? 1.3 : .8);
+  if (e === 1 && v > .3) for (let i = 0; i < 2; i++) parts.push({ x: b.x + (Math.random() - .5) * .3 * k, y: b.y + (Math.random() - .5) * .3 * k, z: se, vx: (Math.random() - .5) * .8, vy: (Math.random() - .5) * .8, vz: 1 + Math.random(), life: .35, age: 0, col: '#d8eef8' });
+}
 const NAV_R = 18, NAV_N = NAV_R * 2 + 1;
 const navCout = new Float32Array(NAV_N * NAV_N), navDe = new Int32Array(NAV_N * NAV_N);
 const NAV_DIRS = [[1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1], [1, 1, 1.414], [1, -1, 1.414], [-1, 1, 1.414], [-1, -1, 1.414]];
 function navPeut(b, x1, y1, x2, y2) {                    // un pas d'une case à sa voisine, à la mesure de la bête
   if (x2 < 1 || y2 < 1 || x2 >= WS - 1 || y2 >= WS - 1) return false;
-  const h2 = hAt(x2, y2); if (h2 <= SEA || PlT[y2 * WS + x2]) return false;
-  const d = h2 - hAt(x1, y1);
+  if (PlT[y2 * WS + x2]) return false;
+  // (§243) l'eau : un gué, si c'est le chemin ; la nage, seulement poussée. En ligne droite, la bête au calme ne s'y
+  // jette pas : c'est au chemin cherché (cheminNav) de passer le gué
+  const e2 = eauBete(b, x2 + .5, y2 + .5), e1 = eauBete(b, x1 + .5, y1 + .5);
+  if (e2 === 2 && !nageOk(b)) return false;
+  if (e2 && !e1 && auCalme(b) && !NAV_CHEMIN) return false;
+  const h2 = e2 === 2 ? hNage(x2, y2) : hAt(x2, y2); if (h2 <= SEA && !e2) return false;
+  const d = h2 - (e1 === 2 ? hNage(x1, y1) : hAt(x1, y1));
   if (Math.abs(d) <= Math.max(1, b.sp.bond || 0)) return true;
   if (b.sp.monture && d < 0 && d >= -3) return true;
   return (b.sp.grimpe || 0) > 0;
@@ -12172,6 +12279,10 @@ function ligneLibre(b, tx, ty) {                          // la ligne droite pas
 // Dijkstra sur les cases autour de la bête ; rend le chemin vers la case la plus proche du but
 // (le but lui-même s'il est à portée), et à quelle distance du but il s'arrête.
 function cheminNav(b, tx, ty) {
+  NAV_CHEMIN = true;
+  try { return cheminNav0(b, tx, ty); } finally { NAV_CHEMIN = false; }
+}
+function cheminNav0(b, tx, ty) {
   const ox = (b.x | 0) - NAV_R, oy = (b.y | 0) - NAV_R, s0 = NAV_R * NAV_N + NAV_R;
   navCout.fill(1e9); navDe.fill(-1); navCout[s0] = 0;
   const tas = [[0, s0]];
@@ -12189,7 +12300,8 @@ function cheminNav(b, tx, ty) {
       const nlx = lx + dx, nly = ly + dy; if (nlx < 0 || nly < 0 || nlx >= NAV_N || nly >= NAV_N) continue;
       const nx = x + dx, ny = y + dy;
       if (dx && dy ? !navDiag(b, x, y, nx, ny) : !navPeut(b, x, y, nx, ny)) continue;
-      const dh = Math.abs(hAt(nx, ny) - hAt(x, y)), cout = c + w + (dh > 1 ? dh * 1.5 : dh * .3);   // les parois coûtent
+      const e = eauBete(b, nx + .5, ny + .5), dh = Math.abs(hPasBete(b, nx + .5, ny + .5) - hPasBete(b, x + .5, y + .5));
+      const cout = c + w + (dh > 1 ? dh * 1.5 : dh * .3) + (e === 2 ? 3.5 : e ? 1.2 : 0);   // les parois coûtent ; (§243) l'eau aussi
       const nk = nly * NAV_N + nlx; if (cout < navCout[nk]) { navCout[nk] = cout; navDe[nk] = k; pousse([cout, nk]); }
     }
   }
@@ -12230,14 +12342,19 @@ function pasVersBete(b, tx, ty, vit, dt) {
     tx = via[0]; ty = via[1];
   }
   let dx = tx - b.x, dy = ty - b.y; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
-  const h = hAt(b.x | 0, b.y | 0);
+  const e0 = eauBete(b, b.x, b.y), h = e0 === 2 ? hNage(b.x, b.y) : hAt(b.x | 0, b.y | 0);
+  // (§243) l'eau freine : au gué, d'autant plus qu'elle monte ; à la nage, de moitié (une amphibie y est à son aise)
+  if (e0) vit *= e0 === 2 ? (amphibie(b) ? .85 : .5) : 1 - .35 * Math.min(1, profEau(b.x, b.y) / gueBete(b));
   // Une paroi ne l'arrête plus : elle la gravira (voir LES PAROIS). Restent l'eau et le vide —
   // et, juste après une traversée, la paroi qu'elle vient de quitter, qu'elle longe un instant.
   // Une bête qui ne grimpe pas — automate, monture — voit la paroi comme l'eau : elle la longe.
   // Et la falaise aussi : elle ne s'y jette pas, sauf une monture, qui saute trois cubes en contrebas.
   const grimpe = (b.sp.grimpe || 0) > 0 && b.t >= (b.murPause || 0);
   const libre = (ux, uy) => { if (MURS.length && murBetePas(b, b.x, b.y, b.x + ux * .8, b.y + uy * .8)) return false;   // (§150) le rempart : elle le longe
-    const hn = hAt((b.x + ux * .8) | 0, (b.y + uy * .8) | 0); return hn > SEA && (grimpe || enjambe(b, h, hn)) || (!!b.sp.sauteur && !!sautPossible(b, ux, uy, h)); };
+    // (§243) l'eau : au calme et au sec, elle ne s'y avance pas (sauf sur le chemin d'un détour, qui passe un gué) ; la nage, poussée
+    const qx = b.x + ux * .8, qy = b.y + uy * .8, e = eauBete(b, qx, qy);
+    if (e && ((!e0 && !via && auCalme(b)) || (e === 2 && !nageOk(b)))) return false;
+    const hn = e === 2 ? hNage(qx, qy) : hAt(qx | 0, qy | 0); return (hn > SEA || e > 0) && (grimpe || enjambe(b, h, hn)) || (!!b.sp.sauteur && !!sautPossible(b, ux, uy, h)); };
   if (!libre(dx, dy)) {
     // Falaise ou eau : on longe. Le côté de l'esquive se tirait de la parité de la position —
     // il changeait tous les vingtièmes de case, si bien que la bête hésitait sur place au lieu
@@ -12287,7 +12404,7 @@ const CarteEau = new Uint16Array(WS * WS);
 // des pas d'un cube au plus, sans paroi. Sinon la pente de l'eau le menait au bord d'une marche
 // qu'il ne descend pas, et il piétinait là, l'eau en vue.
 const CarteEauM = new Uint16Array(WS * WS);
-const marchable = (x, y) => hAt(x, y) > SEA;          // l'eau et le vide sont sous ce niveau
+const marchable = (x, y) => hAt(x, y) > SEA && !(Eau[y * WS + x] > Hgt[y * WS + x]);   // l'eau et le vide sont sous ce niveau ; (§243) le fond d'un lac aussi
 const coutPas = (h1, h2) => { const dh = Math.abs(h2 - h1); return dh <= 1 ? 1 : 1 + Math.ceil(dh * 1.6); };
 function calcCarteEau() {
   const D = CarteEau.fill(EAU_LOIN), NB = 64;          // NB dépasse le plus cher des pas (41)
@@ -12500,9 +12617,16 @@ function chute(b, dt) {
     if (b.bondL && (t > L.fin || (b.vz <= 0 && b.z <= sol(b.x, b.y) + .02))) b.bondL = null;
   }
   if (b.surDalle && !(b.tache && b.tache.dalle && plaT(b.x | 0, b.y | 0) === b.surDalle)) descendreDalle(b);
-  const gs = b.surDalle || sol(b.x, b.y);
-  if (b.z > gs + .05 || b.vz > 0) { b.vz -= 22 * dt; b.z += b.vz * dt; if (b.z <= gs && b.vz <= 0) { b.z = gs; b.vz = 0; } }
+  let gs = b.surDalle || sol(b.x, b.y); const vz0 = b.vz || 0;
+  // (§243) à la nage, l'eau la porte : le dos et la tête dehors, qui se balancent ; elle s'y enfonce doucement, et une
+  // chute s'y amortit. Morte, elle flotte.
+  const se = b.surDalle ? 0 : surfEau(b.x, b.y), k = b.sp.sz || 1;
+  b.nage = !!se && se - gs > gueBete(b);
+  if (b.nage) gs = Math.max(gs, se - (b.dead ? .35 : .62) * k + Math.sin(b.t * 2.1 + (b.bob || 0)) * .025 * k);
+  if (b.nage && b.z < se + .1 && b.vz <= 0) { b.vz = 0; b.z += (gs - b.z) * Math.min(1, dt * (b.z > gs ? 2.5 : 4)); }
+  else if (b.z > gs + .05 || b.vz > 0) { b.vz -= 22 * dt; b.z += b.vz * dt; if (b.z <= gs && b.vz <= 0) { b.z = gs; b.vz = 0; } }
   else { b.z += (gs - b.z) * Math.min(1, dt * 9); b.vz = 0; }
+  eauSillage(b, dt, se, vz0);
   if (b.tang) { b.tang *= Math.max(0, 1 - dt * 5); if (Math.abs(b.tang) < .02) b.tang = 0; }
 }
 // Le centre du corps, et l'épreuve d'un point contre lui : une flèche doit toucher la bête
@@ -12542,16 +12666,19 @@ function pasBete(b, nx, ny, grimpe, glisse) {
   if (ei !== ci) fx = ((dex > 0 ? ci + 1 : ci) - x0) / dex;
   if (ej !== cj) fy = ((dey > 0 ? cj + 1 : cj) - y0) / dey;
   const ordre = fx <= fy ? [0, 1] : [1, 0];
-  let i = ci, j = cj, h = hAt(ci, cj);
+  let i = ci, j = cj, h = hPasBete(b, ci + .5, cj + .5);
   const fPas = ls / tot;                                // au-delà : le regard seul, pas le pas
+  const nOk = nageOk(b);
   for (const ax of ordre) {
     const f = ax ? fy : fx;
     if (f > 1) break;
-    const i2 = ax ? i : ei, j2 = ax ? ej : j, h2 = hAt(i2, j2), dansPas = f <= fPas;
+    // (§243) l'eau a sa hauteur : à la nage, celle de la rive ; à gué, le fond. Nager, il faut y être poussée
+    const i2 = ax ? i : ei, j2 = ax ? ej : j, e2 = eauBete(b, i2 + .5, j2 + .5), h2 = e2 === 2 ? hNage(i2, j2) : hAt(i2, j2), dansPas = f <= fPas;
+    if (e2 === 2 && !nOk) { if (dansPas) return 0; break; }
     if (b.sp.sauteur && dansPas && !grimpe && (h2 <= SEA || h - h2 > Math.max(1, b.sp.bond || 0) + .5) && b.z <= sol(b.x, b.y) + .1) {   // (§147) par-dessus le trou
       const L = sautPossible(b, sx / ls, sy / ls, h); if (L) { bondir(b, L); return 1; }
     }
-    if (h2 <= SEA) { if (dansPas) return 0; break; }     // l'eau, le vide : refusé si le pas y entre
+    if (h2 <= SEA && !e2) { if (dansPas) return 0; break; }   // le vide (et la mer d'avant §243) : refusé si le pas y entre
     if (Math.abs(h2 - h) > 1) {
       const monte = h2 > h;
       if (!monte && !dansPas) break;                     // le bord d'une descente n'est pas atteint
@@ -14080,7 +14207,7 @@ function majBete(b, dt) {
     else {
       const f = b.mur ? 0
         : sp.volcan ? (sp.bio.includes(bAt(b.x | 0, b.y | 0)) ? (sp.diet === 'h' ? .7 : .45) : .05)   // (§198) la faune du volcan vit de sa cendre
-        : BIOME[bAt(b.x | 0, b.y | 0)].food;
+        : profEau(b.x, b.y) > 0 ? 0 : BIOME[bAt(b.x | 0, b.y | 0)].food;   // (§243) le fond d'un lac ne se broute pas
       if (f > .15) { b.faim = Math.max(0, b.faim - dt * .30 * f); vit *= .25; b.brouteVain = 0; }
       else if (b.tame) {                                // une compagne cherche l'herbe près d'elle, sans s'égarer
         const h = herbePres(b);
@@ -14144,7 +14271,9 @@ function majBete(b, dt) {
     for (const o of beasts) if (o.sp === sp && o !== b && !o.dead) { const ex = b.x - o.x, ey = b.y - o.y, d2 = ex * ex + ey * ey; if (d2 >= 300) continue;
       cx += o.x; cy += o.y; n++; const rs = (rb + rayonCorps(o)) * 1.9; if (d2 < rs * rs) { const d = Math.sqrt(d2) || .01; sx += ex / d * (rs - d); sy += ey / d * (rs - d); } }
     if (n) {
-      if (!b.trO || b.t > (b.trT || 0)) { const a = Math.random() * 6.2832, r = 1.2 + Math.random() * (2 + Math.sqrt(n)); b.trO = [Math.cos(a) * r, Math.sin(a) * r]; b.trT = b.t + 4 + Math.random() * 6; }
+      if (!b.trO || b.t > (b.trT || 0)) for (let k = 0; k < 4; k++) {   // (§243) une place au sec
+        const a = Math.random() * 6.2832, r = 1.2 + Math.random() * (2 + Math.sqrt(n)); b.trO = [Math.cos(a) * r, Math.sin(a) * r]; b.trT = b.t + 4 + Math.random() * 6;
+        if (amphibie(b) || !profEau(cx / n + b.trO[0], cy / n + b.trO[1])) break; }
       tx = cx / n + b.trO[0] + sx * 1.5; ty = cy / n + b.trO[1] + sy * 1.5;
       const d0 = Math.hypot(tx - b.x, ty - b.y);
       if (d0 < .9 && sx * sx + sy * sy < .02) vit = 0; else vit *= d0 > 6 ? .65 : .4;
@@ -14154,10 +14283,16 @@ function majBete(b, dt) {
   if (etat === 'errer') {
     // (§242) un cap tenu deux à cinq secondes (il changeait toutes les demi-secondes : elle zigzaguait), et des haltes pour regarder
     if (!(b.t < (b._wT || 0))) { b._wT = b.t + 2 + Math.random() * 3; b._wA = b.dir + (Math.random() - .5) * 1.3; b._wH = Math.random() < .3 ? b.t + 1.2 + Math.random() * 2 : 0;
-      if (Math.hypot(b.x - b.home[0], b.y - b.home[1]) > 45) { b._wA = Math.atan2(b.home[1] - b.y, b.home[0] - b.x); b._wH = 0; } }
+      if (Math.hypot(b.x - b.home[0], b.y - b.home[1]) > 45) { b._wA = Math.atan2(b.home[1] - b.y, b.home[0] - b.x); b._wH = 0; }
+      // (§243) l'eau devant : elle prend un autre cap (une amphibie, non)
+      for (let k = 0; k < 4 && !amphibie(b); k++) { const ok = [1.5, 3].every(r => !profEau(b.x + Math.cos(b._wA) * r, b.y + Math.sin(b._wA) * r)); if (ok) break; b._wA += Math.PI * (.55 + Math.random() * .9); } }
     tx = b.x + Math.cos(b._wA ?? b.dir) * 9; ty = b.y + Math.sin(b._wA ?? b.dir) * 9; vit *= b._wH > b.t ? 0 : .5;
   }
 
+  // (§243) au calme dans l'eau (à la nage, ou couchée, ou broutant dans un gué) : elle en sort d'abord, vers la rive la plus proche
+  if (!b.mur && !b.as && auCalme(b)) { const e0 = eauBete(b, b.x, b.y);
+    if (e0 === 2 || (e0 === 1 && etat !== 'boire')) { const r = riveBete(b);
+      if (r) { tx = r[0]; ty = r[1]; vit = Math.max(vit, sp.spd * .8); sprint = Math.max(sprint, 1.3); if (etat === 'dormir' || etat === 'brouter' || etat === 'repos' || etat === 'enfoui') etat = b.etat = 'errer'; } } }
   if (doux(sp)) { const r = instinctDoux(b, etat, tx, ty, vit, men, dM, dt); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
   if (typeof vyrelVit === 'function') vit *= vyrelVit(b);   // (§184) malade du Vyrel : un peu plus lente
   if (typeof conduitesVit === 'function') vit *= conduitesVit(b, etat);   // (§211) longues pattes, métabolisme lent
@@ -14217,7 +14352,7 @@ function majBete(b, dt) {
       // Le petit ne naît jamais au-dessus d'un gouffre : il y tomberait, et le vide n'a pas de
       // paroi où se reprendre.
       let nx = b.x + (Math.random() - .5) * 2, ny = b.y + (Math.random() - .5) * 2;
-      if (hAt(nx | 0, ny | 0) <= SEA) { nx = b.x; ny = b.y; }
+      if (hAt(nx | 0, ny | 0) <= SEA || profEau(nx, ny)) { nx = b.x; ny = b.y; }   // (§243) ni dans l'eau
       const petit = naitre(sp, nx, ny, 0);
       if (doux(sp)) { petit.mere = b; petit.home = b.home.slice(); }                    // un petit Doux suit sa mère
       petit.variante = tirerVariante(sp); if (typeof orvaneNaissance === 'function') orvaneNaissance(petit, b);   // (§213) il tient de sa mère
@@ -14804,7 +14939,7 @@ function herbePres(b) {
   const cx = b.x | 0, cy = b.y | 0, h0 = hAt(cx, cy);
   for (let dy = -10; dy <= 10; dy += 2) for (let dx = -10; dx <= 10; dx += 2) {
     const x = cx + dx, y = cy + dy, h = hAt(x, y);
-    if (h <= SEA || Math.abs(h - h0) > 6 || PlT[y * WS + x] || BIOME[bAt(x, y)].food < .5) continue;
+    if (h <= SEA || Math.abs(h - h0) > 6 || PlT[y * WS + x] || BIOME[bAt(x, y)].food < .5 || profEau(x, y)) continue;   // (§243) ni sous l'eau
     const A = ancre(b);
     const d = dx * dx + dy * dy + (A ? ((x - A.x) ** 2 + (y - A.y) ** 2) * .3 : 0) + Math.abs(h - h0) * 4;
     if (d < bd) { bd = d; best = [x + .5, y + .5]; }
@@ -16077,7 +16212,7 @@ function pecheDecor(ex, ey, r) {
   for (const o of Ombres.concat(ombresLoin())) {
     if ((o.x - ex) ** 2 + (o.y - ey) ** 2 > r * r) continue;
     const [lg, lr] = OMBRE[o.sp.taille], k = .8 + .4 * (o.cm - o.sp.cm[0]) / (o.sp.cm[1] - o.sp.cm[0]);
-    const ux = Math.cos(o.dir), uy = Math.sin(o.dir), z = hRendu(o.x, o.y) + .03, C = [24, 42, 64];
+    const ux = Math.cos(o.dir), uy = Math.sin(o.dir), z = hRendu(o.x, o.y) + (EAU_CLAIRE ? -Math.min(.32, profEau(o.x, o.y) * .45) : .03), C = [24, 42, 64];   // (§243) sous la surface, quand on la voit au travers
     const Lg = lg * k, W = lr * k, ond = Math.sin(t * (o.etat === 'fuit' ? 18 : 6) + o.age * 3) * .06 * Lg;
     const pt = (f, w) => [o.x + ux * Lg * f - uy * w, o.y + uy * Lg * f + ux * w, z];
     const seg = (f0, f1, w, w0 = 0, w1 = 0) => L.push({ a: pt(f0, w0), b: pt(f1, w1), w, h: .012, c: C });
@@ -21220,6 +21355,8 @@ for (let m = 1; m < 16; m++) BORD[m] = motif(0, (px, py) => {
 TEX.abime = motif(9, (x, y, h) => h < .13 ? [.11] : h > .97 ? [-.5] : null);
 const raie = y => y === 0;
 TEX.terreM = motif(3, (x, y, h) => raie(y) ? [-.32] : h < .34 ? [-.24] : h > .92 ? [.09] : null);
+TEX.galets = motif(81, (x, y, h) => { const c = hachCell((x >> 2) * 7 + 3, (y >> 2) * 5 + 11), dx = (x & 3) - 1.5, dy = (y & 3) - 1.5, r = dx * dx + dy * dy;   // (§243) le lit d'une rivière, d'un lac
+  return c > .45 && r < 2.6 ? [r < 1 ? .2 : .1] : c > .45 && r < 4.6 ? [-.22] : h < .2 ? [-.14] : null; });
 TEX.rocheM = motif(4, (x, y, h) => raie(y) ? [-.32] : (y % 5 === 0 && h < .7) ? [-.17] : h < .16 ? [-.13] : h > .95 ? [.08] : null);
 TEX.sableM = motif(5, (x, y, h) => raie(y) ? [-.28] : h < .22 ? [-.11] : h > .90 ? [.09] : null);
 // Les sols des biomes rares. Même principe : du noir et du blanc transparents sur l'aplat.
@@ -21334,6 +21471,7 @@ function draw() {
   g.imageSmoothingEnabled = false;                     // le pixel doit rester carré
   const glIso = mode === 'iso' && isoGL;
   const glVu = (mode === 'fps' || glIso) && G3.ok && !G3.perdu;
+  EAU_CLAIRE = glVu;                                  // (§243) l'eau translucide : la carte graphique seule
   if (cv3.__vu !== glVu) { cv3.style.display = glVu ? 'block' : 'none'; cv3.__vu = glVu; }
   majFeux();
   if (mode === 'fps') {
@@ -22861,6 +22999,113 @@ void main() {
   c = mix(c, uBrume, fb);
   o = vec4(achromie(nocturne(c, vW) + lu * (1.0 - fb), vW), 1.0);
 }`;
+  // (§243) L'EAU : une nappe translucide, posée sur le fond. Sa couleur vient de sa profondeur (turquoise sur les hauts-fonds,
+  // bleu nuit au large ; plus verte en eau douce, laiteuse dans un bain du volcan) et sa transparence aussi : on voit le sable,
+  // les galets, les pattes d'une bête qui passe le gué. Elle bouge : deux houles de bruit, au grain du décor (seize texels par
+  // cube), qui filent vers l'aval dans une rivière. Elle renvoie le ciel (davantage à mesure qu'on la regarde de biais) et le
+  // soleil en éclats ; l'écume borde les rives et le pied des chutes ; un flanc d'eau est une cascade qui tombe. La nuit, la
+  // brume, l'Achromie et l'île démoniaque (où elle devient lave, opaque) la traitent comme le décor.
+  const EAU_VS = `#version 300 es
+layout(location=0) in vec3 aP;
+layout(location=1) in vec3 aC;
+layout(location=2) in vec2 aT;
+layout(location=3) in float aK;
+layout(location=4) in float aF;
+layout(location=5) in vec2 aS;
+uniform mat4 uM;
+out vec3 vW; out float vD; out vec2 vFl; out float vR; out float vV; out float vHor;
+flat out int vG; flat out int vCote; flat out int vB;
+void main() {
+  vW = aP; vD = aC.x; vFl = aC.yz; vR = aT.x; vV = aT.y;
+  vG = int(aK + 0.5); int f = int(aF + 0.5); vCote = f % 2; vHor = float(f / 2) / 64.0; vB = int(aS.y + 0.5);
+  gl_Position = uM * vec4(aP, 1.0);
+}`;
+  const EAU_FS = `#version 300 es
+precision highp float;
+precision highp int;
+in vec3 vW; in float vD; in vec2 vFl; in float vR; in float vV; in float vHor;
+flat in int vG; flat in int vCote; flat in int vB;
+uniform vec3 uOeil, uBrume, uBr;
+uniform vec2 uLum;
+uniform vec4 uVoile;
+uniform vec2 uIso;
+uniform vec2 uSoleil;
+uniform vec4 uSol;      // la direction de l'astre (xyz), son éclat (w)
+uniform vec4 uVue;      // en isométrie : la direction de l'œil (xyz) ; w = 1
+out vec4 o;
+${NUIT_GLSL}
+${GRIS_GLSL}
+${ENFER_GLSL}
+float houle(vec2 p, float tm) { return nEnf(p * 1.15 + vec2(tm * 0.23, -tm * 0.19)) * 0.62 + nEnf(p * 2.9 - vec2(tm * 0.31, tm * 0.26) + 7.0) * 0.38; }
+float kmEnf(vec3 w) {
+  if (uEnf.w <= 0.0) return 0.0;
+  float fr = uEnf.z - distance(w.xy, uEnf.xy);
+  if (fr < -2.0) return 0.0;
+  float re = smoothstep(0.0, 0.15, (uEnf2.y - 0.5) / 0.3 - hEnf(floor(w.xy) + 0.37) * 0.85);
+  return uEnf.w * smoothstep(-2.0, 0.5, fr) * (1.0 - re);
+}
+void main() {
+  float tm = uEnf2.x;
+  float dz = uIso.x > .5 ? distance(vW.xy, uOeil.xy) : distance(vW, uOeil);
+  float f = clamp((dz - uBr.x) / (uBr.y - uBr.x), 0.0, 1.0);
+  f = uIso.x > .5 ? f * 0.72 : f * (1.6 - 0.6 * f);
+  float jour = smoothstep(vHor - .10, vHor + .10, uSoleil.x);
+  vec3 V = uVue.w > 0.5 ? uVue.xyz : normalize(uOeil - vW);
+  vec3 c; float a;
+  if (vCote == 1) {                                   // une cascade : l'eau tombe, blanchit, écume au pied
+    vec2 g = floor(vec2(vW.x + vW.y, vW.z) * 16.0) / 16.0;
+    float s1 = nEnf(vec2(g.x * 3.2, g.y * 0.7 + tm * 3.0)), s2 = nEnf(vec2(g.x * 6.5 + 3.0, g.y * 1.4 + tm * 4.4));
+    float bl = smoothstep(0.30, 0.72, s1 * 0.6 + s2 * 0.4);   // des filets d'eau qui tombent, blanchis
+    c = mix(vec3(0.40, 0.66, 0.80), vec3(0.93, 0.97, 1.0), bl);
+    float pied = 1.0 - smoothstep(0.0, 0.5, vV);
+    c = mix(c, vec3(0.96, 0.98, 1.0), pied * 0.85);
+    a = 0.80 + 0.16 * bl + 0.04 * pied;
+  } else {
+    float d = max(vD, 0.0), k = 1.0 - exp(-min(d, 3.0) * 1.35);
+    vec3 peu = vG == 0 ? vec3(0.27, 0.66, 0.70) : vG == 3 ? vec3(0.64, 0.86, 0.82) : vec3(0.20, 0.52, 0.52);
+    vec3 fond = vG == 0 ? vec3(0.05, 0.19, 0.36) : vG == 3 ? vec3(0.36, 0.64, 0.66) : vec3(0.04, 0.17, 0.25);
+    c = mix(peu, fond, k);
+    a = mix(0.26, 1.0, 1.0 - exp(-d * 1.15));
+    vec2 q = floor(vW.xy * 16.0 + 0.001) / 16.0;      // au grain du décor
+    float vf = length(vFl);
+    vec2 dv = vG == 2 ? vFl * tm * 0.9 : vec2(0.0);   // une rivière file vers l'aval
+    vec2 p = q - dv;
+    float amp = vG == 0 ? 2.2 : vG == 2 ? 2.6 : vG == 3 ? 0.8 : 1.3;
+    float h0 = houle(p, tm), hx = houle(p + vec2(0.0625, 0.0), tm), hy = houle(p + vec2(0.0, 0.0625), tm);
+    vec3 n = normalize(vec3((h0 - hx) * amp * 4.0, (h0 - hy) * amp * 4.0, 1.0));
+    // le ciel s'y reflète, d'autant plus qu'on la regarde de biais ; le soleil y jette ses éclats
+    float fr = 0.02 + 0.98 * pow(1.0 - clamp(dot(n, V), 0.0, 1.0), 5.0);
+    c = mix(c, uBrume * 0.92 + vec3(0.0, 0.02, 0.05), clamp(fr * 0.75, 0.0, 0.6));
+    float crete = smoothstep(0.60, 0.68, h0);
+    c += vec3(0.08, 0.10, 0.11) * crete;
+    vec3 R = reflect(-uSol.xyz, n);
+    float sp = pow(max(dot(R, V), 0.0), 120.0) * uSol.w * jour;
+    sp = smoothstep(0.35, 0.7, sp) * smoothstep(0.42, 0.58, h0);   // des éclats nets, comme un pixel de lumière, sur les crêtes
+    // les reflets du soleil dansent au fond des hauts-fonds
+    float ca = pow(1.0 - abs(nEnf(p * 2.3 + vec2(tm * 0.37, tm * 0.29)) - 0.5) * 2.0, 7.0) * (1.0 - k) * (vG == 3 ? 0.4 : 1.0);
+    c += vec3(0.85, 0.95, 0.9) * ca * 0.16 * jour;
+    // l'écume : le long des rives, qui va et vient ; au pied des chutes ; dans les rapides
+    vec2 l = fract(q + 0.0001);                       // où l'on est dans la case : la distance au bord où l'eau s'arrête
+    float db = 1.0;
+    if ((vB & 1) != 0) db = min(db, l.y); if ((vB & 2) != 0) db = min(db, 1.0 - l.y);
+    if ((vB & 4) != 0) db = min(db, l.x); if ((vB & 8) != 0) db = min(db, 1.0 - l.x);
+    float va = 0.5 + 0.5 * sin(tm * 1.3 + (vW.x - vW.y) * 1.9 + h0 * 3.0);   // elle va et vient
+    float ec = 1.0 - smoothstep(0.03 + 0.07 * va, 0.09 + 0.11 * va, db + (h0 - 0.5) * 0.1);
+    if (vG == 2) ec = max(ec, smoothstep(0.76, 0.84, nEnf(vec2(dot(p, vFl) * 2.2 - tm * 2.4, dot(p, vec2(-vFl.y, vFl.x)) * 5.0) + 11.0)) * min(vf, 1.0) * 0.7);
+    ec = step(0.5, ec * (0.7 + 0.6 * nEnf(q * 6.0 + tm * 0.5)));
+    c = mix(c, vec3(0.93, 0.97, 1.0), ec * 0.85);
+    a = max(max(a, fr * 0.8), max(ec * 0.9, sp));
+    c *= mix(uSoleil.y, 1.0, jour);
+    c += vec3(1.0, 0.97, 0.88) * sp * 1.1;
+  }
+  c *= uLum.x;
+  vec3 lu = vec3(0.0);
+  float km = kmEnf(vW);                               // (§162) l'île démoniaque : la lave, opaque
+  if (km > 0.0) { c = enfer(c, vW, true, lu); a = mix(a, 1.0, km); }
+  c = mix(c, uBrume, f);
+  a = mix(a, 1.0, f);
+  o = vec4(achromie(nocturne(c, vW) + lu * (1.0 - f), vW), a);
+}`;
   const CIEL_VS = `#version 300 es
 layout(location=0) in vec2 aP;
 out vec2 vN;
@@ -22914,7 +23159,7 @@ void main() {
     gl_Position = vec4(aP.xy + aO * aS * uPx, 0.9999, 1.0);
     return;
   }
-  bool sol = g == 5 || g == 8;                        // posé à plat : l'ombre, la cible d'un obus
+  bool sol = g == 5 || g == 8 || g == 10;             // posé à plat : l'ombre, la cible d'un obus, (§243) un rond dans l'eau
   vec4 p = uM * vec4(sol ? aP + vec3(aO * aS, 0.0) : aP, 1.0);
   if (!sol) p.xy += g == 3 ? aO * aS * uPx * p.w : aO * aS * uEch;
   vO = aO; vC = aC; vW = aP; vG = g;
@@ -22957,6 +23202,12 @@ void main() {
     float q = length(vO);
     if (q > 1.0) discard;
     a *= max(smoothstep(0.80, 0.90, q) * smoothstep(1.0, 0.93, q), 0.26 * (1.0 - q * q));
+  }
+  if (vG == 10) {                                     // (§243) un rond dans l'eau : un cercle fin, au grain du décor
+    vec2 pv = (floor(vO * 7.0) + 0.5) / 7.0;
+    float q = length(pv);
+    if (q > 1.0) discard;
+    a *= smoothstep(0.62, 0.80, q) * smoothstep(1.0, 0.86, q);
   }
   if (vG == 6) {                                      // l'anneau du lien, autour de l'éclat
     float q = length(vO);
@@ -23069,17 +23320,65 @@ void main() { o = uC; }`;
 
   // Une colonne : le même découpage qu'en canvas — le dessus, les flancs qui dépassent du
   // voisin, la dalle suspendue. Les masques d'arête sont les mêmes fonctions.
-  function colonne(T, x, y) {
-    const i = y * WS + x, nap = Eau[i];
-    const h = nap || Hgt[i], bi = nap ? (Bio[i] === BIO_BAIN ? BIO_BAIN : 0) : Bio[i], b = BIOME[bi];   // (§195) un bain brûlant garde sa couleur
-    const rel = (.82 + .18 * Sh[i]) * (.90 + .22 * h / MAXH);
+  // (§243) L'EAU, sur la carte graphique : une nappe translucide par case — sa surface, et ses flancs là où elle tombe (une
+  // cascade, une rivière qui descend d'un palier, la mer au bord d'un gouffre). Chaque coin dit au fragment la profondeur
+  // (la moyenne des cases d'eau qui s'y touchent : elle s'amincit vers la rive), la rive (une case sèche y touche : l'écume),
+  // le courant (celui des rivières, vers l'aval), le genre (la mer, un lac, une rivière, un bain) et l'ombre du relief.
+  // Sommet : x y z · profondeur, courant x, courant y · rive, hauteur sur le flanc · genre · flanc + 2·ombre · surface · 0
+  const genreEau = i => Hgt[i] <= SEA && !(Eau[i] > Hgt[i]) ? 0 : Bio[i] === BIO_BAIN ? 3 : EauT[i] === 2 ? 2 : 1;
+  function quadEau(T, Q, g, fl, top, bords = 0) {
+    reserve(T, 4, 6);
+    const b = T.nv, f = T.f;
+    for (let j = 0; j < 4; j++) { const o = (b + j) * PV, q = Q[j];
+      f[o] = q[0]; f[o + 1] = q[1]; f[o + 2] = q[2]; f[o + 3] = q[3]; f[o + 4] = q[4]; f[o + 5] = q[5];
+      f[o + 6] = q[6]; f[o + 7] = q[7]; f[o + 8] = g; f[o + 9] = fl; f[o + 10] = top; f[o + 11] = bords; }
+    const I = T.i, k = T.ni; I[k] = b; I[k + 1] = b + 1; I[k + 2] = b + 2; I[k + 3] = b; I[k + 4] = b + 2; I[k + 5] = b + 3;
+    T.nv += 4; T.ni += 6;
+  }
+  function coinEau(cx, cy, se) {
+    let d = 0, rive = 0, fx = 0, fy = 0;
+    for (let k = 0; k < 4; k++) {
+      const x = cx - 1 + (k & 1), y = cy - 1 + (k >> 1);
+      if (x < 0 || y < 0 || x >= WS || y >= WS) { d += se; continue; }   // le large
+      const j = y * WS + x, s2 = surfEau(x, y);
+      if (s2 && Math.abs(s2 - se) < .01) { d += s2 - Hgt[j]; fx += EauF[2 * j]; fy += EauF[2 * j + 1]; }
+      else rive = Math.max(rive, s2 ? .6 : 1);                          // la terre ; ou une eau d'un autre niveau : le pied d'une chute
+    }
+    return [d / 4, fx / 4, fy / 4, rive];
+  }
+  // les bords de la case où l'eau s'arrête (la rive, une chute) : 1 vers y−1, 2 vers y+1, 4 vers x−1, 8 vers x+1 — l'écume les suit
+  const bordEau = (x, y, se) => { const b = (nx, ny) => nx < 0 || ny < 0 || nx >= WS || ny >= WS ? false : Math.abs(surfEau(nx, ny) - se) > .01;
+    return (b(x, y - 1) ? 1 : 0) | (b(x, y + 1) ? 2 : 0) | (b(x - 1, y) ? 4 : 0) | (b(x + 1, y) ? 8 : 0); };
+  function eauCase(T, x, y, i, se) {
+    const g = genreEau(i), hor = 2 * Horiz[i];
+    const C = [[x, y], [x + 1, y], [x + 1, y + 1], [x, y + 1]].map(([cx, cy]) => { const c = coinEau(cx, cy, se); return [cx, cy, se, c[0], c[1], c[2], c[3], 0]; });
+    quadEau(T, C, g, hor, se, bordEau(x, y, se));
+    for (const [dx, dy] of SIDES) {
+      const nx = x + dx, ny = y + dy; if (nx < 0 || ny < 0 || nx >= WS || ny >= WS) continue;
+      const nl = surfEau(nx, ny) || Hgt[ny * WS + nx], bas = Math.max(nl, Hgt[i]);
+      if (bas >= se - .01) continue;
+      const hz = se - bas;
+      let q;
+      if (dx !== 0) { const px = x + (dx > 0 ? 1 : 0); q = [[px, y, bas], [px, y + 1, bas], [px, y + 1, se], [px, y, se]]; }
+      else { const py = y + (dy > 0 ? 1 : 0); q = [[x, py, bas], [x + 1, py, bas], [x + 1, py, se], [x, py, se]]; }
+      quadEau(T, q.map(p => [p[0], p[1], p[2], hz, 0, 0, 0, p[2] - bas]), g, 1 + hor, se);
+    }
+  }
+  // (§243) Sous l'eau, le fond : le sol à sa vraie hauteur, du sable sous la mer, des galets sous l'eau douce, plus sombres
+  // à mesure qu'on descend. L'eau elle-même se pose par-dessus, translucide (eauCase, dessinée à part : P_EAU).
+  const LIT_DOUX = { top: [150, 138, 104], side: [116, 104, 80] };
+  function colonne(T, x, y, TE) {
+    const i = y * WS + x, se = surfEau(x, y), lit = se > 0 && Bio[i] !== 8;
+    const h = Hgt[i], bi0 = Bio[i], bi = lit ? (bi0 === BIO_BAIN ? BIO_BAIN : 1) : bi0;   // (§195) un bain brûlant garde sa couleur
+    const b = lit && bi0 !== BIO_BAIN && bi0 !== 0 ? LIT_DOUX : BIOME[bi], txH = lit && bi0 !== BIO_BAIN && bi0 !== 0 ? TEX.galets : TEX_HAUT[bi];
+    const rel = (.82 + .18 * Sh[i]) * (.90 + .22 * h / MAXH) * (lit ? Math.max(.5, .92 - (se - h) * .12) : 1);
     const dessus = [[x, y, h], [x + 1, y, h], [x + 1, y + 1, h], [x, y + 1, h]];
-    const hor = 256 * Horiz[i], eauF = bi === 0 ? 65536 : bi === BIO_LAVE ? 131072 : 0;   // (§195) la lave du volcan : son propre rendu   // (§162) l'eau, que l'île démoniaque change en lave
+    const hor = 256 * Horiz[i], eauF = bi === BIO_LAVE ? 131072 : 0;   // (§195) la lave du volcan : son propre rendu
     if (bi === 8) quad(T, ...dessus, HAUT, VIDE_COL, 1, K(tuile(TEX.abime), 0, 0), L_ABIME + hor, 0, 0, 0);
     else quad(T, ...dessus, HAUT, mulc(b.top, rel), 1,
-      K(tuile(TEX_HAUT[bi]), tuile(BORD[masqueHaut(x, y, h)]), tuile(FRANGE[masqueBiome(x, y, h, bi)])), L_DECOR + hor + eauF, 0, 0, 0);
+      K(tuile(txH), tuile(BORD[masqueHaut(x, y, h, hAt)]), lit ? 0 : tuile(FRANGE[masqueBiome(x, y, h, bi)])), L_DECOR + hor + eauF, 0, 0, 0);
     for (const [dx, dy] of SIDES) {
-      const hn = hRendu(x + dx, y + dy);
+      const hn = hAt(x + dx, y + dy);
       if (hn >= h) continue;
       const n = [dx, dy, 0];
       let q;
@@ -23087,8 +23386,9 @@ void main() { o = uC; }`;
       else { const py = y + (dy > 0 ? 1 : 0); q = [[x, py, hn], [x + 1, py, hn], [x + 1, py, h], [x, py, h]]; }
       const puits = bAt(x + dx, y + dy) === 8 ? 1 : 0;
       quad(T, ...q, n, mulc(b.side, rel * shade(n)), h - hn,
-        K(tuile(TEX_COTE[bi]), tuile(BORD[masqueFlanc(x, y, dx, dy, h)]), 0), L_DECOR + 4 * puits + 8 * (h - hn) + hor + eauF, 0, 0, 0);
+        K(tuile(TEX_COTE[bi] || TEX.sableM), tuile(BORD[masqueFlanc(x, y, dx, dy, h, hAt)]), 0), L_DECOR + 4 * puits + 8 * (h - hn) + hor + eauF, 0, 0, 0);
     }
+    if (se && TE) eauCase(TE, x, y, i, se);
     const zt = plaT(x, y); if (!zt) return;
     const zb = plaB(x, y);
     const S = styleDalle(x, y, zt), bhi = S.bhi, bh = BIOME[bhi], bf = S.bf;
@@ -23224,24 +23524,9 @@ void main() { o = uC; }`;
   // donc autour de la carte un plan d'eau au niveau de ses bords, texturé comme la mer et
   // noyé dans la même brume : l'océan file jusqu'à l'horizon sans une face de plus à trier.
   function large() {
-    const T = tampon(), L = 420, z = 0;
-    let rel = 0, n = 0;
-    for (let k = 0; k < WS; k++) for (const i of [k, (WS - 1) * WS + k, k * WS, k * WS + WS - 1])
-      if (Bio[i] === 0 && Hgt[i] === 0) { rel += (.82 + .18 * Sh[i]) * .90; n++; }
-    const col = mulc(BIOME[0].top, n ? rel / n : .9), k = K(tuile(TEX_HAUT[0]), 0, 0);
-    for (const [x0, x1, y0, y1] of [[-L, 0, -L, WS + L], [WS, WS + L, -L, WS + L], [0, WS, -L, 0], [0, WS, WS, WS + L]]) {
-      reserve(T, 4, 6);
-      const b = T.nv, f = T.f;
-      [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].forEach(([x, y], j) => {
-        const o = (b + j) * PV;
-        f[o] = x; f[o + 1] = y; f[o + 2] = z; f[o + 3] = col[0] / 255; f[o + 4] = col[1] / 255; f[o + 5] = col[2] / 255;
-        f[o + 6] = x; f[o + 7] = y;                        // le grain suit le monde, une vague par case
-        f[o + 8] = k; f[o + 9] = L_DECOR + 65536; f[o + 10] = 0; f[o + 11] = 0;   // (§162) de l'eau
-      });
-      const I = T.i, q = T.ni;                             // même enroulement qu'un dessus de colonne
-      I[q] = b; I[q + 1] = b + 1; I[q + 2] = b + 2; I[q + 3] = b; I[q + 4] = b + 2; I[q + 5] = b + 3;
-      T.nv += 4; T.ni += 6;
-    }
+    const T = tampon(), L = 420;
+    for (const [x0, x1, y0, y1] of [[-L, 0, -L, WS + L], [WS, WS + L, -L, WS + L], [0, WS, -L, 0], [0, WS, WS, WS + L]])
+      quadEau(T, [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].map(([x, y]) => [x, y, MER_Z, 6, 0, 0, 0, 0]), 0, 0, MER_Z);   // (§243) au niveau de la mer, profonde
     return maillage(null, T);
   }
   let mer = null;
@@ -23264,7 +23549,8 @@ void main() { o = uC; }`;
   }
   // L'ombre portée : un disque estompé posé sur le sol, sous ce qui se tient au-dessus.
   function ombre(x, y, z, r, f = 1, haut = 0) {
-    const fl = floorUnder(x, y, z);
+    let fl = floorUnder(x, y, z);
+    { const se = surfEau(x, y); if (se && se > fl && z > se - 1.6) fl = se - .02; }   // (§243) sur l'eau, l'ombre se pose à sa surface
     if (fl < -50) return;
     const a = Math.max(haut ? .16 - Math.min(.07, (z - fl) * .006) : 0, .34 - (z - fl) * .06) * f;
     if (a <= .01) return;
@@ -23280,12 +23566,12 @@ void main() { o = uC; }`;
   function calcHorizon() {
     const ux = Math.cos(SUN_AZ), uy = Math.sin(SUN_AZ);
     for (let y = 0; y < WS; y++) for (let x = 0; x < WS; x++) {
-      const i = y * WS + x, h = Eau[i] || Hgt[i];
+      const i = y * WS + x, h = hRendu(x, y);
       let pente = 0;
       for (let k = 1; k <= 42; k++) {
         const nx = (x + ux * k) | 0, ny = (y + uy * k) | 0;
         if (nx < 0 || ny < 0 || nx >= WS || ny >= WS) break;
-        const j = ny * WS + nx, hj = Math.max(Eau[j] || Hgt[j], PlT[j]);
+        const j = ny * WS + nx, hj = Math.max(hRendu(nx, ny), PlT[j]);
         const p = (hj - h - .5) / k;
         if (p > pente) pente = p;
       }
@@ -23308,7 +23594,7 @@ void main() { o = uC; }`;
   function hauteurs() {
     for (const c of tr) {
       let z = 0;
-      for (let y = c.y0; y < c.y1; y++) for (let x = c.x0; x < c.x1; x++) z = Math.max(z, Hgt[y * WS + x], PlT[y * WS + x]);
+      for (let y = c.y0; y < c.y1; y++) for (let x = c.x0; x < c.x1; x++) z = Math.max(z, Hgt[y * WS + x], PlT[y * WS + x], Eau[y * WS + x], MER_Z);
       c.zmax = z + 3;                                   // la flore dépasse du sol
     }
   }
@@ -23328,11 +23614,13 @@ void main() { o = uC; }`;
     const d = [[0, 3, 0], [1, 3, 12], [2, 2, 24], [3, 1, 32], [4, 1, 36], [5, 2, 40]];
     for (const [l, n, o] of d) { gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, gl.FLOAT, false, PV * 4, o); }
   }
-  const TT = tampon();
+  const TT = tampon(), TE = tampon();
   function construire(c, quoi) {
     TT.nv = TT.ni = 0;
     if (quoi === 't') {
-      for (let y = c.y0; y < c.y1; y++) for (let x = c.x0; x < c.x1; x++) colonne(TT, x, y);
+      TE.nv = TE.ni = 0;
+      for (let y = c.y0; y < c.y1; y++) for (let x = c.x0; x < c.x1; x++) colonne(TT, x, y, TE);
+      c.e = maillage(c.e, TE);                          // (§243) l'eau du tronçon
       const SD = typeof djStatiqueDans === 'function' ? djStatiqueDans(c.x0, c.y0) : null;   // (§170) le mobilier du Centre, cuit avec la roche
       if (SD) for (const o of SD) boite(TT, o.a, o.b, o.w, o.h, o.c, o.lum ? 1 : 0, o.lum ? 0 : kCouleur(o.c, 'meca'), o.lum ? L_FIXE : L_DECOR + 256 * horizAt(o.a[0], o.a[1]), 0, 0, 0, o.ref, 2);
       c.t = maillage(c.t, TT); c.bt = c.verT;
@@ -23347,8 +23635,8 @@ void main() { o = uC; }`;
     }
   }
   function liberer(c) {
-    for (const k of ['t', 'f']) if (c[k] && !c[k].vide) { gl.deleteBuffer(c[k].vb); gl.deleteBuffer(c[k].ib); gl.deleteVertexArray(c[k].va); }
-    c.t = c.f = null;
+    for (const k of ['t', 'f', 'e']) if (c[k] && !c[k].vide) { gl.deleteBuffer(c[k].vb); gl.deleteBuffer(c[k].ib); gl.deleteVertexArray(c[k].va); }
+    c.t = c.f = c.e = null;
   }
   // Le décor prévient quand il change : une dalle conjurée ou dissipée, un pied coupé ou repoussé.
   crochetDecor = (quoi, i) => {
@@ -23417,9 +23705,10 @@ void main() { o = uC; }`;
   const rvb = s => couleurCss[s] || (couleurCss[s] = [1, 3, 5].map(k => parseInt(s.slice(k, k + 2), 16) / 255));
 
   // ---------- mise en place ----------
-  let P_DECOR, P_CIEL, P_PANO, P_TRAIT, atlas, triCiel;
+  let P_DECOR, P_CIEL, P_PANO, P_TRAIT, P_EAU, atlas, triCiel;
   function initialiser() {
     P_DECOR = programme(DECOR_VS, DECOR_FS);
+    P_EAU = programme(EAU_VS, EAU_FS);               // (§243)
     P_CIEL = programme(CIEL_VS, CIEL_FS);
     P_PANO = programme(PANO_VS, PANO_FS);
     P_TRAIT = programme(TRAIT_VS, TRAIT_FS);
@@ -23447,7 +23736,7 @@ void main() { o = uC; }`;
   cv3.addEventListener('webglcontextlost', e => { e.preventDefault(); etat.perdu = true; });
   cv3.addEventListener('webglcontextrestored', () => {
     // Tout ce qui vivait sur la carte a disparu avec le contexte : on repart de zéro.
-    for (const c of tr) { c.t = c.f = null; }
+    for (const c of tr) { c.t = c.f = c.e = null; }
     for (const o of [dyn, pan, TRAITS]) { o.va = gl.createVertexArray(); o.vb = gl.createBuffer(); o.ib = gl.createBuffer(); }
     gl.bindVertexArray(dyn.va); gl.bindBuffer(gl.ARRAY_BUFFER, dyn.vb); attributs(); gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dyn.ib);
     gl.bindVertexArray(pan.va); gl.bindBuffer(gl.ARRAY_BUFFER, pan.vb);
@@ -23629,8 +23918,8 @@ void main() { o = uC; }`;
     gl.uniform2f(u.uSoleil, elSol > .06 ? Math.tan(elSol) : 99, elSol > .06 ? .72 : 1);
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, atlas); gl.uniform1i(u.uA, 0);
 
-    if (mer && !djIci()) { gl.bindVertexArray(mer.va); gl.drawElements(gl.TRIANGLES, mer.n, gl.UNSIGNED_INT, 0); }
     const portee = iso ? 90 : distVue + 2, portee2 = (portee + TR * .75) ** 2;
+    const vusE = [];                                  // (§243) les tronçons vus : leur eau se pose après tout l'opaque
     const aFaire = [];
     let ntr = 0, ntri = 0;
     for (const c of tr) {
@@ -23645,6 +23934,7 @@ void main() { o = uC; }`;
       // ce qui est dans le champ se construit avant ce qui est dans le dos
       if (!c.t || c.bt !== c.verT || !c.f || c.bf !== c.verF) aFaire.push([d2 + (vu ? 0 : 1e5), c, vu]);
       if (!vu) continue;
+      vusE.push(c);
       for (const m of [c.t, c.f]) if (m && !m.vide) {
         gl.bindVertexArray(m.va); gl.drawElements(gl.TRIANGLES, m.n, gl.UNSIGNED_INT, 0);
         ntr++; ntri += m.n / 3;
@@ -23765,6 +24055,36 @@ void main() { o = uC; }`;
     }
     stats.troncons = ntr; stats.triangles = ntri | 0;
 
+    // (§243) l'eau, translucide : après tout ce qui est opaque (le fond, les pattes qui y trempent), cachée par le relief,
+    // sans écrire la profondeur
+    EAU_CLAIRE = true;
+    if (P_EAU) {
+      gl.disable(gl.CULL_FACE); gl.depthMask(false);
+      gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.useProgram(P_EAU.p);
+      const w = P_EAU.u;
+      gl.uniformMatrix4fv(w.uM, false, M);
+      gl.uniform3f(w.uOeil, ex, ey, ez); gl.uniform3fv(w.uBrume, ciel); gl.uniform3fv(w.uBr, brume);
+      gl.uniform2f(w.uLum, .55 + .45 * l, .62 + .38 * l); gl.uniform4fv(w.uVoile, voile);
+      gl.uniform4fv(w.uNuit, noir); gl.uniform4fv(w['uFeux[0]'], FEUX_GL);
+      gl.uniform4fv(w.uGris || null, GRIS_GL.a); gl.uniform4fv(w.uGris2 || null, GRIS_GL.b); gl.uniform4fv(w.uLant || null, GRIS_GL.l);
+      gl.uniform4fv(w.uEnf || null, EN.subarray(0, 4)); gl.uniform4fv(w.uEnf2 || null, EN.subarray(4, 8));
+      gl.uniform2f(w.uIso, iso ? 1 : 0, coupe);
+      gl.uniform2f(w.uSoleil, elSol > .06 ? Math.tan(elSol) : 99, elSol > .06 ? .72 : 1);
+      { const jour = elS > -.05, az = jour ? SUN_AZ : SUN_AZ + Math.PI, el = Math.max(.05, jour ? elS : -elS), ce = Math.cos(el);
+        gl.uniform4f(w.uSol, Math.cos(az) * ce, Math.sin(az) * ce, Math.sin(el), (jour ? Math.min(1, elS * 5 + .2) : .35) * (1 - met('nuages') * .7) * (1 - .8 * kEn)); }
+      if (iso) {                                     // la direction de l'œil : celle que la projection écrase en un point
+        const ax = M[0], ay = M[4], az = M[8], bx = M[1], by = M[5], bz = M[9];
+        let vx = ay * bz - az * by, vy = az * bx - ax * bz, vz = ax * by - ay * bx; const nn = Math.hypot(vx, vy, vz) || 1;
+        if (vz < 0) { vx = -vx; vy = -vy; vz = -vz; }
+        gl.uniform4f(w.uVue, vx / nn, vy / nn, vz / nn, 1); }
+      else gl.uniform4f(w.uVue, 0, 0, 1, 0);
+      if (mer && !mer.vide && !djIci()) { gl.bindVertexArray(mer.va); gl.drawElements(gl.TRIANGLES, mer.n, gl.UNSIGNED_INT, 0); }
+      for (const c of vusE) if (c.e && !c.e.vide) { gl.bindVertexArray(c.e.va); gl.drawElements(gl.TRIANGLES, c.e.n, gl.UNSIGNED_INT, 0); ntri += c.e.n / 3; }
+      gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.CULL_FACE);
+      stats.triangles = ntri | 0;
+    }
+
     // transparences : baies, éclats, puis précipitations — cachées par le relief, sans l'écrire
     gl.disable(gl.CULL_FACE); gl.depthMask(false);
     gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -23773,6 +24093,13 @@ void main() { o = uC; }`;
     for (const br of berries) if ((br.x - ex) ** 2 + (br.y - ey) ** 2 < r2 && baieMure(br)) {
       const z = br.z + br.e.h * .7, c = br.e.baie;
       panneau(br.x, br.y, z, .2 * 2.6, .2 * 2.6, c[0] / 255, c[1] / 255, c[2] / 255, 1, 1);
+    }
+    for (let k = RONDS.length - 1; k >= 0; k--) {   // (§243) les ronds dans l'eau
+      const R = RONDS[k], ag = t - R.t0;
+      if (ag > R.vie || ag < 0) { RONDS.splice(k, 1); continue; }
+      if ((R.x - ex) ** 2 + (R.y - ey) ** 2 > r2) continue;
+      const r = R.r0 + R.v * Math.sqrt(ag) * .9, al = R.a * (1 - ag / R.vie) ** 1.5;
+      panneau(R.x, R.y, R.z + .012, r, r, .9, .96, 1, al, 10);
     }
     for (const pa of parts) {
       const c = rvb(pa.col);

@@ -238,6 +238,7 @@ function appliquerDef(sp, def, base) {
     if (Corr.SOCLES?.[def.base]) sp.orvane.viande = classeViande(def);
     sp.orvane.chasseur = !!def.chasseur;
   }
+  sp.orvane.amphibie = (def.locomotion || []).includes('nage') && !nageurPur(def.locomotion);   // (§243) elle nage aussi : l'eau ne lui fait pas peur
   sp.orvane.nage = nageurPur(def.locomotion);                         // (§221) une lignée qui ne vit que dans l'eau : on ne la lie pas,
   if (sp.orvane.nage) { sp.lien = 0; sp.grimpe = 0; }                 //   elle ne grimpe pas
   const k = def.gabarit ? 1 : clamp(Math.cbrt((def.masse || 1) / (def.masseRef || 1)), .6, 1.7);
@@ -811,7 +812,7 @@ const nageurPur = loco => (loco || []).includes('nage') && !(loco || []).some(l 
 function surfaceEau(x, y) {                                           // la hauteur de l'eau en (x, y), ou null sur la terre
   x |= 0; y |= 0; if (typeof Hgt === 'undefined' || x < 3 || y < 3 || x >= WS - 3 || y >= WS - 3) return null;
   const i = y * WS + x; if (typeof Eau !== 'undefined' && Eau[i] > Hgt[i]) return Eau[i];
-  return Hgt[i] <= SEA && !(typeof PlT !== 'undefined' && PlT[i]) ? SEA : null;
+  return Hgt[i] <= SEA && Bio[i] !== 8 && !(typeof PlT !== 'undefined' && PlT[i]) ? (typeof MER_Z !== 'undefined' ? MER_Z : SEA) : null;   // (§243) la mer a sa surface
 }
 function orvanePlaceEau(sp) {                                         // une case d'eau à moins de cinq cases d'un de ses sols
   const bio = sp.bio || []; if (!bio.length || typeof WS === 'undefined') return null;
@@ -841,7 +842,8 @@ function orvaneNage(b, dt) {
   const nx = b.x + Math.cos(b.dir) * b.v * dt, ny = b.y + Math.sin(b.dir) * b.v * dt;
   if (surfaceEau(nx, ny) != null) { b.x = nx; b.y = ny; }
   else { b.nCap = b.dir + Math.PI * (.6 + Math.random() * .8); b.nCapT = b.t + 1.5; b.v *= .5; }   // le bord de l'eau : elle tourne
-  const so = surfaceEau(b.x, b.y) ?? s; b.z += ((so - .12 + Math.sin(b.bob) * .03) - b.z) * Math.min(1, dt * 4);
+  const so = surfaceEau(b.x, b.y) ?? s, fond = (typeof hAt === 'function' ? hAt(b.x | 0, b.y | 0) : so - 1) + .05;   // (§243) un peu sous la surface : l'eau, translucide, la laisse voir
+  b.z += ((Math.max(fond, so - .1 - .3 * (sp.sz || 1)) + Math.sin(b.bob) * .03) - b.z) * Math.min(1, dt * 4);
   b.dirT = b.dir; b.vit = b.v; b.vx = b.vy = 0; b.etat = fuit ? 'fuir' : 'errer'; b.tang = 0; b.enVol = false;
   return true;
 }
