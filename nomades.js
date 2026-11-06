@@ -146,8 +146,11 @@ function nmVenir(force, pour) {
   beasts.push(arche);
   const vers = Math.atan2(J.y - lieu[1], J.x - lieu[0]);
   const centre = [lieu[0] + Math.cos(vers) * 2.6, lieu[1] + Math.sin(vers) * 2.6];
-  // la bête du dresseur : une espèce au hasard, parmi toutes, sauf les automates et les machines d'en bas
-  const esp = SPEC.filter(sp => !automate(sp) && !sp.donjon && !sp.pnj);
+  // la bête du dresseur : (§225) une lignée d'Orvane qui se lie, prise au monde ; sans monde, une bête du jeu, sauf les automates,
+  // les machines d'en bas, la faune faite main retirée, et ce qui n'est pas une bête (maisons, plantes, visions, boss, horreurs…)
+  const lignees = SPEC.filter(sp => sp.orvane && !sp.orvane.machine && !sp.orvane.nage && (sp.lien || 0) > 0);
+  const esp = lignees.length ? lignees : SPEC.filter(sp => !automate(sp) && !sp.donjon && !sp.pnj && !sp.boss && !sp.horreur && !sp.plante && !sp.batiment
+    && !sp.illusion && !sp.achromie && !sp.villageois && !sp.brume && !sp.vyrel && !sp.volcan && !sp.dragon && (sp.lien || 0) > 0 && !(typeof retiree === 'function' && retiree(sp)));
   const bsp = esp[Math.random() * esp.length | 0];
   NM.car = { arche, lieu, centre, gens: [], betes: [], qui, bsp, t0: t, fin: t + NM_SEJOUR, hostile: false, hostileFin: 0,
     sortis: 0, trocs: nmTirerTrocs() };
@@ -170,7 +173,7 @@ function nmCaravane(dt) {
     const a = Math.atan2(Q.y - C.centre[1], Q.x - C.centre[0]) + (C.sortis - 2) * 1.25, r = 1.7;   // en arc, face à l'arrivant
     b.poste = [C.centre[0] + Math.cos(a) * r, C.centre[1] + Math.sin(a) * r];
     beasts.push(b); C.gens.push(b); C.sortieT = t + .9;
-    if (g.role === 'dresseur') {
+    if (g.role === 'dresseur' && C.bsp) {   // (§225) sans bête à mener (ni monde, ni lignée), le dresseur vient seul
       const n = C.bsp.herd ? 2 : 1;
       for (let k = 0; k < n; k++) { const q = naitre(C.bsp, A.x, A.y, C.bsp.mat * 2); q.pnjSuit = b; q.faim = 0; q.soif = 0; q.nrj = 1; q.rang = k; beasts.push(q); C.betes.push(q); }
     }
@@ -580,12 +583,12 @@ function nmCurios(b) {
 const NM_SAVOIRS = {
   'main-basse': { n: 'La main basse', d: 'Les bêtes paisibles s\'habituent à vous deux fois plus vite.', prix: { fibre: 12 },
     lecon: 'Garde la main basse, la paume ouverte, et ne regarde pas la bête dans les yeux. Elle s\'habituera deux fois plus vite.' },
-  'regard-oblique': { n: 'Le regard oblique', d: 'Les coursiers vous acceptent deux fois plus vite.', prix: { os: 8 },
-    lecon: 'Un coursier se méfie de qui le fixe. Regarde à côté de lui, jamais lui. Il viendra deux fois plus vite.' },
+  'regard-oblique': { n: 'Le regard oblique', d: 'Les bêtes qui vont en troupeau vous acceptent deux fois plus vite.', prix: { os: 8 },
+    lecon: 'Un troupeau se méfie de qui le fixe. Regarde à côté de lui, jamais en face. Il viendra deux fois plus vite.' },
   'baie-chantee': { n: 'La baie chantée', d: 'Chaque baie donnée gagne moitié plus de confiance.', prix: { baies: 8 },
     lecon: 'Fredonne en tendant ce que tu donnes : une note grave, toujours la même. La bête t\'en saura moitié plus gré.' },
-  'souffle-lent': { n: 'Le souffle lent', d: 'La méfiance des bêtes ombrageuses monte moins vite près de vous.', prix: { eclat: 6 },
-    lecon: 'Respire par le ventre, lentement. Les bêtes ombrageuses entendent un cœur qui s\'emballe. Leur méfiance montera moins vite.' },
+  'souffle-lent': { n: 'Le souffle lent', d: 'Les bêtes farouches vous laissent approcher d\'un cinquième plus près.', prix: { eclat: 6 },
+    lecon: 'Respire par le ventre, lentement. Les bêtes farouches entendent un cœur qui s\'emballe : calme, tu approcheras d\'un cinquième plus près.' },
 };
 function nmApprendre(b) {
   const ami = nmAmi(b) >= 3, tout = Object.entries(NM_SAVOIRS).filter(([id]) => !nmSait(id));
@@ -605,12 +608,10 @@ function nmApprendre(b) {
     }).concat([{ t: 'Plus tard.', va: 'accueil' }]) };
 }
 function nmSurBete(b) {
-  const sp = NM.car.bsp, fam = sp.fam;
-  const L = fam === 'doux' ? 'Les bêtes douces ne demandent que du temps. Du temps, et qu\'on ne coure pas autour d\'elles.'
-    : fam === 'coursier' ? 'Un coursier ne se donne pas : il choisit. J\'ai tenu sur son dos jusqu\'à ce qu\'il cesse de se cabrer.'
-    : fam === 'tellurien' ? 'Il ne quitte son sol que pour moi. Regarde sa pierre natale : la nuit, elle luit.'
-    : sp.corps === 'felin' ? 'Le chat de brume ne se montre qu\'à ceux qu\'il a choisis. Les autres, il les regarde passer.'
-    : sp.chasse ? 'Un chasseur se dresse comme on se fait un allié : jamais dans son dos, jamais le ventre vide.'
+  const sp = NM.car.bsp; if (!sp) return 'Ma bête est restée de l\'autre côté du seuil. Elle n\'aime pas les voyages.';
+  const fam = sp.fam, L = fam === 'doux' ? 'Les bêtes douces ne demandent que du temps. Du temps, et qu\'on ne coure pas autour d\'elles.'   // (§225) une lignée d'Orvane
+    : sp.diet === 'c' ? 'Un chasseur se dresse comme on se fait un allié : jamais dans son dos, jamais le ventre vide.'
+    : sp.herd ? 'Elle vient d\'un troupeau : elle me suit parce que je marche devant, comme la plus vieille des siennes.'
     : 'Chaque bête a sa manière. Celle-ci, je l\'ai apprise en la regardant vivre.';
   return L + ' Chez nous, il ' + sp.metier + '.';
 }
@@ -633,9 +634,9 @@ const NM_INDICES = {
     'Le mana, ce sont les éclats que tu portes. Ceux du coffre dorment.',
     'La pierre de foyer coûte d\'autant plus cher que tu t\'éloignes de ton feu.',
     'Certains sols n\'existent que plus loin : la tourbière d\'abord, la caldeira de cendre en dernier.',
-    'Un chat de brume se fige quand on le regarde. Ne tourne pas le dos aux hautes herbes.',
+    'Certaines bêtes se figent quand on approche, et prennent la teinte du sol. Ne tourne pas le dos aux hautes herbes.',
     'Marche calmement, et les bêtes timides viendront te voir. Courir, c\'est crier.',
-    'Les coursiers rares ne se montrent qu\'à ceux qui ont franchi assez de seuils.',
+    'Les bêtes les plus rares du monde ne se montrent qu\'à ceux qui ont franchi assez de seuils.',
     'Les herbes hautes freinent le pas. Les troncs, eux, ne laissent passer personne.',
   ],
 };

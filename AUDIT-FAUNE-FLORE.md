@@ -461,12 +461,16 @@ Sept lots. Après chacun, le jeu tourne, chaque `<script>` compile, et une secti
 | lot | contenu | taille |
 | --- | --- | --- |
 | **0 · Ménage immédiat** | carte des sols sur les biomes d'Orvane ; genèse 7 écartée ; le bug de la Mère des larves ; la protection du dessin | petit |
-| **1 · Plus de faune faite main** | profils neutres à la place des créatures modèles ; budget des îles par régime ; monde de secours livré avec le jeu ; plus d'espèces ajoutées d'office ni de repli « garde ses Doux » ; matières et viandes tirées du corps (recettes revues) ; migration des compagnes avant le filtre de chargement ; faune partagée ; voix ; textes | gros |
+| **1 · Plus de faune faite main** | socles neutres à la place des créatures modèles ; budget des îles par régime ; monde de secours livré avec le jeu ; plus d'espèces ajoutées d'office ni de repli « garde ses Doux » ; matières et viandes tirées du corps (recettes revues) ; voix ; textes | gros |
 | **2 · Le corps, style Stone Valley** | rang de puissance ; tirage des îles par rang ; nouveau `lignees.js` gradué du mignon à l'épique ; largeurs à l'échelle ; matières ; bit « créature » dans le shader (liseré, vraies lueurs) ; nouvelles formes ; portraits | gros |
 | **3 · L'animation** | états fondus, ressorts, écrasement et étirement ; le vocabulaire des mignonnes et celui des épiques ; gestes de repos ; parades ; attaques signature | gros |
 | **4 · Le comportement d'Orvane** | profils de vie : diète, appétence, groupes, rythmes, locomotions, nids ; réactions entre bêtes ; caractères selon le rang | gros |
-| **5 · Les compagnes** | métiers, compétences, liens et montures par traits ; carnet avec portraits | moyen |
+| **5 · Les compagnes** | métiers, compétences, liens et montures par traits ; migration des compagnes faites main vers la lignée la plus proche, avant le filtre de chargement ; carnet avec portraits | moyen |
 | **6 · Le grand nettoyage** | suppression du code des anciennes créatures (corps, instincts, tables, pictogrammes, environ 200 Ko) ; onglet Bêta ; service worker ; docs | moyen |
+
+**Où on en est.**
+- **Lot 0 fait** (§224).
+- **Lot 1 fait** (§225). La migration des compagnes a glissé au lot 5 : une compagne faite main garde ses talents (monture, pêche, soins) tant que les lignées ne savent pas les reprendre par leurs traits.
 
 L'ordre 0 → 1 → 2 → 3 → 4 → 5 → 6 garde le jeu jouable à chaque étape. Les anciennes créatures disparaissent des îles dès le lot 1, et leur code part au lot 6, une fois que plus rien n'en dépend.
 

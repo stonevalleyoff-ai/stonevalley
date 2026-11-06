@@ -114,15 +114,39 @@ function corpsDe(s) {
   const N = typeof require === 'function' ? (() => { try { return require('../../moteur/corps.js'); } catch (e) { return null; } })() : racine.OrvaneCorps;
   return N ? N.normaliser(c) : c;
 }
-// --- une lignée sans ancêtre dans le jeu (un monde né de la genèse) : quelle fiche du jeu lui prête sa conduite ---
-//     Le corps, lui, est construit (lignees.js) ; la fiche ne donne que le comportement : brouter, glaner, chasser.
-const GABARITS = { herbivore: 'brouteur', omnivore: 'glaneur', carnivore: 'traqueur', filtreur: 'glaneur', detritivore: 'glaneur' };
-// (§217) un herbivore paisible (tempérament sous 0,4) se conduit comme un Doux, le cotonnier : c'est d'eux que sont faites
-// les premières îles, et le jeu n'y met que des Doux
+// --- (§225) LES SOCLES. Une lignée sans ancêtre dans le jeu ne copie plus une espèce faite main : elle part d'un socle neutre,
+//     selon son régime et son tempérament, puis prend ce que dit d'elle le monde (sa taille, sa vitesse, ses sols, ses proies,
+//     son troupeau). Un socle n'est pas une espèce : il ne paraît nulle part. Il ne donne que les réglages d'une conduite (vue,
+//     peur, maturité, lien, métier) et ses lignes dans les tables du jeu (`tables` : aptitudes, façon de se lier, combat).
+//     Le corps, lui, est construit (lignees.js).
+//     Les premières îles n'ont que des Doux (§21) : un herbivore paisible (tempérament sous 0,4) est un Doux, comme avant.
+const SOCLES = {
+  paisible: { id: 'socle-paisible', fam: 'doux', diet: 'h', sz: 1, spd: 2.6, vue: 14, peur: 1, herd: 1, cap: 30, mat: 55, curiosite: .6,
+    shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2],
+    lien: 1, travail: { fibre: 1 }, metier: 'broute, et vous rapporte des brassées de fibre', grimpe: 0,
+    tables: { apt: [1, 1, 5, 2, 1, 1, 0, 1], lien: { c: ['desarme', 'conf'], b0: .1, b1: .85, rate: 'fuit' } } },
+  herbivore: { id: 'socle-herbivore', diet: 'h', sz: 1, spd: 2.3, vue: 12, peur: 1, herd: 1, cap: 58, mat: 60,
+    shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2],
+    lien: 1, travail: { fibre: 1 }, metier: 'coupe les herbes, les fleurs et les roseaux', grimpe: 0,
+    tables: { apt: [1, 1, 4, 3, 1, 1, 0, 2], lien: { c: ['conf'], b0: .2, b1: .95, rate: 'fuit' } } },
+  omnivore: { id: 'socle-omnivore', diet: 'o', sz: 1, spd: 2.9, vue: 13, peur: .75, herd: 0, cap: 40, mat: 55,
+    shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2],
+    lien: .8, travail: { baies: 1, fibre: .6 }, metier: 'cueille les baies, et un peu de fibre', grimpe: 0,
+    tables: { apt: [1, 1, 3, 5, 2, 1, 0, 1], lien: { c: ['surprise'], b0: .15, b1: .7, rate: 'fuit' } } },
+  carnivore: { id: 'socle-carnivore', diet: 'c', sz: 1, spd: 3.1, vue: 24, peur: .2, herd: 0, cap: 20, mat: 100,
+    shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2], chasse: [],
+    lien: .35, travail: { os: 1 }, metier: 'chasse quand elle a faim, et rapporte les os', grimpe: 0,
+    tables: { apt: [1, 1, 1, 2, 1, 1, 4, 4], lien: { c: ['repu'], b0: .05, b1: .6, plus: ['faible40', .2], rate: 'attaque' },
+      combat: { deg: .13, ramasse: .45, bond: .24, portee: 1.9, recul: .7, pause: 1.5 } } },
+};
+const GABARITS = { herbivore: 'herbivore', omnivore: 'omnivore', carnivore: 'carnivore', filtreur: 'omnivore', detritivore: 'omnivore' };
 // (§223) une machine d'Orvane (docs/16) se conduit comme un automate du jeu : un régulateur comme le traceur (il abat le gibier de
-// loin), les autres comme le moissonneur (paisible, il fuit)
+// loin), les autres comme le moissonneur (paisible, il fuit). Les automates restent : ce ne sont pas des bêtes.
 const gabaritDe = plan => plan?.regime === 'synthetique' ? (plan.role === 'regulateur' ? 'traceur' : 'moissonneur')
-  : plan?.regime === 'herbivore' && (plan.temperament ?? .5) < .4 ? 'cotonnier' : GABARITS[plan?.regime] || 'glaneur';
+  : plan?.regime === 'herbivore' && (plan.temperament ?? .5) < .4 ? 'paisible' : GABARITS[plan?.regime] || 'omnivore';
+// (§225) les classes de proies : les espèces du jeu qui chassent encore (les automates) ne visent plus des espèces faites main,
+// mais une classe, que les lignées rejoignent d'après leur taille et leur allure (orvane-sv.js, classesProie)
+const CLASSES_PROIE = ['gibier', 'gros-gibier', 'gibier-vif'];
 // la faune du jeu qu'Orvane simule (sa génération 0) et son régime. Dans un monde dont le bestiaire est celui d'Orvane
 // (profil.exposition.bestiaire = 'orvane', un monde né de la genèse), ces trente espèces cèdent leur place aux lignées
 // du monde, régime par régime ; les automates, les boss, les villageois ne changent pas.
@@ -131,6 +155,12 @@ const FAUNE = { brouteur: 'herbivore', bosseu: 'herbivore', glaneur: 'omnivore',
   salamandre: 'omnivore', lentigrade: 'herbivore', cotonnier: 'herbivore', carillonneur: 'herbivore', oglodon: 'herbivore', felin: 'carnivore', bramard: 'herbivore',
   sterne: 'omnivore', dragon: 'carnivore', sika: 'herbivore', renard: 'herbivore', lentisakura: 'herbivore', trottin_menu: 'herbivore', trottin_echasse: 'herbivore',
   trottin_pataud: 'herbivore', trottin_bondeur: 'herbivore', trottin_huppe: 'herbivore' };
+// (§225) CE QUE PORTE UNE ÎLE, régime par régime : les comptes et les poids que la faune faite main y avait, devenus une table.
+// Toute île a les sept sols communs (BUDGET_ILE) ; un sol rare y ajoute ce que son Tellurien, ou la cerisaie ses bêtes, y avait.
+// Les lignées présentes se partagent la part de leur régime (orvane-sv.js, bestiaireOrvane).
+const BUDGET_ILE = { herbivore: { cap: 184, poids: 4.25, n: 11 }, omnivore: { cap: 46, poids: .9, n: 2 }, carnivore: { cap: 34, poids: 1.1, n: 4 } };   // n : combien d'espèces y avaient part
+const BUDGET_SOL = { 9: { omnivore: { cap: 16 } }, 10: { omnivore: { cap: 6 } }, 11: { herbivore: { cap: 14 } }, 12: { herbivore: { cap: 8 } },
+  13: { omnivore: { cap: 4 } }, 14: { omnivore: { cap: 2 } }, 23: { herbivore: { cap: 13 } } };
 const GROUPE = { herbivore: 'herbivore', carnivore: 'carnivore', omnivore: 'omnivore', filtreur: 'omnivore', detritivore: 'omnivore', synthetique: 'synthetique' };   // les trois parts d'une île (et les machines, à part : §223)
 
 // --- les conduites (§211) : le vocabulaire d'Orvane (catalogue, conduite.type) → ce que Stone Valley sait jouer (conduites.js) ---
@@ -174,7 +204,7 @@ const EXPOSITION = { mode: 'relatif', compression: { defaut: .1, par_domaine: { 
   taux_jeu: { albinisme: .0002924, melanisme: .0002924, 'robe-doree': .0002924, gigantisme: 3.333e-5, nanisme: 2.222e-5 }, reference_min: .01,
   propagation_cycles: 3, inertie_max: .05, traits_rendus: ['albinisme', 'melanisme', 'robe-doree', 'gigantisme', 'nanisme'],
   seuil_extinction_jeu: 40, retour_apres_extinction: true, seuil_extinction_part: .25, quantitatifs: { rendus: ['taille', 'vitesse', 'audace'], variation: 0 }, bestiaire: 'orvane' };
-const API = { EXPOSITION, BIOMES_SV, choisirCarte, biomeOrvane, biomeSV, biomesSV, TAXON_ESPECE, especeDe, taxonDe, TRAIT_VARIANTE, varianteDe, traitsDe, CORPS_FAMILLE, CORPS_ESPECE, corpsDe, GABARITS, gabaritDe,
-  CONDUITE_JEU, LOCOMOTION_CONDUITE, conduitesDe, QUANT_JEU, FAUNE, GROUPE };
+const API = { EXPOSITION, BIOMES_SV, choisirCarte, biomeOrvane, biomeSV, biomesSV, TAXON_ESPECE, especeDe, taxonDe, TRAIT_VARIANTE, varianteDe, traitsDe, CORPS_FAMILLE, CORPS_ESPECE, corpsDe, GABARITS, gabaritDe, SOCLES, CLASSES_PROIE,
+  CONDUITE_JEU, LOCOMOTION_CONDUITE, conduitesDe, QUANT_JEU, FAUNE, GROUPE, BUDGET_ILE, BUDGET_SOL };
 if (typeof module !== 'undefined' && module.exports) module.exports = API; else racine.OrvaneSV_Corr = API;
 })(globalThis);

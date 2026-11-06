@@ -7169,3 +7169,81 @@ Le premier lot du chantier décrit dans `AUDIT-FAUNE-FLORE.md` : passer la faune
   - avant, la carte graphique tombait et le jeu passait en affichage simplifié ;
   - après, les quatre bêtes fautives sont notées et sautées, et la carte graphique tient.
 - **La Mère des larves** : la correction est vérifiée dans le code (chaque fonction qu'elle appelle existe). Elle n'a pas été essayée en jeu, au premier cercle.
+
+## §225 · Le ménage de la faune, deuxième temps : la faune faite main se retire de la nature
+
+**Ce qui change.** Plus aucune des trente espèces sauvages faites main ne naît sur une île. Ce sont les Rampants, les Telluriens, les Doux, les coursiers, le félin de brume, le bramard, la sterne des nues, le dragon à plumes, le renard des pétales et les Trottins. Ils ne sont plus tirés pour une île, ni ajoutés à part, ni posés en famille (`FAITE_MAIN`, `retiree` ; `capEsp` vaut 0 pour eux). La fourmilière des oglodons ne se forme plus. Restent, comme décidé : la faune du volcan, les boss et les horreurs, les automates et les habitants. Les fiches des espèces retirées restent dans le code, le temps que les compagnes déjà liées deviennent des lignées : c'est le lot 5 de `AUDIT-FAUNE-FLORE.md`.
+
+**Les lignées ne copient plus une créature faite main.** Une lignée d'Orvane prenait jusqu'ici la fiche entière du cotonnier, du brouteur, du glaneur ou du traqueur. Elle en recevait le comportement, la viande, le duvet, la texture et les proies. Elle part maintenant d'un **socle** neutre (`Corr.SOCLES`) : paisible, herbivore, omnivore ou carnivore. Un socle ne paraît nulle part. Il ne donne que les réglages d'une conduite et ses lignes dans les tables du jeu (aptitudes, façon de se lier, combat). Le reste vient du monde :
+- **le troupeau** suit la sociabilité de la lignée (0,4 et plus) ;
+- **une sauteuse** franchit deux cubes ;
+- **une butineuse** (le nectar fait au moins un cinquième de son régime) change les baies en nectar, une fois liée ;
+- **un chasseur né** chasse, même s'il digère aussi les plantes : un carnivore, ou de la viande pour moitié de son régime. Il prend sa place d'île dans la part des carnivores. Avant, 48 carnivores sur 66 ne chassaient jamais ;
+- **ses proies** suivent la règle d'Orvane (`appetence`). Une proie d'un tiers de sa masse est idéale. Il n'y en a aucune au-delà d'une fois et demie sa masse, ni sous un cinquantième. Une proie plus vive échappe, un oiseau est hors de portée d'un marcheur, le groupe protège, l'heure compte. Avant, une bête de 180 g pouvait chasser une bête de 60 kg. Un chasseur de dix kilos et plus s'en prend aussi aux villageois ;
+- **les automates** qui chassent (traceur, mercenaire, tireur d'élite) visent une classe de proies au lieu d'espèces faites main. Les lignées la rejoignent d'après leur taille et leur allure : `gibier` (de 50 g à 20 kg), `gros-gibier` (5 kg et plus), `gibier-vif` (une bête qui vole, ou qui court vite) ;
+- **sa voix** dépend de son corps : un trille pour un insecte ou une petite bête, un cri pour un oiseau, un sifflement pour un serpent, un grognement pour les autres, rauque pour un chasseur. Les lignées étaient muettes (§217 : la table des voix est dans le son, `SON.VOIX`).
+
+**La viande vient du corps.** Neuf viandes nouvelles remplacent celles des créatures faites main :
+
+| la lignée | sa viande | rareté |
+| --- | --- | --- |
+| un oiseau | blanc de volaille | 2 |
+| un insecte | chair de carapace | 1 |
+| un serpent | chair d'écailles | 2 |
+| un chasseur | chair de chasseur ; chair de fauve à partir de 6 kg | 2 ; 3 |
+| une autre bête | viande menue (sous 150 g), viande tendre (sous 2 kg), cuissot de gibier (sous 12 kg), quartier de gros gibier | 1, 1, 2, 3 |
+
+- **Les 28 recettes** qui nommaient une créature changent d'ingrédient et parfois de nom : la brochette du glaneur devient la brochette menue, le civet de cerf le civet de gros gibier, la tourte du dragon la tourte du fauve, etc. Leur identifiant ne change pas : les recettes déjà découvertes restent découvertes.
+- **La rareté de la viande** dit, comme au §118, à partir de quelle exploration une lignée paraît : le gros gibier et les fauves dès la quatrième.
+- **Les plumes** (dons du Vent) tombent du charognard et des lignées ailées.
+- **Les cornes et les défenses** d'une lignée donnent un ou deux éclats.
+- **Le nectar** s'appelle « Nectar » et vient des butineuses liées. « La sterne », « le dragon » et « l'oglodon » quittent aussi les curiosités, l'aide des touches et les indices.
+
+**Le nombre de bêtes d'une île** ne dépend plus des fiches retirées.
+- **La table du budget** (`Corr.BUDGET_ILE`, `BUDGET_SOL`) reprend ce que la faune faite main avait, régime par régime : 184 places d'herbivores, 46 d'omnivores et 34 de carnivores. Les sols rares en ajoutent.
+- **Chaque espèce tirée** reçoit, une fois le tirage fait, la part d'une espèce moyenne de son régime, selon sa présence (`repartirIle`). Avant, le budget se partageait entre toutes les lignées présentes sur les sols, alors que l'île n'en tire que deux à huit. Les premières îles n'avaient ainsi qu'une bête par espèce, jusqu'à ce qu'un accident (la fiche refaite qui reprenait le compte de son modèle) les remplisse. La première île a maintenant 35 à 40 bêtes.
+- **Plus loin**, les chasseurs restent plus nombreux qu'au début, comme le veut `capEsp0` (« moins de troupeaux, plus de crocs »). L'équilibre fin viendra avec le comportement (lot 4).
+
+**Le monde de secours** (`orvane/secours.js`). Sans monde reçu, le jeu remettait toute l'ancienne faune.
+- Il porte maintenant le monde d'Orvane réduit à ce qu'il en montre : 122 taxons sur les 14 biomes qu'il lit, sans la genèse 7, soit 1,1 Mo (170 Ko compressé).
+- Il sert au premier lancement hors ligne, ou avant que le monde publié n'arrive. Il passe devant un abrégé gardé qui n'est pas plus récent que lui, et le monde publié le remplace dès qu'il arrive.
+- On le refait avec `node orvane/secours-fabrique.js <dossier du monde> > orvane/secours.js`.
+- Sans profil reçu, le réglage est celui du jeu (`Corr.EXPOSITION`, le bestiaire d'Orvane).
+
+**Les Nomades.**
+- **La bête du dresseur** est une lignée d'Orvane qui se lie. Avant, elle était tirée dans tout `SPEC`, et pouvait tomber sur une maison, une plante ou un boss.
+- **Deux techniques** valaient pour des espèces retirées : « le regard oblique » vaut maintenant pour les bêtes en troupeau, et « le souffle lent » laisse approcher les bêtes farouches d'un cinquième plus près.
+- **Leurs répliques** ne parlent plus du chat de brume ni des coursiers rares. Hadrik a dompté « les plus grandes bêtes du monde ».
+- Les marques et les rumeurs sur la fourmilière et l'aire du dragon ne peuvent plus se dire.
+
+**Le branchement.**
+- `orvane/correspondance.js` : `SOCLES`, `gabaritDe`, `CLASSES_PROIE`, `BUDGET_ILE`, `BUDGET_SOL` ;
+- `orvane/orvane-sv.js` :
+  - `baseDe`, `ANCIENS_GABARITS` (une fiche gardée d'avant prend son socle) ;
+  - `definir` (chasseur, sociabilité, régime, forme), `appliquerDef`, `completer` (les tables d'un socle, la voix), `classeViande`, `voixDe` ;
+  - `appetence`, `classesProie`, `chaines` (après l'inscription des lignées) ;
+  - `bestiaireOrvane` (le retrait, la table, la part des chasseurs), `repartirIle` (à l'arrivée, et quand le monde arrive) ;
+  - le secours dans `lire` et `charger` ;
+- `orvane/secours.js`, `orvane/secours-fabrique.js` ;
+- `index.html` :
+  - `FAITE_MAIN`, `retiree` (en haut du script : le tirage sert dès le chargement), `capEsp`, `betesRaresGraine`, `bestiaireGraine` (une liste vide ne casse plus), les Telluriens par sol, `poserFourmiliere` ;
+  - les viandes, `viandeDe`, les recettes, le butin (plumes, éclats), le nectar ;
+  - les chasses du traceur, du mercenaire et du tireur ;
+  - `habitantDe`, `rayonPeurJoueur` (le souffle lent), `majAise` (le regard oblique) ;
+- `nomades.js`, `dons.js` ;
+- `sw.js` : `stone-valley-195`, et `orvane/secours.js` dans les fichiers gardés.
+
+**Vérifié.**
+- **Chaque script compile**, et chaque viande nommée par une recette existe.
+- **Le traducteur, sur le monde d'Orvane publié** :
+  - 142 lignées inscrites sur quatre socles, sans duvet ni corps hérité ;
+  - 26 chasseurs, dont 17 qui chassent ; les autres ne vivent que dans l'eau ;
+  - 111 lignées ont au moins un prédateur, et le traceur vise 85 lignées ;
+  - une voix pour chaque lignée qui ne vit pas que dans l'eau, et pour toutes une ligne d'aptitudes et de façon de se lier.
+- **Dans le navigateur, sur six îles** (explorations 0, 1, 4, 8, 12, 20) :
+  - aucune bête faite main sauvage ; de 36 à 97 bêtes d'Orvane par île ;
+  - à l'exploration 20, les moissonneurs et la Tisseuse sont toujours là ;
+  - aucune erreur, aucune panne de dessin.
+- **Hors ligne, les mêmes six îles** :
+  - avant, toute l'ancienne faune revenait (60 à 118 bêtes faites main par île) ;
+  - maintenant, le monde de secours donne les mêmes îles qu'en ligne (35 à 91 bêtes d'Orvane, la même composition).

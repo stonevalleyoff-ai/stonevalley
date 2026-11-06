@@ -898,12 +898,20 @@
 <script src="conduites.js"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js"></script><script src="orvane/tampon.js"></script><script src="orvane/correspondance.js"></script><script src="orvane/orvane-sv.js"></script>
+<script src="orvane/corps.js"></script><script src="orvane/tampon.js"></script><script src="orvane/correspondance.js"></script><script src="orvane/secours.js"></script><script src="orvane/orvane-sv.js"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
 // sauvegarde lue sur l'appareil) et lire le contexte avant la fin du script.
 const Panne = { n: 0, dernier: '', repli: false };
+// (§225) LA FAUNE FAITE MAIN S'EST RETIRÉE DE LA NATURE (déclarée en haut : le tirage des îles sert dès le chargement). Toute la faune sauvage vient d'Orvane (orvane/orvane-sv.js) : ces
+// trente espèces ne naissent plus nulle part — ni au tirage d'une île, ni à part (Telluriens, Trottins, félin, sterne…), ni en
+// famille. Leurs fiches restent, le temps que les compagnes déjà liées deviennent des lignées (lot 5 de AUDIT-FAUNE-FLORE.md).
+// Restent : la faune du volcan, les boss et les horreurs, les automates, les habitants.
+const FAITE_MAIN = new Set(['brouteur', 'bosseu', 'glaneur', 'traqueur', 'spectre', 'coursier', 'coursier_o', 'coursier_r', 'coursier_a',
+  'crapaud', 'varan', 'vesseron', 'cerf', 'salamandre', 'sika', 'lentigrade', 'cotonnier', 'carillonneur', 'oglodon', 'lentisakura',
+  'felin', 'bramard', 'sterne', 'dragon', 'renard', 'trottin_menu', 'trottin_echasse', 'trottin_pataud', 'trottin_bondeur', 'trottin_huppe']);
+const retiree = sp => !!sp && FAITE_MAIN.has(typeof sp === 'string' ? sp : sp.id);
 globalThis.__PANNE = Panne;
 // Le jeu partage sa portée avec donjon.js, chargé juste avant : plus d'enveloppe (() => {…})().
 if (typeof djIci !== 'function') {                   // déposé sans son second fichier : on le dit, au lieu d'un écran noir
@@ -2426,7 +2434,7 @@ function ogloGraine(g) {
 }
 function poserFourmiliere() {
   Fourmi = null;
-  if (ileMeca) return;
+  if (ileMeca || retiree('oglodon')) return;   // (§225) plus d'oglodons : plus de fourmilière
   const B = globalThis.__BESTIAIRE;
   if (Array.isArray(B) ? !B.includes('oglodon') : !ogloGraine(SEED)) return;
   let s = (SEED ^ 0xf0a11d) >>> 0;
@@ -2943,7 +2951,7 @@ const OBJETS = [
   { id:'marmite', et:1, n:'Marmite portable', emp:'marmite', fil:'outil', cout:{pierre:16,bois:10,fibre:6},
     d:'depuis une case du bord : elle se pose devant vous, avec son petit feu · on y cuisine sur toutes les îles, à deux ingrédients' },
   { id:'lampe', et:2, n:"Lampe d'ambre", emp:'lumiere', fil:'outil', lum:1, cout:{nectar:8,bois:12,fibre:8},
-    d:'la lumière de la lanterne, sans éclat : le nectar d\'oglodon luit toute la nuit' },
+    d:'la lumière de la lanterne, sans éclat : le nectar luit toute la nuit' },
   // la ceinture : ni portée à une place, ni rangée dans une case — elle ouvre les cases, une barre par niveau
   { id:'ceinture', et:1, n:'Ceinture', emp:'ceinture', fil:'outil', get cout() { return CEINTURE_COUT[Math.min(CEINTURE_MAX, nivCeinture() + 1)]; },
     d:'ouvre les cases du bord droit · trois niveaux : une, deux, puis trois barres de cinq cases' },
@@ -4269,9 +4277,12 @@ function butin(b) {
   const vi = viandeDe(b.sp), nv = (b.sp.sz >= 1.3 ? 2 : 1) + (donA('flair') && !b.tame ? 1 : 0);   // (§204) le flair          // et sa viande, à cuire
   if (vi) gagnerDenree(vi.id, nv);
   const tro = !b.tame && typeof orvaneTrophee === 'function' ? orvaneTrophee(b) : 0;   // (§218) une lignée rare d'Orvane : des éclats en plus
-  const pl = !b.tame && (b.sp.id === 'vautour' ? Math.random() < .6 : b.sp.id === 'sterne' ? Math.random() < .25 : false); if (pl) gagnerDenree('plume', 1);   // (§204) une plume, pour les dons du Vent
-  // le cerf de verre laisse ses bois, la salamandre un cœur de braise durci
-  const ec = b.sp.id === 'cerf' ? 2 + (Math.random() * 2 | 0) : b.sp.id === 'salamandre' ? 1 : 0;
+  // (§204) une plume, pour les dons du Vent : du charognard, (§225) et des lignées ailées d'Orvane
+  const orv = b.sp.orvane, ailee = !!orv && (orv.vol || orv.corps?.forme === 'oiseau');
+  const pl = !b.tame && (b.sp.id === 'vautour' ? Math.random() < .6 : ailee ? Math.random() < .25 : false); if (pl) gagnerDenree('plume', 1);
+  // (§225) les cornes et les défenses d'une lignée durcissent en éclats (comme autrefois les bois d'une bête de verre)
+  const arme = !!orv && (orv.corps?.organes || []).some(o => (o.type === 'cornes' || o.type === 'defenses') && (o.taille || 0) >= .3);
+  const ec = arme ? 1 + (Math.random() * 2 | 0) : 0;
   P.sac.eclat += ec;
   const ba = b.sp.id === 'magmaton' ? 3 + (Math.random() * 3 | 0) : 0; if (ba) P.sac.basalte = (P.sac.basalte | 0) + ba;   // (§200) les orgues de son dos
   say((tro ? 'trophée · +' + tro + ' éclat' + (tro > 1 ? 's' : '') + ' · ' : '') + '+' + os + ' os · +' + fi + ' fibre' + (ec ? ' · +' + ec + ' éclat' + (ec > 1 ? 's' : '') : '') + (ba ? ' · +' + ba + ' basalte' : '') + (vi ? ' · +' + nv + ' ' + vi.n.toLowerCase() : '') + (pl ? ' · +1 plume' : ''), 1.8); majSac();
@@ -5699,7 +5710,8 @@ const degSubi = deg => deg * danger() * COGNE * (1 - Math.min(.7, effet('robuste
 const degJoueur = (deg, b) => deg / danger() / robuste(b) * forceK() * (b && b.sp && b.sp.roi && typeof roiDegK === 'function' ? roiDegK(b) : 1);   // (§164) le bouclier du forgeron, (§165) la pierre des gargouilles   // coups puissants : +25 % par niveau
 // Loin du campement, l'île penche : moins de troupeaux, plus de crocs.
 // (§162) sur l'île démoniaque, la faune ordinaire a brûlé : elle revient avec la guérison (brume.js, enferFaune)
-function capEsp(sp) { if (sp.volcan) return ileVolcan && especesIle.has(sp.id) ? sp.cap : 0;   // (§198) la faune du volcan : son compte, fixe, et nulle part ailleurs
+function capEsp(sp) { if (retiree(sp)) return 0;   // (§225) la faune faite main ne naît plus
+  if (sp.volcan) return ileVolcan && especesIle.has(sp.id) ? sp.cap : 0;   // (§198) la faune du volcan : son compte, fixe, et nulle part ailleurs
   if (ileVolcan && !sp.pnj && !sp.batiment) return 0;   // (§195) sur le volcan, sa seule faune
   const k = typeof enferFaune === 'function' ? enferFaune(sp) : 1; return k >= 1 ? capEsp0(sp) : Math.round(capEsp0(sp) * k); }
 function capEsp0(sp) {
@@ -8512,7 +8524,7 @@ function pageReglages() {
   const densite = DENS_GLOB < .6 ? 'Clairsemée' : DENS_GLOB > 1 ? 'Dense' : 'Normale';
   const touches = [['Z Q S D, W A S D, flèches', 'marcher'], ['Maj', 'courir, tant qu\'il reste du souffle'], ['Espace', 'sauter'],
     ['C', 'l\'action du moment : récolter, nourrir, franchir, ouvrir le campement'], ['X', 'attaquer : frapper, ou bander l\'arc et relâcher'],
-    ['1 à 5', 'utiliser une case : sort, sifflet, lanterne, arme, outil'], ['G', 'offrir une baie'], ['H', 'siffler : les compagnes accourent'], ['N', 'boire du nectar d\'oglodon'],
+    ['1 à 5', 'utiliser une case : sort, sifflet, lanterne, arme, outil'], ['G', 'offrir une baie'], ['H', 'siffler : les compagnes accourent'], ['N', 'boire du nectar'],
     ['Q, E', 'pivoter la vue (ou glisser sur l\'écran)'], ['R, F', 'incliner la vue'], ['+, −, molette', 'zoomer (ou pincer à deux doigts)'],
     ['U', 'désigner une cible, puis la suivante (ou toucher, cliquer la bête) ; Maj+U la libère'], ['Y', 'lancer un lien d\'éclat sur la bête désignée'],
     ['V', 'vue 3D ou 1re personne'], ['J', 'le journal'], ['K', 'les compagnes'], ['I ou Tab', 'ouvrir ou fermer le sac'], ['B', 'ouvrir la fabrication'],
@@ -8815,7 +8827,7 @@ const SPEC = [
   // s'éteignent sur place. Ils tirent de loin. On ne les lie pas aux baies : la nuit, devant un
   // automate en veille, un éclat glissé dans sa poitrine le rallume à votre nom.
   { id:'traceur',     n:'Traceur',     fam:'automate', diet:'s', sz:1.0, spd:2.4, vue:20, peur:0, herd:0, cap:8, mat:60,
-    shell:[122,132,148], dark:[70,78,92], leg:[58,64,76], oeil:[255,196,80], bio:[2,3,4], chasse:['brouteur','glaneur','bosseu','cotonnier','carillonneur','lentigrade'],
+    shell:[122,132,148], dark:[70,78,92], leg:[58,64,76], oeil:[255,196,80], bio:[2,3,4], chasse:['gibier'],   // (§225) une classe de proies : les lignées la rejoignent
     lien:0, travail:{ os:1.4 }, metier:'abat le gibier de loin, et rapporte les os', grimpe:0,
     tir:{ deg:.12, portee:9, cadence:1.4, vit:17, precision:.9 }, dur:1.0 },
   { id:'moissonneur', n:'Moissonneur', fam:'automate', diet:'s', sz:.95, spd:2.2, vue:16, peur:.8, herd:0, cap:8, mat:60,
@@ -8823,7 +8835,7 @@ const SPEC = [
     lien:0, travail:{ fibre:1.5, bois:1.5, pierre:1.5 }, metier:'fauche, abat et taille, vite et bien', grimpe:0,
     tir:null, tirLie:{ deg:.06, portee:5, cadence:1.8, vit:14, precision:.6 }, dur:.8 },
   { id:'mercenaire',  n:'Mercenaire',  fam:'automate', diet:'s', sz:1.05, spd:2.9, vue:30, peur:0, herd:0, cap:4, mat:60,
-    shell:[104,92,108], dark:[58,50,64], leg:[50,44,54], oeil:[255,70,60], bio:[2,3,4,5], chasse:['bosseu','lentigrade','crapaud','bramard'],
+    shell:[104,92,108], dark:[58,50,64], leg:[50,44,54], oeil:[255,70,60], bio:[2,3,4,5], chasse:['gros-gibier'],
     lien:0, travail:{}, metier:'ne vise que les joueurs, de très loin', grimpe:0,
     tir:{ deg:.12, portee:11, cadence:1.5, vit:19, precision:.8 }, dur:1.15, duel:1 },
   { id:'sentinelle',  n:'Sentinelle',  fam:'automate', diet:'s', sz:1.15, spd:1.4, vue:12, peur:0, herd:0, cap:4, mat:60,
@@ -8878,7 +8890,7 @@ const SPEC = [
   // avec une avance exacte sur qui court droit. Le mortier tire en cloche, par-dessus les murs :
   // un cercle au sol montre où l'obus tombera. Plus durs à rallumer, ils rendent plus d'éclats.
   { id:'tireur',  n:"Tireur d'élite", fam:'automate', diet:'s', sz:1.08, spd:2.1, vue:34, peur:0, herd:0, cap:2, mat:60,
-    shell:[74,70,68], dark:[34,32,34], leg:[46,44,44], oeil:[255,44,40], bio:[4,5,6], chasse:['coursier','coursier_o','coursier_r','coursier_a','sterne','dragon'],
+    shell:[74,70,68], dark:[34,32,34], leg:[46,44,44], oeil:[255,44,40], bio:[4,5,6], chasse:['gibier-vif'],
     lien:0, travail:{}, metier:'met en joue de très loin, et ne manque presque jamais', grimpe:0,
     tir:{ deg:.18, portee:24, cadence:4.2, vit:40, precision:.99, visee:1.1, avance:1 }, dur:.9, duel:1, eclats:3, coeur:3 },
   { id:'mortier', n:'Mortier', fam:'automate', diet:'s', sz:1.3, spd:1.25, vue:26, peur:0, herd:0, cap:2, mat:60,
@@ -9397,7 +9409,9 @@ function blocAtlas() {
       : profondeur() >= NIV_MECA ? 'à votre portée : le portail peut y mener' : 'encore hors d\'atteinte') + `</div></div></div>`;
   return l;
 }
-const habitantDe = b => { const L = SPEC.filter(s => s.biome === b); return L.length > 1 ? 'y vivent : ' + L.map(s => s.n).join(', ') : L.length ? 'y vit : ' + L[0].n + ', de la famille des Telluriens' : ''; };
+// (§225) ceux qui y vivent : les lignées d'Orvane de ce sol (la faune faite main s'est retirée), quatre au plus
+const habitantDe = b => { const L = SPEC.filter(s => !retiree(s) && (s.biome === b || (s.orvane && !s.orvane.machine && (s.bio || []).includes(b)))), N = L.slice(0, 4).map(s => s.n).join(', ') + (L.length > 4 ? '…' : '');
+  return L.length > 1 ? 'y vivent : ' + N : L.length ? 'y vit : ' + N : ''; };
 // Tant qu'on foule un biome rare : son nom, son rang, et ce qu'il fait. Le HUD ne l'affiche plus
 // (v11) ; la ligne reste pour les bancs et, un jour, le journal.
 function ligneBiome() {
@@ -9534,7 +9548,7 @@ function loadWorld() {
   especesIle = tirerBestiaire();                     // ce que la graine met sur cette île
   if (typeof orvaneArrivee === 'function') orvaneArrivee(especesIle);   // (§218) l'espèce phare de l'île, annoncée
   // et chaque sol rare, son Tellurien — sauf les chasseurs, qui attendent la troisième exploration
-  for (const sp of SPEC) if (sp.biome && RaresIle.includes(sp.biome) && (!sp.chasse || profondeur() >= NIV_RAMPANTS || Array.isArray(globalThis.__RARES))) especesIle.add(sp.id);   // les bancs choisissent
+  for (const sp of SPEC) if (sp.biome && !retiree(sp) && RaresIle.includes(sp.biome) && (!sp.chasse || profondeur() >= NIV_RAMPANTS || Array.isArray(globalThis.__RARES))) especesIle.add(sp.id);   // les bancs choisissent
   if (!Fourmi) especesIle.delete('oglodon');         // pas de replat pour sa fourmilière : pas d'oglodon
   regleHerbe();
   // Le peuplement de départ tire son hasard de la graine et du niveau : deux joueurs qui arrivent
@@ -10000,7 +10014,7 @@ function gainIcone(seg) {
     const add = (n, id) => NOMS_IC.set(String(n).toLowerCase(), id);
     for (const r in RES) { add(r, r); add(RES[r], r); if (PLURIEL[r]) add(PLURIEL[r], r); }
     add('éclats', 'eclat'); add('baie', 'baies'); add('baies', 'baies'); add('flèche', 'fleches'); add('flèches', 'fleches');
-    add('nectar d\'oglodon', 'nectar'); add('baume de relève', 'baume'); add('spores de korlaz', 'spore'); add('ichors de vyrel', 'ichor');
+    add('nectar', 'nectar'); add('baume de relève', 'baume'); add('spores de korlaz', 'spore'); add('ichors de vyrel', 'ichor');
     for (const id in INGR) add(INGR[id].n, icIngr(id));
     add('nectar', 'nectar');
     for (const k in FLORE) if (graineInfo(k) && !graineIngr(k)) add(nomGraine(k), icGraine(k));   // (§180) graines, plants, boutures
@@ -11302,8 +11316,9 @@ const proieCalme = b => !b.tame && b.sp.peur > .3 && !b.sp.chasse && !automate(b
 // la distance qu'elle garde : grande au début, un pas à peine une fois habituée
 const distGarde = b => .8 + b.sp.sz * .45 + (1 - (b.aise || 0)) * 2.4 * b.sp.peur;
 function rayonPeurJoueur(b, vue) {
-  if (!proieCalme(b) || !calmeDe(JC)) return vue * .55 * (b.fq || 1);   // (§212) l'audacieuse laisse approcher plus près
-  return Math.max(0, distGarde(b) - 1.6) * (1 - (b.aise || 0)) * (b.fq || 1);   // trop près trop tôt : elle détale quand même
+  const souffle = JC === P && typeof nmSait === 'function' && nmSait('souffle-lent') ? .8 : 1;   // (§225) la technique des nomades : un cinquième plus près
+  if (!proieCalme(b) || !calmeDe(JC)) return vue * .55 * (b.fq || 1) * souffle;   // (§212) l'audacieuse laisse approcher plus près
+  return Math.max(0, distGarde(b) - 1.6) * (1 - (b.aise || 0)) * (b.fq || 1) * souffle;   // trop près trop tôt : elle détale quand même
 }
 // Le coursier est plus long à gagner : quatre fois plus lent à s'habituer (deux minutes, immobile),
 // trois fois moins quand on marche, et il perd sa confiance deux fois plus vite.
@@ -11312,7 +11327,7 @@ function majAise(b, dt) {
   const J = JC, d = Math.hypot(J.x - b.x, J.y - b.y), co = coursier(b.sp);
   if (!calmeDe(J)) { if (d < b.sp.vue) b.aise = Math.max(0, (b.aise || 0) - dt * (co ? 1.2 : .6)); }
   else if (d < b.sp.vue * (co ? 1 : .7)) {                           // le troupeau de coursiers erre loin : on le compte à vue
-    const lent = (co ? 4 * (Math.hypot(J.vx || 0, J.vy || 0) > .5 ? 3 : 1) / (J === P && nmSait('regard-oblique') ? 2 : 1) : 1) / (!co && J === P && nmSait('main-basse') ? 2 : 1);   // les techniques des nomades
+    const lent = (co ? 4 * (Math.hypot(J.vx || 0, J.vy || 0) > .5 ? 3 : 1) : 1) / (J === P && nmSait('regard-oblique') && (co || b.sp.herd) ? 2 : 1) / (!co && J === P && nmSait('main-basse') ? 2 : 1);   // les techniques des nomades (§225 : le regard oblique, pour les troupeaux)
     b.aise = Math.min(1, (b.aise || 0) + dt / ((12 + 18 * b.sp.peur) * lent));
   }
   else b.aise = Math.max(0, (b.aise || 0) - dt * (co ? .012 : .004));   // loin, elle vous oublie en quelques minutes
@@ -14274,7 +14289,7 @@ function betesRaresGraine(g) {
   const tir = () => (s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296;
   const r = [];
   for (const [id, niv, chance] of [['coursier_r', 3, .06], ['coursier_a', 6, .014], ['tireur', 10, .45], ['mortier', 15, .4]])
-    if (tir() < chance) r.push({ id, niv });
+    if (tir() < chance && !retiree(id)) r.push({ id, niv });   // (§225) plus de coursiers rares
   return r;
 }
 const NB_ESPECES = [[2, 12], [3, 22], [4, 26], [5, 20], [6, 13], [7, 7]];   // combien d'espèces, et sur cent îles
@@ -14308,10 +14323,10 @@ function bestiaireGraine(graine, niv) {
   const e = new Set();
   // (§118) une bête dont la viande est plus rare que l'île ne le permet n'y vit pas (spectre, coursier orange : dès 4)
   const okR = id => rareteOk(rareEspece(specById[id]), niv);
-  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && nivEspece(sp) <= niv && okR(sp.id));   // ni Telluriens, ni coursiers rares
+  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && !retiree(sp) && nivEspece(sp) <= niv && okR(sp.id));   // ni Telluriens, ni coursiers rares, ni faune faite main (§225)
   if (niv < NIV_RAMPANTS) n = n <= 3 ? 2 : 3;          // aux premières îles : deux ou trois Doux, pas plus
-  e.add(tirerParmi(tirables.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.roche)).id);
-  while (e.size < n && e.size < tirables.length) e.add(tirerParmi(tirables.filter(sp => !e.has(sp.id))).id);
+  { const h0 = tirerParmi(tirables.filter(sp => (sp.diet === 'h' || sp.diet === 'o') && !sp.roche)); if (h0) e.add(h0.id); }   // (§225) une liste vide ne casse plus
+  while (e.size < n && e.size < tirables.length) { const x = tirerParmi(tirables.filter(sp => !e.has(sp.id))); if (!x) break; e.add(x.id); }
   // (§118) les bêtes tirées à part suivent aussi la rareté de leur viande : l'oglodon dès 4, le coursier rouge et
   // le dragon dès 6, le coursier d'aurore dès 8
   if (ogloGraine(graine) && okR('oglodon')) e.add('oglodon');           // la fourmilière est dans le relief de la graine
@@ -14322,6 +14337,7 @@ function bestiaireGraine(graine, niv) {
   for (const id of trottinsGraine(graine, niv)) e.add(id);   // (§137) les Trottins, tirés à part
   if (niv >= 3 && dragonGraine(graine) && okR('dragon')) e.add('dragon');
   { const rg = biomesGraine(graine); if (rg.includes(19)) e.add('silencieux'); if (rg.includes(20)) e.add('millegueule'); }
+  for (const id of [...e]) if (retiree(id)) e.delete(id);   // (§225) ce qu'on tirait à part : l'oglodon, le félin, le bramard, la sterne, les Trottins, le dragon
   if (typeof orvaneTirage === 'function') orvaneTirage(e, graine, niv, okR);   // (§218) Orvane : des chasseurs garantis dès la troisième exploration   // l'effroi vit sur son sol          // le dragon à plumes, une île sur cinq dès la troisième                      // la sterne : sa colonie, tirée à part elle aussi        // de même le bramard, dès la première exploration
   return e;
 }
@@ -18704,7 +18720,7 @@ const CURIOS = [
   { id: 'cu_sceau', n: 'Sceau des nomades', r: 4, forme: 'sceau', c: [176, 70, 60], mat: 'pierre', fx: { marchand: 1 }, d: 'les voyageurs du Seuil vous font un quart du prix en moins', h: 'Qui le porte est des leurs, un peu.' },
   { id: 'cu_chene', n: 'Cœur de chêne', r: 5, forme: 'coeur', c: [140, 100, 60], mat: 'bois', fx: { regen: 1, robuste: 1 }, d: 'la vie revient d\'elle-même, doucement ; peau dure', h: 'Taillé dans le premier arbre de la première île.' },
   { id: 'cu_demon', n: 'Dent du démon', r: 5, forme: 'croc', c: [178, 30, 36], mat: 'os', fx: { sang: 1, fort: 1 }, d: 'le Sang boit moitié plus ; coups puissants', h: 'Elle est encore tiède.' },
-  { id: 'cu_sterne', n: 'Aile de sterne', r: 5, forme: 'plume', c: [150, 196, 236], mat: 'fibre', fx: { saut: 2, plume: 2 }, h: 'La sterne ne se pose jamais. Elle, si : sur vous.' },
+  { id: 'cu_sterne', n: 'Aile des nues', r: 5, forme: 'plume', c: [150, 196, 236], mat: 'fibre', fx: { saut: 2, plume: 2 }, h: 'L\'oiseau qui l\'a perdue ne se posait jamais. Elle, si : sur vous.' },   // (§225) l'id reste : les sacs la gardent
   { id: 'cu_lieues', n: 'Bottes de sept lieues', r: 5, forme: 'botte', c: [110, 70, 50], mat: 'fibre', fx: { vif: 2 }, h: 'Plus vieilles que le Seuil, dit-on.' },
   { id: 'cu_masque', n: 'Masque de l\'effroi', r: 5, forme: 'masque', c: [160, 118, 204], mat: 'os', fx: { epines: 2, robuste: 1 }, h: 'Ceux qui vous frappent voient d\'abord ce visage.' },
   { id: 'cu_sablier', n: 'Sablier inversé', r: 5, forme: 'sablier', c: [226, 206, 150], mat: 'pierre', fx: { regen: 2 }, d: 'la vie revient d\'elle-même', h: 'Le sable y remonte. Le temps aussi, un peu.' },
@@ -18712,7 +18728,7 @@ const CURIOS = [
   { id: 'cu_larme', n: 'Larme de la Tisseuse', r: 6, forme: 'pierre', c: [120, 226, 236], mat: 'ferraille', fx: { vampire: 2, regen: 1 }, d: 'vol de vie ; la vie revient d\'elle-même', h: 'Une goutte d\'huile figée, tombée d\'un œil de fer.' },
   { id: 'cu_boussole', n: 'Boussole d\'or', r: 6, forme: 'boussole', c: [236, 190, 70], mat: 'ferraille', fx: { lutrins: 1, vif: 2, nuit: 2 }, d: 'pas vif, vision de nuit ; les lutrins de l\'île à la boussole', h: 'Son aiguille ne montre pas le nord : elle montre ce qu\'on cherche.' },
   { id: 'cu_brume', n: 'Cœur de brume', r: 6, forme: 'coeur', c: [178, 16, 30], mat: 'os', fx: { sang: 2, vampire: 1 }, d: 'le Sang boit deux fois plus ; vol de vie', h: 'Il bat encore, au rythme d\'une valse.' },
-  { id: 'cu_corne', n: 'Corne de dragon', r: 6, forme: 'croc', c: [226, 170, 70], mat: 'os', fx: { braise: 2, fort: 2 }, d: 'insensible aux braises ; coups très puissants', h: 'Elle sent la fumée, même lavée cent fois.' },
+  { id: 'cu_corne', n: 'Corne de braise', r: 6, forme: 'croc', c: [226, 170, 70], mat: 'os', fx: { braise: 2, fort: 2 }, d: 'insensible aux braises ; coups très puissants', h: 'Elle sent la fumée, même lavée cent fois. Personne ne sait plus quelle bête la portait.' },
   { id: 'cu_phenix', n: 'Plume de phénix', r: 6, forme: 'plume', c: [255, 130, 50], mat: 'fibre', fx: { regen: 2, plume: 3, saut: 2 }, d: 'la vie revient d\'elle-même ; chute de plume, grand saut', h: 'Elle tiédit dans la main, et ne brûle jamais.' },
 ];
 const CURIO = {}; for (const c of CURIOS) CURIO[c.id] = c;
@@ -18831,6 +18847,16 @@ const VIANDES = [
   ['magmaton', 'Cœur de magmaton', 'magmaton', 4, 'robuste', [214, 96, 52]],          // (§198) le volcan
   ['basilic', 'Queue de basilic', 'basilic', 5, 'braise', [236, 92, 40]],
   ['vautour', 'Blanc de charognard', 'charognard', 3, 'souffle', [196, 128, 112]],
+  // (§225) les viandes des lignées d'Orvane : d'après leur corps (orvane-sv.js, classeViande), plus d'après une espèce faite main
+  ['menu', 'Viande menue', 'viande menue', 1, null, [214, 140, 120]],
+  ['tendre', 'Viande tendre', 'viande tendre', 1, null, [204, 118, 110]],
+  ['gibier', 'Cuissot de gibier', 'gibier', 2, 'vif', [190, 100, 96]],
+  ['grosgibier', 'Quartier de gros gibier', 'gros gibier', 3, 'robuste', [170, 96, 90]],
+  ['chasseur', 'Chair de chasseur', 'chasseur', 2, 'fort', [176, 70, 80]],
+  ['fauve', 'Chair de fauve', 'fauve', 3, 'fort', [160, 60, 70]],
+  ['volaille', 'Blanc de volaille', 'volaille', 2, 'souffle', [238, 228, 222]],
+  ['ecaille', 'Chair d\'écailles', 'écailles', 2, null, [200, 150, 120]],
+  ['chitine', 'Chair de carapace', 'carapace', 1, null, [196, 170, 120]],
 ];
 // [plante, nom, nom court, famille, rareté, effet, couleur]
 const PRODUITS = [
@@ -18895,15 +18921,15 @@ for (const f of POISSONS) INGR[f.id] = { id: f.id, n: f.n, court: f.n.split(' ')
 for (const [sp, n, court, r, tag, c] of VIANDES) INGR['v_' + sp] = { id: 'v_' + sp, sp, n, court, fam: 'viande', r, tag, soin: SOIN_FAM.viande * (1 + (r - 1) * .15), c, src: 'denree' };
 for (const [fl, n, court, fam, r, tag, c] of [...PRODUITS, ...(typeof FLORE_PRODUITS !== 'undefined' ? FLORE_PRODUITS : [])]) INGR['p_' + fl] = { id: 'p_' + fl, fl, n, court, fam, r, tag, soin: SOIN_FAM[fam] * (1 + (r - 1) * .15), c, src: 'denree' };
 INGR.baie = { id: 'baie', n: 'Baie', court: 'baies', fam: 'fruit', r: 1, tag: null, soin: .04, c: [214, 72, 104], src: 'baie' };
-INGR.plume = { id: 'plume', n: 'Plume de vautour', court: 'plume de vautour', fam: 'demon', r: 3, tag: 'plume', soin: 0, c: [130, 124, 118], src: 'denree' };   // (§204) le Vent en veut pour ses dons
+INGR.plume = { id: 'plume', n: 'Plume', court: 'plume', fam: 'demon', r: 3, tag: 'plume', soin: 0, c: [130, 124, 118], src: 'denree' };   // (§204) le Vent en veut pour ses dons
 INGR.coeurtison = { id: 'coeurtison', n: 'Cœur du Tisonnier', court: 'cœur du Tisonnier', fam: 'demon', r: 5, tag: 'braise', soin: 0, c: [255, 110, 40], src: 'denree' };   // (§199) le gardien du volcan
 INGR.ferdamne = { id: 'ferdamne', n: 'Fer damné', court: 'fer damné', fam: 'demon', r: 5, tag: 'braise', soin: 0, c: [150, 70, 56], src: 'denree' };   // (§164) les Forges hurlantes : rare, il va aux étapes « au choix »
 INGR.oeufbraise = { id: 'oeufbraise', n: 'Œuf de braise', court: 'œuf de braise', fam: 'demon', r: 4, tag: 'braise', soin: 0, c: [255, 120, 50], src: 'denree' };   // (§166) les Galeries de cendre
 INGR.fleursoufre = { id: 'fleursoufre', n: 'Fleur de soufre', court: 'fleur de soufre', fam: 'demon', r: 5, tag: 'souffle', soin: 0, c: [236, 210, 70], src: 'denree' };   // (§166) les Jardins de soufre
 INGR.sangroi = { id: 'sangroi', n: 'Sang du Roi', court: 'sang du Roi', fam: 'demon', r: 6, tag: 'braise', soin: 0, c: [178, 16, 30], src: 'denree' };   // (§166) sur le Roi démon : la plus haute rareté
 INGR.poussame = { id: 'poussame', n: 'Poussière d\'âme', court: 'poussière d\'âme', fam: 'demon', r: 5, tag: 'nuit', soin: 0, c: [176, 214, 226], src: 'denree' };   // (§165) les Ossuaires
-INGR.nectar = { id: 'nectar', n: 'Nectar d\'oglodon', court: 'nectar', fam: 'douceur', r: 2, tag: 'souffle', soin: .1, c: [238, 158, 52], src: 'denree' };   // une denrée comme les autres : garde-manger, cellier
-const viandeDe = sp => INGR['v_' + sp.id] || (sp && sp.orvane && INGR['v_' + sp.orvane.base]) || null;   // (§218) une lignée d'Orvane : la viande de son gabarit
+INGR.nectar = { id: 'nectar', n: 'Nectar', court: 'nectar', fam: 'douceur', r: 2, tag: 'souffle', soin: .1, c: [238, 158, 52], src: 'denree' };   // une denrée comme les autres : garde-manger, cellier
+const viandeDe = sp => INGR['v_' + sp.id] || (sp && sp.orvane && (INGR[sp.orvane.viande] || INGR['v_' + sp.orvane.base])) || null;   // (§225) une lignée d'Orvane : la viande de son corps
 const produitDe = fl => INGR['p_' + fl] || null;
 // ---------- le garde-manger du coffre ----------
 // Viandes, produits de la flore et poissons suivent la règle des matières : au retour d'expédition,
@@ -18930,7 +18956,7 @@ const etoiles = q => '★'.repeat(q) + '☆'.repeat(5 - q);
 // Les plats remarquables : un mariage précis, qu'on découvre en cherchant.
 const REMARQUABLES = [
   { id: 'lune', n: 'Soupe de lune', indice: 'le poisson des orages, une racine, une feuille', ok: (ids, F) => ids.includes('lune') && F.has('racine') && F.has('feuille') },
-  { id: 'ambre', n: 'Tarte d\'ambre', indice: 'le nectar des oglodons, une graine, un fruit', ok: (ids, F) => ids.includes('nectar') && F.has('graine') && F.has('fruit') },
+  { id: 'ambre', n: 'Tarte d\'ambre', indice: 'le nectar des butineuses, une graine, un fruit', ok: (ids, F) => ids.includes('nectar') && F.has('graine') && F.has('fruit') },
   { id: 'horlogers', n: 'Festin des Horlogers', indice: 'la raie qui compte les secondes, une viande, un champignon', ok: (ids, F) => ids.includes('raie') && F.has('viande') && F.has('champignon') },
   { id: 'lanterne', n: 'Gelée-lanterne', indice: 'deux lueurs : l\'une nage, l\'autre pousse', ok: ids => ids.includes('anguille') && ids.includes('p_clavaire') },
   { id: 'braise', n: 'Bouillon de braise', indice: 'le feu de la caldeira, et une racine', ok: (ids, F) => (ids.includes('v_salamandre') || ids.includes('p_fleurbraise')) && F.has('racine') },
@@ -18965,22 +18991,22 @@ S_('four', 'pain', [['bergere', 'Galette de la bergère', 1, 'apprivoiseur', 'p_
   ['bergeredoree', 'Galette dorée de la bergère', 3, 'meute', '+nectar']]);
 S_('grille', 'broche', [['trappeur', 'Grillade du trappeur', 1, 'fort', 'viande p_pin'],
   ['trappeurgenievre', 'Grillade du trappeur au genévrier', 2, 'fort', '+p_genevrier'],
-  ['trappeurfestin', 'Festin du trappeur', 3, 'meute', '+v_cerf', 'festin']]);
+  ['trappeurfestin', 'Festin du trappeur', 3, 'meute', '+v_grosgibier', 'festin']]);
 S_('saute', 'poele', [['sousbois', 'Poêlée des sous-bois', 1, 'silence', 'p_champi p_fougere'],
   ['sousboiscepe', 'Poêlée des sous-bois à l\'os-cep', 2, 'robuste', '+p_oscep'],
   ['sousboisluisant', 'Poêlée des sous-bois luisante', 3, 'nuit', '+p_clavaire']]);
 S_('sucre', 'pot', [['verger', 'Compote du verger', 1, 'cueilleur', 'p_groseillier p_ronce'],
   ['vergerconfit', 'Confiture du verger', 2, 'cueilleur', '+p_seve'],
   ['vergersylve', 'Confiture des sylves', 3, 'saut', '+p_murier']]);
-S_('bouillon', 'bol', [['marais', 'Soupe des marais', 2, 'antidote', 'v_crapaud p_massette'],
+S_('bouillon', 'bol', [['marais', 'Soupe des marais', 2, 'antidote', 'v_ecaille p_massette'],
   ['maraissphaigne', 'Soupe des marais à la sphaigne', 3, 'antidote', '+p_sphaigne'],
   ['maraislueurs', 'Soupe des marais aux lueurs', 4, 'nuit', '+champignon4']]);
 S_('infuse', 'tasse', [['cimes', 'Infusion des cimes', 3, 'souffle', 'p_sapin p_edelweiss'],
   ['cimeslanterne', 'Infusion des cimes au cœur de lanterne', 4, 'plume', '+p_lanterneau'],
   ['cimeselixir', 'Élixir des cimes', 5, 'second', '+racine5', 'flacon']]);
-S_('grille', 'broche', [['grilbraise', 'Grillade de braise', 4, 'braise', 'v_salamandre p_genevrier'],
+S_('grille', 'broche', [['grilbraise', 'Grillade de braise', 4, 'braise', 'v_fauve p_genevrier'],
   ['grilbraisefleur', 'Grillade de braise aux pétales', 4, 'braise', '+p_fleurbraise'],
-  ['grilbraisedragon', 'Festin de braise du dragon', 5, 'fort', '+v_dragon', 'festin']]);
+  ['grilbraisedragon', 'Festin de braise du chasseur', 5, 'fort', '+v_chasseur', 'festin']]);
 S_('cru', 'salade', [['marees', 'Tartare des marées', 1, 'antidote', 'sardine p_bouleau'],
   ['mareestruite', 'Tartare des marées à la truite', 2, 'vif', '+truite'],
   ['mareesplateau', 'Plateau des marées', 3, 'second', '+raie', 'festin']]);
@@ -18990,25 +19016,25 @@ S_('cru', 'salade', [['jardin', 'Salade du jardin', 1, 'invisible', 'p_bleuet p_
 S_('four', 'pain', [['caravane', 'Pain de caravane', 2, 'vif', 'p_cypres p_palmier'],
   ['caravanedesert', 'Pain du désert', 3, 'souffle', '+p_cactus'],
   ['caravaneseuil', 'Pain du Seuil', 4, 'vif', '+fruit4']]);
-S_('four', 'poele', [['rois', 'Rôti des rois', 3, 'robuste', 'v_cerf p_bambou'],
+S_('four', 'poele', [['rois', 'Rôti des rois', 3, 'robuste', 'v_grosgibier p_bambou'],
   ['roispales', 'Rôti des rois au mycélium', 4, 'robuste', '+p_mycelium'],
   ['roislune', 'Rôti du roi des marées', 5, 'coeur', '+lune', 'festin']]);
 
 // --- les recettes uniques ---
 // communes
 R_('champs', 'Tartine des champs', 1, 'four', 'pain', 'apprivoiseur', 'p_herbe p_coquelicot');
-R_('glaneur', 'Brochette du glaneur', 1, 'grille', 'broche', 'cueilleur', 'v_glaneur baie');
+R_('glaneur', 'Brochette menue', 1, 'grille', 'broche', 'cueilleur', 'v_menu baie');
 R_('foret', 'Potage de la forêt', 1, 'bouillon', 'bol', 'silence', 'p_pin p_massette p_fougere');
 R_('gardonajonc', 'Gardon grillé aux ajoncs', 1, 'grille', 'broche', 'plume', 'gardon p_ajonc');
 R_('bouleau', 'Salade de bouleau', 1, 'cru', 'salade', 'antidote', 'p_bouleau p_lichen');
 R_('glands', 'Galette de glands', 1, 'four', 'pain', 'repousse', 'p_chene p_chene');
 R_('compotebaies', 'Compote de baies sauvages', 1, 'sucre', 'pot', 'souffle', 'baie baie p_ronce');
-R_('ragoutbosseu', 'Ragoût du bosseu', 1, 'mijote', 'bol', 'epines', 'v_bosseu p_roseau p_vesse');
+R_('ragoutbosseu', 'Ragoût des collines', 1, 'mijote', 'bol', 'epines', 'v_tendre p_roseau p_vesse');
 R_('tisanebleuet', 'Tisane de bleuet', 1, 'infuse', 'tasse', 'nuit', 'p_bleuet p_bouleau');
 R_('poeleevesses', 'Poêlée de vesses-de-loup', 1, 'saute', 'poele', 'repousse', 'p_vesse p_champi');
-R_('potaufeu', 'Pot-au-feu du cotonnier', 1, 'mijote', 'bol', 'surplus', 'v_cotonnier p_massette p_roseau');
+R_('potaufeu', 'Pot-au-feu des prés', 1, 'mijote', 'bol', 'surplus', 'v_tendre p_massette p_roseau');
 R_('paintresse', 'Pain d\'herbe tressé', 1, 'four', 'pain', 'souffle', 'p_herbe p_pin p_chene');
-R_('sentier', 'Brochette du sentier', 1, 'grille', 'broche', 'fort', 'v_brouteur p_groseillier');
+R_('sentier', 'Brochette du sentier', 1, 'grille', 'broche', 'fort', 'v_menu p_groseillier');
 R_('infusionajonc', 'Infusion d\'ajonc', 1, 'infuse', 'tasse', 'plume', 'p_ajonc p_fougere p_lichen');
 R_('sardines', 'Sardines au sel de roche', 1, 'grille', 'broche', 'antidote', 'sardine sardine');
 R_('chaudree', 'Chaudrée du ruisseau', 1, 'bouillon', 'bol', 'silence', 'gardon sardine p_massette');
@@ -19016,61 +19042,61 @@ R_('haies', 'Douceur des haies', 1, 'sucre', 'pot', 'apprivoiseur', 'baie p_gros
 // peu communes
 R_('truitegenievre', 'Truite au genévrier', 2, 'grille', 'broche', 'vif', 'truite p_genevrier');
 R_('carpecroute', 'Carpe en croûte d\'herbes', 2, 'four', 'tourte', 'robuste', 'carpe p_herbe p_sapin');
-R_('ragouttraqueur', 'Ragoût du traqueur', 2, 'mijote', 'bol', 'fort', 'v_traqueur p_chardon p_oscep');
-R_('varan', 'Brochette de varan aux airelles', 2, 'grille', 'broche', 'robuste', 'v_varan p_airelle');
+R_('ragouttraqueur', 'Ragoût du chasseur', 2, 'mijote', 'bol', 'fort', 'v_chasseur p_chardon p_oscep');
+R_('varan', 'Brochette d\'écailles aux airelles', 2, 'grille', 'broche', 'robuste', 'v_ecaille p_airelle');
 R_('siropseve', 'Sirop de sève à la pivoine', 2, 'sucre', 'flacon', 'souffle', 'p_seve p_pivoine');
 R_('theiris', 'Thé d\'iris', 2, 'infuse', 'tasse', 'nuit', 'p_iris p_sapin');
 R_('pousses', 'Pousses sautées au champignon géant', 2, 'saute', 'poele', 'saut', 'p_bambou p_geant');
-R_('lentigrade', 'Tourte du lentigrade', 2, 'four', 'tourte', 'surplus', 'v_lentigrade p_cypres p_racinoir');
+R_('lentigrade', 'Tourte du gibier', 2, 'four', 'tourte', 'surplus', 'v_gibier p_cypres p_racinoir');
 R_('cerises', 'Cerises à la sève', 2, 'sucre', 'pot', 'vif', 'p_griottier p_seve');
 R_('saladekoi', 'Salade de koï', 2, 'cru', 'salade', 'apprivoiseur', 'koi p_veinee');
-R_('carillon', 'Brochette du carillonneur', 2, 'grille', 'broche', 'repousse', 'v_carillonneur p_palmier');
-R_('bouillonsterne', 'Bouillon de sterne', 2, 'bouillon', 'bol', 'plume', 'v_sterne p_sphaigne p_veinee');
+R_('carillon', 'Brochette de volaille', 2, 'grille', 'broche', 'repousse', 'v_volaille p_palmier');
+R_('bouillonsterne', 'Bouillon de volaille', 2, 'bouillon', 'bol', 'plume', 'v_volaille p_sphaigne p_veinee');
 R_('galettecactus', 'Galette de figue', 2, 'four', 'pain', 'souffle', 'p_cactus p_cypres');
-R_('bramard', 'Fricassée du bramard', 2, 'saute', 'poele', 'surplus', 'v_bramard p_oscep p_bambou');
+R_('bramard', 'Fricassée de carapace', 2, 'saute', 'poele', 'surplus', 'v_chitine p_oscep p_bambou');
 R_('nectarglace', 'Nectar aux airelles', 2, 'sucre', 'flacon', 'meute', 'nectar p_airelle');
 // rares
 R_('anguillefumee', 'Anguille fumée au sapin', 3, 'grille', 'broche', 'nuit', 'anguille p_sapin');
-R_('civetcerf', 'Civet de cerf', 3, 'mijote', 'bol', 'robuste', 'v_cerf p_deuil p_racinoir');
+R_('civetcerf', 'Civet de gros gibier', 3, 'mijote', 'bol', 'robuste', 'v_grosgibier p_deuil p_racinoir');
 R_('tartemures', 'Tarte aux mûres de sylve', 3, 'four', 'tourte', 'saut', 'p_murier p_seve p_cypres');
-R_('felin', 'Brochette du félin', 3, 'grille', 'broche', 'fort', 'v_felin p_josue');
-R_('rotioglodon', 'Rôti d\'oglodon', 3, 'four', 'poele', 'robuste', 'v_oglodon p_chardon p_mousse');
+R_('felin', 'Brochette des ombres', 3, 'grille', 'broche', 'fort', 'v_chasseur p_josue');
+R_('rotioglodon', 'Rôti des hauteurs', 3, 'four', 'poele', 'robuste', 'v_grosgibier p_chardon p_mousse');
 R_('cendrelys', 'Infusion de cendrelys', 3, 'infuse', 'tasse', 'plume', 'p_cendrelys p_edelweiss');
-R_('spectre', 'Soupe du spectre', 3, 'bouillon', 'bol', 'invisible', 'v_spectre p_clavaire p_mousse');
+R_('spectre', 'Soupe des ombres', 3, 'bouillon', 'bol', 'invisible', 'v_chasseur p_clavaire p_mousse');
 R_('raiebeurre', 'Raie aux baies de deuil', 3, 'saute', 'poele', 'second', 'raie p_deuil');
 R_('geleesakura', 'Gelée de cerisier', 3, 'sucre', 'pot', 'apprivoiseur', 'p_sakura p_seve');
 // exotiques
-R_('salamandresel', 'Salamandre en croûte', 4, 'four', 'tourte', 'braise', 'v_salamandre p_cypres p_chene');
+R_('salamandresel', 'Fauve en croûte', 4, 'four', 'tourte', 'braise', 'v_fauve p_cypres p_chene');
 R_('veloute', 'Velouté de mycélium', 4, 'bouillon', 'bol', 'nuit', 'p_mycelium p_massette p_lichen');
 R_('fruitsverre', 'Fruits de verre au nectar', 4, 'sucre', 'pot', 'vif', 'p_verre p_seve nectar');
 R_('coeurlanterne', 'Cœur de lanterne confit', 4, 'sucre', 'pot', 'nuit', 'p_lanterneau p_griottier');
-R_('coursierrouge', 'Grillade du coursier rouge', 4, 'grille', 'broche', 'epines', 'v_coursier_r p_chardon');
+R_('coursierrouge', 'Grillade du grand gibier', 4, 'grille', 'broche', 'epines', 'v_grosgibier p_chardon');
 R_('petalesbraise', 'Pétales de braise poêlés', 4, 'saute', 'poele', 'braise', 'p_fleurbraise p_geant');
 R_('anguillelueurs', 'Bouillon d\'anguille aux lueurs', 4, 'bouillon', 'bol', 'gel', 'anguille champignon4');
-R_('tourtedragon', 'Tourte du dragon', 4, 'four', 'tourte', 'fort', 'v_dragon p_herbe p_pin');
+R_('tourtedragon', 'Tourte du fauve', 4, 'four', 'tourte', 'fort', 'v_fauve p_herbe p_pin');
 // légendaires
 R_('lunepleine', 'Soupe de lune pleine', 5, 'bouillon', 'bol', 'souffle', 'lune p_lanterneau p_sapin');
 R_('lunegrillee', 'Lune grillée aux étoiles', 5, 'grille', 'broche', 'nuit', 'lune p_josue');
-R_('coursierargent', 'Coursier d\'argent rôti', 5, 'four', 'poele', 'meute', 'v_coursier_a racine3');
+R_('coursierargent', 'Rôti d\'argent', 5, 'four', 'poele', 'meute', 'v_grosgibier racine3');
 R_('racinesfour', 'Racines légendaires au four', 5, 'four', 'poele', 'robuste', 'racine5 racine5');
 R_('profondeurs', 'Poêlée des profondeurs', 5, 'saute', 'poele', 'invisible', 'champignon5 p_mycelium');
-R_('confitdragon', 'Confit de dragon', 5, 'mijote', 'bol', 'coeur', 'v_dragon p_lanterneau p_seve');
+R_('confitdragon', 'Confit de fauve', 5, 'mijote', 'bol', 'coeur', 'v_fauve p_lanterneau p_seve');
 R_('anciens', 'Infusion des anciens', 5, 'infuse', 'tasse', 'second', 'racine5 p_edelweiss p_cendrelys');
 R_('painlegendes', 'Pain des légendes', 5, 'four', 'pain', 'coeur', 'racine5 graine fruit4');
 // épiques
-R_('banquet', 'Banquet du Seuil', 6, 'mijote', 'festin', 'coeur', 'lune v_coursier_a racine5 champignon5');
+R_('banquet', 'Banquet du Seuil', 6, 'mijote', 'festin', 'coeur', 'lune v_grosgibier racine5 champignon5');
 R_('mondes', 'Bouillon des mondes', 6, 'bouillon', 'bol', 'second', 'lune racine5 p_mycelium p_lanterneau');
-R_('dragonbraise', 'Dragon aux pétales de braise', 6, 'grille', 'festin', 'fort', 'v_dragon p_fleurbraise champignon5');
+R_('dragonbraise', 'Fauve aux pétales de braise', 6, 'grille', 'festin', 'fort', 'v_fauve p_fleurbraise champignon5');
 R_('eternite', 'Nectar d\'éternité', 6, 'sucre', 'flacon', 'surplus', 'p_lanterneau p_verre nectar racine5');
 R_('couronne', 'Couronne des cimes', 6, 'infuse', 'festin', 'plume', 'p_edelweiss p_josue champignon5 lune');
-R_('roicoursier', 'Festin du roi-coursier', 6, 'grille', 'festin', 'meute', 'v_coursier_a v_coursier_r v_dragon fruit4');
+R_('roicoursier', 'Festin des trois chasses', 6, 'grille', 'festin', 'meute', 'v_grosgibier v_fauve v_volaille fruit4');
 R_('eclipse', 'Galette d\'éclipse', 6, 'four', 'pain', 'invisible', 'champignon5 champignon5 p_mycelium p_lanterneau');
 
 // --- les dix qui se transmettent : v: un métier du village, n: un rôle de nomade ---
 const RECETTES_DITES = {
   passeur: ['v:cuisiniere', 'Chez nous, on fait le bouillon du passeur : un gardon, une racine de roseau, et de l\'eau qui frémit. Ma mère disait qu\'il se complète, quand on a le nez.'],
   chaudree: ['v:pecheur', 'La chaudrée du ruisseau : un gardon, une sardine, une racine de massette. Rien de rare, et ça tient au corps toute la journée.'],
-  civetcerf: ['v:chasseur', 'Le civet de cerf. Du cerf, des baies de deuil, une racine creuse. Laisse mijoter, et n\'y touche pas trop.'],
+  civetcerf: ['v:chasseur', 'Le civet de gros gibier. Un quartier de grosse bête, des baies de deuil, une racine creuse. Laisse mijoter, et n\'y touche pas trop.'],
   haies: ['v:cueilleuse', 'La douceur des haies : une baie, des groseilles, des mûres et un coquelicot. Les enfants la sentent avant qu\'elle soit prête.'],
   compotebaies: ['v:enfant', 'Moi je sais faire la compote ! Deux baies et des mûres de ronce. C\'est tout. C\'est un secret, hein.'],
   caravane: ['n:marchand', 'Le pain de caravane : des cônes de cyprès, des noix de palme. Il voyage mieux que nous. Et on dit qu\'il se complète, au désert.'],

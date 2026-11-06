@@ -904,7 +904,7 @@ function donsHadrik(b) {
 if (typeof NM_DIALOGUES !== 'undefined') {
   NM_DIALOGUES.ancien = {
     accueil: donsHadrik,
-    qui: { dit: ['J\'ai dompté le dragon à plumes quand tu n\'étais pas né. Puis j\'ai rendu les bêtes à leurs îles, une à une. Le Seuil m\'a gardé ; elles, je les revois en rêve.',
+    qui: { dit: ['J\'ai dompté les plus grandes bêtes du monde quand tu n\'étais pas né. Puis j\'ai rendu les bêtes à leurs îles, une à une. Le Seuil m\'a gardé ; elles, je les revois en rêve.',
       'Un roi des bêtes ne commande pas. Il regarde, et la bête choisit. C\'est tout le secret, et c\'est le plus dur.'], choix: [{ t: 'Revenons à tes épreuves.', va: 'accueil' }] },
   };
 }
