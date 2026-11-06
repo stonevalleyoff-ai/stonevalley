@@ -472,15 +472,34 @@ const ELEMENTS = {
   orage:   { n: 'de l\'orage',  robe: [74, 86, 138],   sombre: [24, 28, 62],  ventre: [196, 206, 244], oeil: [255, 250, 160], lueur: [255, 244, 120], corne: [226, 228, 255], part: '#fff6a8' },
   ombre:   { n: 'des ombres',   robe: [56, 42, 90],    sombre: [18, 12, 36],  ventre: [118, 96, 168], oeil: [206, 162, 255], lueur: [176, 120, 255], corne: [34, 22, 54],   part: '#b896ff' },
   aurore:  { n: 'de l\'aurore', robe: [250, 228, 196], sombre: [196, 132, 62], ventre: [255, 252, 240], oeil: [255, 204, 92],  lueur: [255, 214, 120], corne: [255, 222, 130], part: '#fff2b8' },
+  // (§239) douze de plus : six du milieu, six rares
+  magma:   { n: 'du magma',     robe: [66, 44, 40],    sombre: [26, 16, 16],  ventre: [255, 128, 48],  oeil: [255, 206, 70],  lueur: [255, 112, 24],  corne: [38, 28, 28],   part: '#ff7a22' },
+  sable:   { n: 'des sables',   robe: [224, 186, 122], sombre: [140, 96, 52], ventre: [250, 234, 194], oeil: [255, 222, 120], lueur: [255, 216, 128], corne: [178, 130, 72], part: '#ecca92' },
+  vent:    { n: 'des vents',    robe: [198, 228, 238], sombre: [96, 140, 162], ventre: [242, 250, 252], oeil: [160, 232, 255], lueur: [222, 252, 255], corne: [232, 246, 252], part: '#eeffff' },
+  roche:   { n: 'de la roche',  robe: [124, 116, 104], sombre: [60, 54, 48],  ventre: [172, 162, 142], oeil: [255, 192, 92],  lueur: [255, 182, 84],  corne: [92, 86, 78],   part: '#c8b49a' },
+  ambre:   { n: 'de l\'ambre',  robe: [204, 124, 32],  sombre: [102, 54, 14], ventre: [255, 204, 112], oeil: [255, 232, 140], lueur: [255, 192, 64],  corne: [232, 152, 42], part: '#ffc052' },
+  petale:  { n: 'des pétales',  robe: [250, 178, 208], sombre: [178, 82, 122], ventre: [255, 234, 242], oeil: [255, 122, 182], lueur: [255, 184, 218], corne: [255, 216, 234], part: '#ffc4de' },
+  sang:    { n: 'du sang',      robe: [152, 22, 36],   sombre: [42, 6, 12],   ventre: [222, 92, 98],   oeil: [255, 44, 44],   lueur: [255, 42, 54],   corne: [236, 222, 204], part: '#ff2c3c' },
+  korlaz:  { n: 'du Korlaz',    robe: [48, 42, 54],    sombre: [16, 12, 20],  ventre: [98, 112, 82],   oeil: [192, 255, 92],  lueur: [172, 255, 72],  corne: [32, 28, 36],   part: '#9eff5c' },
+  monochrome: { n: 'monochrome', robe: [172, 172, 172], sombre: [34, 34, 34], ventre: [236, 236, 236], oeil: [255, 255, 255], lueur: [255, 255, 255], corne: [18, 18, 18], part: '#ffffff' },
+  neant:   { n: 'du néant',     robe: [16, 14, 22],    sombre: [0, 0, 0],     ventre: [62, 58, 72],    oeil: [255, 255, 255], lueur: [150, 110, 255], corne: [250, 250, 255], part: '#d8ccff' },
+  spectre: { n: 'des spectres', robe: [172, 212, 222], sombre: [72, 102, 122], ventre: [222, 246, 250], oeil: [162, 255, 255], lueur: [172, 255, 250], corne: [204, 242, 246], part: '#c2f8ff' },
+  astral:  { n: 'des étoiles',  robe: [32, 38, 92],    sombre: [10, 12, 40],  ventre: [92, 112, 192],  oeil: [255, 255, 222], lueur: [222, 232, 255], corne: [204, 214, 255], part: '#eaeeff' },
 };
+// (§239) les rares : le hasard de la lignée seul en décide, quel que soit son milieu ; le Korlaz (des bêtes infectées), le
+// monochrome et le néant, une lignée sur quarante à soixante-dix ; le sang chez les chasseurs et les bêtes de nuit, les spectres et les
+// étoiles chez les bêtes de nuit et du crépuscule
+const RARES_EL = [['korlaz', .025, () => true], ['monochrome', .015, () => true], ['neant', .015, () => true],
+  ['sang', .05, d => d.chasseur || d.nocturne], ['spectre', .05, d => d.nocturne || d.activite === 'crepusculaire'], ['astral', .06, d => d.nocturne]];
 const MILIEUX_EL = {
-  prairie: { aurore: 3, sylve: 1, orage: 1 }, savane: { braise: 2, aurore: 1, orage: 1 }, steppe: { orage: 2, braise: 1, aurore: 1 },
-  maquis: { braise: 1, sylve: 1, aurore: 1 }, desert: { braise: 3, cristal: 1 }, 'desert-froid': { cristal: 2, givre: 1 }, volcan: { braise: 3 },
-  montagne: { cristal: 2, orage: 1, givre: 1 }, sommets: { givre: 2, orage: 1 }, toundra: { givre: 2, aurore: 1 }, taiga: { givre: 1, ombre: 1, sylve: 1 },
-  banquise: { givre: 3 }, 'mer-froide': { givre: 2, abysse: 1 }, foret: { sylve: 2, ombre: 1 }, jungle: { sylve: 2, ombre: 1 },
-  marais: { sylve: 1, abysse: 1, ombre: 1 }, mangrove: { sylve: 1, abysse: 1 }, grotte: { ombre: 2, cristal: 1 },
-  cote: { abysse: 2, orage: 1 }, lac: { abysse: 2, sylve: 1 }, riviere: { abysse: 2, sylve: 1 }, recif: { abysse: 2, cristal: 1 },
-  abysses: { abysse: 2, ombre: 1 }, large: { abysse: 2, orage: 1 },
+  prairie: { aurore: 3, sylve: 1, orage: 1, petale: 1.5 }, savane: { braise: 2, aurore: 1, orage: 1, sable: 1 }, steppe: { orage: 2, braise: 1, aurore: 1, vent: 1.5 },
+  maquis: { braise: 1, sylve: 1, aurore: 1, petale: 1 }, desert: { braise: 2, cristal: 1, sable: 2.5 }, 'desert-froid': { cristal: 2, givre: 1, roche: 1.5 },
+  volcan: { braise: 2, magma: 2.5 }, montagne: { cristal: 2, orage: 1, givre: 1, roche: 1.5 }, sommets: { givre: 2, orage: 1, vent: 1.5 },
+  toundra: { givre: 2, aurore: 1, vent: .7 }, taiga: { givre: 1, ombre: 1, sylve: 1, ambre: 1 }, banquise: { givre: 3 }, 'mer-froide': { givre: 2, abysse: 1 },
+  foret: { sylve: 2, ombre: 1, ambre: 1.2 }, jungle: { sylve: 2, ombre: 1, ambre: .8, petale: .8 }, marais: { sylve: 1, abysse: 1, ombre: 1 },
+  mangrove: { sylve: 1, abysse: 1, ambre: .6 }, grotte: { ombre: 2, cristal: 1, roche: 1.5 },
+  cote: { abysse: 2, orage: 1, vent: .8 }, lac: { abysse: 2, sylve: 1 }, riviere: { abysse: 2, sylve: 1 }, recif: { abysse: 2, cristal: 1 },
+  abysses: { abysse: 2, ombre: 1 }, large: { abysse: 2, orage: 1, vent: 1 },
 };
 const MILIEUX_NOMS = { 'prairie': 'prairie', 'savane': 'savane', 'steppe': 'steppe', 'maquis': 'maquis', 'désert froid': 'desert-froid', 'désert': 'desert',
   'volcan': 'volcan', 'montagne': 'montagne', 'sommets': 'sommets', 'toundra': 'toundra', 'taïga': 'taiga', 'banquise': 'banquise', 'mer froide': 'mer-froide',
@@ -494,6 +513,9 @@ function milieuDe(d) {
   return best ? best[1] : 'prairie';
 }
 function elementDe(sp, d) {
+  { let h = hacher(sp.id + ':rare'); h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0; h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0; h = (h ^ (h >>> 16)) >>> 0;
+    const r = (h % 10000) / 10000; let bas = 0;   // (§239) un élément rare, d'abord
+    for (const [k, p, ok] of RARES_EL) { if (ok(d) && r >= bas && r < bas + p) return k; bas += p; } }
   const W = { ...(MILIEUX_EL[milieuDe(d)] || MILIEUX_EL.prairie) }, plus = (k, w) => { W[k] = (W[k] || 0) + w; };
   if (d.nocturne || sp.nuit) plus('ombre', 2); else if (d.activite === 'crepusculaire') { plus('ombre', .7); plus('aurore', .7); }
   if (d.forme === 'hexapode') plus('cristal', 1);

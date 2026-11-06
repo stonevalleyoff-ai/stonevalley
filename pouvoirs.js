@@ -21,6 +21,7 @@
 //   pouvoirsMaj(dt)             à chaque image : le givre sur le joueur, la foudre qui tombe, les braises sur les bêtes
 //   pouvoirStatuts(add)         les états du joueur, au tableau de bord
 //   pouvoirDit(o)               ce que la fiche de la cible en dit
+//   pouvoirCss()                (§239) le filtre de l'écran : l'achromie, et l'aura des créatures monochromes
 'use strict';
 const POUVOIRS = {
   braise:  { n: 'Souffle de braise', mord: 'brûle', portee: 8, annonce: .9, son: 'cracheFeu', c: [255, 140, 50] },
@@ -31,6 +32,19 @@ const POUVOIRS = {
   orage:   { n: 'Foudre', mord: 'électrise', portee: 10, annonce: 1.1, son: 'tonnerre', c: [255, 244, 140] },
   ombre:   { n: 'Pas de l\'ombre', mord: 'draine', portee: 9, annonce: .7, son: 'murmure', c: [170, 120, 255] },
   aurore:  { n: 'Lumière d\'aurore', mord: 'soigne les siens', portee: 6, annonce: 1, son: 'sort', c: [255, 220, 130] },
+  // (§239)
+  magma:   { n: 'Éruption', mord: 'brûle et écrase', portee: 9, annonce: 1.1, son: 'explosion', c: [255, 110, 30] },
+  sable:   { n: 'Tempête de sable', mord: 'aveugle', portee: 5.5, annonce: .9, son: 'vapeur', c: [236, 204, 146] },
+  vent:    { n: 'Bourrasque', mord: 'repousse', portee: 6, annonce: .8, son: 'vapeur', c: [226, 252, 255] },
+  roche:   { n: 'Séisme', mord: 'écrase', portee: 4.8, annonce: 1, son: 'pilon', c: [200, 180, 150] },
+  ambre:   { n: 'Résine', mord: 'englue', portee: 7.5, annonce: .9, son: 'crachat', c: [255, 190, 70] },
+  petale:  { n: 'Tempête de pétales', mord: 'endort', portee: 5.5, annonce: 1, son: 'sort', c: [255, 186, 220] },
+  sang:    { n: 'Soif de sang', mord: 'fait saigner, et boit', portee: 4.5, annonce: .9, son: 'lacere', c: [255, 40, 54] },
+  korlaz:  { n: 'Nuée de Korlaz', mord: 'infecte', portee: 4.5, annonce: 1, son: 'murmure', c: [160, 255, 80] },
+  monochrome: { n: 'Achromie', mord: 'éteint les couleurs', portee: 7, annonce: 1.1, son: 'bourdon', c: [255, 255, 255] },
+  neant:   { n: 'Gouffre', mord: 'aspire le mana', portee: 8, annonce: 1, son: 'grondement', c: [170, 130, 255] },
+  spectre: { n: 'Cri d\'outre-tombe', mord: 'glace d\'effroi', portee: 6.5, annonce: .9, son: 'hurlement', c: [176, 255, 250] },
+  astral:  { n: 'Pluie d\'étoiles', mord: 'étourdit', portee: 10, annonce: 1.1, son: 'tonnerre', c: [236, 240, 255] },
 };
 const PV = { foudres: [], vus: new Set(), pret: false };
 const pvEl = b => b && b.sp && b.sp.orvane && !b.sp.orvane.machine ? b.sp.orvane.el : null;
@@ -62,6 +76,19 @@ function pouvoirCoup(b, c, ux, uy) {
     else if (el === 'orage') { if (pu > .45) P.englue = Math.max(P.englue || 0, t + .35 + .25 * pu); pvPart(P.x, P.y, P.z + .6, 10, C, { v: 3, vie: .3 }); }
     else if (el === 'ombre') { b.pv = Math.min(1, b.pv + .06 * k); pvPart(P.x, P.y, P.z + .6, 8, C, { vx: (b.x - P.x), vy: (b.y - P.y), v: .4 }); }
     else if (el === 'aurore') pvSoinTroupeau(b, .08 * k, 6);
+    // (§239)
+    else if (el === 'magma') { if (!effet('braise')) P.brulure = Math.max(P.brulure || 0, t + 2 * k); P.pv = Math.max(0, P.pv - degSubi(.02 * k)); pvPart(P.x, P.y, P.z + .4, 10, C, { vz: 1.4 }); if (P.pv <= 0) terrasse(); }
+    else if (el === 'sable') { P.trouble = Math.max(P.trouble || 0, t + 1.3 * k); pvPart(P.x, P.y, P.z + .8, 10, C, { r: .8 }); }
+    else if (el === 'vent') { P.vx = (P.vx || 0) + ux * 4 * k; P.vy = (P.vy || 0) + uy * 4 * k; P.vz = Math.max(P.vz || 0, 5); P.ground = false; pvPart(P.x, P.y, P.z + .3, 10, C, { v: 3 }); }
+    else if (el === 'roche') { P.pv = Math.max(0, P.pv - degSubi(.035 * k)); pvPart(P.x, P.y, P.z + .3, 8, C, { g: .5 }); if (P.pv <= 0) terrasse(); }
+    else if (el === 'ambre') { P.gel = Math.max(P.gel || 0, t + 1.8 * k); pvPart(P.x, P.y, P.z + .3, 8, C, { g: .3 }); }
+    else if (el === 'petale') { P.gel = Math.max(P.gel || 0, t + 1.2 * k); pvPart(P.x, P.y, P.z + 1, 10, C, { r: .8, g: .05 }); }
+    else if (el === 'sang') { P.saigne = Math.max(P.saigne || 0, t + 3 * k); b.pv = Math.min(1, b.pv + .05 * k); pvRouge(.5); pvPart(P.x, P.y, P.z + .6, 10, C, { g: .4 }); }
+    else if (el === 'korlaz') pvKorlaz(5 * k, 'une morsure du Korlaz');
+    else if (el === 'monochrome') { P.achrome = Math.max(P.achrome || 0, t + 3 * k); pvPart(P.x, P.y, P.z + .6, 10, '#ffffff'); }
+    else if (el === 'neant') { if (Number.isFinite(P.mana)) P.mana = Math.max(0, P.mana - 12 * k); pvPart(P.x, P.y, P.z + .6, 10, C, { vx: (b.x - P.x), vy: (b.y - P.y), v: .3 }); }
+    else if (el === 'spectre') { P.effroi = Math.max(P.effroi || 0, t + 1.2 * k); pvPart(P.x, P.y, P.z + .8, 8, C); }
+    else if (el === 'astral') { P.englue = Math.max(P.englue || 0, t + .3 + .3 * pu); pvPart(P.x, P.y, P.z + 1, 10, C, { v: 2.6, vie: .4 }); }
     return;
   }
   if (!c || !c.sp || c.dead) return;
@@ -72,6 +99,12 @@ function pouvoirCoup(b, c, ux, uy) {
   else if (el === 'abysse') { c.vx = (c.vx || 0) + ux * 5; c.vy = (c.vy || 0) + uy * 5; }
   else if (el === 'ombre') b.pv = Math.min(1, b.pv + .05 * k);
   else if (el === 'aurore') pvSoinTroupeau(b, .06 * k, 6);
+  else if (el === 'magma' || el === 'korlaz') c.brulureB = Math.max(c.brulureB || 0, t + 2.5 * k);
+  else if (el === 'sang') { c.brulureB = Math.max(c.brulureB || 0, t + 2 * k); b.pv = Math.min(1, b.pv + .05 * k); }
+  else if (el === 'roche') pvBlesse(b, c, .035 * k);
+  else if (el === 'vent') { c.vx = (c.vx || 0) + ux * 4; c.vy = (c.vy || 0) + uy * 4; }
+  else if (el === 'neant') { pvBlesse(b, c, .02 * k); b.pv = Math.min(1, b.pv + .04 * k); }
+  else c.etourdi = Math.max(c.etourdi || 0, .5 + .6 * k);           // sable, ambre, pétales, monochrome, spectres, étoiles : elle reste là, saisie
   pvPart(c.x, c.y, c.z + .4 * (c.sp.sz || 1), 6, C);
 }
 // des dégâts de pouvoir sur une bête (une compagne qui défend, ou une bête prise dans l'élément)
@@ -81,6 +114,15 @@ function pvBlesse(de, o, deg) {
   if (de && !o.tame && de.tame) o.colere = Math.max(o.colere || 0, 6);
   if (o.pv <= 0 && !o.dead) try { mourirBete(o, 'tir'); } catch (e) { }
 }
+// le Korlaz : les spores s'accumulent ; au seuil, l'infection (etats.js)
+function pvKorlaz(n, pourquoi) {
+  if (P.korlaz || (typeof effet === 'function' && effet('antidote'))) return;
+  P.korlazExpo = (P.korlazExpo || 0) + n; pvPart(P.x, P.y, P.z + .8, 12, [150, 230, 80], { r: .7, vz: .5, g: -.05, vie: 1.2 });
+  const S = typeof KORLAZ_SEUIL !== 'undefined' ? KORLAZ_SEUIL : 30;
+  if (P.korlazExpo >= S && typeof infecter === 'function') infecter(pourquoi + ' vous a infecté');
+  else try { say('spores de Korlaz · ' + Math.round(Math.min(1, P.korlazExpo / S) * 100) + ' %', 1.4); } catch (e) { }
+}
+function pvRouge(k) { try { if (typeof ETAT !== 'undefined') ETAT.rouge = Math.max(ETAT.rouge || 0, k); } catch (e) { } }
 function pvSoinTroupeau(b, k, r) {
   for (const o of beasts) if (!o.dead && o.pv > 0 && o.sp === b.sp && o.tame === b.tame && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < r * r) {
     if (o.pv < 1) pvPart(o.x, o.y, o.z + .5 * (o.sp.sz || 1), 5, [255, 230, 150], { vz: 1, g: -.1 });
@@ -106,6 +148,7 @@ function pouvoirBete(b, dt, J, dJ) {
   const el = pvEl(b); if (!el || b.dead || b.enfoui > 0 || b.as) return null;
   if (b.enVol) { b.pvA = null; return null; }                // en l'air, elle ne lance rien
   pvInit();
+  if (el === 'korlaz' && !b.tame && J === P && dJ < 6 && P.pv > 0) b.colere = Math.max(b.colere || 0, 8);   // (§239) une bête infectée charge qui l'approche
   const pu = pvPu(b); if (pu < .5) return null;
   const P0 = POUVOIRS[el], A = b.pvA;
   if (A) {                                                   // l'annonce : l'élément tourbillonne, puis le pouvoir part
@@ -114,7 +157,8 @@ function pouvoirBete(b, dt, J, dJ) {
     if (b.hit > .2 && !b.tame) { b.pvA = null; b.pvT = t + 4; pvPart(b.x, b.y, b.z + .4, 10, [200, 200, 200], { vz: .6 }); return null; }   // frappée pendant qu'elle se concentre : interrompue
     const sz = b.sp.sz || 1, an = t * 9;
     pvPart(b.x + Math.cos(an) * .55 * sz, b.y + Math.sin(an) * .55 * sz, b.z + .3 * sz, 2, P0.c, { r: .1, vz: 1.4, g: -.2, vie: .6 });
-    if (el === 'orage') pvAnneau(A.x, A.y, 1.2, P0.c);      // le cercle au sol : la foudre tombera là
+    if (el === 'orage' || el === 'magma') pvAnneau(A.x, A.y, 1.2, P0.c);   // le cercle au sol : la foudre (ou la lave) tombera là
+    if (el === 'astral') for (const o of A.pts || []) pvAnneau(o[0], o[1], .8, P0.c);
     if (t >= A.fin) { b.pvA = null; b.pvT = t + (b.tame ? 12 : 10 + Math.random() * 6) * (1.25 - .45 * pu); pvLancer(b, el, c, A); return null; }
     return { etat: 'pouvoir', vit: 0, dirT: Math.atan2(c.y - b.y, c.x - b.x) };
   }
@@ -122,6 +166,7 @@ function pouvoirBete(b, dt, J, dJ) {
   const c = pvCible(b, J, dJ, P0); if (!c) return null;
   if (el === 'aurore' && !b.tame && !beasts.some(o => o.sp === b.sp && !o.dead && o.pv < .7 && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 49) && dJ > 4.5) return null;   // l'aurore : quand les siens saignent, ou qu'on la serre
   b.pvA = { cible: c, fin: t + P0.annonce, x: c.x, y: c.y }; b.alarm = 1;
+  if (el === 'astral') b.pvA.pts = [[c.x, c.y], ...[0, 1, 2].map(i => { const a = Math.random() * 6.2832, r = 1 + Math.random() * 1.6; return [c.x + Math.cos(a) * r, c.y + Math.sin(a) * r]; })];
   pvSon(el === 'orage' ? 'grondement' : 'vapeur', b.x, b.y, b.z + .5, { court: 1 });
   if (!b.tame) pvVu(b);
   return { etat: 'pouvoir', vit: 0, dirT: Math.atan2(c.y - b.y, c.x - b.x) };
@@ -155,12 +200,53 @@ function pvLancer(b, el, c, A) {
       try { if (typeof lancerAssaut === 'function') lancerAssaut(b, c, COMBAT[b.sp.id] || COMBAT.chasseur); } catch (e) { }
     }
   }
+  // (§239) les douze autres
+  else if (el === 'magma') PV.foudres.push({ x: A.x, y: A.y, t: t + .12, de: b, deg: deg * 1.2, k: 'lave' });
+  else if (el === 'astral') (A.pts || [[A.x, A.y]]).forEach((o, i) => PV.foudres.push({ x: o[0], y: o[1], t: t + .1 + i * .28, de: b, deg: deg * .7, k: 'etoile' }));
+  else if (el === 'ambre') pvProjectile(b, c, el, deg * .7, 0);
+  else if (el === 'vent') pvCone(b, P0, deg * .4, o => { const dx = o.x - b.x, dy = o.y - b.y, n = Math.hypot(dx, dy) || 1; o.vx = dx / n * 13; o.vy = dy / n * 13; o.vz = 6; if (o === P) { P.ground = false; P.recul = .5; } else o.etourdi = Math.max(o.etourdi || 0, .8); });
+  else if (['sable', 'roche', 'petale', 'sang', 'korlaz', 'monochrome', 'spectre'].includes(el)) pvZone(b, el, P0, deg);
+  else if (el === 'neant') { b.pvAttire = { fin: t + 1.4, deg }; pvPart(b.x, b.y, b.z + .5 * sz, 30, [20, 10, 30], { r: 1.2, vz: .2, g: 0, vie: 1.4, tl: .1 }); }
   else if (el === 'aurore') {                               // la lumière : le troupeau soigné, et qui est trop près, ébloui
     for (let k = 0; k < 30; k++) { const a = k / 30 * 6.2832; pvPart(b.x, b.y, b.z + .4 * sz, 1, P0.c, { vx: Math.cos(a) * 4, vy: Math.sin(a) * 4, v: 0, vz: .2, g: 0, vie: .7, tl: .08 }); }
     pvSoinTroupeau(b, .3 + .2 * ep, 8);
     if (b.tame) { for (const o of beasts) if (!o.dead && !o.tame && o.pv > 0 && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 25) o.etourdi = Math.max(o.etourdi || 0, 1.2); }
     else if ((P.x - b.x) ** 2 + (P.y - b.y) ** 2 < 25) P.trouble = Math.max(P.trouble || 0, t + 1.6);
   }
+}
+// un cône devant elle (le souffle de givre, la bourrasque) : f(o) sur ce qui y est pris — le joueur, ou les bêtes pour une compagne
+function pvCone(b, P0, deg, f) {
+  const a0 = b.dir, L = P0.portee, sz = b.sp.sz || 1;
+  for (let k = 0; k < 24; k++) { const a = a0 + (Math.random() - .5) * 1.1, v = 3 + Math.random() * 3;
+    pvPart(b.x + Math.cos(a0) * .4 * sz, b.y + Math.sin(a0) * .4 * sz, b.z + .45 * sz, 1, P0.c, { vx: Math.cos(a) * v, vy: Math.sin(a) * v, v: .3, vz: .3, g: .05, vie: .6, tl: .09 }); }
+  const dans = o => { const dx = o.x - b.x, dy = o.y - b.y, d = Math.hypot(dx, dy); if (d > L || d < .01) return false; let da = Math.atan2(dy, dx) - a0; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832; return Math.abs(da) < .6; };
+  if (b.tame) { for (const o of beasts) if (!o.dead && !o.tame && o.pv > 0 && dans(o)) { pvBlesse(b, o, deg); f(o); } }
+  else if (dans(P) && P.pv > 0) { pvFrapper(b, deg); f(P); }
+}
+// une onde autour d'elle : le sable, le séisme, les pétales, la soif de sang, la nuée de Korlaz, l'achromie, le cri des spectres
+function pvZone(b, el, P0, deg) {
+  const R = P0.portee, sz = b.sp.sz || 1, C = P0.c;
+  for (let k = 0; k < 36; k++) { const a = k / 36 * 6.2832, v = R * (el === 'korlaz' || el === 'sable' ? .7 : 1.6);
+    pvPart(b.x, b.y, b.z + .25 * sz, 1, el === 'monochrome' ? (k % 2 ? '#ffffff' : '#111111') : C, { vx: Math.cos(a) * v, vy: Math.sin(a) * v, v: .4, vz: el === 'korlaz' ? .4 : .2, g: el === 'roche' ? .3 : 0, vie: el === 'korlaz' ? 1.6 : .7, tl: .1 }); }
+  if (el === 'roche') { try { P.secousse = t; P.secousseK = .6; } catch (e) { } }
+  const pris = o => (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < R * R;
+  if (b.tame) {
+    for (const o of beasts) if (!o.dead && !o.tame && o.pv > 0 && o !== b && pris(o)) {
+      pvBlesse(b, o, deg * (el === 'roche' || el === 'sang' ? .8 : .4)); o.etourdi = Math.max(o.etourdi || 0, el === 'petale' ? 2.5 : 1.4);
+      if (el === 'sang') { b.pv = Math.min(1, b.pv + .06); o.brulureB = Math.max(o.brulureB || 0, t + 3); }
+      if (el === 'korlaz') o.brulureB = Math.max(o.brulureB || 0, t + 3);
+    }
+    if (el === 'sang' && P.pv > 0) P.pv = Math.min(1, P.pv + .08);   // la soif d'une compagne : un peu de sa vie bue vous revient
+    return;
+  }
+  if (!pris(P) || !(P.pv > 0)) return;
+  if (el === 'sable') { pvFrapper(b, deg * .4); P.trouble = Math.max(P.trouble || 0, t + 3); P.gel = Math.max(P.gel || 0, t + 2); try { say('le sable vous aveugle', 1.4); } catch (e) { } }
+  else if (el === 'roche') { pvFrapper(b, deg); P.englue = Math.max(P.englue || 0, t + 1); P.vx = P.vy = 0; P.vz = Math.max(P.vz || 0, 3); }
+  else if (el === 'petale') { pvFrapper(b, deg * .3); P.englue = Math.max(P.englue || 0, t + 1.6); P.vx = P.vy = 0; P.trouble = Math.max(P.trouble || 0, t + 1.6); try { say('le pollen vous assoupit', 1.4); } catch (e) { } }
+  else if (el === 'sang') { pvFrapper(b, deg * .9); P.saigne = Math.max(P.saigne || 0, t + 4); b.pv = Math.min(1, b.pv + .25); pvRouge(.8); try { say(b.sp.n.split(',')[0] + ' boit votre sang', 1.6); } catch (e) { } }
+  else if (el === 'korlaz') { pvFrapper(b, deg * .4); P.trouble = Math.max(P.trouble || 0, t + 2.5); pvKorlaz(12, 'la nuée de Korlaz'); }
+  else if (el === 'monochrome') { pvFrapper(b, deg * .5); P.achrome = Math.max(P.achrome || 0, t + 6); P.englue = Math.max(P.englue || 0, t + .5); try { say('les couleurs s\'éteignent', 1.6); } catch (e) { } }
+  else if (el === 'spectre') { P.effroi = Math.max(P.effroi || 0, t + 3); P.trouble = Math.max(P.trouble || 0, t + 1.5); try { say('un cri vous glace d\'effroi', 1.6); } catch (e) { } }
 }
 // un coup de pouvoir sur le joueur : par le combat commun (esquive, parade, armure), sans la morsure en plus
 function pvFrapper(b, deg) { b._pvSans = true; try { porterCoup(b, P, deg); } catch (e) { } b._pvSans = false; }
@@ -182,7 +268,7 @@ function pouvoirImpact(f) {
     for (const o of beasts) if (!o.dead && o.pv > 0 && !o.tame && o !== de && (o.x - x) ** 2 + (o.y - y) ** 2 < r * r) {
       pvBlesse(de, o, f.deg);
       if (el === 'braise') o.brulureB = Math.max(o.brulureB || 0, t + 3);
-      else if (el === 'sylve') o.etourdi = Math.max(o.etourdi || 0, 2);
+      else if (el === 'sylve' || el === 'ambre') o.etourdi = Math.max(o.etourdi || 0, 2);
       else if (el === 'abysse') { const dx = o.x - x, dy = o.y - y, n = Math.hypot(dx, dy) || 1; o.vx = dx / n * 9; o.vy = dy / n * 9; o.etourdi = Math.max(o.etourdi || 0, .6); }
     }
     return;
@@ -192,17 +278,34 @@ function pouvoirImpact(f) {
   if (el === 'braise') { if (!effet('braise')) P.brulure = Math.max(P.brulure || 0, t + 3.5); }
   else if (el === 'sylve') { P.englue = Math.max(P.englue || 0, t + 1.5); P.vx = P.vy = 0; P.poison = Math.min(t + 10, Math.max(P.poison || 0, t) + 3); try { say('des ronces vous clouent au sol', 1.6); } catch (e) { } }
   else if (el === 'abysse') { const dx = P.x - x, dy = P.y - y, n = Math.hypot(dx, dy) || 1; P.vx = dx / n * 11; P.vy = dy / n * 11; P.vz = 5.2; P.ground = false; P.recul = .45; }
+  else if (el === 'ambre') { P.englue = Math.max(P.englue || 0, t + 2.2); P.vx = P.vy = 0; try { say('englué dans la résine', 1.4); } catch (e) { } }
 }
 // --- à chaque image ---
 function pouvoirsMaj(dt) {
   if (P.gel > t && P.pv > 0 && Math.random() < dt * 6) pvPart(P.x, P.y, P.z + .3 + Math.random(), 1, [210, 245, 255], { r: .6, v: .2, vz: -.2, g: .05, vie: 1 });
+  if (P.saigne > t && P.pv > 0 && !P.invincible) {          // (§239) le sang coule : la vie baisse un peu, sans tuer
+    P.pv = Math.max(.02, P.pv - dt * .012 * (typeof danger === 'function' ? Math.min(3, danger()) : 1));
+    if (Math.random() < dt * 5) pvPart(P.x, P.y, P.z + .6, 1, [200, 20, 30], { r: .3, v: .2, vz: 0, g: .6, vie: .8 }); }
+  for (const b of beasts) if (b.pvAttire) {                   // (§239) le gouffre : il vous aspire vers lui, puis se referme
+    const A = b.pvAttire;
+    if (b.dead || t > A.fin) { if (!b.dead && !b.tame && (P.x - b.x) ** 2 + (P.y - b.y) ** 2 < 5 && P.pv > 0) { pvFrapper(b, A.deg * 1.3); if (Number.isFinite(P.mana)) P.mana = Math.max(0, P.mana - 25); try { say('le néant vous a happé', 1.4); } catch (e) { } }
+      if (b.tame) for (const o of beasts) if (!o.dead && !o.tame && o.pv > 0 && (o.x - b.x) ** 2 + (o.y - b.y) ** 2 < 6) { pvBlesse(b, o, A.deg); o.etourdi = Math.max(o.etourdi || 0, 1.2); }
+      b.pvAttire = null; continue; }
+    if (Math.random() < dt * 20) { const a = Math.random() * 6.2832, r = 2 + Math.random() * 2; pvPart(b.x + Math.cos(a) * r, b.y + Math.sin(a) * r, b.z + .4, 1, [150, 110, 255], { vx: -Math.cos(a) * r * 2, vy: -Math.sin(a) * r * 2, v: 0, vz: 0, g: 0, vie: .45 }); }
+    const tire = o => { const dx = b.x - o.x, dy = b.y - o.y, d = Math.hypot(dx, dy); if (d < .8 || d > 9) return; o.vx = (o.vx || 0) + dx / d * 16 * dt; o.vy = (o.vy || 0) + dy / d * 16 * dt; };
+    if (b.tame) { for (const o of beasts) if (!o.dead && !o.tame && o.pv > 0) tire(o); } else if (P.pv > 0 && !P.invincible) tire(P);
+  }
   for (let i = PV.foudres.length - 1; i >= 0; i--) { const F = PV.foudres[i]; if (t < F.t) continue; PV.foudres.splice(i, 1);
-    const z0 = typeof sol === 'function' ? sol(F.x, F.y) : 0;
-    for (let k = 0; k < 18; k++) pvPart(F.x, F.y, z0 + k * .25, 2, k % 3 ? [255, 250, 190] : [255, 255, 255], { r: .15, v: .6, vz: 0, g: 0, vie: .25, tl: .1 });
-    pvPart(F.x, F.y, z0 + .1, 16, [255, 240, 120], { r: .4, v: 3, vz: 1.5, g: .3, vie: .5 });
-    try { P.secousse = t; P.secousseK = .5; } catch (e) { }
-    if (F.de && F.de.tame) { for (const o of beasts) if (!o.dead && !o.tame && o.pv > 0 && (o.x - F.x) ** 2 + (o.y - F.y) ** 2 < 2.2) { pvBlesse(F.de, o, F.deg); o.etourdi = Math.max(o.etourdi || 0, 1.5); } }
-    else if ((P.x - F.x) ** 2 + (P.y - F.y) ** 2 < 1.7 && P.pv > 0 && F.de) { pvFrapper(F.de, F.deg); P.englue = Math.max(P.englue || 0, t + .9); P.vx = P.vy = 0; try { say('foudroyé', 1.2); } catch (e) { } }
+    const z0 = typeof sol === 'function' ? sol(F.x, F.y) : 0, lave = F.k === 'lave', etoile = F.k === 'etoile';
+    if (lave) { for (let k = 0; k < 26; k++) pvPart(F.x, F.y, z0 + .1, 1, k % 3 ? [255, 120, 30] : [255, 220, 90], { r: .5, v: 1.4, vz: 5 + Math.random() * 3, g: 1, vie: .9, tl: .1 }); pvSon('explosion', F.x, F.y, z0); }
+    else { const C = etoile ? [236, 240, 255] : [255, 250, 190]; for (let k = 0; k < 18; k++) pvPart(F.x, F.y, z0 + k * .25, 2, k % 3 ? C : [255, 255, 255], { r: .15, v: .6, vz: 0, g: 0, vie: .25, tl: .1 });
+      pvPart(F.x, F.y, z0 + .1, 16, etoile ? [200, 210, 255] : [255, 240, 120], { r: .4, v: 3, vz: 1.5, g: .3, vie: .5 }); if (etoile) pvSon('impact', F.x, F.y, z0, { court: 1 }); }
+    try { P.secousse = t; P.secousseK = etoile ? .25 : .5; } catch (e) { }
+    const r2 = etoile ? 1.1 : 1.7;
+    if (F.de && F.de.tame) { for (const o of beasts) if (!o.dead && !o.tame && o.pv > 0 && (o.x - F.x) ** 2 + (o.y - F.y) ** 2 < r2 * 1.3) { pvBlesse(F.de, o, F.deg); if (lave) o.brulureB = Math.max(o.brulureB || 0, t + 3); else o.etourdi = Math.max(o.etourdi || 0, 1.5); } }
+    else if ((P.x - F.x) ** 2 + (P.y - F.y) ** 2 < r2 && P.pv > 0 && F.de) { pvFrapper(F.de, F.deg);
+      if (lave) { if (!effet('braise')) P.brulure = Math.max(P.brulure || 0, t + 3.5); P.vz = Math.max(P.vz || 0, 6); P.ground = false; try { say('la lave jaillit sous vos pieds', 1.4); } catch (e) { } }
+      else { P.englue = Math.max(P.englue || 0, t + (etoile ? .5 : .9)); P.vx = P.vy = 0; try { say(etoile ? 'une étoile vous frappe' : 'foudroyé', 1.2); } catch (e) { } } }
   }
   if (Math.random() < dt * 4) for (const o of beasts) if (o.brulureB > t && !o.dead && o.pv > 0) {   // la braise (ou le venin des ronces) sur une bête
     o.pv -= .02 / (typeof robuste === 'function' ? robuste(o) : 1); o.hit = Math.max(o.hit || 0, .05);
@@ -211,6 +314,15 @@ function pouvoirsMaj(dt) {
 }
 function pouvoirStatuts(add) {
   if (P.gel > t) add('st_nuit', 'mal', 'Gelé', 'le givre d\'une créature : vous avancez à moitié moins vite', P.gel);
+  if (P.saigne > t) add('st_epuise', 'mal', 'Saigne', 'une morsure de sang : la vie coule, un peu', P.saigne);
+  if (P.achrome > t) add('st_nuit', 'mal', 'Achromie', 'une créature monochrome a éteint vos couleurs', P.achrome);
+}
+// (§239) LE FILTRE DE L'ÉCRAN (etats.js, dessinerFiltre) : l'achromie éteint les couleurs ; et l'aura d'une créature monochrome les
+// éteint peu à peu à mesure qu'on s'en approche (à dix cases, rien ; tout contre elle, presque plus rien)
+function pouvoirCss() {
+  let k = P.achrome > t ? Math.min(1, (P.achrome - t) / .6) : 0;
+  for (const b of beasts) if (!b.dead && pvEl(b) === 'monochrome') { const d = Math.hypot(b.x - P.x, b.y - P.y); if (d < 10) k = Math.max(k, (1 - d / 10) * .9); }
+  return k > .02 ? `grayscale(${k.toFixed(2)}) contrast(${(1 + .25 * k).toFixed(2)})` : '';
 }
 function pouvoirDit(o) {
   const el = pvEl(o); if (!el || !o.sp || o.dead) return '';

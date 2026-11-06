@@ -110,7 +110,7 @@ function lgMesures(sp) {
     M.lueurEl = O.lueurEl || M.accent; M.partEl = O.partEl || '#ffffff';
     M.lueur = lgMix(M.lueurEl, [255, 255, 255], .12);
     M.accent = tr.has('coloration-aposematique') ? M.accent : lgMix(M.lueurEl, M.robe, .15);
-    M.corne = O.corneEl || LG.CORNE; M.corneLuit = ['givre', 'cristal', 'aurore', 'orage', 'abysse'].includes(el) ? 1 : 0;
+    M.corne = O.corneEl || LG.CORNE; M.corneLuit = ['givre', 'cristal', 'aurore', 'orage', 'abysse', 'astral', 'spectre', 'ambre', 'neant', 'vent'].includes(el) ? 1 : 0;
     const quad = !serpent && !poisson && !M.oiseau && !M.hexa;
     if (M.cornes > .25) M.cornes = Math.min(1.2, M.cornes * (1.2 + .5 * M.epique));
     else if (quad && pu > .5) M.cornes = .3 + .55 * lgCl((pu - .5) / .5, 0, 1);   // une couronne de cornes, à qui n'en avait pas
@@ -493,6 +493,20 @@ function lgTouffe(B, M, p, dir, l, w, g, i) {
     case 'abysse': B.push({ a: p, b: q(1), w: .014, h: l * .7, c: lgMix(M.robe, M.lueur, .55), fin: .3, ...luit }); break;
     case 'orage': if ((t * 7 + i * 3.3 + g) % 1 < .75) { const m = q(.5, (i % 2 ? .018 : -.018)); B.push({ a: p, b: m, w: w * .45, h: w * .45, c: M.lueur, ...luit }, { a: m, b: q(1, (i % 2 ? -.012 : .012)), w: w * .38, h: w * .38, c: [255, 255, 230], ...luit }); } break;
     case 'ombre': for (let k = 0; k < 2; k++) { const u = ((t * .7 + i * .37 + k * .5) % 1); B.push({ a: q(u), b: q(u + .05), w: w * (1.3 - u * .8), h: w * (1.3 - u * .8), c: lgMix(M.sombre, M.lueur, .5), boule: 4, ...luit }); } break;
+    // (§239) les douze autres
+    case 'magma': B.push({ a: p, b: q(1), w: w * 1.1, h: w * 1.1, c: M.corne, pans: 4, fin: .25 }, { a: q(.15), b: q(.85), w: w * .4, h: w * .4, c: M.lueur, ...luit }); break;   // de la roche, le cœur en fusion
+    case 'sable': { const o = Math.sin(t * 3 + i + g) * .02; B.push({ a: p, b: q(1, o, o), w: w * 1.5, h: w * .28, c: lgMix(M.robe, [255, 236, 190], .4), fin: .2 }); break; }
+    case 'vent': { const o = Math.sin(t * 6 + i * 1.3 + g) * .03; B.push({ a: p, b: q(.55, o, 0), w: w * .9, h: .01, c: M.lueur, fin: .8, ...luit }, { a: q(.55, o, 0), b: q(1.1, -o, o), w: w * .6, h: .008, c: [255, 255, 255], fin: .2, ...luit }); break; }
+    case 'roche': B.push({ a: p, b: q(.9), w: w * 1.2, h: w * 1.2, c: M.corne, pans: 4, fin: .35 }, { a: q(.88), b: q(.98), w: w * .4, h: w * .4, c: M.lueur, boule: 4, ...luit }); break;
+    case 'ambre': case 'sang': { const u = M.el === 'sang' ? ((t * .9 + i * .41) % 1) : .9;   // une goutte de résine, ou de sang qui perle et tombe
+      B.push({ a: p, b: q(.7), w: w * .8, h: w * .8, c: M.el === 'sang' ? lgMix(M.robe, [255, 40, 50], .5) : M.corne, fin: .5, ...(M.el === 'ambre' ? luit : {}) },
+        { a: q(.7 + u * .4, 0, 0, -u * l * .8), b: q(.75 + u * .4, 0, 0, -u * l * .8), w: w * .55, h: w * .55, c: M.lueur, boule: 4, ...luit }); break; }
+    case 'petale': B.push({ a: p, b: q(1), w: w * 1.5, h: w * .25, c: i % 2 ? M.lueur : [255, 236, 244], fin: .4, ...luit }); break;
+    case 'korlaz': for (let k = 0; k < 2; k++) { const u = ((t * .5 + i * .29 + k * .5) % 1); B.push({ a: q(u), b: q(u + .06), w: w * (1.1 - u * .5), h: w * (1.1 - u * .5), c: k ? M.lueur : [44, 52, 36], boule: 4, ...(k ? luit : {}) }); } break;   // des spores
+    case 'monochrome': B.push({ a: p, b: q(1), w, h: w, c: i % 2 ? [255, 255, 255] : [18, 18, 18], pans: 4, fin: 0, ...(i % 2 ? luit : {}) }); break;   // noir, blanc, noir
+    case 'neant': B.push({ a: p, b: q(1), w: w * 1.1, h: w * 1.1, c: [6, 4, 10], pans: 4, fin: 0 }, { a: q(.1), b: q(1.05), w: w * .25, h: w * .25, c: [250, 248, 255], fin: 0, ...luit }); break;   // un éclat de nuit, bordé de blanc
+    case 'spectre': for (let k = 0; k < 2; k++) { const u = ((t * .6 + i * .33 + k * .5) % 1); B.push({ a: q(u), b: q(u + .08), w: w * (1.2 - u * .9), h: w * (1.2 - u * .9), c: lgMix(M.lueur, [255, 255, 255], .3 * u), boule: 4, ...luit }); } break;
+    case 'astral': B.push({ a: p, b: q(.5), w: w * .35, h: w * .35, c: M.sombre }, { a: q(.5), b: q(.62), w: w * .9, h: w * .9, c: [255, 255, 236], pans: 4, fin: 0, ...luit }, { a: q(.62), b: q(.5), w: w * .9, h: w * .9, c: [255, 255, 236], pans: 4, fin: 0, ...luit }); break;   // une étoile au bout d'un fil
     default: B.push({ a: p, b: q(1), w: w * 1.4, h: w * .3, c: LG_AURORE[i % LG_AURORE.length], fin: .3, ...luit });   // l'aurore : des plumes de toutes ses couleurs
   }
 }
@@ -535,9 +549,10 @@ function lgFantaisie(f, M, add, B, A) {
       f._lgAu = (f._lgAu || 0) + dtA * M.aura;
       const k = (typeof echB === 'function' ? echB(f) : 1) || 1;
       while (f._lgAu >= 1) { f._lgAu -= 1; const a = Math.random() * 6.2832, r = Math.random() * Lt * .6 * k, x = f.x + Math.cos(a) * r, y = f.y + Math.sin(a) * r, z = (f.z || 0) + (bz + Th * (.2 + Math.random())) * k;
-        const el = M.el, tombe = el === 'givre', vive = el === 'orage';
+        const el = M.el, tombe = el === 'givre' || el === 'sang' || el === 'ambre' || el === 'petale', vive = el === 'orage' || el === 'astral';
         parts.push({ x, y, z: z + (tombe ? .35 * k : 0), vx: (Math.random() - .5) * (vive ? 1.6 : .3), vy: (Math.random() - .5) * (vive ? 1.6 : .3), vz: tombe ? -.15 : vive ? Math.random() : .25 + Math.random() * (el === 'braise' ? .8 : .35),
-          g: tombe ? .03 : vive ? .4 : -.04, life: vive ? .35 + Math.random() * .3 : 1 + Math.random() * 1.2, age: 0, col: el === 'aurore' ? 'rgb(' + LG_AURORE[(Math.random() * 5) | 0].join(',') + ')' : M.partEl, luit: 1, tl: .04 + .03 * ep }); }
+          g: tombe ? .03 : vive ? .4 : -.04, life: vive ? .35 + Math.random() * .3 : 1 + Math.random() * 1.2, age: 0, luit: 1, tl: .04 + .03 * ep,
+          col: el === 'aurore' ? 'rgb(' + LG_AURORE[(Math.random() * 5) | 0].join(',') + ')' : el === 'monochrome' ? (Math.random() < .5 ? '#111111' : '#ffffff') : el === 'neant' && Math.random() < .5 ? '#0a0810' : M.partEl }); }
     }
   } catch (e) { }
 }

@@ -7598,3 +7598,33 @@ Il revient toutes les dix à seize secondes, plus vite chez les plus puissantes 
 - **Chaque élément**, en jeu, une créature puissante en colère contre le joueur : l'annonce, puis la brûlure, le gel, les éclats, les ronces (cloué, empoisonné), la trombe, la foudre (cloué), le pas de l'ombre (elle reparaît et mord), la lumière (ébloui, le troupeau soigné de 0,3 à 0,84).
 - **Une compagne** de braise, d'orage, de givre et d'aurore contre une bête : l'annonce, puis la brûlure, l'étourdissement, les dégâts.
 - **Dans le navigateur** : six îles, aucune erreur ; les compagnes d'avant, la monture.
+
+## §239 · Douze éléments de plus : vingt en tout, dont le sang, le Korlaz et le monochrome
+
+**Les éléments du milieu** (`orvane-sv.js`, `ELEMENTS`, `MILIEUX_EL`), tirés comme les huit premiers d'après le milieu d'origine dans Orvane :
+- le **magma** (volcans) : une roche sombre au cœur en fusion ; la morsure brûle et écrase ; **éruption** : un cercle au sol sous vous, puis la lave jaillit, vous brûle et vous soulève ;
+- les **sables** (déserts, savanes) : des plumes de sable ; la morsure aveugle ; **tempête de sable** autour d'elle : aveuglé, ralenti ;
+- les **vents** (steppes, sommets, le large, les côtes) : des rubans d'air ; la morsure repousse ; **bourrasque** : un cône qui vous projette au loin et en l'air ;
+- la **roche** (montagnes, grottes, déserts froids) : des pics de pierre aux veines d'ambre ; la morsure écrase ; **séisme** : elle frappe le sol, tout tremble, cloué une seconde ;
+- l'**ambre** (forêts, taïgas, jungles) : des gouttes de résine qui luisent ; la morsure englue (on ralentit) ; **résine** : un jet qui vous colle sur place ;
+- les **pétales** (prairies, maquis) : des pétales roses ; la morsure endort à demi ; **tempête de pétales** : le pollen vous assoupit (cloué, la vue brouillée).
+
+**Les éléments rares**, que le hasard de la lignée décide, quel que soit son milieu :
+- le **sang** (chasseurs et bêtes de nuit, une sur vingt) : une robe cramoisie, des gouttes qui perlent et tombent ; la morsure fait **saigner** (la vie coule, sans tuer ; un nouvel état au tableau de bord) et elle boit ; **soif de sang** : une onde rouge qui vous draine, la soigne, et vous laisse saigner ;
+- le **Korlaz** (une lignée sur quarante) : des **bêtes infectées**, noires aux spores vertes ; elles **chargent qui les approche** ; la morsure dépose les spores (l'exposition monte, comme sur la roche rongée : au seuil, l'**infection** d'`etats.js`) ; **nuée de Korlaz** : un nuage qui brouille la vue et infecte davantage ;
+- le **monochrome** (une sur soixante-dix) : noir, blanc, gris ; son **aura éteint les couleurs** de l'écran à mesure qu'on s'en approche (à dix cases, rien ; tout contre elle, presque plus rien) ; la morsure éteint les vôtres trois secondes ; **achromie** : une onde noire et blanche, six secondes sans couleurs, figé un instant ;
+- le **néant** (une sur soixante-dix) : un noir d'éclats bordés de blanc ; la morsure aspire le mana ; **gouffre** : il vous attire à lui, puis se referme sur vous ;
+- les **spectres** (bêtes de nuit et du crépuscule) : des feux follets pâles ; la morsure glace d'effroi (ni coup ni sort) ; **cri d'outre-tombe** : effroi, la vue brouillée ;
+- les **étoiles** (bêtes de nuit) : des étoiles au bout de fils de lumière ; la morsure étourdit ; **pluie d'étoiles** : quatre cercles au sol, quatre étoiles qui tombent.
+
+**Le corps** (`lignees.js`, `lgTouffe`) : chaque élément a sa crinière, son bout de queue, ses cornes et son aura ; les gouttes de sang, de résine, les pétales et le givre tombent, les étincelles et les étoiles crépitent, l'aura monochrome est noire et blanche.
+
+**Une compagne** garde son pouvoir : la soif de sang d'une compagne vous rend un peu de vie, la nuée de Korlaz ou le séisme tombent sur les bêtes.
+
+**Le branchement.** `orvane-sv.js` : douze éléments, `RARES_EL`, un hasard mieux mêlé ; `lignees.js` : leurs formes et leurs auras ; `pouvoirs.js` : leurs morsures (`pouvoirCoup`), leurs pouvoirs (`pvZone`, `pvCone`, la lave et les étoiles avec la foudre, le gouffre), le saignement, `pouvoirCss` ; `etats.js` : le filtre de l'écran ; `sw.js` : `stone-valley-209`.
+
+**Vérifié.**
+- **Les vingt éléments**, en jeu, contre le joueur (l'élément forcé là où le monde n'en a pas d'assez puissante) : le saignement, les spores (12 %), l'effroi, le mana aspiré (100 → 63), l'éruption, la bourrasque, le séisme, l'achromie, la pluie d'étoiles, la tempête de sable, la résine, le pollen.
+- **L'aura monochrome** : le gris de l'écran à 0,08 à neuf cases, 0,7 à deux, rien quand elle n'est plus.
+- **Les corps** : 1 280 (vingt éléments, quatre états), aucun os invalide.
+- **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture.
