@@ -23,10 +23,10 @@
 **Ce que je propose** (§7 et §8) :
 - tout faire venir d'Orvane, en écartant la genèse 7 ;
 - supprimer la faune faite main ;
-- dessiner chaque lignée dans un style propre au jeu, avec des **stades** : un *Petit* tout rond sur les premières îles, jusqu'à un *Titan* sur les îles lointaines, comme une évolution ;
+- dessiner chaque lignée dans un style propre au jeu, gradué selon sa puissance : des bêtes rondes et mignonnes, tirées sur les premières îles, jusqu'à des bêtes épiques sur les îles lointaines ;
 - tirer le comportement des données d'Orvane, et non plus d'une créature modèle.
 
-Le chantier tient en sept lots, et le jeu reste jouable après chacun. Quatre décisions te reviennent avant de commencer (§9).
+Le chantier tient en sept lots, et le jeu reste jouable après chacun. Les quatre décisions sont prises (§9).
 
 ---
 
@@ -117,7 +117,7 @@ Conséquences visibles en jeu :
 | Coursiers (montures) | coursier, orange, rouge, d'aurore | `coursierBones`, `majCoursier` (troupeau, rosée, rodéo) |
 | Créatures à part | félin de brume, bramard, sterne des nues, dragon à plumes, renard des pétales | `osFelin` (meute, affût), `osBramard` (rut, joutes), `osSterne`/`majVolant`, `osDragon` (nid, souffle, sommeil) |
 | Trottins (petit peuple) | furet, haute-tige, racine, bondelaine, augure | `osTrottin`, `instinctTrottin` (soins, jeux, bagarres) |
-| Faune du volcan | magmaton, basilic de lave, charognard de cendre, le Tisonnier (alpha) | `volcan.js:654-1400` |
+| Faune du volcan (**gardée**, décision du §9) | magmaton, basilic de lave, charognard de cendre, le Tisonnier (alpha) | `volcan.js:654-1400` |
 
 Ce sont les 30 espèces de `Corr.FAUNE`, plus les quatre du volcan. Leurs corps et leurs pictogrammes font environ 135 Ko d'`index.html` et 30 Ko de `volcan.js`. Leurs comportements à part (`instinct*`, `maj*`) s'y ajoutent.
 
@@ -317,39 +317,54 @@ La matière du mignon est là. **L'épique, il faut le construire côté jeu.** 
 
 ## 7. Proposition
 
-### 7.1 Du mignon à l'épique : des stades, comme des évolutions
+### 7.1 Du mignon à l'épique : par les espèces (décidé le 6 novembre)
 
-Une même lignée se montre à cinq **stades**. Les îles lointaines sont plus sauvages : personne n'y chasse, et les bêtes y vivent assez longtemps pour devenir des anciens.
+Chaque lignée a **un seul aspect**. La progression vient de deux choses.
 
-| stade | où | allure |
-| --- | --- | --- |
-| **Petit** | îles 1 à 4 | tout rond, tête énorme, grands yeux brillants, pattes courtes, couleurs douces, organes à l'état de bourgeons |
-| **Jeune** | îles 5 à 9 | proportions qui s'allongent, organes qui poussent |
-| **Adulte** | îles 10 à 15 | la silhouette d'Orvane telle quelle |
-| **Ancien** | îles 16 à 24 | plus grand (×1,5), organes exagérés (cornes, crêtes, épines), marques lumineuses, cicatrices |
-| **Titan** | îles 25 et plus ; alphas et trophées | immense (×2 à ×2,5), silhouette anguleuse, lueurs qui pulsent, particules selon le biome (poussière, braises, givre) |
+**1. La puissance d'une espèce décide de son style.** Chaque lignée reçoit une note de **puissance**, calculée depuis Orvane :
+- sa masse ;
+- son régime (un carnivore pèse plus qu'un brouteur) ;
+- ses organes et leur taille ;
+- son tempérament ;
+- sa rareté.
 
-- **L'île donne le stade le plus courant.** Un trophée ou l'alpha d'une île monte d'un stade.
-- **La bête reste reconnaissable** d'un stade à l'autre : même robe, mêmes organes, même forme. On rencontre un Petit Musilnou à l'île 2 et on le reconnaît, en Ancien, à l'île 20.
-- **Le carnet garde les stades vus**, comme un Pokédex.
-- **Une compagne grandit** avec le temps passé avec toi : un Petit lié devient Jeune puis Adulte. C'est l'évolution façon Pokémon.
-- **Les îles proches tirent les lignées les plus douces**, les îles lointaines les plus redoutables (grandes, carnivores, armées, rares). Les deux effets s'additionnent.
-- **Côté Orvane, rien ne change.** Le stade est une affaire d'affichage et de jeu, et la bête est rapportée sous sa lignée.
+La note est un **rang** parmi les lignées du monde : la plus douce vaut 0, la plus redoutable 1. Le style suit ce rang, de façon continue.
+
+| rang | allure |
+| --- | --- |
+| **0 → 0,3 · les mignonnes** | toutes rondes, tête énorme, grands yeux brillants, pattes courtes, couleurs douces |
+| **0,3 → 0,7 · les ordinaires** | la silhouette d'Orvane telle quelle |
+| **0,7 → 0,9 · les redoutables** | plus grandes, organes exagérés (cornes, crêtes, épines), robe contrastée, marques lumineuses |
+| **0,9 → 1 · les épiques** | immenses, silhouette anguleuse, lueurs qui pulsent, particules selon le biome (poussière, braises, givre) |
+
+**2. L'île choisit les espèces.**
+- Les premières îles tirent les lignées les plus douces.
+- Plus on s'éloigne, plus le tirage glisse vers les rangs élevés.
+- Les trophées et le chasseur garanti (§218) prennent toujours le rang le plus haut que l'île permet.
+
+**Ce qui reste reconnaissable** : une espèce a la même allure partout. Un Musilnou croisé à l'île 2 est le même à l'île 20.
+
+**Le point de vigilance** : le monde d'Orvane n'a qu'une quinzaine de lignées redoutables aujourd'hui (§6). Les îles lointaines risquent de montrer souvent les mêmes. Trois parades :
+- le rang est relatif : il y aura toujours un haut du classement ;
+- les îles lointaines mêlent quelques rangs moyens à leurs bêtes redoutables ;
+- le monde d'Orvane évolue chaque nuit, et de nouvelles lignées viendront.
+
+**Côté Orvane, rien ne change.** Le rang est une affaire d'affichage et de jeu.
 
 ### 7.2 Le style Stone Valley
 
-Un nouveau `lignees.js`. Tout est calculé, rien n'est dessiné à la main par espèce.
+Un nouveau `lignees.js`. Tout est calculé, rien n'est dessiné à la main par espèce. Le réglage est le rang de puissance (§7.1).
 - **Les formes.**
-  - Des boules et des formes arrondies chez les Petits.
-  - Des prismes et des formes effilées chez les Titans.
+  - Des boules et des formes arrondies chez les mignonnes.
+  - Des prismes et des formes effilées chez les épiques.
   - Le moteur de formes du §186 le permet déjà.
 - **Les proportions.**
   - La tête passe de 0,9 à 0,45 de la longueur du tronc ; les yeux de 35 % à 12 % de la tête.
-  - Les pattes passent de ×0,6 à ×1,2 ; les organes de ×0,4 à ×1,8.
+  - Les pattes passent de ×0,6 à ×1,2 ; les organes de ×0,6 à ×1,8.
   - Les largeurs suivent enfin la taille.
 - **Les couleurs.**
-  - La robe d'Orvane, adoucie (pastel) chez les Petits, saturée et contrastée chez les Anciens.
-  - Le motif (rayures, taches) devient lumineux chez les Anciens et les Titans.
+  - La robe d'Orvane, adoucie (pastel) chez les mignonnes, saturée et contrastée chez les redoutables.
+  - Le motif (rayures, taches) devient lumineux chez les épiques.
 - **La lumière.** Un bit « créature » dans le shader donnera :
   - un liseré de lumière sur les bords, qui détache la bête du décor ;
   - de vraies lueurs qui brillent la nuit (aujourd'hui `luit` s'assombrit comme le reste).
@@ -365,19 +380,19 @@ Un seul système pour toutes les lignées :
 - de l'écrasement et de l'étirement ;
 - de l'anticipation avant une attaque, une réaction aux coups.
 
-Tout est réglé par le stade et par le caractère de la bête.
+Tout est réglé par le rang de puissance et par le caractère de la bête.
 
-**Petit, mignon.**
+**Les mignonnes.**
 - Une démarche qui rebondit, qui s'écrase un peu à chaque pas.
 - Une tête qui dodeline, des oreilles molles, une queue qui frétille, des clignements fréquents.
 - Au repos, il s'assoit, se gratte, renifle, se roule par terre, bâille, ou te regarde la tête penchée.
 - Surpris, il sursaute sur place, oreilles dressées, puis file en zigzag.
 - De petits signes au-dessus de la tête : ! en alerte, ? s'il est curieux, ♥ quand on le nourrit, Zzz quand il dort.
 
-**Adulte.**
+**Les ordinaires.**
 - Une allure naturelle, avec les pattes plantées au sol (fini les pieds qui glissent).
 
-**Ancien et Titan.**
+**Les redoutables et les épiques.**
 - Des pas lents et lourds : la poussière se soulève, la caméra tremble un peu à l'approche.
 - Le poids passe d'une patte à l'autre, le souffle se voit (buée, fumée).
 - Le regard te suit lentement.
@@ -394,7 +409,7 @@ Tout est réglé par le stade et par le caractère de la bête.
 | ailes | un piqué |
 | collerette | une intimidation qui fait reculer |
 
-**Le Titan d'une île tient le rôle des alphas** comme le Tisonnier, mais pour n'importe quelle lignée.
+**La bête la plus redoutable d'une île tient le rôle d'alpha**, comme le Tisonnier, mais pour n'importe quelle lignée.
 
 ### 7.4 Le comportement, tiré d'Orvane
 
@@ -413,9 +428,9 @@ Plus de créature modèle. Chaque lignée reçoit un **profil de vie** calculé 
 
 **Les bêtes réagissent aussi entre elles.** L'alerte fait fuir le troupeau devant un chasseur, le camouflage trompe les prédateurs. L'île vit sans le joueur.
 
-**Selon le stade.**
-- Les Petits sont curieux et joueurs : ils approchent un joueur calme, se poursuivent entre eux, te suivent un moment. Les jeux des Trottins deviennent ceux de tous.
-- Les Anciens et les Titans sont territoriaux : ils tiennent une zone, font leur parade, protègent leur groupe.
+**Selon le rang.**
+- Les mignonnes sont curieuses et joueuses : elles approchent un joueur calme, se poursuivent entre elles, te suivent un moment. Les jeux des Trottins deviennent ceux de toutes.
+- Les redoutables et les épiques sont territoriales : elles tiennent une zone, font leur parade, protègent leur groupe.
 
 **Ce qui est déjà générique reste** : la faim, la soif, la peur, l'habituation, le contournement, les conduites, l'hérédité, la méfiance.
 
@@ -435,8 +450,7 @@ Plus de créature modèle. Chaque lignée reçoit un **profil de vie** calculé 
 
 - **La compétence** est tirée de l'organe le plus marqué : charge, piqûre, roulade, souffle de la glande…
 - **La façon de se lier** dépend du tempérament et du régime : un peureux se gagne par la patience, un chasseur rassasié se laisse approcher.
-- **La monture** : tout quadrupède assez grand, à partir de l'Adulte, à la place des coursiers.
-- **L'évolution** : le stade de la compagne monte avec le temps passé ensemble et les îles visitées. Il est sauvegardé et envoyé aux autres joueurs.
+- **La monture** : tout quadrupède assez grand, à la place des coursiers.
 
 ---
 
@@ -448,25 +462,32 @@ Sept lots. Après chacun, le jeu tourne, chaque `<script>` compile, et une secti
 | --- | --- | --- |
 | **0 · Ménage immédiat** | carte des sols sur les biomes d'Orvane ; genèse 7 écartée ; le bug de la Mère des larves ; la protection du dessin | petit |
 | **1 · Plus de faune faite main** | profils neutres à la place des créatures modèles ; budget des îles par régime ; monde de secours livré avec le jeu ; plus d'espèces ajoutées d'office ni de repli « garde ses Doux » ; matières et viandes tirées du corps (recettes revues) ; migration des compagnes avant le filtre de chargement ; faune partagée ; voix ; textes | gros |
-| **2 · Le corps, style Stone Valley** | nouveau `lignees.js` à stades ; largeurs à l'échelle ; matières ; bit « créature » dans le shader (liseré, vraies lueurs) ; nouvelles formes ; portraits | gros |
-| **3 · L'animation** | états fondus, ressorts, écrasement et étirement ; le vocabulaire du Petit et celui du Titan ; gestes de repos ; parades ; attaques signature | gros |
-| **4 · Le comportement d'Orvane** | profils de vie : diète, appétence, groupes, rythmes, locomotions, nids ; réactions entre bêtes ; caractères par stade | gros |
-| **5 · Les compagnes** | métiers, compétences, liens et montures par traits ; évolution du stade ; carnet des stades | moyen |
+| **2 · Le corps, style Stone Valley** | rang de puissance ; tirage des îles par rang ; nouveau `lignees.js` gradué du mignon à l'épique ; largeurs à l'échelle ; matières ; bit « créature » dans le shader (liseré, vraies lueurs) ; nouvelles formes ; portraits | gros |
+| **3 · L'animation** | états fondus, ressorts, écrasement et étirement ; le vocabulaire des mignonnes et celui des épiques ; gestes de repos ; parades ; attaques signature | gros |
+| **4 · Le comportement d'Orvane** | profils de vie : diète, appétence, groupes, rythmes, locomotions, nids ; réactions entre bêtes ; caractères selon le rang | gros |
+| **5 · Les compagnes** | métiers, compétences, liens et montures par traits ; carnet avec portraits | moyen |
 | **6 · Le grand nettoyage** | suppression du code des anciennes créatures (corps, instincts, tables, pictogrammes, environ 200 Ko) ; onglet Bêta ; service worker ; docs | moyen |
 
 L'ordre 0 → 1 → 2 → 3 → 4 → 5 → 6 garde le jeu jouable à chaque étape. Les anciennes créatures disparaissent des îles dès le lot 1, et leur code part au lot 6, une fois que plus rien n'en dépend.
 
 ---
 
-## 9. Les décisions qui te reviennent
+## 9. Les décisions (6 novembre 2026)
 
-1. **Le périmètre.** Quelles créatures faites main retire-t-on ?
-   - Ma proposition : toute la faune sauvage du §2.1 (Rampants, Telluriens, Doux, Coursiers, créatures à part, Trottins, faune du volcan).
-   - On garde les boss, les horreurs, les machines et les habitants du §2.2.
-2. **La flore.** Ma proposition : garder la tienne, sans mélange (§3).
-3. **Les compagnes déjà liées** d'une espèce retirée.
-   - Ma proposition : chacune devient la lignée d'Orvane la plus proche (même régime, taille voisine), garde son nom et son niveau, et le joueur en est averti.
-   - Autres choix : les garder telles quelles, ou les relâcher.
-4. **Le mignon → épique.**
-   - Ma proposition : les stades d'une même lignée (§7.1), en plus du choix des espèces selon l'île.
-   - Autre choix : seulement des espèces différentes selon l'île.
+1. **Le périmètre.** On retire :
+   - la faune ordinaire : Rampants, Telluriens, Doux, Coursiers (21 espèces) ;
+   - les créatures à part : félin de brume, bramard, sterne des nues, dragon à plumes, renard des pétales ;
+   - les cinq Trottins.
+
+   **On garde** :
+   - la faune du volcan : magmaton, basilic, charognard, Tisonnier ;
+   - les boss et les horreurs : Tisseuse, Silencieux, Mille-gueules, Mère-Charogne, l'île démoniaque et les Cercles ;
+   - les machines et les habitants.
+2. **La flore.** On garde la tienne, sans mélange (§3). Les lignées choisissent seulement leurs plantes selon leur régime.
+3. **Les compagnes déjà liées** d'une espèce retirée deviennent la lignée d'Orvane la plus proche (même régime, taille voisine). Elles gardent leur nom et leur niveau, et le joueur en est averti.
+4. **Le mignon → épique** passe par les espèces seulement : le style suit le rang de puissance de chaque lignée, et l'île choisit les espèces (§7.1). Pas de stades.
+
+**Conséquences sur le plan.**
+- Lot 1 : les espèces du volcan restent dans `Corr.FAUNE` hors du retrait. Leurs viandes, le basalte et la plume du charognard restent.
+- Lot 6 : le code des boss, du volcan, des machines et des habitants ne bouge pas. Le code commun qu'ils partagent avec les espèces retirées reste : les pattes plantées (`PATTES_T`, `piedsPoses`), utilisées par le magmaton et le basilic, et le vol (`volerVers`).
+- Le dragon disparaît aussi, avec son aire, son nid et ses recettes. Les Trottins emportent les soins et les friandises, à redonner par traits (§7.5).
