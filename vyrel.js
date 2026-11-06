@@ -317,11 +317,11 @@ function majVyrel(dt) {
       life: .6 + Math.random() * .4, col: Math.random() < .5 ? '#ff8a30' : Math.random() < .5 ? '#ffd27a' : '#c040ff', luit: 1, tl: .07 });
     if (Math.random() < dt * 10 * v) vyPart(F.x + (Math.random() - .5), F.y + (Math.random() - .5), F.z + 1, { vz: 1, g: -.15, life: 2.5, col: '#2a2228', tl: .06 });
   }
-  majMere(dt);
+  majMereCharogne(dt);
 }
 // La Mère-Charogne : son pas (qui fait trembler le sol), son souffle, ses pustules qui crèvent, sa bave ; chacun la voit
 // exhaler ses miasmes autour d'elle, et cracher sur lui ; morte, elle met sept secondes à s'effondrer et à se défaire.
-function majMere(dt) {
+function majMereCharogne(dt) {   // (§224) son nom à elle : roi.js a déjà majMere, l'IA de la Mère des larves
   let m = null;
   for (const b of beasts) {
     if (!b.sp || !b.sp.vyMere) continue;

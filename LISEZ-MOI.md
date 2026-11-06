@@ -7121,3 +7121,51 @@ Le monde d'Orvane peut avoir une seconde vie, faite de machines (Orvane, docs/16
 - une posture hostile en fait une machine qui vise le joueur, les yeux rouges ;
 - une machine abattue part au lot comme un prélèvement, avec sa parcelle ;
 - le banc du traducteur (tout passe) ; aucune erreur de page.
+
+## §224 · Le ménage de la faune, premier temps : le monde d'Orvane, sans la genèse 7
+
+Le premier lot du chantier décrit dans `AUDIT-FAUNE-FLORE.md` : passer la faune en entier sur Orvane, et effacer la trace des créatures faites main.
+
+**Le constat.** Depuis que le monde d'Orvane a reçu un continent, la « genèse 7 », les îles montraient surtout les descendantes des créatures faites main. Ce continent est né dans Orvane du premier monde du jeu (sv-1). Ses 99 lignées descendent donc du brouteur, du crapaud, du cotonnier… et il a apporté avec lui les biomes du jeu : sylve, cerisaie, ossuaire, etc.
+- Pour savoir quels biomes du monde lire, le jeu comparait ceux du monde aux noms du jeu et à ceux d'Orvane. Le continent a fait basculer ce compte : 15 contre 13.
+- Le jeu lisait donc les biomes du continent. Sur 15 sols sur 16, toutes les lignées des îles venaient de la genèse 7. Les lignées d'Orvane ne paraissaient qu'en prairie.
+
+**Ce qui change.**
+- **La carte des sols suit Orvane.** Un seul biome d'Orvane qui ne porte pas un nom du jeu suffit : chaque sol du jeu lit son biome d'Orvane (le rivage la côte, le bois la forêt, la sylve la jungle…). Un monde fait des seuls biomes du jeu, comme sv-1, garde sa carte.
+- **La genèse 7 ne paraît plus.** Le traducteur la retire du monde à la lecture (`purger`) :
+  - ses lignées, et celles qui en descendront ;
+  - ses 64 parcelles. Une île de prairie tirait une fois sur deux une parcelle du continent ;
+  - l'annonce de sa venue.
+
+  Il reste 144 taxons sur 243, dont 120 lignées que le jeu peut montrer : 98 de terre et 22 de mer, toutes nées dans Orvane.
+- **L'abrégé gardé d'avant est oublié** : il portait la genèse 7. Le monde le refait dès qu'il arrive, et l'île se repeuple (`repeuplerIle`).
+- **Moins de bêtes sur les îles qu'hier, comme prévu.** Le jeu comparait les biomes du continent à la génération 0, qui n'en avait pas. Le rapport plafonnait donc au double, et les îles portaient deux fois plus de bêtes que prévu. Elles reviennent à la mesure prévue au §217 : autant de bêtes que la faune du jeu en avait.
+- Les espèces faites main que l'île ajoute d'office paraissent encore : la sterne, le bramard, l'oglodon, le félin, les trottins… Leur départ est le lot suivant.
+
+**Deux bugs.**
+- **La Mère des larves** (premier des Cercles de cendre) ne bougeait plus depuis le §185. `roi.js` et `vyrel.js` déclaraient tous deux une fonction `majMere`. La seconde, chargée après, remplaçait la première : le boss appelait l'animation de la Mère-Charogne, avec de mauvais arguments. Celle du Vyrel s'appelle maintenant `majMereCharogne`.
+- **Le corps d'une bête qui casse n'éteint plus la carte graphique.** Deux images ratées de suite faisaient passer tout le jeu en affichage simplifié jusqu'au rechargement (§154). Maintenant, la bête fautive est notée une fois (`Panne.corps`, `Panne.dernier`) et sautée. Elle se redessine si son espèce change. C'est `osSur`, aux quatre endroits où les corps se dessinent (carte graphique, canvas, bêtes lointaines, plantes semées).
+
+**Le branchement.**
+- `orvane/correspondance.js` : `choisirCarte`.
+- `orvane/orvane-sv.js` : `purger` et `FUSIONS_ECARTEES`, à la lecture de l'instantané, de la génération 0 et de la mémoire locale ; l'abrégé porte `purge`.
+- `vyrel.js` : `majMereCharogne`.
+- `index.html` : `osSur`.
+- `sw.js` : `stone-valley-194`.
+
+**Vérifié.**
+- **Le traducteur, sur le monde d'Orvane publié (cycle 44)** :
+  - 243 taxons deviennent 144 et 160 parcelles 96 ; il ne reste rien de la genèse 7, et seule la mer d'Orvane est annoncée ;
+  - le bois lit la forêt, la sylve la jungle, la cerisaie le maquis ;
+  - 120 lignées sont montrables ;
+  - sur 400 îles de prairie, les quatre parcelles sont tirées 100 fois chacune ;
+  - la carte de sv-1 reste la sienne ;
+  - un abrégé d'avant est oublié.
+- **Dans le navigateur, sur six îles** (explorations 0, 1, 4, 8, 12, 20) :
+  - avant, 35 à 49 bêtes de la genèse 7 par île ;
+  - après, aucune : seules des lignées d'Orvane (de 16 à 111 par île) et les espèces ajoutées d'office ;
+  - aucune erreur de page, aucune panne de dessin.
+- **Un corps cassé exprès**, sur toutes les lignées d'une île de la douzième exploration :
+  - avant, la carte graphique tombait et le jeu passait en affichage simplifié ;
+  - après, les quatre bêtes fautives sont notées et sautées, et la carte graphique tient.
+- **La Mère des larves** : la correction est vérifiée dans le code (chaque fonction qu'elle appelle existe). Elle n'a pas été essayée en jeu, au premier cercle.

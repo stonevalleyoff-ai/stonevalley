@@ -49,9 +49,26 @@ const clamp = (v, a, b) => Math.min(b, Math.max(a, v)), r2 = v => Math.round(v *
 // cache du navigateur : un monde de cent lignées pèse deux mégaoctets, de quoi remplir le stockage local où le jeu sauve).
 // Le stockage local en garde un abrégé (qui vit où, combien), assez pour peupler la première île avant que le monde arrive ---
 const CACHE_MONDE = 'stone-valley:orvane-monde';
-const abreger = I => I && { monde: I.monde, cycle: { n: I.cycle?.n }, abrege: true, ...(I.parcelles ? { parcelles: I.parcelles.map(p => ({ id: p.id, type: p.type })) } : {}),
+// (§224) LE MONDE D'ORVANE, SANS LA GENÈSE 7. Le monde d'Orvane a reçu un continent (la fusion « genese-7 », Orvane docs/23)
+// né de la faune faite main du jeu : ses lignées descendent du brouteur, du crapaud, du cotonnier… (le monde sv-1), et il
+// apporte les biomes du jeu (sylve, cerisaie, ossuaire…). Le jeu ne le montre pas : ses lignées, celles qui en descendront,
+// ses parcelles et l'annonce de sa venue sont retirées à la lecture. Et le jeu ne lit que les biomes d'Orvane (choisirCarte).
+const FUSIONS_ECARTEES = new Set(['genese-7']), PURGE = 224;
+function purger(I) {
+  if (!I || !Array.isArray(I.taxons) || I.purge === PURGE) return I;
+  const par = new Map(I.taxons.map(t => [t.id, t])), vu = new Map();
+  const ecarte = t => { if (!t) return false; if (vu.has(t.id)) return vu.get(t.id); vu.set(t.id, false);
+    const v = FUSIONS_ECARTEES.has(t.origine?.fusion) || ecarte(par.get(t.parent)); vu.set(t.id, v); return v; };
+  const parcelle = id => [...FUSIONS_ECARTEES].some(f => String(id).includes('~' + f + '-'));
+  const J = { ...I, purge: PURGE, taxons: I.taxons.filter(t => !ecarte(t)) };
+  if (Array.isArray(I.parcelles)) J.parcelles = I.parcelles.filter(p => !parcelle(p.id));
+  if (Array.isArray(I.monde?.fusions)) J.monde = { ...I.monde, fusions: I.monde.fusions.filter(f => !FUSIONS_ECARTEES.has(f?.id)) };
+  return J;
+}
+const abreger = I => I && { monde: I.monde, cycle: { n: I.cycle?.n }, abrege: true, purge: I.purge,...(I.parcelles ? { parcelles: I.parcelles.map(p => ({ id: p.id, type: p.type })) } : {}),
   taxons: I.taxons.map(t => ({ id: t.id, parent: t.parent, eteint: t.eteint, plan: { regime: Tampon?.regimeDe ? Tampon.regimeDe(t, I.catalogue?.traits) : t.plan?.regime, masse_kg: t.plan?.masse_kg }, populations: t.populations.map(p => ({ biome: p.biome, effectif: p.effectif, ...(p.parcelles ? { parcelles: p.parcelles } : {}) })) })) };
-function lire() { try { const m = JSON.parse(localStorage.getItem(CLE) || '{}'); S.courant = m.courant || null; S.gen0 = m.gen0 || null; S.profil = m.profil || null; S.abrege = m.abrege || null;
+function lire() { try { const m = JSON.parse(localStorage.getItem(CLE) || '{}'); S.courant = purger(m.courant) || null; S.gen0 = purger(m.gen0) || null; S.profil = m.profil || null;
+  S.abrege = m.abrege?.courant?.purge === PURGE ? m.abrege : null;   // (§224) un abrégé d'avant porte la genèse 7 : on l'oublie, le monde le refait
   S.monde = m.monde || null; S.lot = m.lot || {}; S.depuis = m.depuis || null; S.dernierEnvoi = m.dernierEnvoi || 0; S.lignees = m.lignees || {}; S.lotQ = m.lotQ || {}; S.fusionsVues = m.fusionsVues || []; S.mereVue = m.mereVue || null; } catch (e) { }
   carte(); S.rangs = rangsRarete(); }
 // les biomes du monde décident de la carte des sols du jeu (sv-1 a les siens ; le monde d'Orvane, les siens : Corr.choisirCarte)
@@ -70,7 +87,8 @@ async function charger() {
       try { const c = await cache(); if (c && typeof Response !== 'undefined') await c.put(CHEMIN + f, new Response(JSON.stringify(j), { headers: { 'Content-Type': 'application/json' } })); } catch (e) { }
       return j; } } catch (e) { }
     try { const c = await cache(), r = c && await c.match(CHEMIN + f); return r ? await r.json() : null; } catch (e) { return null; } };
-  const [inst, profil, jeux] = await Promise.all([prendre('instantane.json'), prendre('profil.json'), prendre('jeux.json')]);
+  const [brut, profil, jeux] = await Promise.all([prendre('instantane.json'), prendre('profil.json'), prendre('jeux.json')]);
+  const inst = purger(brut);                                                           // (§224) sans la genèse 7
   // le réglage : le profil du monde, et ce que le jeu en montre (jeux.json, sinon Corr.EXPOSITION ; un monde fait pour le jeu
   // comme sv-1 porte encore le sien)
   const X = (Array.isArray(jeux) ? jeux : []).find(j => j.id === JEU)?.exposition;
@@ -81,7 +99,7 @@ async function charger() {
     if (id !== S.monde) { S.monde = id; S.courant = null; S.gen0 = null; }             // un autre monde, ou le même refait : on repart de sa génération 0
     if (!S.courant || inst.cycle.n > S.courant.cycle.n) S.courant = inst;
   }
-  if (S.courant && !S.gen0) S.gen0 = await prendre('generation-0.json') || S.courant;   // faute de génération 0, le premier instantané vu
+  if (S.courant && !S.gen0) S.gen0 = purger(await prendre('generation-0.json')) || S.courant;   // faute de génération 0, le premier instantané vu
   if (S.courant) S.abrege = null;
   carte(); S.rangs = rangsRarete(); inscrireLignees(); ecrire();                                        // (les fiches des lignées d'abord : elles se gardent, l'instantané non)
   // l'île a été peuplée avant que le monde n'arrive (ou d'après un autre monde) : ses comptes se refont ; si c'était un autre
@@ -787,7 +805,7 @@ racine.orvaneEspeces = orvaneEspeces; racine.orvaneAppliquer = orvaneAppliquer; 
 racine.orvaneTirage = orvaneTirage; racine.orvaneArrivee = orvaneArrivee; racine.orvaneTrophee = orvaneTrophee; racine.orvanePhoto = orvanePhoto;
 racine.orvaneRelire = orvaneRelire; racine.orvaneCarnetLignees = orvaneCarnetLignees; racine.orvaneVol = orvaneVol; racine.orvaneNage = orvaneNage; racine.orvanePlaceEau = orvanePlaceEau;
 racine.orvaneLot = orvaneLot; racine.orvaneEnvoyer = orvaneEnvoyer; racine.orvaneNaissance = orvaneNaissance;
-racine.OrvaneSV = { S, parcelleIle, effectifIci, repeuplerIle, rangsRarete, ligneesDuJeu, garantirChasseur, conduitesPour, loiQ, tirerQuant, quantMots, apprisDe, apprisFuite, heriter, zoneHybride, hybrider, charger, avancement, effectifSur, biomesIle, releverRencontres, inscrireLignees, definir, enregistrer, especeDeSecours, ancetreJeu, nomJeu, CAUSES_JOUEUR, SEUIL_CORPS };
+racine.OrvaneSV = { S, purger, parcelleIle, effectifIci, repeuplerIle, rangsRarete, ligneesDuJeu, garantirChasseur, conduitesPour, loiQ, tirerQuant, quantMots, apprisDe, apprisFuite, heriter, zoneHybride, hybrider, charger, avancement, effectifSur, biomesIle, releverRencontres, inscrireLignees, definir, enregistrer, especeDeSecours, ancetreJeu, nomJeu, CAUSES_JOUEUR, SEUIL_CORPS };
 lire();
 if (typeof window !== 'undefined' && typeof fetch === 'function') { charger(); setInterval(releverRencontres, PERIODE_RENCONTRE); }
 })(globalThis);

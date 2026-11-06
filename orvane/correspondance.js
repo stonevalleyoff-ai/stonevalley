@@ -28,7 +28,9 @@ const BIOMES_SV = {
 let CARTE = 'id';
 function choisirCarte(ids) {
   const I = new Set(Object.values(BIOMES_SV).map(b => b.id)), U = new Set(Object.values(BIOMES_SV).map(b => b.u)), L = [...(ids || [])];
-  CARTE = L.filter(x => U.has(x) && !I.has(x)).length > L.filter(x => I.has(x) && !U.has(x)).length ? 'u' : 'id'; return CARTE;
+  // (§224) un seul biome d'Orvane qui n'est pas un nom du jeu suffit : la carte suit Orvane. Le monde d'Orvane porte aussi
+  // les biomes du jeu (la genèse 7, née de sv-1), plus nombreux depuis : compter les uns contre les autres faisait lire ceux-là
+  CARTE = L.some(x => U.has(x) && !I.has(x)) ? 'u' : 'id'; return CARTE;
 }
 const biomeOrvane = k => BIOMES_SV[k]?.[CARTE] || null;                              // index du jeu → id Orvane
 const biomesSV = id => Object.keys(BIOMES_SV).filter(k => BIOMES_SV[k][CARTE] === id).map(Number);   // id Orvane → index du jeu (plusieurs dans le monde d'Orvane)

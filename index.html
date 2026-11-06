@@ -16915,6 +16915,18 @@ function formeOs(o, k, mx) {
   if (L < 1.7 * m) return Object.assign({}, o, { pans: 6, rond: .55 });   // un petit bloc long (un pied, un museau) : arrondi
   return Object.assign({}, o, { pans: 6, rond: .8, fin: L > 4 * m ? .66 : L > 2.5 * m ? .8 : .92 });   // un membre, qui s'effile
 }
+// (§224) le corps d'une bête, sans risque pour le dessin : une bête dont le corps casse est notée (une fois) et sautée, au
+// lieu de faire tomber la carte graphique pour toute la session (§154, rattraper) ; elle se redessine si son espèce change
+function osSur(f) {
+  if (f._panne && f._panne === f.sp) return [];
+  try { return foeBones(f); }
+  catch (e) {
+    f._panne = f.sp;
+    try { Panne.corps = (Panne.corps || 0) + 1; Panne.dernier = 'corps · ' + (f.sp?.id || '?') + ' · ' + ((e && e.message) || e);
+      if (Panne.corps === 1) console.error('Stone Valley · corps de ' + (f.sp?.id || '?'), e); } catch (_) {}
+    return [];
+  }
+}
 function foeBones(f) {
   const B0 = osDeBase(f), B = f.variante ? varier(f, B0) : B0;
   if (f.etat === 'furie' && f.sp.oeil) for (let i = 0; i < B.length; i++) if (memeCouleur(B[i].c, f.sp.oeil) || memeCouleur(B[i].c, f.variante ? OEIL_ROBE[(lireVariante(f.variante) || {}).robe] : null))
@@ -22873,7 +22885,7 @@ function emitFoe(f, view, out) {
   const { U, put } = posBete(f);
   const flash = f.hit > 0 && (t * 16 | 0) % 2;
   const cle = view.kEnt && view.kEnt(f.x, f.y), rang = rangSol(f.z, false);
-  for (const b of foeBones(f)) emitLimb(put(b.a), put(b.b), b.w, b.h, flash ? [255, 220, 210] : b.c, view, out, cle, rang, b.luit ? 1 : undefined, textures && b.tex ? b.tex : undefined, b.tex ? 1 : undefined, U, b);
+  for (const b of osSur(f)) emitLimb(put(b.a), put(b.b), b.w, b.h, flash ? [255, 220, 210] : b.c, view, out, cle, rang, b.luit ? 1 : undefined, textures && b.tex ? b.tex : undefined, b.tex ? 1 : undefined, U, b);
 }
 // ---------- le campement, en volumes ----------
 // Les mêmes boîtes que les bêtes et le héros : une seule description sert aux quatre rendus.
@@ -27070,14 +27082,14 @@ void main() { o = uC; }`;
         const an = anneauLien(b);
         panneau(an.x, an.y, an.z, an.r, an.r, 232 / 255, 62 / 255, 78 / 255, an.a, 6);
       }
-      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+      for (const o of osSur(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
     }
     for (const b of betesLoin) {
       const kz = b.sp.sz, { U, put } = posBete(b);
       if (!iso && !boiteVue(b.x - 2, b.x + 2, b.y - 2, b.y + 2, b.z - .4, b.z + 2.2, .05)) continue;
       if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9));
       const hb = L_FIXE + 256 * horizAt(b.x, b.y), fl = b.hit > 0 && (t * 16 | 0) % 2;
-      for (const o of foeBones(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+      for (const o of osSur(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
     }
     for (const j of Autres.values()) {
       if (!iso && !boiteVue(j.x - 1, j.x + 1, j.y - 1, j.y + 1, j.z - .4, j.z + 2, .05)) continue;
@@ -27098,7 +27110,7 @@ void main() { o = uC; }`;
     }
     for (const f of CHAMP_RARES.values()) if ((f.x - ex) ** 2 + (f.y - ey) ** 2 < 60 * 60) {   // (§120) les plantes rares semées
       const { U, put } = posBete(f), hb = L_FIXE + 256 * horizAt(f.x, f.y);
-      for (const o of foeBones(f)) boite(TD, put(o.a), put(o.b), o.w, o.h, o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(f.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+      for (const o of osSur(f)) boite(TD, put(o.a), put(o.b), o.w, o.h, o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(f.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
     }
     for (const c of campsIci()) if ((c.x - ex) ** 2 + (c.y - ey) ** 2 < 90 * 90) {
       const hc = L_FIXE + 256 * horizAt(c.x, c.y);
