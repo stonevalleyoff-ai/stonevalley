@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=214"></script>
-<script src="rouages.js?v=214"></script>
-<script src="forge.js?v=214"></script>
-<script src="nomades.js?v=214"></script>
-<script src="etats.js?v=214"></script>
-<script src="brume.js?v=214"></script>
-<script src="roi.js?v=214"></script>
-<script src="trone.js?v=214"></script>
-<script src="achromie.js?v=214"></script>
-<script src="vyrel.js?v=214"></script>
-<script src="village.js?v=214"></script>
-<script src="volcan.js?v=214"></script>
-<script src="dons.js?v=214"></script>
-<script src="coop.js?v=214"></script>
-<script src="faune.js?v=214"></script>
-<script src="flore.js?v=214"></script>
-<script src="lignees.js?v=214"></script>
-<script src="conduites.js?v=214"></script>
-<script src="pouvoirs.js?v=214"></script>
+<script src="donjon.js?v=215"></script>
+<script src="rouages.js?v=215"></script>
+<script src="forge.js?v=215"></script>
+<script src="nomades.js?v=215"></script>
+<script src="etats.js?v=215"></script>
+<script src="brume.js?v=215"></script>
+<script src="roi.js?v=215"></script>
+<script src="trone.js?v=215"></script>
+<script src="achromie.js?v=215"></script>
+<script src="vyrel.js?v=215"></script>
+<script src="village.js?v=215"></script>
+<script src="volcan.js?v=215"></script>
+<script src="dons.js?v=215"></script>
+<script src="coop.js?v=215"></script>
+<script src="faune.js?v=215"></script>
+<script src="flore.js?v=215"></script>
+<script src="lignees.js?v=215"></script>
+<script src="conduites.js?v=215"></script>
+<script src="pouvoirs.js?v=215"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=214"></script><script src="orvane/tampon.js?v=214"></script><script src="orvane/correspondance.js?v=214"></script><script src="orvane/secours.js?v=214"></script><script src="orvane/orvane-sv.js?v=214"></script>
+<script src="orvane/corps.js?v=215"></script><script src="orvane/tampon.js?v=215"></script><script src="orvane/correspondance.js?v=215"></script><script src="orvane/secours.js?v=215"></script><script src="orvane/orvane-sv.js?v=215"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -3840,7 +3840,7 @@ function emitFlore(view, out, cols) {
     const uni = PLANTE_PLATE[sp.forme] ? 1 : 0;
     // Le grain aussi : sans lui une plante est un aplat au milieu d'un sol grainé, et
     // l'œil lit l'aplat comme un trou dans la surface plutôt que comme un volume posé dessus.
-    const tx = view === VIEW_ISO ? (TEX_FORME[sp.forme] || TEX.touffu) : null;
+    const tx = view === VIEW_ISO ? varTex(TEX_FORME[sp.forme] || TEX.touffu, x, y) : null;   // (§245) chaque pied sa variante
     const ta = 1 - brumeF(Math.sqrt(dd));
     // Le vent couche la végétation. Plutôt que de retoucher les onze silhouettes une par une,
     // on fléchit chaque POINT selon sa hauteur : le pied ne bouge pas, le sommet prend tout,
@@ -10457,7 +10457,7 @@ function emitColonne(x, y, view, out) {
     // gagne au contraire en contraste avec la distance, puisque tout le reste s'efface.
     if (pts) out.push({ d: view.kTop(x, y, h), d2: R_SOL, pts,
       col: bi === 8 ? brumeAbime(VIDE_COL, dd) : view.fog(teinte(b.top), d0),
-      tex: tex ? (bi === 8 ? TEX.abime : TEX_HAUT[bi]) : null,
+      tex: tex ? varTex(bi === 8 ? TEX.abime : TEX_HAUT[bi], x, y, h) : null,
       bord: bi === 8 ? null : (tex ? BORD[mt] : null),
       frange: bi === 8 ? null : (tex ? FRANGE[mf] : null), texA: 1 - brumeF(dd) });
   }
@@ -10475,7 +10475,7 @@ function emitColonne(x, y, view, out) {
     const k = view.kSide(x, y, dx, dy, mx, my, mz);   // clé : l'arête, au ras du sol
     const mc = masqueFlanc(x, y, dx, dy, h);
     out.push({ d: k, d2: R_SOL, pts, col: view.fog(teinte(b.side).map(v => v * shade(n)), d),
-      tex: tex ? TEX_COTE[bi] : null, bord: tex ? BORD[mc] : null,
+      tex: tex ? varTex(TEX_COTE[bi], x + dx, y + dy, h) : null, bord: tex ? BORD[mc] : null,
       puits: bAt(x + dx, y + dy) === 8, nv: h - hn, texA: 1 - brumeF(dd) });
     // La lèvre sombre ne sert plus qu'en 1re personne : là, la projection est perspective et
     // le placage affine du voile d'arête ne s'applique pas. En isométrie, c'est le voile qui
@@ -10516,7 +10516,7 @@ function emitDalle(x, y, view, out) {
     const md = (plaT(x, y - 1) !== zt ? 1 : 0) | (plaT(x, y + 1) !== zt ? 2 : 0)
              | (plaT(x - 1, y) !== zt ? 4 : 0) | (plaT(x + 1, y) !== zt ? 8 : 0);
     if (pts) out.push({ d: view.kTop(x, y, zt), d2: rang, pts, col: view.fog(tt(bh.top), view.dist(x + .5, y + .5, zt)),
-      tex: tex ? TEX_HAUT[bhi] : null, bord: tex ? BORD[md] : null, texA: 1 - brumeF(dd) });
+      tex: tex ? varTex(TEX_HAUT[bhi], x, y, zt) : null, bord: tex ? BORD[md] : null, texA: 1 - brumeF(dd) });
   }
   if (view.vis([0, 0, -1], x + .5, y + .5, zb)) {   // culé d'office vu d'en haut, donc gratuit
     const pts = view.poly([[x, y, zb], [x, y + 1, zb], [x + 1, y + 1, zb], [x + 1, y, zb]]);
@@ -21287,12 +21287,21 @@ function volerVers(b, tx, ty, tz, vd, mode, dt) {
 // ============================================================
 let textures = true;
 // (§244) Un texel dit [a] (a > 0 : du blanc, a < 0 : du noir, d'opacité |a|) ou [a, r, g, b] : une touche de couleur.
+// (§245) Chaque texture se tire huit fois, avec un hasard différent (SEL) : huit variantes du même dessin. Chaque cube prend
+// la sienne (toujours la même), et un champ cesse de se lire comme une tapisserie.
+let SEL = 0;
+const NVAR = 8;
 function motif(graine, pts) {
+  const V = [];
+  for (let k = 0; k < NVAR; k++) { SEL = k; V.push(motif1(graine, pts)); }
+  SEL = 0; V[0].variantes = V; return V[0];
+}
+function motif1(graine, pts) {
   const c = document.createElement('canvas'); c.width = c.height = 16;
   const x = c.getContext('2d'), d = x.createImageData(16, 16);
   for (let i = 0; i < 256; i++) {
     const px = i % 16, py = i >> 4;
-    const v = pts(px, py, hachCell(px + graine * 137, py + graine * 311));
+    const v = pts(px, py, hachCell(px + graine * 137 + SEL * 1013, py + graine * 311 + SEL * 733));
     if (!v) continue;
     if (v.length > 1) { d.data[i * 4] = v[1]; d.data[i * 4 + 1] = v[2]; d.data[i * 4 + 2] = v[3]; d.data[i * 4 + 3] = Math.max(0, Math.min(1, v[0])) * 255 | 0; continue; }
     d.data[i * 4] = v[0] < 0 ? 0 : 255; d.data[i * 4 + 1] = v[0] < 0 ? 0 : 255;
@@ -21308,17 +21317,18 @@ function motif(graine, pts) {
 // et des touches de couleur (une fleur, de la bruyère, du lichen, une braise, de la rouille). Tout se raccorde d'un cube à
 // l'autre : le hasard, le bruit et les cellules sont pris sur un tore de seize texels.
 const t16 = v => ((v % 16) + 16) % 16;
-const tuileH = (x, y, g) => hachCell(t16(x) + g * 137 + 3, t16(y) + g * 311 + 7);   // un hasard par texel, qui se raccorde
+const tuileH = (x, y, g) => hachCell(t16(x) + g * 137 + 3 + SEL * 977, t16(y) + g * 311 + 7 + SEL * 421);   // un hasard par texel, qui se raccorde
+const hc = (a, b) => hachCell(a + SEL * 1009, b + SEL * 577);   // (§245) le hasard d'une texture, propre à sa variante
 function bruit16(x, y, g, s) {                       // un bruit lisse, de maille s (2, 4 ou 8), qui se raccorde
   const n = 16 / s, gx = x / s, gy = y / s, x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
-  const v = (i, j) => hachCell(((i % n) + n) % n + g * 71 + 5, ((j % n) + n) % n + g * 53 + 9);
+  const v = (i, j) => hachCell(((i % n) + n) % n + g * 71 + 5 + SEL * 389, ((j % n) + n) % n + g * 53 + 9 + SEL * 263);
   const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
   return (v(x0, y0) * (1 - sx) + v(x0 + 1, y0) * sx) * (1 - sy) + (v(x0, y0 + 1) * (1 - sx) + v(x0 + 1, y0 + 1) * sx) * sy;
 }
 const CELL16 = new Map();
 function cellules16(x, y, g, n, ky = 1) {            // des cellules (pierres, galets, bouquets) : la plus proche, l'écart à la seconde, son numéro, le décalage ; ky > 1 les couche
-  const cle = g * 64 + n; let P = CELL16.get(cle);
-  if (!P) { P = []; for (let k = 0; k < n; k++) P.push([hachCell(k * 13 + g * 7, 3 + g) * 16, hachCell(k * 29 + g * 11, 17 + g) * 16]); CELL16.set(cle, P); }
+  const cle = (g * 64 + n) * 16 + SEL; let P = CELL16.get(cle);
+  if (!P) { P = []; for (let k = 0; k < n; k++) P.push([hachCell(k * 13 + g * 7 + SEL * 101, 3 + g + SEL * 17) * 16, hachCell(k * 29 + g * 11 + SEL * 103, 17 + g + SEL * 19) * 16]); CELL16.set(cle, P); }
   let d1 = 99, d2 = 99, id = 0, ox = 0, oy = 0;
   for (let k = 0; k < n; k++) {
     let dx = x + .5 - P[k][0], dy = y + .5 - P[k][1];
@@ -21345,13 +21355,13 @@ const TEX = {
   touffu: motif(2, (x, y, h) => {
     const C = cellules16(x, y, 2, 11);
     if (C.b < .85) return [-.36];
-    const l = -(C.ox + C.oy) / 3, v = (hachCell(C.id, 77) - .5) * .12 + l * .17 + (h > .92 ? .08 : 0);
+    const l = -(C.ox + C.oy) / 3, v = (hc(C.id, 77) - .5) * .12 + l * .17 + (h > .92 ? .08 : 0);
     return v > .03 ? [v, 214, 255, 168] : v < -.03 ? [v] : null;
   }),
   // la terre : marbrée, des cailloux qui ont leur ombre, des grains noirs
   terre: motif(3, (x, y, h) => {
     const C = cellules16(x, y, 3, 6);
-    if (C.d1 < 1.3 && hachCell(C.id, 9) > .35) { const l = -(C.ox + C.oy); return l > .35 ? [.4, 206, 196, 176] : l < -.35 ? [-.32] : [.24, 168, 158, 140]; }
+    if (C.d1 < 1.3 && hc(C.id, 9) > .35) { const l = -(C.ox + C.oy); return l > .35 ? [.4, 206, 196, 176] : l < -.35 ? [-.32] : [.24, 168, 158, 140]; }
     if (h < .09) return [-.28];
     return doux16((bruit16(x, y, 3, 4) - .5) * .28);
   }),
@@ -21361,7 +21371,7 @@ const TEX = {
     if (C.b < .7) return [-.32];
     if (C.b < 1.6) return C.ox + C.oy < 0 ? [.13] : [-.13];
     if (h > .955) return [.14]; if (h < .05) return [-.15];
-    return doux16((hachCell(C.id, 41) - .5) * .14 + (bruit16(x, y, 42, 4) - .5) * .06);
+    return doux16((hc(C.id, 41) - .5) * .14 + (bruit16(x, y, 42, 4) - .5) * .06);
   }),
   // le sable : des rides que le vent couche, un grain chaud, un coquillage
   sable: motif(5, (x, y, h) => {
@@ -21383,13 +21393,13 @@ const TEX = {
   // les matières du village (village.js) et des terres nouvelles
   // des planches : leurs joints, leurs bouts décalés, le fil du bois, un nœud, un clou
   planche: motif(8, (x, y, h) => {
-    const r = y >> 2, ly = y & 3, j = (r * 7 + 3) & 15, tn = (hachCell(r, 88) - .5) * .16;
+    const r = y >> 2, ly = y & 3, j = (r * 7 + 3) & 15, tn = (hc(r, 88) - .5) * .16;
     if (ly === 0) return [-.34];
     if (x === j) return [-.3];
     if (x === ((j + 1) & 15) && ly === 2) return [.4, 210, 214, 224];
     if (ly === 3) return [.1 + tn * .5];
-    if (hachCell(r, 92) > .55 && Math.abs(x - ((r * 5 + 9) & 15)) <= 1 && ly === 2) return [-.26];
-    const fil = Math.sin(x * Math.PI / 4 + hachCell(r, 91) * 6) > .55;
+    if (hc(r, 92) > .55 && Math.abs(x - ((r * 5 + 9) & 15)) <= 1 && ly === 2) return [-.26];
+    const fil = Math.sin(x * Math.PI / 4 + hc(r, 91) * 6) > .55;
     return fil ? [-.12] : doux16(tn);
   }),
   // le chaume : des brins couchés en biais, et l'ombre sous chaque rang de bottes
@@ -21400,7 +21410,7 @@ const TEX = {
   }),
   // l'ardoise : des rangs décalés, le bas de chaque pièce dans l'ombre de la suivante, le haut poli
   ardoise: motif(10, (x, y, h) => {
-    const r = y >> 2, ly = y & 3, xx = x + (r & 1) * 2, lx = xx & 3, tn = (hachCell((xx >> 2) + r * 4, 93) - .5) * .18;
+    const r = y >> 2, ly = y & 3, xx = x + (r & 1) * 2, lx = xx & 3, tn = (hc((xx >> 2) + r * 4, 93) - .5) * .18;
     if (ly === 0) return [-.36];
     if (lx === 0) return [-.24];
     if (ly === 3) return [.15, 196, 212, 236];
@@ -21414,7 +21424,7 @@ const TEX = {
   }),
   // la pierre taillée : des blocs en quinconce, le mortier, l'arête éclairée et l'arête dans l'ombre
   bloc: motif(12, (x, y, h) => {
-    const r = y >> 2, ly = y & 3, xx = x + (r & 1) * 4, xo = xx & 7, tn = (hachCell(((xx >> 3) & 1) + r * 2, 94) - .5) * .16;
+    const r = y >> 2, ly = y & 3, xx = x + (r & 1) * 4, xo = xx & 7, tn = (hc(((xx >> 3) & 1) + r * 2, 94) - .5) * .16;
     if (ly === 0 || xo === 0) return [-.38];
     if (ly === 3 || xo === 1) return [.14];
     if (ly === 1 || xo === 7) return [-.13];
@@ -21423,7 +21433,7 @@ const TEX = {
   // la terre battue : tassée, des cailloux, des traces
   battue: motif(13, (x, y, h) => {
     const C = cellules16(x, y, 14, 6);
-    if (C.d1 < 1.05 && hachCell(C.id, 15) > .45) return C.ox + C.oy < 0 ? [.36, 226, 214, 192] : [-.28];
+    if (C.d1 < 1.05 && hc(C.id, 15) > .45) return C.ox + C.oy < 0 ? [.36, 226, 214, 192] : [-.28];
     return doux16((bruit16(x, y, 13, 4) - .5) * .24 + (bruit16(x, y, 16, 8) - .5) * .1);
   }),
   // un sol d'os : des craquelures, des éclats blancs et leur ombre, des trous noirs
@@ -21433,7 +21443,7 @@ const TEX = {
     if (tuileH(x, y, 16) > .94 || tuileH(x - 1, y, 16) > .94) return [.42, 252, 248, 234];
     if (tuileH(x, y - 1, 16) > .94 || tuileH(x - 1, y - 1, 16) > .94) return [-.2];
     if (h < .035) return [-.45];
-    return doux16((hachCell(C.id, 17) - .5) * .1);
+    return doux16((hc(C.id, 17) - .5) * .1);
   }),
   // (§244) le sous-bois : la mousse, et les feuilles mortes, brunes ou dorées
   sousbois: motif(70, (x, y, h) => {
@@ -21503,7 +21513,7 @@ const raie = y => y === 0;
 TEX.terreM = motif(3, (x, y, h) => {                  // (§244) le flanc de terre : des lits, des cailloux pris dedans
   if (raie(y)) return [-.32];
   const C = cellules16(x, y, 32, 5);
-  if (C.d1 < 1.2 && hachCell(C.id, 33) > .4) { const l = C.oy - C.ox; return l > .35 ? [.36, 196, 186, 170] : l < -.35 ? [-.3] : [.22, 160, 150, 134]; }
+  if (C.d1 < 1.2 && hc(C.id, 33) > .4) { const l = C.oy - C.ox; return l > .35 ? [.36, 196, 186, 170] : l < -.35 ? [-.3] : [.22, 160, 150, 134]; }
   if (t16(y + vague16(x, 1, 1)) % 8 === 5) return [-.13];
   if (h < .08) return [-.26];
   return doux16((bruit16(x, y, 31, 4) - .5) * .26);
@@ -21511,7 +21521,7 @@ TEX.terreM = motif(3, (x, y, h) => {                  // (§244) le flanc de ter
 TEX.galets = motif(81, (x, y, h) => {                 // (§243, §244) le lit d'une rivière, d'un lac : des galets ronds, chacun sa teinte
   const C = cellules16(x, y, 81, 10);
   if (C.b < .8) return [-.36];
-  const k = hachCell(C.id, 82), l = -(C.ox + C.oy) / 2.4, v = l * .2 + (k - .5) * .14;
+  const k = hc(C.id, 82), l = -(C.ox + C.oy) / 2.4, v = l * .2 + (k - .5) * .14;
   if (k > .78) return [.3 + l * .1, 190, 180, 160];
   if (k < .18) return [.26, 104, 124, 100];
   return doux16(v);
@@ -21521,7 +21531,7 @@ TEX.rocheM = motif(4, (x, y, h) => {                  // (§244) le flanc de roc
   const C = cellules16(x, y, 36, 6, 1.9);
   if (C.b < .75) return [-.32];
   if (C.b < 1.6) return C.oy > 0 ? [.13] : [-.15];
-  return h > .95 ? [.12] : h < .05 ? [-.14] : doux16((hachCell(C.id, 38) - .5) * .16);
+  return h > .95 ? [.12] : h < .05 ? [-.14] : doux16((hc(C.id, 38) - .5) * .16);
 });
 TEX.sableM = motif(5, (x, y, h) => {                  // (§244) le flanc de sable : des couches tassées, un grain
   if (raie(y)) return [-.28];
@@ -21538,7 +21548,7 @@ TEX.neigeM = motif(84, (x, y, h) => {                  // (§244) le flanc de ne
 // Les sols des biomes rares. Même principe : du noir et du blanc transparents sur l'aplat.
 // La tourbe : sombre, et des flaques qui accrochent le jour en traits couchés.
 TEX.tourbe = motif(20, (x, y, h) => {                 // (§244) la tourbe : sombre et fibreuse ; des flaques qui prennent le ciel, de la sphaigne
-  if (bruit16(x, y, 21, 8) > .66 && (y & 1) === 0 && hachCell((x >> 2) + 900, y * 3 + 17) > .3) return [.32, 156, 188, 204];
+  if (bruit16(x, y, 21, 8) > .66 && (y & 1) === 0 && hc((x >> 2) + 900, y * 3 + 17) > .3) return [.32, 156, 188, 204];
   if (tuileH(x, y, 22) > .9) return [-.3];
   if (tuileH(x, y, 23) > .97) return [.4, 166, 196, 92];
   return doux16((bruit16(x, y, 20, 4) - .5) * .32);
@@ -21569,7 +21579,7 @@ TEX.facette = motif(24, (x, y, h) => {                // (§244) le cristal : de
   if (a === 0 || b === 0) return [.38, 234, 255, 255];
   if (a === 7 || b === 1) return [-.18];
   const f = (((x + y) >> 3) & 1) + (((x - y + 16) >> 3) & 1) * 2;
-  return doux16((hachCell(f, 25) - .5) * .22 + (a < 4 ? .06 : -.04));
+  return doux16((hc(f, 25) - .5) * .22 + (a < 4 ? .06 : -.04));
 });
 TEX.facetteM = motif(25, (x, y, h) => {               // (§244) le flanc du cristal : des prismes debout
   if (raie(y)) return [-.28];
@@ -21679,6 +21689,8 @@ TEX.travertin = motif(68, (x, y, h) => {              // (§244) le travertin : 
   const w = t16(y + vague16(x, 1, 1.3)) % 4;
   return w === 0 ? [-.22] : w === 1 ? [.22, 255, 250, 236] : h < .1 ? [-.18] : h > .95 ? [.12] : null;
 });
+// (§245) la variante d'une texture pour une case (le canvas de secours ; la carte graphique tire la sienne elle-même)
+const varTex = (t, x, y, z = 0) => t && t.variantes ? t.variantes[(hachCell(x * 7 + z * 13 + 1, y * 11 + z * 5 + 3) * t.variantes.length) | 0] : t;
 const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.sousbois, TEX.lande, TEX.falaise, TEX.roche, TEX.neige, TEX.roche,   // (§244) le sous-bois, la lande, la falaise ont le leur
   TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise, TEX.plaque, TEX.huile, TEX.nuage, TEX.ocre,
   TEX.os, TEX.myce, TEX.basalte, TEX.battue, TEX.petales,   // l'ossuaire, les terres creuses, la roche rongée, le village, la cerisaie
@@ -21765,7 +21777,7 @@ TEX.peau = motif(59, (x, y, h) => {                   // (§244) une peau nue : 
 });
 // (§192) la croûte du démon : des plaques de peau cuite, décalées d'un rang à l'autre, que séparent des fentes très
 // sombres ; le haut de chaque plaque accroche la lumière, le bas s'ombre
-TEX.croute = motif(61, (x, y, h) => { const r = y >> 3, xo = (x + (r & 1) * 5 + ((hachCell(r + 61, 7) * 4) | 0)) % 9, yo = y & 7;
+TEX.croute = motif(61, (x, y, h) => { const r = y >> 3, xo = (x + (r & 1) * 5 + ((hc(r + 61, 7) * 4) | 0)) % 9, yo = y & 7;
   return (yo === 7 || xo === 0) ? [-.4] : (yo === 0 && xo > 1 && xo < 8) ? [.2] : (xo === 1 || yo === 6) ? [-.18] : (h > .94 ? [.14] : h < .07 ? [-.2] : null); });
 TEX.corde = motif(60, (x, y, h) => {                  // (§244) la corde : des torons qui tournent, leur reflet
   const k = (x * 2 + y) & 7;
@@ -23244,10 +23256,11 @@ layout(location=4) in float aF;
 layout(location=5) in vec2 aS;
 uniform mat4 uM;
 uniform vec3 uVent;
-out vec3 vW; out vec3 vC; out vec2 vT;
+out vec3 vW; out vec3 vC; out vec2 vT; out vec3 vW0;
 flat out ivec3 vK; flat out int vL; flat out int vP; flat out float vN; flat out float vHor; flat out int vEau; flat out int vLave; flat out int vLueur;
 void main() {
   vec3 p = aP;
+  vW0 = aP;                                           // (§245) la place sans le vent : la variante d'une feuille ne clignote pas
   if (aS.x != 0.0) p.xy += uVent.xy * aS.x * (0.10 + 0.06 * sin(uVent.z * 2.3 + aS.y));
   vW = p; vC = aC; vT = aT;
   int k = int(aK + 0.5);
@@ -23263,7 +23276,7 @@ void main() {
   const DECOR_FS = `#version 300 es
 precision highp float;
 precision highp int;
-in vec3 vW; in vec3 vC; in vec2 vT;
+in vec3 vW; in vec3 vC; in vec2 vT; in vec3 vW0;
 flat in ivec3 vK; flat in int vL; flat in int vP; flat in float vN; flat in float vHor; flat in int vEau; flat in int vLave; flat in int vLueur;
 uniform sampler2D uA;
 uniform vec3 uOeil, uBrume, uBr;
@@ -23278,13 +23291,23 @@ ${NUIT_GLSL}
 ${GRIS_GLSL}
 ${ENFER_GLSL}
 // le grain se répète par cube ; les calques d'arête couvrent la face une seule fois
-vec4 grain(int k, vec2 t) {
+// (§245) chaque cube prend l'une des huit variantes de sa texture : j
+vec4 grain(int k, vec2 t, int j) {
   ivec2 p = clamp(ivec2(floor(fract(t) * 16.0)), ivec2(0), ivec2(15));
-  return texelFetch(uA, ivec2(k % 8, k / 8) * 16 + p, 0);
+  return texelFetch(uA, ivec2(k % 8 + 8 * j, k / 8) * 16 + p, 0);
 }
-vec4 calque(int k, vec2 t) {
+vec4 calque(int k, vec2 t, int j) {
   ivec2 p = clamp(ivec2(floor(t * 16.0)), ivec2(0), ivec2(15));
-  return texelFetch(uA, ivec2(k % 8, k / 8) * 16 + p, 0);
+  return texelFetch(uA, ivec2(k % 8 + 8 * j, k / 8) * 16 + p, 0);
+}
+// (§245) la variante : tirée de la case du cube (le décor, qui ne bouge pas) ou de la tuile le long d'une pièce (une bête, qui bouge)
+int variante() {
+  vec3 n = cross(dFdx(vW0), dFdy(vW0));
+  float ln = length(n);
+  ivec3 c = vL == 2 || ln < 1e-12 ? ivec3(ivec2(floor(vT)), 0) : ivec3(floor(vW0 - n / ln * 0.5));
+  uint h = uint(c.x + 4096) * 73856093u ^ uint(c.y + 4096) * 19349663u ^ uint(c.z + 4096) * 83492791u;
+  h ^= h >> 13; h *= 1274126177u; h ^= h >> 16;
+  return int(h & 7u);
 }
 void main() {
   if (uCoupe.w > 0.0 && vL == 0 && vW.z > uCoupe.z + 0.45) {
@@ -23299,6 +23322,13 @@ void main() {
   float f = clamp((d - uBr.x) / (uBr.y - uBr.x), 0.0, 1.0);
   f = uIso.x > .5 ? f * 0.72 : f * (1.6 - 0.6 * f);
   vec3 c = vC * (vL == 0 ? uLum.x : vL == 1 ? uLum.y : 1.0);
+  int jv = variante();
+  if (vL != 2 && vL != 3) {                           // (§245) de grandes plages : un sol plus clair ici, plus sombre là, une herbe plus sèche
+    float mv = nEnf(vW0.xy / 9.0 + 3.7) * 0.6 + nEnf(vW0.xy / 23.0 - 1.3) * 0.4;
+    c *= 0.92 + 0.16 * mv;
+    float sec = smoothstep(0.55, 0.85, nEnf(vW0.xy / 14.0 + 9.1));
+    c = mix(c, c * vec3(1.07, 1.02, 0.86), sec * 0.55);
+  }
   // à l'ombre d'un relief : on garde la lumière du ciel, pas celle du soleil
   float jour = smoothstep(vHor - .10, vHor + .10, uSoleil.x);
   c *= mix(uSoleil.y, 1.0, jour);
@@ -23314,12 +23344,12 @@ void main() {
     vec2 gx = dFdx(vT), gy = dFdy(vT);
     float dg = sqrt(max(dot(gx, gx), dot(gy, gy))) * 16.0;
     float ag = ef * clamp(1.9 - dg, 0.0, 1.0);
-    if (vK.x > 0 && ag > 0.01) { vec4 t = grain(vK.x - 1, vT); c = mix(c, t.rgb, t.a * ag); }
+    if (vK.x > 0 && ag > 0.01) { vec4 t = grain(vK.x - 1, vT, jv); c = mix(c, t.rgb, t.a * ag); }
     vec2 hx = dFdx(tf), hy = dFdy(tf);
     float dv = sqrt(max(dot(hx, hx), dot(hy, hy))) * 16.0;
     float av = ef * clamp(2.6 - dv * 0.4, 0.0, 1.0);
-    if (vK.z > 0) { vec4 t = calque(vK.z - 1, tf); c = mix(c, t.rgb, t.a * av); }
-    if (vK.y > 0) { vec4 t = calque(vK.y - 1, tf); c = mix(c, t.rgb, t.a * av); }
+    if (vK.z > 0) { vec4 t = calque(vK.z - 1, tf, jv); c = mix(c, t.rgb, t.a * av); }
+    if (vK.y > 0) { vec4 t = calque(vK.y - 1, tf, jv); c = mix(c, t.rgb, t.a * av); }
   }
   vec3 lu = vec3(0.0);                                // (§162) l'île démoniaque : ni les bêtes ni les objets (L_FIXE)
   if (uEnf.w > 0.0 && vL != 2) c = enfer(c, vW, vEau == 1, lu);
@@ -24051,9 +24081,9 @@ void main() { o = uC; }`;
     P_PANO = programme(PANO_VS, PANO_FS);
     P_TRAIT = programme(TRAIT_VS, TRAIT_FS);
     const ac = document.createElement('canvas');
-    ac.width = 8 * 16; ac.height = Math.ceil(TUILES.length / 8) * 16;
+    ac.width = 8 * 16 * NVAR; ac.height = Math.ceil(TUILES.length / 8) * 16;   // (§245) une tuile, et ses huit variantes à sa droite, de huit en huit
     const ax = ac.getContext('2d');
-    TUILES.forEach((c, k) => ax.drawImage(c, (k % 8) * 16, ((k / 8) | 0) * 16));
+    TUILES.forEach((c, k) => { for (let j = 0; j < NVAR; j++) ax.drawImage((c.variantes && c.variantes[j]) || c, ((k % 8) + 8 * j) * 16, ((k / 8) | 0) * 16); });
     atlas = gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, atlas);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);

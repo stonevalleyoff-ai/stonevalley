@@ -7770,3 +7770,17 @@ La monture nage aussi, son cavalier au sec.
 - **Les matières des bêtes et des objets** : le pelage en mèches, des plumes en rangs, des écailles rondes en quinconce, la chitine vernie, le métal brossé et riveté, l'écorce en sillons avec du lichen, la toile tissée, l'étoffe et son liseré, le cuir et sa couture, la peau, la corde.
 
 **Vérifié.** La planche de toutes les textures, chacune répétée trois fois sur trois (aucune couture). En jeu, en isométrie : la prairie, le sous-bois, la lande, la falaise, la neige, la plage, un lac, une rivière ; des bêtes de près. Le canvas de secours. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-214`.
+
+## §245 · Les textures ne se répètent plus
+
+Chaque cube portait la même image de seize texels : sur un champ, les mêmes fleurs revenaient à la même place, cube après cube, et l'île se lisait comme une tapisserie.
+
+- **Huit variantes par texture** (`motif`, `SEL`, `NVAR`). Chaque texture se tire huit fois, avec un hasard différent : le même dessin (des brins, des galets, des planches), d'autres positions, d'autres teintes. Le hasard des outils (`tuileH`, `bruit16`, `cellules16`, `hc`) dépend de la variante. On ne tourne pas les images : l'éclairage dessiné (le côté clair en haut à gauche) reste le même d'un cube à l'autre.
+- **Chaque cube prend la sienne**, toujours la même.
+  - Le décor (le sol, les flancs, les dalles, la flore) la tire de sa case : la case derrière la face (`variante`, d'après la normale de la face et sa position sans le vent, `vW0`). Une feuille qui ploie ne change donc pas d'image.
+  - Une bête, qui bouge, la tire de la tuile le long de sa pièce : son pelage ne clignote pas quand elle marche.
+- **L'atlas** porte les huit variantes de chaque tuile côte à côte (1 024 texels de large).
+- **De grandes plages** (`DECOR_FS`) : un bruit lent, à neuf et vingt-trois cubes, éclaircit ou assombrit le décor de quelques pour cent. Un autre, à quatorze cubes, jaunit l'herbe par endroits. Le sol n'est plus uniforme d'un bout à l'autre de l'île.
+- **Le canvas de secours** tire lui aussi une variante par case (`varTex`) : le sol, les flancs, les dalles, chaque pied de flore.
+
+**Vérifié.** Au même endroit (île 123456), avant et après : les fleurs et les galets ne reviennent plus en grille, les falaises non plus. La planche des textures ; le canvas de secours. Dans le navigateur : six îles, aucune erreur ; la monture. `sw.js` : `stone-valley-215`.
