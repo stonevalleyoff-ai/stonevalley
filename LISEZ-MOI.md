@@ -7513,3 +7513,18 @@ Les trente espèces faites main (les Rampants, les Telluriens, les Doux d'avant,
 **Vérifié.**
 - **Le code** : tous les scripts s'analysent ; aucune référence vers une déclaration retirée (contrôle `no-undef` sur l'ensemble : seules restent les fonctions qu'Orvane publie au chargement, toutes gardées par un test).
 - **Dans le navigateur** : six îles en ligne et hors ligne, aucune erreur de page ; des familles qui suivent leur mère ; 5 061 corps construits, aucun os invalide ; trois compagnes d'avant devenues lignées, leurs viandes au garde-manger, la monture qui se monte ; un rodéo complet sur une monture sauvage (domptée, lien à 90 %).
+
+## §236 · Une page neuve avec des scripts d'hier : des automates, et plus une créature
+
+**Le défaut.** Juste après la mise en ligne du §235, une partie lancée sur téléphone n'avait plus que des automates, dès la première île, et aucune créature. La page neuve tournait avec l'`orvane-sv.js` d'avant : GitHub Pages laisse un script dix minutes dans le cache du navigateur, et le service worker le prenait là. L'ancien traducteur ne savait plus inscrire les lignées (leurs anciennes bases avaient quitté `SPEC`) ; il n'inscrivait que les machines. Le bestiaire de l'île restait vide, et un bestiaire vide laissait naître tout ce que porte `SPEC` : les automates. Reproduit tel quel en servant la page neuve avec les scripts d'avant.
+
+**La correction.**
+- `index.html` : chaque script local est demandé avec sa version (`donjon.js?v=206`…) : une page neuve ne peut plus recevoir un script d'hier ;
+- `sw.js` : la page et les scripts passent par le réseau **sans** le cache du navigateur (`cache: 'no-cache'`) ; l'installation remplit le cache avec des copies fraîches (`cache: 'reload'`) ; hors ligne, un script se retrouve même si sa version a changé (`ignoreSearch`) ;
+- `capEsp0` : un bestiaire vide ne lâche plus les automates avant la dixième exploration (sauf sur l'île des automates).
+
+**À chaque nouvelle version** : monter ensemble `CACHE` dans `sw.js` et le `?v=` des scripts de `index.html` (le même numéro).
+
+**Vérifié.**
+- **Le service worker** : un script changé sur le serveur (servi avec dix minutes de cache) arrive dès le rechargement ; hors ligne, le jeu part, avec la dernière version gardée, et ses lignées.
+- **Dans le navigateur** : six îles, aucune erreur ; le site en ligne, ouvert par un nouveau joueur, montre les lignées d'Orvane dès l'île de départ.

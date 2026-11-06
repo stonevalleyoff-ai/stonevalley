@@ -878,27 +878,27 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js"></script>
-<script src="rouages.js"></script>
-<script src="forge.js"></script>
-<script src="nomades.js"></script>
-<script src="etats.js"></script>
-<script src="brume.js"></script>
-<script src="roi.js"></script>
-<script src="trone.js"></script>
-<script src="achromie.js"></script>
-<script src="vyrel.js"></script>
-<script src="village.js"></script>
-<script src="volcan.js"></script>
-<script src="dons.js"></script>
-<script src="coop.js"></script>
-<script src="faune.js"></script>
-<script src="flore.js"></script>
-<script src="lignees.js"></script>
-<script src="conduites.js"></script>
+<script src="donjon.js?v=206"></script>
+<script src="rouages.js?v=206"></script>
+<script src="forge.js?v=206"></script>
+<script src="nomades.js?v=206"></script>
+<script src="etats.js?v=206"></script>
+<script src="brume.js?v=206"></script>
+<script src="roi.js?v=206"></script>
+<script src="trone.js?v=206"></script>
+<script src="achromie.js?v=206"></script>
+<script src="vyrel.js?v=206"></script>
+<script src="village.js?v=206"></script>
+<script src="volcan.js?v=206"></script>
+<script src="dons.js?v=206"></script>
+<script src="coop.js?v=206"></script>
+<script src="faune.js?v=206"></script>
+<script src="flore.js?v=206"></script>
+<script src="lignees.js?v=206"></script>
+<script src="conduites.js?v=206"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js"></script><script src="orvane/tampon.js"></script><script src="orvane/correspondance.js"></script><script src="orvane/secours.js"></script><script src="orvane/orvane-sv.js"></script>
+<script src="orvane/corps.js?v=206"></script><script src="orvane/tampon.js?v=206"></script><script src="orvane/correspondance.js?v=206"></script><script src="orvane/secours.js?v=206"></script><script src="orvane/orvane-sv.js?v=206"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -5608,6 +5608,8 @@ function capEsp(sp) { if (retiree(sp)) return 0;   // (§225) la faune faite mai
   const k = typeof enferFaune === 'function' ? enferFaune(sp) : 1; return k >= 1 ? capEsp0(sp) : Math.round(capEsp0(sp) * k); }
 function capEsp0(sp) {
   if (especesIle.size && !especesIle.has(sp.id)) return 0;   // la graine ne l'a pas mise sur cette île
+  // (§236) un bestiaire vide (le tirage n'a rien donné) ne lâche pas les automates sur les premières îles
+  if (!especesIle.size && automate(sp) && !ileMeca && profondeur() < 10) return 0;   // 10 : NIV_AUTOMATES, déclaré plus bas
   const p = Math.min(profondeur(), NIV_MAX);
   if (automate(sp)) return Math.round(sp.cap * (1 + p * .12 + Math.max(0, Math.min(profondeur(), NIV_LOIN) - NIV_MAX) * .05) * (ileMeca ? 1.5 : 1));
   const cap = sp.diet === 'c' ? sp.cap : sp.cap * facteurHerbe;
