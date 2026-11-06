@@ -243,16 +243,8 @@ function osOrvane(f) {
   }
   // --- les pattes ---
   if (M.pattes && !M.serpent) lgPattes(f, M, add, { bz, zx, xa, xr, ph, allure, galop, couche, vol, dk, traque, avant });
-  // --- les ailes : repliées le long du corps, battantes en vol ---
-  if (M.ailes > .3) {
-    const env = (.15 + M.ailes * .45), bat = vol ? Math.sin(Number.isFinite(f.ph) ? f.ph : t * 10) : 0;
-    const ax = M.bip ? avant[0] - .05 : xa - Lt * .3, az = (M.bip ? (avant[2] + bz) / 2 : bz) + Th * (vol ? .35 : .12);
-    for (const s of [-1, 1]) {
-      if (vol) { const ang = .25 + bat * .9, bout2 = [ax - .06, s * (Wd * .45 + env * Math.cos(ang)), az + env * Math.sin(ang)];
-        add([ax, s * Wd * .45, az], lgMix([ax, s * Wd * .45, az], bout2, .55), env * .5, .02, M.robe); add(lgMix([ax, s * Wd * .45, az], bout2, .5), bout2, env * .42, .016, M.el ? lgMix(M.sombre, M.lueur, .55) : M.sombre, M.el ? 1 : 0, M.el ? 1 : 0); }
-      else { add([ax + .02, s * Wd * .52, az], [ax - env * .55, s * Wd * .58, az - .01], .02, Th * .62, M.robe); add([ax - env * .3, s * Wd * .56, az - .02], [ax - env * .9, s * Wd * .52, az - .03 - env * .08], .016, Th * .45, M.sombre); }
-    }
-  }
+  // --- les ailes (§240) : un squelette, une surface, des rémiges ou des membranes ; repliées en Z au repos, battantes ou planées en vol ---
+  if (M.ailes > .3 && !M.poisson) lgAiles(f, M, add, B, { xa, xr, bz, avant, vol, couche, al, g, geste, dresse, style: M.hexa ? 'insecte' : M.oiseau || (M.org('ailes') || {}).forme !== 'membranes' ? 'plumes' : 'membranes' });
   // --- le cou et la tête ---
   const T = lgTete(f, M, add, { avant, tz, couche, ram, al, allure, broute, traque, ph, R, bouche, g, bz });
   // --- la queue ---
@@ -260,6 +252,8 @@ function osOrvane(f) {
   if (!bout) bout = M.bip ? [-Lt * .4, 0, bz + .01] : [xr + .01, 0, bz + Th * .15];
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
   if (M.el) lgFantaisie(f, M, add, B, { T, avant, bout, bz, xa, xr, couche, allure, dk, g, vol, al });
+  if (vol && f.tang) { const tg = lgCl(f.tang, -1.1, .7) * .8, c = Math.cos(tg), s = Math.sin(tg), zc = bz, vu = new Set();   // (§240) en vol, le corps suit la pente : le nez plonge au piqué, se lève au freinage
+    for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); const x = p[0], z = p[2] - zc; p[0] = x * c - z * s; p[2] = zc + x * s + z * c; } }
   if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
     for (const o of B) { o.a = T(o.a); o.b = T(o.b); } }
   if (geste.roule > 0 && geste.tour) {                                // (§234) la mignonne se roule par terre : un tour sur le dos
@@ -477,6 +471,109 @@ function lgPoisson(f, M, B, add, A) {
   return B;
 }
 
+// (§240) LES AILES. Trois os — l'humérus, l'avant-bras, la main — de l'épaule au bout de l'aile, longue d'une fois à deux fois et demie le
+// corps. Sur les os, la surface : des plumes (une voilure claire au bord d'attaque, des rémiges qui s'écartent en éventail au bout), des
+// membranes (tendues entre trois doigts qui partent du poignet, une griffe au pouce), ou, chez un insecte, quatre ailes fines et
+// claires. La pose dit ce que fait la bête :
+//  - au repos, l'aile se replie en Z le long du flanc (l'humérus vers l'arrière, l'avant-bras vers l'avant, la main vers l'arrière) ;
+//    elle s'étire quand la bête s'étire, se déploie à demi pour menacer (une épique, une alarmée) ;
+//  - en vol battu, l'abaissée tend l'aile, la remontée la replie à demi ; la pointe suit le bras avec un temps de retard (une onde
+//    d'un bout à l'autre) ; le battement se fond dans le plané, où l'aile reste tendue, relevée en V, et la pointe frémit ;
+//  - au piqué, elle se plaque en arrière ; à l'atterrissage, elle se relève et freine, la queue en éventail.
+// Une créature de légende a ses ailes à son élément : le bord des plumes et les doigts des membranes luisent ; celles d'éther luisent
+// tout entières.
+const lgU = (el, sw, s) => [-Math.sin(sw) * Math.cos(el), s * Math.cos(sw) * Math.cos(el), Math.sin(el)];
+function lgAiles(f, M, add, B, A) {
+  const { xa, xr, bz, avant, vol, couche, al, g, geste, dresse, style } = A, { Lt, Th, Wd } = M;
+  const ep = M.epique || 0, I = M.fant || 0, ins = style === 'insecte', ether = style === 'ether', plumes = style === 'plumes';
+  const L = Lt * (ins ? .9 : ether ? 1.1 + .5 * ep : 1.15 + 1.3 * lgCl(M.ailes, 0, 1)) * (1 + .25 * ep);   // la longueur d'une aile
+  const sx = M.bip ? avant[0] - .04 : xa - Lt * .3, sz = (M.bip ? (avant[2] + bz) / 2 : bz) + Th * (ins ? .5 : .35);
+  // l'état du vol
+  const bat = vol ? lgCl(Number.isFinite(f.bat) ? f.bat : .7, 0, 1) : 0, ph = Number.isFinite(f.ph) ? f.ph : t * 10;
+  const sH = vol && typeof sol === 'function' ? sol(f.x, f.y) : 0, haut = vol ? (f.z || 0) - sH : 0;
+  const pique = vol && (f.tang || 0) < -.6, pose = vol && (f.vz || 0) < -.25 && haut < 1.8 && !pique;
+  // la pose : fold (0 tendue → 1 repliée), el (l'élévation), sw (le balayage vers l'arrière), amp (le battement)
+  let fold, el, sw0, amp;
+  if (vol) {
+    amp = bat * (ins ? .9 : .72 + .2 * (1 - lgCl(M.lourd, 0, 1)));
+    fold = pique ? .72 : bat * .5 * Math.max(0, Math.cos(ph));                // la remontée replie l'aile à demi
+    el = (plumes ? .16 : .08) + (pose ? .55 : 0) + Math.sin(t * 1.7 + g) * .03 * (1 - bat);   // relevée en V au plané ; plus haut au freinage
+    sw0 = pique ? .9 : pose ? -.18 : .12;
+  } else {
+    const etire = geste ? geste.etire || 0 : 0, menace = Math.max(ether ? al : 0, ep > .3 || M.chasseur ? (dresse || 0) * .8 : 0);
+    fold = lgCl(1 - etire * .95 - menace * .55, 0, 1) * (1 - .2 * couche); amp = 0;
+    el = -.12 + etire * .7 + menace * .5 - .1 * couche; sw0 = .12;
+  }
+  const flap = k => amp * Math.sin(ph - k);
+  const p0 = s => [sx, s * Wd * .45, sz];
+  const C = { robe: M.robe, bord: plumes ? lgMix(M.robe, [250, 246, 236], .2) : lgMix(M.robe, M.sombre, .2), fin: M.sombre };
+  const luitB = M.el && (ether || I > .55), glow = M.el ? M.lueur : null;
+  const voile = ether ? lgMix(M.lueur, M.robe, .4) : ins ? lgMix(M.robe, [232, 244, 255], .7) : style === 'membranes' ? lgMix(M.robe, M.sombre, .35) : lgMix(M.robe, M.ventre, .25);
+  const L1 = L * .3, L2 = L * .36, L3 = L * .34;
+  for (const s of [-1, 1]) {
+    if (ins) {                                                       // un insecte : deux paires d'ailes fines, qui vrombissent
+      const vb = vol ? Math.sin(t * 55 + (s > 0 ? 0 : 1.2)) * .7 : 0;
+      for (const [k, dx] of [[0, 0], [1, -Lt * .14]]) {
+        const a = [sx + dx, s * Wd * .35, sz], e = vol ? .15 + vb * (k ? .8 : 1) : -.05, w = vol ? .25 + k * .1 : 1.45 + k * .08, Lk = L * (1 - .2 * k);
+        const b = lgAdd(a, lgU(e, w, s).map(v => v * Lk));
+        B.push({ a, b, w: Lk * .34, h: .008, c: voile, fin: .45, ...(M.el ? { luit: 1, lueur: 1 } : {}) });
+        add(a, lgMix(a, b, .9), .008, .008, lgMix(M.sombre, glow || M.sombre, .4), M.el ? 1 : 0, M.el ? 1 : 0);   // la nervure
+      }
+      continue;
+    }
+    // le squelette : l'épaule, le coude, le poignet, le bout — tendu d'après les angles du vol, replié contre le flanc, et entre les deux
+    const e1 = el + flap(0), e2 = e1 + amp * .35 * Math.sin(ph - .7), e3 = e2 + amp * .45 * Math.sin(ph - 1.4);
+    const swb = vol && !pique ? Math.cos(ph) * .1 * bat : 0;
+    const S = p0(s), Ex = lgAdd(S, lgU(e1, sw0 + swb, s).map(v => v * L1)), Wx = lgAdd(Ex, lgU(e2, sw0 - .05 + swb, s).map(v => v * L2)), Tx = lgAdd(Wx, lgU(e3, sw0 + .14, s).map(v => v * L3));
+    const zr = Th * (.1 + .1 * lgCl(el, 0, 1));                   // replié : le long du flanc, l'avant-bras vers l'avant, la main vers l'arrière
+    const Ef = [S[0] - L1 * .9, s * (Wd * .5 + .02), S[2] - zr * .3], Wf = [Ef[0] + L2 * .78, s * (Wd * .55 + .03), S[2] + zr * .2], Tf = [Wf[0] - L3 * 1.3, s * (Wd * .5 + .01), S[2] - zr * .2];
+    const mi = (a, b) => lgMix(a, b, fold), E = mi(Ex, Ef), W = mi(Wx, Wf), T = mi(Tx, Tf);
+    // le plan de l'aile : sa normale, et l'arrière dans ce plan (la surface s'étend derrière le bras)
+    const nrm = (a, b) => { const u = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], m = Math.hypot(...u) || 1; return u.map(x => x / m); };
+    const cro = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+    const plan = (a, b) => { const u = nrm(a, b); let n = cro(u, [-1, 0, 0]); const m = Math.hypot(...n);
+      n = m < .15 ? [0, -s, 0].map(x => x) : n.map(x => x / m); if (n[2] < 0 && Math.abs(n[2]) > .3) n = n.map(x => -x);
+      let c = cro(n, u); if (c[0] > 0) c = c.map(x => -x); return { n, c }; };
+    const corde = (1 - .7 * fold) * (style === 'membranes' || ether ? 1.1 : 1);
+    const pan = (a, b, c0, coul, lu) => { const { n, c } = plan(a, b), o = c0 * .5;
+      B.push({ a: lgAdd(a, c.map(x => x * o)), b: lgAdd(b, c.map(x => x * o * .85)), w: c0, h: .012, c: coul, ref: n, ...(lu ? { luit: 1, lueur: 1 } : {}) }); };
+    const ep2 = .018 + .012 * ep + Th * .05;
+    // les os, au bord d'attaque
+    add(S, E, ep2 * 1.3, ep2 * 1.3, C.robe, ether ? 1 : 0, ether ? 1 : 0); add(E, W, ep2, ep2, C.robe, ether ? 1 : 0, ether ? 1 : 0);
+    if (!plumes) add(W, T, ep2 * .7, ep2 * .7, lgMix(C.fin, glow || C.fin, M.el ? .6 : 0), luitB ? 1 : 0, luitB ? 1 : 0);
+    const { n: nW, c: cW } = plan(W, T);
+    if (plumes) {
+      pan(S, E, L * .28 * corde, voile, ether); pan(E, W, L * .24 * corde, voile, ether);
+      { const { n } = plan(S, W); B.push({ a: S, b: lgMix(E, W, .45), w: L * .11 * (1 - .5 * fold), h: .016, c: C.bord, ref: n }); }   // les couvertures, au bord d'attaque
+      const ns = 7;                                                  // les rémiges secondaires : le bord de fuite, une plume après l'autre
+      for (let k = 0; k < ns; k++) { const q = (k + .5) / ns, a = q < .5 ? lgMix(S, E, q * 2) : lgMix(E, W, (q - .5) * 2), { n, c } = plan(S, W);
+        const lk = L * (.3 - .06 * q) * corde + .02, b = lgAdd(a, c.map(x => x * lk)), coul = lgMix(voile, C.fin, .25 + .2 * (k % 2));
+        B.push({ a: lgAdd(a, c.map(x => x * lk * .25)), b, w: Math.max(.03, L * .55 / ns), h: .009, c: coul, fin: .6, ref: n }); }
+      const n = 6;                                                   // les rémiges : un éventail qui s'ouvre au bout de l'aile
+      for (let k = 0; k < n; k++) {
+        const ang = (k / (n - 1)) * (1.05 - .85 * fold), u0 = nrm(W, T), dir = u0.map((x, q) => x * Math.cos(ang) + cW[q] * Math.sin(ang));
+        const lk = L * (.46 - .045 * k) * (1 - .2 * fold), a = lgMix(W, T, .1 * (n - 1 - k) / (n - 1)), b = lgAdd(a, dir.map(x => x * lk));
+        const coul = M.el === 'aurore' ? LG_AURORE[k % LG_AURORE.length] : lgMix(C.robe, C.fin, .2 + .12 * k);
+        B.push({ a, b, w: .055 + .02 * (1 - fold), h: .008, c: coul, fin: .5, ref: nW });
+        if (luitB) B.push({ a: lgMix(a, b, .8), b, w: .045, h: .009, c: glow, fin: .4, ref: nW, luit: 1, lueur: 1 }); }   // le bout des rémiges luit
+    } else {                                                         // les membranes : trois doigts depuis le poignet, la peau entre eux
+      pan(S, E, L * .44 * corde, voile, ether); pan(E, W, L * .38 * corde, voile, ether);
+      let prev = null;
+      for (let k = 0; k < 3; k++) {
+        const ang = (.15 + .55 * k) * (1 - .8 * fold), u0 = nrm(W, T), dir = u0.map((x, q) => x * Math.cos(ang) + cW[q] * Math.sin(ang));
+        const D = lgAdd(W, dir.map(x => x * L * (.52 - .07 * k) * (1 - .35 * fold)));
+        add(W, D, ep2 * .55, ep2 * .55, lgMix(C.fin, glow || C.fin, M.el ? .55 : 0), luitB ? 1 : 0, luitB ? 1 : 0);
+        if (prev) B.push({ a: lgMix(W, prev, .5), b: lgMix(prev, D, .5), w: Math.hypot(prev[0] - D[0], prev[1] - D[1], prev[2] - D[2]) * .9 + .02, h: .01, c: voile, ref: nW, ...(ether ? { luit: 1, lueur: 1 } : {}) });   // la peau entre deux doigts
+        else pan(W, D, L * .2 * corde, voile, ether);
+        prev = D; }
+      add(W, lgAdd(W, [.03, s * .01, .02]), .014, .014, M.griffe || LG.CORNE);   // la griffe du pouce
+    }
+  }
+  // la queue en éventail d'un oiseau qui freine
+  if (plumes && M.oiseau && vol) { const sp = .25 + .75 * (pose ? 1 : bat * .3), b0 = [xr - .01, 0, bz + Th * .1];
+    for (let k = -2; k <= 2; k++) { const a = Math.PI + k * .22 * sp; B.push({ a: b0, b: [b0[0] + Math.cos(a) * L * .32, Math.sin(a) * L * .32, b0[2] + (pose ? .04 : -.01)], w: .045, h: .008, c: lgMix(C.robe, C.fin, .3 + .1 * Math.abs(k)), fin: .5 }); } }
+}
+
 // (§237) LA FANTAISIE DU CORPS. Ce que l'élément ajoute à la bête : une crinière (des flammes, des éclats de givre ou de cristal, des
 // feuilles, des nageoires, des étincelles, de la fumée d'ombre, des plumes d'aurore), le bout de la queue de même, une gemme au front
 // (un bourgeon de lumière chez une mignonne, un troisième œil chez une puissante), des éclats qui tournent autour d'elle, des ailes
@@ -536,12 +633,8 @@ function lgFantaisie(f, M, add, B, A) {
     for (let i = 0; i < M.orbites; i++) { const an = t * 1.1 + i * 6.2832 / M.orbites + g, p = [cx + Math.cos(an) * r, Math.sin(an) * r * .8, cz + Math.sin(t * 2.3 + i) * .05], e = .065 + .05 * ep;
       const c = M.el === 'ombre' ? lgMix(M.sombre, M.lueur, .6) : M.lueur;
       B.push({ a: p, b: lgAdd(p, [0, 0, e]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }, { a: p, b: lgAdd(p, [0, 0, -e * .6]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }); } }
-  // des ailes d'éther, repliées sur le dos ; elles s'ouvrent à l'alarme
-  if (M.ether && !vol) { const S = (.3 + .28 * ep) * (1 + Lt * .3), ouv = .3 + .5 * (al || 0) + .08 * Math.sin(t * 1.3 + g);
-    for (const s of [-1, 1]) { const b0 = [xa - Lt * .32, s * Wd * .42, bz + Th * .45], c1 = [b0[0] - S * .25, s * (Wd * .55 + S * (.2 + .5 * ouv)), b0[2] + S * (.6 - .1 * ouv)],
-      c2 = [b0[0] - S * .8, s * (Wd * .6 + S * (.15 + .7 * ouv)), b0[2] + S * (.4 + .1 * Math.sin(t * 1.3 + g))];
-      B.push({ a: b0, b: c1, w: .02, h: S * .3, c: lgMix(M.lueur, M.robe, .55), fin: .8, luit: 1, lueur: 1 }, { a: c1, b: c2, w: .016, h: S * .26, c: lgMix(M.lueur, M.robe, .3), fin: .25, luit: 1, lueur: 1 });
-      add(b0, c1, .02, .02, M.sombre); add(c1, c2, .016, .016, M.sombre); } }
+  // des ailes d'éther, repliées sur le dos ; elles s'ouvrent à l'alarme (§240 : avec un squelette, comme les vraies)
+  if (M.ether && !vol && !(M.ailes > .3)) lgAiles(f, M, add, B, { xa, xr, bz, avant, vol: false, couche, al: Math.max(al || 0, .35 + .1 * Math.sin(t * 1.3 + g)), g, geste: null, dresse: 1, style: 'ether' });
   // l'aura : des particules qui montent (ou tombent, pour le givre), d'autant plus nombreuses qu'elle est puissante
   try {
     const dtA = Math.min(.1, Math.max(0, t - (f._lgAuT ?? t))); f._lgAuT = t;

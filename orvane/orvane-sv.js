@@ -773,17 +773,27 @@ function orvaneVol(b, dt) {
   if (b.hit > 0 && b.volM !== 'fuir') { b.volM = 'fuir'; b.volT = Math.max(b.volT, 5); }
   let tx, ty, tz = sH + h, v = 3.2, mode = 'plane';
   if (b.volM === 'chasse' && cible && b.volT > 0) {                   // vers la proie, puis le piqué ; tout près, elle se pose et mord
-    tx = cible.x; ty = cible.y; mode = dC > 5 ? 'bat' : 'pose'; v = dC > 5 ? 5 : 3; if (dC < 8) tz = sol(cible.x, cible.y) + .3 + dC * .25;
+    const haut = b.z - sol(b.x, b.y);
+    tx = cible.x; ty = cible.y; mode = dC > 7 ? 'bat' : dC > 1.8 && haut > 1.4 ? 'pique' : 'pose'; v = dC > 7 ? 5 : mode === 'pique' ? 7 : 3;   // (§240) elle fond sur la proie, ailes plaquées
+    if (dC < 8) tz = sol(cible.x, cible.y) + .3 + dC * .25;
     if (dC < 1.4 && b.z < sol(b.x, b.y) + .7) return orvanePoser(b, 'chasser');
   } else if (b.volM === 'fuir' && b.volT > 0) {
     const a = Math.atan2(b.y - J.y, b.x - J.x); tx = b.x + Math.cos(a) * 8; ty = b.y + Math.sin(a) * 8; v = 5.2; mode = 'bat';
-  } else if (b.volT > 0) {                                            // la balade : en cercle autour d'où elle est partie
-    b.volA += dt * v / 6; tx = b.volC[0] + Math.cos(b.volA) * 6; ty = b.volC[1] + Math.sin(b.volA) * 6;
+  } else if (b.volT > 0) {                                            // (§240) la balade : elle monte en spirale dans un courant chaud, puis file en planant
+    const B0 = b.volP;
+    if (!B0 || b.t > B0.fin) { const spir = !B0 || B0.k === 'glisse', a = Math.random() * 6.2832, r = 5 + Math.random() * 4;
+      b.volP = spir ? { k: 'spirale', fin: b.t + 6 + Math.random() * 6, c: [b.volC[0] + Math.cos(a) * 4, b.volC[1] + Math.sin(a) * 4], r, t0: b.t, s: Math.random() < .5 ? 1 : -1 }
+        : { k: 'glisse', fin: b.t + 3 + Math.random() * 4, cap: Math.atan2(b.volC[1] - b.y, b.volC[0] - b.x) + (Math.random() - .5) * 2 };
+      if (spir) b.volA = Math.atan2(b.y - b.volP.c[1], b.x - b.volP.c[0]); }
+    const Q = b.volP;
+    if (Q.k === 'spirale') { b.volA += dt * v / Q.r * Q.s; tx = Q.c[0] + Math.cos(b.volA) * Q.r; ty = Q.c[1] + Math.sin(b.volA) * Q.r; tz = sH + h + Math.min(3.5, (b.t - Q.t0) * .45); }   // elle prend de la hauteur sans battre
+    else { tx = b.x + Math.cos(Q.cap) * 8; ty = b.y + Math.sin(Q.cap) * 8; tz = sH + h * .7; v = 4; }
   } else {                                                            // se poser : là où elle est, si c'est sec ; sinon d'où elle est partie
     const i = (b.y | 0) * WS + (b.x | 0), mouille = Hgt[i] <= SEA || (typeof Eau !== 'undefined' && Eau[i]);
     if (mouille) { tx = b.volC[0]; ty = b.volC[1]; v = 3.6; mode = 'bat'; }
     else { tx = b.x + Math.cos(b.dir) * 1.5; ty = b.y + Math.sin(b.dir) * 1.5; tz = sH; v = 1.6; mode = 'pose'; if (b.z < sH + .35) return orvanePoser(b, 'errer'); }
   }
+  b.thermique = mode === 'plane' && b.volP?.k === 'spirale' && b.volM === 'balade';
   volerVers(b, tx, ty, tz, v, mode, dt);
   const fl = (typeof hRendu === 'function' ? hRendu(b.x, b.y) : sol(b.x, b.y)) + .2;
   if (b.z < fl) { b.z = fl; if (b.vz < 0) b.vz = 0; }

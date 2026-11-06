@@ -7628,3 +7628,26 @@ Il revient toutes les dix à seize secondes, plus vite chez les plus puissantes 
 - **L'aura monochrome** : le gris de l'écran à 0,08 à neuf cases, 0,7 à deux, rien quand elle n'est plus.
 - **Les corps** : 1 280 (vingt éléments, quatre états), aucun os invalide.
 - **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture.
+
+## §240 · Les ailes, refaites ; le vol et le plané
+
+**Les ailes** (`lignees.js`, `lgAiles`). Il y avait deux boîtes par aile, qui montaient et descendaient. Il y a maintenant :
+- un **squelette** : l'humérus, l'avant-bras, la main, de l'épaule au bout de l'aile, longue d'une fois à deux fois et demie le corps ;
+- une **surface** : chez un oiseau, une voilure, les couvertures au bord d'attaque, sept rémiges secondaires qui dentellent le bord de fuite et six primaires qui s'ouvrent en éventail au bout ; chez une bête à **membranes**, trois doigts depuis le poignet, la peau tendue entre eux et une griffe au pouce ; chez un **insecte**, quatre ailes fines et claires ;
+- leur **plan** : chaque pièce plate tient le plan de l'aile, même relevée à la verticale (le champ `ref` d'un os : le rendu en canvas le lit désormais, comme celui de la carte graphique) ;
+- au **repos**, l'aile se replie en Z contre le flanc (l'humérus vers l'arrière, l'avant-bras vers l'avant, la main vers l'arrière) ; elle s'ouvre quand la bête s'étire, se déploie à demi pour menacer ;
+- en **vol battu**, l'abaissée tend l'aile, la remontée la replie à demi, la pointe suit le bras avec un temps de retard ; au **plané**, elle reste tendue, relevée en V, la pointe frémit ; au **piqué**, elle se plaque en arrière ; à l'**atterrissage**, elle se relève et freine, la queue d'un oiseau s'ouvre en éventail ;
+- à l'élément : le bout des rémiges et les doigts des membranes luisent ; une aurore a des rémiges de toutes ses couleurs ; les **ailes d'éther** des épiques ont maintenant le même squelette, et luisent tout entières.
+
+**Le vol** (`index.html`, `volerVers`) :
+- le battement se **fond** dans le plané et revient de même, au lieu de s'arrêter net ; une grande aile bat plus lentement ;
+- au **plané**, l'aile ne tient plus l'altitude toute seule : la bête glisse en perdant un peu de hauteur et prend de la vitesse, puis quelques battements la font remonter ;
+- le **corps suit la pente** : le nez plonge au piqué, se lève au freinage ; les virages se prennent plus penchés en plané.
+
+**Le plané** (`orvane-sv.js`, `orvaneVol`) : la balade n'est plus un cercle à hauteur fixe. La bête monte en **spirale dans un courant chaud**, sans battre, penchée dans le virage, puis **file en planant** vers ailleurs, et recommence. Une chasseuse **fond en piqué** sur sa proie, ailes plaquées, avant de se poser et de mordre.
+
+**Vérifié.**
+- **Au studio** : au repos (repliée), la remontée, l'abaissée, le plané, le piqué ; des plumes, des membranes, des ailes d'éther.
+- **En jeu** : un envol (battements forts), la spirale (le battement s'éteint, elle monte à 0,9 par seconde, penchée), la glissade (elle descend, quelques battements).
+- **Les corps** : 852, au repos et dans cinq poses de vol, aucun os invalide.
+- **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-210`.
