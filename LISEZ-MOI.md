@@ -7685,3 +7685,23 @@ Il revient toutes les dix à seize secondes, plus vite chez les plus puissantes 
 - **En jeu** : plus aucun quadrupède aux parois (deux serpents y grimpent) ; un saut (en l'air, puis la réception).
 - **Les corps** : 852, à l'arrêt, au pas, au trot, au galop, à la montée et à la descente d'un saut, aucun os invalide.
 - **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-211`.
+
+## §242 · Les bêtes ne vibrent plus, et ne se gênent plus
+
+On voyait les créatures trembler sur place, changer d'idée sans arrêt, et se presser les unes contre les autres. Quatre causes, dans `index.html` :
+
+- **Le troupeau** (`majBete`, état `troupeau`) : chaque bête visait le centre du groupe plus un écart tiré au hasard **à chaque image**. La cible sautait de plusieurs cases soixante fois par seconde : la bête vibrait, et toutes poussaient vers le même point. Désormais chacune a **sa place** autour du centre, gardée quatre à dix secondes ; elle **s'écarte** de celle qui la serre de trop près ; **arrivée, elle s'arrête**.
+- **La balade** (état `errer`) : le cap changeait toutes les demi-secondes, d'où un zigzag. Il est **tenu deux à cinq secondes**, et une fois sur trois la bête **fait une halte** d'une à trois secondes pour regarder autour d'elle.
+- **Brouter ou dormir** : le seuil de faim était le même pour commencer et pour finir. Autour de ce seuil, la bête passait sans fin de l'un à l'autre. Il y a maintenant **une marge** : elle commence à brouter au-dessus de 45 % de faim, continue jusqu'à 10 %, et ne se réveille pas pour moins de 75 %.
+- **L'arrivée** (`pasVersBete`) : à quelques centimètres du but, elle pivotait vers des directions sans sens. Arrivée à moins d'un quart de case, elle **freine et s'arrête**, sans tourner.
+
+**Mesuré** (dix secondes de jeu, chaque bête suivie : changements d'état, demi-tours, allers-retours ; deux bêtes l'une dans l'autre) :
+
+| île | avant : changements d'état · demi-tours · chevauchements | après |
+|---|---|---|
+| départ | 6 · 3,3 · 20 | 0,2 · 0,5 · 1 |
+| 987654 (niv. 4) | 3,7 · 0,5 · 0 | 0,3 · 0,2 · 0 |
+| 55555 (niv. 8) | 2,8 · 3,4 · 25 | 0,3 · 1,7 · 0 |
+| 31337 (niv. 12) | 1,3 · 0,1 · 46 | 0,6 · 0,6 · 1 |
+
+**Vérifié.** Six îles, aucune erreur, aucun chasseur nouveau sans proie ; les compagnes, la monture. `sw.js` : `stone-valley-212`.

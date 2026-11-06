@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=211"></script>
-<script src="rouages.js?v=211"></script>
-<script src="forge.js?v=211"></script>
-<script src="nomades.js?v=211"></script>
-<script src="etats.js?v=211"></script>
-<script src="brume.js?v=211"></script>
-<script src="roi.js?v=211"></script>
-<script src="trone.js?v=211"></script>
-<script src="achromie.js?v=211"></script>
-<script src="vyrel.js?v=211"></script>
-<script src="village.js?v=211"></script>
-<script src="volcan.js?v=211"></script>
-<script src="dons.js?v=211"></script>
-<script src="coop.js?v=211"></script>
-<script src="faune.js?v=211"></script>
-<script src="flore.js?v=211"></script>
-<script src="lignees.js?v=211"></script>
-<script src="conduites.js?v=211"></script>
-<script src="pouvoirs.js?v=211"></script>
+<script src="donjon.js?v=212"></script>
+<script src="rouages.js?v=212"></script>
+<script src="forge.js?v=212"></script>
+<script src="nomades.js?v=212"></script>
+<script src="etats.js?v=212"></script>
+<script src="brume.js?v=212"></script>
+<script src="roi.js?v=212"></script>
+<script src="trone.js?v=212"></script>
+<script src="achromie.js?v=212"></script>
+<script src="vyrel.js?v=212"></script>
+<script src="village.js?v=212"></script>
+<script src="volcan.js?v=212"></script>
+<script src="dons.js?v=212"></script>
+<script src="coop.js?v=212"></script>
+<script src="faune.js?v=212"></script>
+<script src="flore.js?v=212"></script>
+<script src="lignees.js?v=212"></script>
+<script src="conduites.js?v=212"></script>
+<script src="pouvoirs.js?v=212"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=211"></script><script src="orvane/tampon.js?v=211"></script><script src="orvane/correspondance.js?v=211"></script><script src="orvane/secours.js?v=211"></script><script src="orvane/orvane-sv.js?v=211"></script>
+<script src="orvane/corps.js?v=212"></script><script src="orvane/tampon.js?v=212"></script><script src="orvane/correspondance.js?v=212"></script><script src="orvane/secours.js?v=212"></script><script src="orvane/orvane-sv.js?v=212"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -12254,6 +12254,7 @@ function pasVersBete(b, tx, ty, vit, dt) {
     if (!ok) { dx = -dx; dy = -dy; }
   }
   const vif = 5;
+  if (!via && (tx - b.x) ** 2 + (ty - b.y) ** 2 < .0625) { const k = Math.max(0, 1 - dt * 6); b.vx *= k; b.vy *= k; return; }   // (§242) arrivée : elle s'arrête, sans pivoter vers nulle part
   b.vx += (dx * vit - b.vx) * Math.min(1, dt * vif);
   b.vy += (dy * vit - b.vy) * Math.min(1, dt * vif);
   let d2 = Math.atan2(dy, dx) - b.dirT;
@@ -13979,7 +13980,7 @@ function majBete(b, dt) {
   else if (b.soif > .98 && dEau === EAU_LOIN) b.soif = .98;               // pas de source connue : on n'en meurt pas non plus (la vie baisse au-delà de 1)
   else if ((b.faim > .5 || (b.meuteDe && b.cible && b.faim > .3)) && sp.diet !== 'h' && pr) etat = 'chasser';   // (§232) la meute suit
   else if (b.faim > .55 && sp.diet === 'c') etat = 'quête';
-  else if (b.faim > .35 && sp.diet !== 'c') etat = 'brouter';
+  else if (sp.diet !== 'c' && (b.etat === 'brouter' ? b.faim > .1 : b.etat === 'dormir' ? b.faim > .75 : b.faim > .45)) etat = 'brouter';   // (§242) une marge : elle broute jusqu'à n'avoir plus faim, et ne se réveille pas pour une petite faim
   else if (!actif || b.nrj < .30 || (b.etat === 'dormir' && b.nrj < .80)) etat = 'dormir';
   else if (sp.herd) etat = 'troupeau';
   if ((etat === 'errer' || etat === 'troupeau' || (etat === 'brouter' && b.faim < .6)) && curieuse(b, dJ, dzJ)) etat = 'curieux';
@@ -14137,15 +14138,24 @@ function majBete(b, dt) {
     else if (dJ > garde + .3) vit *= .4 + .2 * (b.aise || 0);
     else { vit = 0; b.dirT = Math.atan2(J.y - b.y, J.x - b.x); }
   } else if (etat === 'troupeau') {
-    let cx = 0, cy = 0, n = 0;
-    for (const o of beasts) if (o.sp === sp && o !== b && !o.dead && (b.x - o.x) ** 2 + (b.y - o.y) ** 2 < 300) { cx += o.x; cy += o.y; n++; }
-    if (n) { tx = cx / n + (Math.random() - .5) * 5; ty = cy / n + (Math.random() - .5) * 5; vit *= .55; }
+    // (§242) chacune sa place dans le troupeau, gardée quelques secondes (on la retirait à chaque image : la cible sautait, la bête
+    // vibrait) ; elle s'écarte de qui la serre de trop près, et, arrivée, elle s'arrête — elles ne se bousculent plus vers le centre
+    let cx = 0, cy = 0, n = 0, sx = 0, sy = 0; const rb = rayonCorps(b);
+    for (const o of beasts) if (o.sp === sp && o !== b && !o.dead) { const ex = b.x - o.x, ey = b.y - o.y, d2 = ex * ex + ey * ey; if (d2 >= 300) continue;
+      cx += o.x; cy += o.y; n++; const rs = (rb + rayonCorps(o)) * 1.9; if (d2 < rs * rs) { const d = Math.sqrt(d2) || .01; sx += ex / d * (rs - d); sy += ey / d * (rs - d); } }
+    if (n) {
+      if (!b.trO || b.t > (b.trT || 0)) { const a = Math.random() * 6.2832, r = 1.2 + Math.random() * (2 + Math.sqrt(n)); b.trO = [Math.cos(a) * r, Math.sin(a) * r]; b.trT = b.t + 4 + Math.random() * 6; }
+      tx = cx / n + b.trO[0] + sx * 1.5; ty = cy / n + b.trO[1] + sy * 1.5;
+      const d0 = Math.hypot(tx - b.x, ty - b.y);
+      if (d0 < .9 && sx * sx + sy * sy < .02) vit = 0; else vit *= d0 > 6 ? .65 : .4;
+    }
     else etat = b.etat = 'errer';
   }
   if (etat === 'errer') {
-    if ((b.t * 2 | 0) !== b._w) { b._w = b.t * 2 | 0; b.dirT = b.dir + (Math.random() - .5) * 1.6;
-      if (Math.hypot(b.x - b.home[0], b.y - b.home[1]) > 45) b.dirT = Math.atan2(b.home[1] - b.y, b.home[0] - b.x); }
-    tx = b.x + Math.cos(b.dirT) * 9; ty = b.y + Math.sin(b.dirT) * 9; vit *= .5;
+    // (§242) un cap tenu deux à cinq secondes (il changeait toutes les demi-secondes : elle zigzaguait), et des haltes pour regarder
+    if (!(b.t < (b._wT || 0))) { b._wT = b.t + 2 + Math.random() * 3; b._wA = b.dir + (Math.random() - .5) * 1.3; b._wH = Math.random() < .3 ? b.t + 1.2 + Math.random() * 2 : 0;
+      if (Math.hypot(b.x - b.home[0], b.y - b.home[1]) > 45) { b._wA = Math.atan2(b.home[1] - b.y, b.home[0] - b.x); b._wH = 0; } }
+    tx = b.x + Math.cos(b._wA ?? b.dir) * 9; ty = b.y + Math.sin(b._wA ?? b.dir) * 9; vit *= b._wH > b.t ? 0 : .5;
   }
 
   if (doux(sp)) { const r = instinctDoux(b, etat, tx, ty, vit, men, dM, dt); etat = r[0]; tx = r[1]; ty = r[2]; vit = r[3]; }
