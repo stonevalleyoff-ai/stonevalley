@@ -7322,3 +7322,24 @@ Le style du §226 se joue aussi dans le mouvement (`lignees.js`).
 - **Toutes les lignées**, dans sept poses et à trois puissances, en mouvement, touchées ou endormies : 5 061 corps, aucun os invalide, 80 os au plus.
 - **Au studio** : les « z » au-dessus d'une mignonne endormie, le « ! » au-dessus d'une épique alarmée qui se dresse.
 - **Dans le navigateur, six îles** : aucune erreur, aucune panne de dessin. On y voit des troupeaux, des petits qui suivent leur mère et des bêtes endormies.
+
+## §228 · Le comportement, premier temps : les rythmes, et le joueur qui n'est plus une proie pour tous
+
+**Les rythmes d'Orvane.** Une lignée vit à son heure (`sp.activite`, lu par `majBete`) :
+- diurne : de jour, comme avant ;
+- nocturne : de nuit, comme avant ;
+- crépusculaire (48 lignées) : à l'aube et au soir, et elle dort le jour comme la nuit ;
+- active jour et nuit (17 lignées) : elle ne dort que fatiguée.
+
+La plupart des chasseurs d'Orvane sont crépusculaires : le plein jour est plus calme, le soir plus dangereux.
+
+**Le joueur n'est plus une proie pour tous.** Un chasseur nocturne traquait le joueur la nuit même le ventre plein. C'était la règle du spectre, que les lignées avaient héritée par leur créature modèle. Pour une lignée d'Orvane (`envieDuJoueur`) :
+- seule la faim la pousse vers le joueur ;
+- une petite bête (moins de 2 kg, et pas parmi les plus redoutables : puissance sous 0,6) ne s'en prend jamais à un humain, sauf s'il l'attaque (la colère vaut toujours).
+
+**Le branchement.**
+- `orvane/orvane-sv.js` : `appliquerDef` (`sp.activite`) ;
+- `index.html` : `majBete` (`actif`), `envieDuJoueur` ;
+- `sw.js` : `stone-valley-198`.
+
+**Vérifié.** Dans le navigateur, sur six îles en plein jour : de 5 à 35 bêtes dorment (les crépusculaires), aucune erreur, aucune panne de dessin.

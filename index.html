@@ -13639,6 +13639,9 @@ function envieDuJoueur(b, actif, dJ, dzJ) {
   if (!actif) return false;
   const ft = JC === P && donA('feutre') ? 1 - .4 * Math.min(1, donK('feutre')) : 1;   // (§204) le pas feutré
   if (b.traque) return dJ < sp.vue * 1.3 * ft && b.traqueT < 30;
+  // (§228) une lignée d'Orvane : seule la faim la pousse vers le joueur (la règle du spectre, qui chassait la nuit le ventre plein, ne
+  // vaut que pour lui) ; et une petite bête (moins de 2 kg, et pas parmi les plus redoutables) ne s'en prend pas à un humain
+  if (sp.orvane) return (sp.orvane.masse || 1) >= 2 || sp.orvane.puissance >= .6 ? dJ < sp.vue * (sp.nuit ? .5 : .45) * ft && b.faim > .45 : false;
   return dJ < sp.vue * (sp.nuit ? .5 : .45) * ft && (sp.nuit || b.faim > .45);
 }
 // Dans la mêlée, une compagne qui s'interpose — plus près du chasseur que vous, de deux pas au
@@ -15316,7 +15319,9 @@ function majBete(b, dt) {
   b.t += dt; b.age += dt; b.bob += dt * (3 + b.alarm * 4);
   if (b.hit > 0) b.hit -= dt;
   if (b.dead) { b.dead += dt; chute(b, dt); updateFoeLegs(b, dt); return; }
-  const actif = sp.volcan ? sp.id !== 'magmaton' || lumiere() > .3 : sp.nuit ? lumiere() < .55 : lumiere() > .45;   // (§198) le basilic chasse jour et nuit, à la lueur de la lave
+  const actif = sp.volcan ? sp.id !== 'magmaton' || lumiere() > .3
+    : sp.activite === 'continue' ? true : sp.activite === 'crepusculaire' ? lumiere() > .31 && lumiere() < .8   // (§228) les rythmes d'Orvane : jour et nuit, ou l'aube et le soir
+    : sp.nuit ? lumiere() < .55 : lumiere() > .45;   // (§198) le basilic chasse jour et nuit, à la lueur de la lave
 
   // Une compagne a les mêmes besoins, un peu plus lents : le lien la soutient. Et sa fatigue
   // suit ce qu'elle fait — marcher dans vos pas la repose un peu (à −0,004 par seconde, une bête
