@@ -7360,3 +7360,22 @@ Les marques des bêtes épiques (§226) et les signes au-dessus des têtes (§22
 **Vérifié.**
 - **Les os** : toutes les lignées, aucun os invalide.
 - **Dans le navigateur, de nuit**, sur une île de la vingtième exploration (55 bêtes épiques) : la carte graphique tient (le shader compile), aucune erreur, aucune panne de dessin.
+
+## §230 · Le style de Stone Valley, troisième temps : la matière du corps
+
+Les lignées portaient presque toutes la texture de carapace d'insecte des anciens Rampants (`matiereEspece`, faute de mieux : la chitine). Chacune a maintenant la matière de son corps (`orvane-sv.js`, `matiereDe`) :
+
+| la lignée | sa matière | combien aujourd'hui |
+| --- | --- | --- |
+| un oiseau, ou une bête qui vole | des plumes | 5 |
+| un insecte (six ou huit pattes) | de la chitine | 12 |
+| un serpent, un poisson, ou une bête qui rampe surtout | des écailles | 66 |
+| une bête d'eau qui marche aussi, ou à cuir épais | de la peau | 11 |
+| les autres | de la fourrure | 48 |
+
+**Le branchement.**
+- `orvane/orvane-sv.js` : `matiereDe`, `sp.matiere` (dans `appliquerDef`) ;
+- `index.html` : `matiereEspece` lit `sp.matiere` ;
+- `sw.js` : `stone-valley-200`.
+
+**Vérifié.** Dans le navigateur, sur une île de la douzième exploration : la carte graphique tient, aucune erreur, aucune panne de dessin.

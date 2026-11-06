@@ -246,6 +246,7 @@ function appliquerDef(sp, def, base) {
   if (def.corps) { const C = def.corps.couleurs; sp.shell = C.robe.slice(); sp.dark = C.sombre.slice(); sp.leg = C.sombre.map(v => v * .8 | 0); sp.oeil = C.oeil.slice(); sp.ventre = C.ventre.slice(); }
   if (def.nocturne) sp.nuit = true;
   if (def.gabarit && def.activite) sp.activite = def.activite;        // (§228) son rythme : diurne, nocturne, crépusculaire, ou jour et nuit
+  if (def.gabarit && !def.machine) { sp.matiere = matiereDe(def); delete sp._tk; }   // (§230) sa matière : fourrure, écailles, plumes, peau, chitine
   if (def.machine) machineDef(sp, def, base);                         // (§223) une machine d'Orvane : un automate à la mesure de ses modules
   if (def.gabarit) sp.bio = (def.bio || []).slice();                  // (§221) une lignée sans ancêtre ne vit que sur les sols où elle a un effectif :
   else if (def.bio && def.bio.length) sp.bio = def.bio.slice();       //   sans aucun, elle ne paraît pas (elle ne prend plus les sols de sa fiche)
@@ -325,6 +326,18 @@ function classeViande(def) {
   if (f === 'serpent') return 'v_ecaille';
   if (def.chasseur) return m >= 6 ? 'v_fauve' : 'v_chasseur';
   return m < .15 ? 'v_menu' : m < 2 ? 'v_tendre' : m < 12 ? 'v_gibier' : 'v_grosgibier';
+}
+// (§230) LA MATIÈRE D'UNE LIGNÉE, d'après son corps : un oiseau a des plumes, un insecte de la chitine, un serpent ou un poisson des
+// écailles ; une bête qui rampe surtout, des écailles ; une bête d'eau qui marche aussi, ou à cuir épais, de la peau ; les autres, de
+// la fourrure (le jeu : TEX, matiereEspece)
+function matiereDe(def) {
+  const loco = def.locomotion || [], f = def.forme, tr = new Set(def.traits || []);
+  if (f === 'oiseau' || loco.includes('vol')) return 'plume';
+  if (f === 'hexapode') return 'chitine';
+  if (f === 'serpent') return 'ecaille';
+  if (loco.includes('reptation') && !loco.includes('course') && !loco.includes('saut')) return 'ecaille';
+  if (tr.has('peau-epaisse') || (loco.includes('nage') && loco.includes('marche'))) return 'peau';
+  return 'pelage';
 }
 // (§225) LA VOIX D'UNE LIGNÉE, d'après son corps et sa taille (SON.VOIX : trille, grogne, siffle, cri…). Un poisson se tait.
 function voixDe(sp) {

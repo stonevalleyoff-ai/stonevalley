@@ -24729,7 +24729,8 @@ TEX.corde = motif(60, (x, y, h) => (x + y * 2) % 4 === 0 ? [-.24] : (x + y * 2) 
 const MAT_CORPS = { bramard: 'pelage', carillon: 'pelage', cerf: 'facette', cotonnier: 'pelage', crapaud: 'peau', dragon: 'ecaille', felin: 'pelage',
   lentigrade: 'pelage', mage: 'tissu', rodeur: 'lisse', demon: 'croute', millegueule: 'chitine', myconide: 'myce', oglodon: 'chitine', saurien: 'ecaille', silencieux: 'os', sterne: 'plume', tisseuse: 'metal' };
 const MAT_FAM = { automate: 'metal', coursier: 'plume', doux: 'pelage', tellurien: 'roche', trottin: 'ecorce' };   // (§138) une peau d'écorce
-const matiereEspece = sp => !sp ? null : sp.illusion ? 'lisse' : sp.plante || sp.batiment ? '*' : sp.pnj || sp.villageois ? 'tissu' : MAT_CORPS[sp.corps] || MAT_FAM[sp.fam] || (sp.donjon ? 'metal' : 'chitine');
+// (§230) une lignée d'Orvane porte la sienne, tirée de son corps (orvane-sv.js, matiereDe) : plus la chitine des Rampants pour tous
+const matiereEspece = sp => !sp ? null : sp.matiere && TEX[sp.matiere] ? sp.matiere : sp.illusion ? 'lisse' : sp.plante || sp.batiment ? '*' : sp.pnj || sp.villageois ? 'tissu' : MAT_CORPS[sp.corps] || MAT_FAM[sp.fam] || (sp.donjon ? 'metal' : 'chitine');
 // La matière d'une pièce d'après sa couleur, quand rien d'autre ne la dit : le gris est de la pierre
 // (le fer s'il est sombre), le brun du bois, le vert et le clair de la toile, le vif de l'étoffe.
 const MAT_VUE = new Map(), MAT_GENRE = { bati: 0, corps: 1, flore: 2, pierre: 3, tronc: 4, meca: 5, terre: 6 };
