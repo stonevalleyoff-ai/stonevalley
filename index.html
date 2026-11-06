@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=213"></script>
-<script src="rouages.js?v=213"></script>
-<script src="forge.js?v=213"></script>
-<script src="nomades.js?v=213"></script>
-<script src="etats.js?v=213"></script>
-<script src="brume.js?v=213"></script>
-<script src="roi.js?v=213"></script>
-<script src="trone.js?v=213"></script>
-<script src="achromie.js?v=213"></script>
-<script src="vyrel.js?v=213"></script>
-<script src="village.js?v=213"></script>
-<script src="volcan.js?v=213"></script>
-<script src="dons.js?v=213"></script>
-<script src="coop.js?v=213"></script>
-<script src="faune.js?v=213"></script>
-<script src="flore.js?v=213"></script>
-<script src="lignees.js?v=213"></script>
-<script src="conduites.js?v=213"></script>
-<script src="pouvoirs.js?v=213"></script>
+<script src="donjon.js?v=214"></script>
+<script src="rouages.js?v=214"></script>
+<script src="forge.js?v=214"></script>
+<script src="nomades.js?v=214"></script>
+<script src="etats.js?v=214"></script>
+<script src="brume.js?v=214"></script>
+<script src="roi.js?v=214"></script>
+<script src="trone.js?v=214"></script>
+<script src="achromie.js?v=214"></script>
+<script src="vyrel.js?v=214"></script>
+<script src="village.js?v=214"></script>
+<script src="volcan.js?v=214"></script>
+<script src="dons.js?v=214"></script>
+<script src="coop.js?v=214"></script>
+<script src="faune.js?v=214"></script>
+<script src="flore.js?v=214"></script>
+<script src="lignees.js?v=214"></script>
+<script src="conduites.js?v=214"></script>
+<script src="pouvoirs.js?v=214"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=213"></script><script src="orvane/tampon.js?v=213"></script><script src="orvane/correspondance.js?v=213"></script><script src="orvane/secours.js?v=213"></script><script src="orvane/orvane-sv.js?v=213"></script>
+<script src="orvane/corps.js?v=214"></script><script src="orvane/tampon.js?v=214"></script><script src="orvane/correspondance.js?v=214"></script><script src="orvane/secours.js?v=214"></script><script src="orvane/orvane-sv.js?v=214"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -12216,7 +12216,9 @@ function riveBete(b) {
 // Les éclaboussures : un rond qui s'élargit sur l'eau, des gouttes ; un plouf si c'est près de vous.
 const RONDS = [];
 let EAU_CLAIRE = false;                                  // (§243) la carte graphique dessine l'eau translucide : on voit dessous
-function rondEau(x, y, z, r, a, v) { if (RONDS.length < 90) RONDS.push({ x, y, z, r0: r, v: v || 1.1, a, t0: t, vie: 1.3 + r * .6 }); }
+function rondEau(x, y, z, r, a, v) {
+  if (RONDS.length >= 60) for (let k = RONDS.length - 1; k >= 0; k--) if (t - RONDS[k].t0 > RONDS[k].vie || t < RONDS[k].t0) RONDS.splice(k, 1);
+  if (RONDS.length < 60) RONDS.push({ x, y, z, r0: r, v: v || 1.1, a, t0: t, vie: 1.3 + r * .6 }); }
 function eclabousser(x, y, z, k) {
   rondEau(x, y, z, .25 + .25 * k, .55); if (k > .6) rondEau(x, y, z, .1, .4, .7);
   const n = Math.round(4 + k * 10);
@@ -21284,6 +21286,7 @@ function volerVers(b, tx, ty, tz, vd, mode, dt) {
 //  qu'y creuser du grain. Une seule image par matière suffit, au lieu d'un atlas teinté.
 // ============================================================
 let textures = true;
+// (§244) Un texel dit [a] (a > 0 : du blanc, a < 0 : du noir, d'opacité |a|) ou [a, r, g, b] : une touche de couleur.
 function motif(graine, pts) {
   const c = document.createElement('canvas'); c.width = c.height = 16;
   const x = c.getContext('2d'), d = x.createImageData(16, 16);
@@ -21291,29 +21294,172 @@ function motif(graine, pts) {
     const px = i % 16, py = i >> 4;
     const v = pts(px, py, hachCell(px + graine * 137, py + graine * 311));
     if (!v) continue;
+    if (v.length > 1) { d.data[i * 4] = v[1]; d.data[i * 4 + 1] = v[2]; d.data[i * 4 + 2] = v[3]; d.data[i * 4 + 3] = Math.max(0, Math.min(1, v[0])) * 255 | 0; continue; }
     d.data[i * 4] = v[0] < 0 ? 0 : 255; d.data[i * 4 + 1] = v[0] < 0 ? 0 : 255;
-    d.data[i * 4 + 2] = v[0] < 0 ? 0 : 255; d.data[i * 4 + 3] = Math.abs(v[0]) * 255 | 0;
+    d.data[i * 4 + 2] = v[0] < 0 ? 0 : 255; d.data[i * 4 + 3] = Math.min(1, Math.abs(v[0])) * 255 | 0;
   }
   x.putImageData(d, 0, 0);
   c.pixels = d.data;                              // gardés : le sac en fait des PNG sans relire le canvas
   return c;
 }
+
+// (§244) L'OUTILLAGE DES TEXTURES. Une texture ne creuse plus seulement du grain : elle dit une matière. Elle a des formes
+// (des brins, des galets, des fentes, des planches, des écailles), du relief (chaque forme a son côté éclairé et son ombre)
+// et des touches de couleur (une fleur, de la bruyère, du lichen, une braise, de la rouille). Tout se raccorde d'un cube à
+// l'autre : le hasard, le bruit et les cellules sont pris sur un tore de seize texels.
+const t16 = v => ((v % 16) + 16) % 16;
+const tuileH = (x, y, g) => hachCell(t16(x) + g * 137 + 3, t16(y) + g * 311 + 7);   // un hasard par texel, qui se raccorde
+function bruit16(x, y, g, s) {                       // un bruit lisse, de maille s (2, 4 ou 8), qui se raccorde
+  const n = 16 / s, gx = x / s, gy = y / s, x0 = Math.floor(gx), y0 = Math.floor(gy), fx = gx - x0, fy = gy - y0;
+  const v = (i, j) => hachCell(((i % n) + n) % n + g * 71 + 5, ((j % n) + n) % n + g * 53 + 9);
+  const sx = fx * fx * (3 - 2 * fx), sy = fy * fy * (3 - 2 * fy);
+  return (v(x0, y0) * (1 - sx) + v(x0 + 1, y0) * sx) * (1 - sy) + (v(x0, y0 + 1) * (1 - sx) + v(x0 + 1, y0 + 1) * sx) * sy;
+}
+const CELL16 = new Map();
+function cellules16(x, y, g, n, ky = 1) {            // des cellules (pierres, galets, bouquets) : la plus proche, l'écart à la seconde, son numéro, le décalage ; ky > 1 les couche
+  const cle = g * 64 + n; let P = CELL16.get(cle);
+  if (!P) { P = []; for (let k = 0; k < n; k++) P.push([hachCell(k * 13 + g * 7, 3 + g) * 16, hachCell(k * 29 + g * 11, 17 + g) * 16]); CELL16.set(cle, P); }
+  let d1 = 99, d2 = 99, id = 0, ox = 0, oy = 0;
+  for (let k = 0; k < n; k++) {
+    let dx = x + .5 - P[k][0], dy = y + .5 - P[k][1];
+    dx -= 16 * Math.round(dx / 16); dy -= 16 * Math.round(dy / 16);
+    const d = Math.hypot(dx, dy * ky);
+    if (d < d1) { d2 = d1; d1 = d; id = k; ox = dx; oy = dy; } else if (d < d2) d2 = d;
+  }
+  return { d1, b: d2 - d1, id, ox, oy };
+}
+const vague16 = (x, k = 1, a = 1) => Math.round(Math.sin(x * Math.PI / 8 * k) * a);   // une onde qui fait le tour du cube
+const doux16 = v => Math.abs(v) > .025 ? [v] : null;
 const TEX = {
-  herbe:  motif(1, (x, y, h) => h < .30 ? [-.16] : h > .88 ? [.10] : null),
-  touffu: motif(2, (x, y, h) => h < .42 ? [-.20] : h > .90 ? [.12] : null),
-  terre:  motif(3, (x, y, h) => h < .34 ? [-.24] : h > .92 ? [.09] : null),
-  roche:  motif(4, (x, y, h) => (y % 5 === 0 && h < .7) ? [-.17] : h < .16 ? [-.13] : h > .95 ? [.08] : null),
-  sable:  motif(5, (x, y, h) => h < .22 ? [-.11] : h > .90 ? [.09] : null),
-  neige:  motif(6, (x, y, h) => h < .12 ? [-.09] : h > .93 ? [.13] : null),
-  onde:   motif(7, (x, y, h) => ((y + (x >> 2)) % 6 === 0) ? [.10] : h < .1 ? [-.08] : null),
+  // la prairie : des brins (la pointe claire, l'ombre au pied), des touffes plus sombres, de rares fleurs
+  herbe: motif(1, (x, y, h) => {
+    if (tuileH(x, y, 4) > .992) return [.8, 255, 232, 96];            // un bouton d'or
+    if (tuileH(x, y, 5) > .994) return [.75, 252, 252, 255];          // une pâquerette
+    const brin = k => tuileH(x, y + k, 3) > .885;
+    if (brin(0)) return [.34, 226, 250, 150];
+    if (brin(-1)) return [.18, 200, 236, 132];
+    if (brin(-2)) return [-.18];
+    return doux16((bruit16(x, y, 1, 8) - .5) * .24 + (bruit16(x, y, 2, 4) - .5) * .12);
+  }),
+  // un feuillage : des bouquets ronds, éclairés en haut à gauche, et le noir entre eux
+  touffu: motif(2, (x, y, h) => {
+    const C = cellules16(x, y, 2, 11);
+    if (C.b < .85) return [-.36];
+    const l = -(C.ox + C.oy) / 3, v = (hachCell(C.id, 77) - .5) * .12 + l * .17 + (h > .92 ? .08 : 0);
+    return v > .03 ? [v, 214, 255, 168] : v < -.03 ? [v] : null;
+  }),
+  // la terre : marbrée, des cailloux qui ont leur ombre, des grains noirs
+  terre: motif(3, (x, y, h) => {
+    const C = cellules16(x, y, 3, 6);
+    if (C.d1 < 1.3 && hachCell(C.id, 9) > .35) { const l = -(C.ox + C.oy); return l > .35 ? [.4, 206, 196, 176] : l < -.35 ? [-.32] : [.24, 168, 158, 140]; }
+    if (h < .09) return [-.28];
+    return doux16((bruit16(x, y, 3, 4) - .5) * .28);
+  }),
+  // la pierre : de grandes dalles fendues, chacune sa teinte, l'arête éclairée d'un côté, dans l'ombre de l'autre
+  roche: motif(4, (x, y, h) => {
+    const C = cellules16(x, y, 4, 7);
+    if (C.b < .7) return [-.32];
+    if (C.b < 1.6) return C.ox + C.oy < 0 ? [.13] : [-.13];
+    if (h > .955) return [.14]; if (h < .05) return [-.15];
+    return doux16((hachCell(C.id, 41) - .5) * .14 + (bruit16(x, y, 42, 4) - .5) * .06);
+  }),
+  // le sable : des rides que le vent couche, un grain chaud, un coquillage
+  sable: motif(5, (x, y, h) => {
+    if (tuileH(x, y, 6) > .993) return [.6, 255, 250, 242];
+    const r = t16(y + vague16(x, 1, 1.4)) % 4;
+    if (r === 0) return [.11, 255, 248, 222]; if (r === 1) return [-.09];
+    return h < .16 ? [-.09] : h > .9 ? [.12, 255, 244, 206] : null;
+  }),
+  // la neige : l'ombre bleue des congères, et des cristaux qui scintillent
+  neige: motif(6, (x, y, h) => {
+    if (h > .972) return [.9, 255, 255, 255];
+    const n = bruit16(x, y, 6, 8) * .7 + bruit16(x, y, 7, 4) * .3;
+    if (n < .42) return [(.42 - n) * .6, 146, 172, 228];
+    return n > .7 ? [.1] : null;
+  }),
+  // l'eau du canvas, et la géode, le cristal des plantes : des crêtes qui ondulent
+  onde: motif(7, (x, y, h) => { const r = t16(y + vague16(x, 1, 2)) % 4;
+    return r === 0 ? [.22, 226, 244, 255] : r === 1 ? [.08] : r === 3 ? [-.1] : h > .975 ? [.45] : null; }),
   // les matières du village (village.js) et des terres nouvelles
-  planche: motif(8, (x, y, h) => y % 4 === 0 ? [-.24] : h > .97 ? [-.3] : h < .25 ? [-.09] : null),                 // des planches, et leurs nœuds
-  chaume:  motif(9, (x, y, h) => (x + y * 2) % 5 === 0 ? [-.15] : h < .3 ? [-.1] : h > .9 ? [.12] : null),            // des brins couchés
-  ardoise: motif(10, (x, y, h) => y % 4 === 0 ? [-.26] : (x + (y >> 2) * 2) % 5 === 0 ? [-.18] : h > .9 ? [.1] : null),   // des rangs d'ardoises
-  torchis: motif(11, (x, y, h) => h < .2 ? [-.08] : h > .9 ? [.07] : null),                                           // un enduit grenu
-  bloc:    motif(12, (x, y, h) => y % 4 === 0 ? [-.28] : (x + (y >> 2) * 3) % 6 === 0 ? [-.22] : h < .15 ? [-.1] : null), // des pierres taillées
-  battue:  motif(13, (x, y, h) => h > .97 ? [.26] : h < .2 ? [-.18] : h > .93 ? [.12] : null),                        // la terre battue, et ses cailloux
-  os:      motif(14, (x, y, h) => ((x * 3 + y) % 11 === 0 && h < .5) ? [-.2] : h < .15 ? [-.1] : h > .9 ? [.08] : null),  // un sol d'os craquelé
+  // des planches : leurs joints, leurs bouts décalés, le fil du bois, un nœud, un clou
+  planche: motif(8, (x, y, h) => {
+    const r = y >> 2, ly = y & 3, j = (r * 7 + 3) & 15, tn = (hachCell(r, 88) - .5) * .16;
+    if (ly === 0) return [-.34];
+    if (x === j) return [-.3];
+    if (x === ((j + 1) & 15) && ly === 2) return [.4, 210, 214, 224];
+    if (ly === 3) return [.1 + tn * .5];
+    if (hachCell(r, 92) > .55 && Math.abs(x - ((r * 5 + 9) & 15)) <= 1 && ly === 2) return [-.26];
+    const fil = Math.sin(x * Math.PI / 4 + hachCell(r, 91) * 6) > .55;
+    return fil ? [-.12] : doux16(tn);
+  }),
+  // le chaume : des brins couchés en biais, et l'ombre sous chaque rang de bottes
+  chaume: motif(9, (x, y, h) => {
+    if ((y & 3) === 3) return [-.28];
+    const s = (x * 2 + y + Math.round(bruit16(x, y, 9, 4) * 3)) & 3;
+    return s === 0 ? [.26, 255, 234, 150] : s === 2 ? [-.15] : h < .08 ? [-.16] : null;
+  }),
+  // l'ardoise : des rangs décalés, le bas de chaque pièce dans l'ombre de la suivante, le haut poli
+  ardoise: motif(10, (x, y, h) => {
+    const r = y >> 2, ly = y & 3, xx = x + (r & 1) * 2, lx = xx & 3, tn = (hachCell((xx >> 2) + r * 4, 93) - .5) * .18;
+    if (ly === 0) return [-.36];
+    if (lx === 0) return [-.24];
+    if (ly === 3) return [.15, 196, 212, 236];
+    return doux16(tn);
+  }),
+  // le torchis : un enduit grenu, des brins de paille pris dedans
+  torchis: motif(11, (x, y, h) => {
+    if (tuileH(x, y, 12) > .955 || tuileH(x - 1, y - 1, 12) > .955) return [.36, 222, 196, 118];
+    if (tuileH(x - 2, y - 2, 12) > .955) return [-.14];
+    return doux16((bruit16(x, y, 11, 4) - .5) * .18);
+  }),
+  // la pierre taillée : des blocs en quinconce, le mortier, l'arête éclairée et l'arête dans l'ombre
+  bloc: motif(12, (x, y, h) => {
+    const r = y >> 2, ly = y & 3, xx = x + (r & 1) * 4, xo = xx & 7, tn = (hachCell(((xx >> 3) & 1) + r * 2, 94) - .5) * .16;
+    if (ly === 0 || xo === 0) return [-.38];
+    if (ly === 3 || xo === 1) return [.14];
+    if (ly === 1 || xo === 7) return [-.13];
+    return h > .95 ? [.12] : h < .06 ? [-.12] : doux16(tn);
+  }),
+  // la terre battue : tassée, des cailloux, des traces
+  battue: motif(13, (x, y, h) => {
+    const C = cellules16(x, y, 14, 6);
+    if (C.d1 < 1.05 && hachCell(C.id, 15) > .45) return C.ox + C.oy < 0 ? [.36, 226, 214, 192] : [-.28];
+    return doux16((bruit16(x, y, 13, 4) - .5) * .24 + (bruit16(x, y, 16, 8) - .5) * .1);
+  }),
+  // un sol d'os : des craquelures, des éclats blancs et leur ombre, des trous noirs
+  os: motif(14, (x, y, h) => {
+    const C = cellules16(x, y, 15, 6);
+    if (C.b < .55) return [-.3];
+    if (tuileH(x, y, 16) > .94 || tuileH(x - 1, y, 16) > .94) return [.42, 252, 248, 234];
+    if (tuileH(x, y - 1, 16) > .94 || tuileH(x - 1, y - 1, 16) > .94) return [-.2];
+    if (h < .035) return [-.45];
+    return doux16((hachCell(C.id, 17) - .5) * .1);
+  }),
+  // (§244) le sous-bois : la mousse, et les feuilles mortes, brunes ou dorées
+  sousbois: motif(70, (x, y, h) => {
+    const f = tuileH(x >> 1, y, 71);
+    if (f > .91) return [.46, 146, 100, 50];
+    if (f > .875) return [.42, 186, 140, 58];
+    if (tuileH(x, y, 72) > .965) return [.32, 186, 232, 118];
+    const v = (bruit16(x, y, 70, 4) - .5) * .32;
+    return v < -.04 ? [v] : v > .06 ? [v * .7, 150, 206, 112] : null;
+  }),
+  // (§244) la lande : l'herbe sèche, des grains de bruyère mauve, des points d'ajonc
+  lande: motif(71, (x, y, h) => {
+    if (tuileH(x, y, 75) > .93 && bruit16(x, y, 74, 8) > .42) return [.5, 146, 82, 148];
+    if (tuileH(x, y, 76) > .975) return [.55, 238, 196, 66];
+    if (tuileH(x, y, 77) > .9) return [.18, 255, 244, 204];
+    if (tuileH(x, y - 1, 77) > .9) return [-.15];
+    return doux16((bruit16(x, y, 73, 4) - .5) * .26);
+  }),
+  // (§244) le haut d'une falaise : une roche rêche, de courtes fentes, du lichen
+  falaise: motif(72, (x, y, h) => {
+    const n = bruit16(x, y, 78, 4), C = cellules16(x, y, 79, 4);
+    if (C.b < .6 && n > .3) return [-.34];
+    if (bruit16(x, y, 80, 8) > .68 && h > .45) return [.32, 156, 174, 92];
+    if (h > .93) return [.15]; if (h < .1) return [-.2];
+    return doux16((n - .5) * .22);
+  }),
 };
 // Voiles d'arête. Plutôt qu'une bande sombre posée en géométrie — un trait franc, et trois
 // quadrilatères de plus par paroi — on plaque un dégradé noir sur les bords de la face,
@@ -21354,45 +21500,141 @@ for (let m = 1; m < 16; m++) BORD[m] = motif(0, (px, py) => {
 // mais il cesse d'être un aplat parfait — la seule surface du jeu qui n'avait aucune matière.
 TEX.abime = motif(9, (x, y, h) => h < .13 ? [.11] : h > .97 ? [-.5] : null);
 const raie = y => y === 0;
-TEX.terreM = motif(3, (x, y, h) => raie(y) ? [-.32] : h < .34 ? [-.24] : h > .92 ? [.09] : null);
-TEX.galets = motif(81, (x, y, h) => { const c = hachCell((x >> 2) * 7 + 3, (y >> 2) * 5 + 11), dx = (x & 3) - 1.5, dy = (y & 3) - 1.5, r = dx * dx + dy * dy;   // (§243) le lit d'une rivière, d'un lac
-  return c > .45 && r < 2.6 ? [r < 1 ? .2 : .1] : c > .45 && r < 4.6 ? [-.22] : h < .2 ? [-.14] : null; });
-TEX.rocheM = motif(4, (x, y, h) => raie(y) ? [-.32] : (y % 5 === 0 && h < .7) ? [-.17] : h < .16 ? [-.13] : h > .95 ? [.08] : null);
-TEX.sableM = motif(5, (x, y, h) => raie(y) ? [-.28] : h < .22 ? [-.11] : h > .90 ? [.09] : null);
+TEX.terreM = motif(3, (x, y, h) => {                  // (§244) le flanc de terre : des lits, des cailloux pris dedans
+  if (raie(y)) return [-.32];
+  const C = cellules16(x, y, 32, 5);
+  if (C.d1 < 1.2 && hachCell(C.id, 33) > .4) { const l = C.oy - C.ox; return l > .35 ? [.36, 196, 186, 170] : l < -.35 ? [-.3] : [.22, 160, 150, 134]; }
+  if (t16(y + vague16(x, 1, 1)) % 8 === 5) return [-.13];
+  if (h < .08) return [-.26];
+  return doux16((bruit16(x, y, 31, 4) - .5) * .26);
+});
+TEX.galets = motif(81, (x, y, h) => {                 // (§243, §244) le lit d'une rivière, d'un lac : des galets ronds, chacun sa teinte
+  const C = cellules16(x, y, 81, 10);
+  if (C.b < .8) return [-.36];
+  const k = hachCell(C.id, 82), l = -(C.ox + C.oy) / 2.4, v = l * .2 + (k - .5) * .14;
+  if (k > .78) return [.3 + l * .1, 190, 180, 160];
+  if (k < .18) return [.26, 104, 124, 100];
+  return doux16(v);
+});
+TEX.rocheM = motif(4, (x, y, h) => {                  // (§244) le flanc de roche : des blocs couchés, irréguliers, le haut éclairé, le bas dans l'ombre
+  if (raie(y)) return [-.34];
+  const C = cellules16(x, y, 36, 6, 1.9);
+  if (C.b < .75) return [-.32];
+  if (C.b < 1.6) return C.oy > 0 ? [.13] : [-.15];
+  return h > .95 ? [.12] : h < .05 ? [-.14] : doux16((hachCell(C.id, 38) - .5) * .16);
+});
+TEX.sableM = motif(5, (x, y, h) => {                  // (§244) le flanc de sable : des couches tassées, un grain
+  if (raie(y)) return [-.28];
+  const b = t16(y + vague16(x, 1, .8)) % 8;
+  if (b === 4) return [.12, 255, 246, 214]; if (b === 5) return [-.08];
+  return h < .15 ? [-.1] : h > .9 ? [.1] : null;
+});
+TEX.neigeM = motif(84, (x, y, h) => {                  // (§244) le flanc de neige : tassée en couches, bleue dans l'ombre du bas
+  if (raie(y)) return [.4, 120, 146, 206];
+  if (y < 4) return [(4 - y) * .09, 140, 166, 222];
+  if (t16(y + vague16(x, 1, 1)) % 8 === 6) return [-.07];
+  return h > .97 ? [.7] : null;
+});
 // Les sols des biomes rares. Même principe : du noir et du blanc transparents sur l'aplat.
 // La tourbe : sombre, et des flaques qui accrochent le jour en traits couchés.
-TEX.tourbe = motif(20, (x, y, h) => (y % 3 === 1 && hachCell((x >> 2) + 900, y * 3 + 17) > .8) ? [.22]
-  : h < .32 ? [-.24] : h > .95 ? [.08] : null);
+TEX.tourbe = motif(20, (x, y, h) => {                 // (§244) la tourbe : sombre et fibreuse ; des flaques qui prennent le ciel, de la sphaigne
+  if (bruit16(x, y, 21, 8) > .66 && (y & 1) === 0 && hachCell((x >> 2) + 900, y * 3 + 17) > .3) return [.32, 156, 188, 204];
+  if (tuileH(x, y, 22) > .9) return [-.3];
+  if (tuileH(x, y, 23) > .97) return [.4, 166, 196, 92];
+  return doux16((bruit16(x, y, 20, 4) - .5) * .32);
+});
 // L'ocre : les rides que le vent laisse sur le sable, en biais.
-TEX.ocre = motif(21, (x, y, h) => { const r = (x + y * 2) % 6;
-  return r === 0 ? [-.15] : r === 1 ? [.10] : h < .10 ? [-.10] : null; });
+TEX.ocre = motif(21, (x, y, h) => {                   // (§244) l'ocre : des rides couchées en biais par le vent
+  const r = (x + y * 2 + vague16(y, 1, 1.5) + 32) & 7;
+  return r === 0 ? [-.2] : r === 1 ? [.14, 255, 222, 170] : h < .08 ? [-.12] : h > .95 ? [.14] : null;
+});
 // Ses flancs : des strates, une bande claire et une sombre par assise de quatre pixels.
-TEX.strates = motif(22, (x, y, h) => raie(y) ? [-.30] : y % 4 === 2 ? [.15] : y % 4 === 3 ? [-.10] : h < .10 ? [-.12] : null);
+TEX.strates = motif(22, (x, y, h) => {                // (§244) les strates : des couches de couleurs, qui ondulent
+  if (raie(y)) return [-.3];
+  const b = t16(y + vague16(x, 1, .8));
+  return b < 4 ? [.2, 255, 212, 160] : b < 6 ? [-.13] : b < 10 ? [.22, 168, 78, 48] : b < 12 ? [.1] : b < 14 ? [-.17] : h < .1 ? [-.12] : null;
+});
 // Le mycélium : un semis de spores claires sur un feutre de fils.
-TEX.myce = motif(23, (x, y, h) => h > .92 ? [.28] : ((x * 7 + y * 3) % 11 === 0 && h < .6) ? [.10] : h < .26 ? [-.20] : null);
+TEX.myce = motif(23, (x, y, h) => {                   // (§244) le mycélium : un feutre de fils, des chapeaux minuscules, des spores qui luisent
+  if (h > .975) return [.75, 214, 255, 228];
+  if (tuileH(x, y, 24) > .935) return [.34, 232, 200, 255];
+  const n = bruit16(x, y, 23, 4);
+  if (((x * 3 + y * 5 + Math.round(n * 4)) & 7) === 0) return [.15, 236, 220, 250];
+  const v = (n - .5) * .3; return v < -.05 ? [v] : null;
+});
 // Le cristal : des facettes en losange, arêtes vives.
-TEX.facette = motif(24, (x, y, h) => { const a = (x + y) % 8, b = (x - y + 16) % 8;
-  return a === 0 || b === 0 ? [.24] : a === 1 || b === 1 ? [-.10] : h < .08 ? [-.08] : null; });
-TEX.facetteM = motif(25, (x, y, h) => raie(y) ? [-.28] : x % 5 === 1 ? [.20] : x % 5 === 2 ? [-.08] : null);
+TEX.facette = motif(24, (x, y, h) => {                // (§244) le cristal : des facettes en losange, l'arête vive, chacune sa lumière
+  const a = (x + y) & 7, b = (x - y + 16) & 7;
+  if (h > .98) return [.85, 255, 255, 255];
+  if (a === 0 || b === 0) return [.38, 234, 255, 255];
+  if (a === 7 || b === 1) return [-.18];
+  const f = (((x + y) >> 3) & 1) + (((x - y + 16) >> 3) & 1) * 2;
+  return doux16((hachCell(f, 25) - .5) * .22 + (a < 4 ? .06 : -.04));
+});
+TEX.facetteM = motif(25, (x, y, h) => {               // (§244) le flanc du cristal : des prismes debout
+  if (raie(y)) return [-.28];
+  const k = x & 3;
+  if (h > .975) return [.8];
+  return k === 0 ? [.3, 230, 255, 255] : k === 1 ? [.12] : k === 3 ? [-.14] : null;
+});
 // Le basalte : des fentes sombres en réseau, quelques grains de cendre clairs.
-TEX.basalte = motif(26, (x, y, h) => { const v = Math.sin(x * .9 + hachCell(y >> 3, 5) * 6) + Math.sin(y * 1.1 + hachCell(x >> 3, 9) * 6);
-  return Math.abs(v) < .22 ? [-.36] : h > .95 ? [.18] : h < .08 ? [-.12] : null; });
+TEX.basalte = motif(26, (x, y, h) => {                // (§244) le basalte : des dalles noires fendues en réseau, des grains de cendre
+  const C = cellules16(x, y, 26, 6);
+  if (C.b < .7) return [-.42];
+  if (C.b < 1.4) return C.ox + C.oy < 0 ? [.13] : [-.12];
+  if (h > .96) return [.32, 222, 212, 204];
+  return h < .1 ? [-.12] : null;
+});
 // Les braises : une croûte sombre déchirée de veines vives.
-TEX.braise = motif(27, (x, y, h) => h < .42 ? [-.34] : (x + y * 3) % 7 === 0 ? [.34] : h > .9 ? [.2] : null);
+TEX.braise = motif(27, (x, y, h) => {                 // (§244) les braises : une croûte sombre, des veines vives et leur lueur
+  const C = cellules16(x, y, 27, 6), n = bruit16(x, y, 28, 4);
+  if (C.b < .6) return [.85, 255, 176 + (n * 70 | 0), 60];
+  if (C.b < 1.15) return [.45, 255, 96, 30];
+  return [-(.4 + (C.ox + C.oy > 0 ? .12 : 0) + (h < .2 ? .1 : 0))];
+});
 // L'île des automates : des tôles rivetées qu'un câble traverse ; l'huile, noire, et ses cernes.
-TEX.plaque = motif(30, (x, y, h) => {
-  if (x % 8 === 0 || y % 8 === 0) return [-.26];                                     // les joints
-  if ((x % 8 === 2 || x % 8 === 6) && (y % 8 === 2 || y % 8 === 6)) return [.30];    // les rivets
-  const c = (y + Math.round(Math.sin(x * .7) * 1.5) + 16) % 16;                      // un câble qui ondule
-  return c === 11 ? [-.36] : c === 12 ? [.12] : h < .08 ? [-.10] : null; });
-TEX.plaqueM = motif(31, (x, y, h) => x % 8 === 0 ? [-.28] : (x % 8 === 3 && y % 5 === 2) ? [.26] : h < .14 ? [-.18] : h > .93 ? [.10] : null);
-TEX.huile = motif(32, (x, y, h) => { const r = (x - 8) ** 2 * .6 + (y - 8) ** 2;
-  return (r > 18 && r < 25) || (r > 48 && r < 56) ? [.36] : h < .2 ? [-.12] : null; });
+TEX.plaque = motif(30, (x, y, h) => {                 // (§244) des tôles rivetées, biseautées ; un câble qui ondule ; de la rouille
+  const lx = x & 7, ly = y & 7;
+  if (lx === 0 || ly === 0) return [-.36];
+  if ((lx === 2 || lx === 6) && (ly === 2 || ly === 6)) return [.42];
+  if ((lx === 3 || lx === 7) && (ly === 3 || ly === 7)) return [-.22];
+  const c = t16(y + vague16(x, 1, 1.5));
+  if (c === 11) return [-.4]; if (c === 12) return [.14];
+  if (lx === 1 || ly === 1) return [.15]; if (lx === 7 || ly === 7) return [-.13];
+  if (bruit16(x, y, 30, 4) > .72) return [.28, 150, 78, 40];
+  return h > .95 ? [.1] : null;
+});
+TEX.plaqueM = motif(31, (x, y, h) => {                // (§244) le flanc de tôle : des panneaux debout, des rivets, la rouille qui coule
+  const lx = x & 7;
+  if (lx === 0) return [-.3]; if (lx === 1) return [.14]; if (lx === 7) return [-.12];
+  if (lx === 3 && (y & 3) === 2) return [.3];
+  if (tuileH(x, 0, 38) > .8 && bruit16(x, y, 39, 4) > .45) return [.3, 146, 76, 40];
+  return h < .12 ? [-.16] : h > .94 ? [.1] : null;
+});
+TEX.huile = motif(32, (x, y, h) => {                  // (§244) l'huile : noire, et la moire de ses irisations
+  const r = (bruit16(x, y, 32, 8) * 9 + bruit16(x, y, 33, 4) * 2) % 1;
+  if (r < .1) return [.45, 152, 92, 206]; if (r < .17) return [.36, 70, 190, 160]; if (r < .22) return [.32, 222, 202, 80];
+  return h > .975 ? [.5] : null;
+});
 // Le nuage : presque rien — un semis de reflets et quelques creux à peine gris, pour que la
 // masse reste blanche et douce au lieu de se lire en pavés ; en flanc, l'ombre monte du dessous.
-TEX.nuage = motif(33, (x, y, h) => h > .9 ? [.18] : h > .78 ? [.08] : h < .05 ? [-.05] : null);
-TEX.nuageM = motif(34, (x, y, h) => y > 12 ? (h < .55 ? [-.10] : null) : h > .86 ? [.12] : h < .04 ? [-.05] : null);
-TEX.petales = motif(37, (x, y, h) => h > .9 ? [.36] : h > .83 ? [.2] : h < .2 ? [-.12] : null);   // la cerisaie : des pétales blancs semés sur le rose
+TEX.nuage = motif(33, (x, y, h) => {                  // (§244) le nuage : des bouffées rondes, l'ombre bleutée entre elles
+  const C = cellules16(x, y, 33, 7), l = -(C.ox + C.oy) / 3;
+  if (C.b < 1.1) return [.34 - C.b * .18, 168, 186, 228];
+  return l < -.25 ? [-l * .28, 184, 200, 236] : l > .4 ? [.2] : null;
+});
+TEX.nuageM = motif(34, (x, y, h) => {                 // (§244) le flanc du nuage : bleu par-dessous
+  const n = bruit16(x, y, 35, 4);
+  if (y < 6) return [(6 - y) * .055 + (n - .5) * .05, 170, 186, 224];
+  return n > .66 ? [.08] : null;
+});
+TEX.petales = motif(37, (x, y, h) => {                // (§244) la cerisaie : des pétales semés, leur ombre, un peu d'herbe dessous
+  if (tuileH(x, y, 38) > .9) return [.56, 255, 240, 246];
+  if (tuileH(x - 1, y, 38) > .9) return [.4, 255, 222, 234];
+  if (tuileH(x, y - 1, 38) > .9) return [-.15];
+  const n = bruit16(x, y, 39, 4);
+  return n < .28 ? [.26, 118, 150, 80] : n > .76 ? [.12] : null;
+});
 //                 eau     rivage  prairie bois    lande   falaise pierre  neige   vide    tourbe  ocre     sylve   cristal  cendre  braises  métal  huile  nuage  fourmilière
 // (§195) les sols de l'île volcanique
 TEX.orgue = motif(62, (x, y, h) => {                   // le dessus des colonnes : des hexagones serrés, chacun sa teinte
@@ -21403,17 +21645,45 @@ TEX.orgue = motif(62, (x, y, h) => {                   // le dessus des colonnes
   }
   return d2 - d1 < .9 ? [-.42] : [((id * 37) % 7 / 7 - .5) * .18 + (d1 < 1.1 ? .07 : 0) + (h > .93 ? .1 : h < .08 ? -.1 : 0)];
 });
-TEX.soufre = motif(63, (x, y, h) => ((x * 3 + y * 5) % 11 === 0 || (x * 5 + y * 2) % 13 === 0) ? [-.3] : h > .84 ? [.3] : h < .18 ? [-.14] : null);   // des cristaux, des fentes
-TEX.obsidienne = motif(64, (x, y, h) => (x + y) % 7 === 0 ? [.34] : (x + y) % 7 === 1 ? [.14] : (x - y + 32) % 11 === 0 ? [.2] : h < .12 ? [-.2] : null);   // des reflets de verre
-TEX.sableNoir = motif(65, (x, y, h) => h > .93 ? [.5] : h < .3 ? [-.12] : null);                                            // des paillettes
-TEX.cendre = motif(66, (x, y, h) => (y + ((x >> 2) & 1)) % 5 === 0 ? [-.14] : h > .9 ? [.12] : h < .15 ? [-.08] : null);   // des rides de cendre
-TEX.lave = motif(67, (x, y, h) => (h > .55 && h < .63) || (x * 7 + y * 3) % 13 === 0 ? [.4] : h < .3 ? [-.32] : null);      // (le canvas) une croûte fendue
-TEX.travertin = motif(68, (x, y, h) => { const w = (y + Math.round(Math.sin(x * .79) * 1.3) + 16) % 5; return w === 0 ? [-.22] : w === 1 ? [.2] : h < .12 ? [-.16] : h > .94 ? [.12] : null; });   // des gradins qui ondulent, des pores
-const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.touffu, TEX.herbe, TEX.roche, TEX.roche, TEX.neige, TEX.roche,
+TEX.soufre = motif(63, (x, y, h) => {                 // (§244) le soufre : des cristaux, leur pointe claire, les fentes
+  const C = cellules16(x, y, 63, 8);
+  if (C.b < .6) return [-.32];
+  if (C.d1 < .9) return [.58, 255, 255, 196];
+  return C.ox + C.oy < 0 ? [.15, 255, 250, 160] : [-.13];
+});
+TEX.obsidienne = motif(64, (x, y, h) => {             // (§244) l'obsidienne : un verre noir, des reflets violets, des cassures en coquille
+  const r = (x + y) & 7, n = bruit16(x, y, 64, 8);
+  if (r === 0 && n > .38) return [.44, 202, 170, 255];
+  if (r === 1 && n > .38) return [.18, 160, 140, 222];
+  if (((x * 2 - y + 32) & 15) === 0 && n < .45) return [.24];
+  return h < .1 ? [-.22] : null;
+});
+TEX.sableNoir = motif(65, (x, y, h) => {              // (§244) le sable noir : des paillettes, blanches ou bleues
+  if (h > .965) return [.7, 255, 255, 255];
+  if (h > .935) return [.45, 150, 190, 255];
+  return h < .3 ? [-.13] : doux16((bruit16(x, y, 65, 4) - .5) * .12);
+});
+TEX.cendre = motif(66, (x, y, h) => {                 // (§244) la cendre : des rides, des flocons clairs, une braise oubliée
+  if (tuileH(x, y, 67) > .992) return [.7, 255, 140, 50];
+  const r = t16(y + vague16(x, 2, 1)) % 4;
+  if (r === 0) return [-.15];
+  return h > .9 ? [.14] : h < .14 ? [-.09] : null;
+});
+TEX.lave = motif(67, (x, y, h) => {                   // (§244) (le canvas) la lave : une croûte, et ses fentes qui rougeoient
+  const C = cellules16(x, y, 67, 6);
+  if (C.b < .9) return [.7, 255, 220, 90];
+  if (C.b < 1.6) return [.4, 255, 120, 30];
+  return [-.32];
+});
+TEX.travertin = motif(68, (x, y, h) => {              // (§244) le travertin : des gradins qui ondulent, leur rebord clair, des pores
+  const w = t16(y + vague16(x, 1, 1.3)) % 4;
+  return w === 0 ? [-.22] : w === 1 ? [.22, 255, 250, 236] : h < .1 ? [-.18] : h > .95 ? [.12] : null;
+});
+const TEX_HAUT = [TEX.onde, TEX.sable, TEX.herbe, TEX.sousbois, TEX.lande, TEX.falaise, TEX.roche, TEX.neige, TEX.roche,   // (§244) le sous-bois, la lande, la falaise ont le leur
   TEX.tourbe, TEX.ocre, TEX.myce, TEX.facette, TEX.basalte, TEX.braise, TEX.plaque, TEX.huile, TEX.nuage, TEX.ocre,
   TEX.os, TEX.myce, TEX.basalte, TEX.battue, TEX.petales,   // l'ossuaire, les terres creuses, la roche rongée, le village, la cerisaie
   TEX.orgue, TEX.soufre, TEX.obsidienne, TEX.sableNoir, TEX.cendre, TEX.lave, TEX.onde, TEX.travertin];   // (§195) l'île volcanique
-const TEX_COTE = [null, TEX.sableM, TEX.terreM, TEX.terreM, TEX.terreM, TEX.rocheM, TEX.rocheM, TEX.rocheM, TEX.rocheM,
+const TEX_COTE = [null, TEX.sableM, TEX.terreM, TEX.terreM, TEX.terreM, TEX.rocheM, TEX.rocheM, TEX.neigeM, TEX.rocheM,
   TEX.terreM, TEX.strates, TEX.terreM, TEX.facetteM, TEX.rocheM, TEX.rocheM, TEX.plaqueM, TEX.plaqueM, TEX.nuageM, TEX.strates,
   TEX.terreM, TEX.terreM, TEX.rocheM, TEX.terreM, TEX.terreM,
   TEX.rocheM, TEX.strates, TEX.facetteM, TEX.sableM, TEX.terreM, TEX.rocheM, TEX.strates, TEX.strates];
@@ -21426,21 +21696,81 @@ const TEX_FORME = { conifere:TEX.touffu, feuillu:TEX.touffu, palme:TEX.touffu, b
 // Le sol avait son grain, les maisons du village aussi ; les bêtes, le héros, le campement, l'arche,
 // les troncs et les décors restaient des aplats. Onze motifs de plus, toujours du noir et du blanc
 // transparents posés sur la couleur : rien ne change de teinte, tout prend du grain.
-TEX.pelage = motif(50, (x, y, h) => ((x * 5 + (y >> 1) * 3) % 7 === 0 && h < .8) ? [-.2] : h > .93 ? [.12] : h < .08 ? [-.1] : null);            // des mèches courtes
-TEX.plume = motif(51, (x, y, h) => { const d = (x + ((y >> 2) & 1) * 3) % 6; return y % 4 === 3 ? (d === 0 ? null : [-.2]) : d === 0 ? [-.14] : (y % 4 === 0 && h > .5) ? [.1] : null; });   // des rangs de plumes qui se chevauchent
-TEX.ecaille = motif(52, (x, y, h) => ((x + y) % 4 === 0 || (x - y + 16) % 4 === 0) ? [-.2] : ((x + y) % 4 === 2 && (x - y + 16) % 4 === 2) ? [.14] : null);   // un treillis de losanges
-TEX.chitine = motif(53, (x, y, h) => y % 5 === 4 ? [-.26] : y % 5 === 0 ? [.16] : h < .1 ? [-.1] : null);                                       // des segments, et leur reflet
-TEX.metal = motif(54, (x, y, h) => (x % 8 === 0 || y % 8 === 0) ? [-.24] : (x % 8 === 2 && y % 8 === 2) ? [.3] : (x % 8 === 3 && y % 8 === 2) ? [-.2] : h > .95 ? [.08] : h < .06 ? [-.08] : null);   // des tôles rivetées
-TEX.ecorce = motif(55, (x, y, h) => (x % 3 === 0 && hachCell(x + 55, (y >> 2) + 9) > .35) ? [-.26] : h > .92 ? [.1] : h < .1 ? [-.1] : null);   // des crevasses en long
-TEX.toile = motif(56, (x, y, h) => (x % 4 === 0 || y % 4 === 0) ? [-.12] : (x + y) % 2 === 0 ? [-.05] : h > .95 ? [.08] : null);               // une trame, et ses gros fils
-TEX.tissu = motif(57, (x, y, h) => (x + y) % 4 === 0 ? [-.13] : (x + y) % 4 === 2 ? [.06] : null);                                             // un sergé
-TEX.cuir = motif(58, (x, y, h) => (x * 3 + y * 5) % 13 === 0 ? [-.14] : h < .16 ? [-.12] : h > .93 ? [.1] : null);                             // des pores, des plis
-TEX.peau = motif(59, (x, y, h) => (x % 4 === 1 && y % 4 === 1 && h > .3) ? [.16] : (x % 4 === 2 && y % 4 === 2 && h > .3) ? [-.14] : h < .1 ? [-.12] : null);   // une peau nue, grenue
+TEX.pelage = motif(50, (x, y, h) => {                 // (§244) le pelage : des mèches couchées en biais, la pointe claire, le creux sombre
+  const L = 3 + ((tuileH(x - (y >> 1), 0, 51) * 3) | 0), k = t16(y + (x >> 1) * 0) % L;
+  const m = t16(x * 2 - y + ((tuileH(x >> 2, y >> 2, 52) * 3) | 0)) & 7;
+  if (m === 0) return [-.3];
+  if (m === 1) return [-.12];
+  if (m === 5) return [.16];
+  if (m === 6 && k === 0) return [.22];
+  return h > .97 ? [.16] : null;
+});
+TEX.plume = motif(51, (x, y, h) => {                  // (§244) des plumes en rangs qui se chevauchent : le bord sombre, la hampe claire
+  const r = y >> 2, lx = (x + (r & 1) * 2) & 3, ly = y & 3, d = Math.abs(lx - 1.5);
+  if (ly === 0 && d > .6) return [-.28];
+  if (lx === 0) return [-.12];
+  if (ly === 3 && d < 1) return [.18];
+  return ly >= 1 && d < .6 ? [.08] : null;
+});
+TEX.ecaille = motif(52, (x, y, h) => {                // (§244) des écailles rondes en quinconce : le bord, l'ombre de la suivante, le reflet
+  const r = y >> 3, cx = ((x + (r & 1) * 4) & 7) + .5 - 4, cy = (y & 7) + .5, d = Math.hypot(cx, cy * .92);   // un disque posé sur le bas de sa rangée
+  if (d > 4.7) return [-.24];
+  if (d > 3.9) return [-.34];
+  if (d > 3.2) return [-.1];
+  return cy > 3.5 && cy < 6 && cx < 1 && cx > -2.5 ? [.22] : null;
+});
+TEX.chitine = motif(53, (x, y, h) => {                // (§244) la chitine : des segments vernis, leur joint noir, un reflet
+  const ly = y & 3;
+  if (ly === 0) return [-.36];
+  if (ly === 3) return [.2];
+  if (ly === 2 && (x & 7) < 3) return [.12];
+  return h < .06 ? [-.12] : null;
+});
+TEX.metal = motif(54, (x, y, h) => {                  // (§244) le métal : des plaques brossées, biseautées, rivetées ; quelques rayures
+  const lx = x & 7, ly = y & 7;
+  if (lx === 0 || ly === 0) return [-.3];
+  if (lx === 2 && ly === 2) return [.36]; if (lx === 3 && ly === 3) return [-.22];
+  if (lx === 1 || ly === 1) return [.13]; if (lx === 7 || ly === 7) return [-.12];
+  if (tuileH(x, y, 55) > .965) return [.3];
+  return (y & 1) ? [.04] : [-.03];
+});
+TEX.ecorce = motif(55, (x, y, h) => {                 // (§244) l'écorce : des sillons qui ondulent en long, des crevasses, du lichen
+  const k = t16(x + vague16(y, 1, 1.2)) & 3;
+  if (bruit16(x, y, 57, 8) > .74 && k !== 0) return [.32, 152, 172, 124];
+  if (k === 0) return [-.36]; if (k === 1) return [.14];
+  if (tuileH(x >> 2, y, 56) > .93) return [-.24];
+  return h > .95 ? [.1] : null;
+});
+TEX.toile = motif(56, (x, y, h) => {                  // (§244) une toile grosse : les fils passent dessus, dessous
+  const a = ((x >> 1) + (y >> 1)) & 1, lx = x & 1, ly = y & 1;
+  return a ? (lx === 0 ? [.1] : [-.13]) : (ly === 0 ? [.1] : [-.13]);
+});
+TEX.tissu = motif(57, (x, y, h) => {                  // (§244) une étoffe : un sergé, et un liseré tous les huit rangs
+  if ((y & 7) === 0) return [.16];
+  if ((y & 7) === 1) return [-.14];
+  const k = (x + y) & 3;
+  return k === 0 ? [-.15] : k === 2 ? [.07] : null;
+});
+TEX.cuir = motif(58, (x, y, h) => {                   // (§244) le cuir : un grain bosselé, des plis, une couture
+  const C = cellules16(x, y, 58, 14);
+  if (((x + 3) & 15) === 0 && (y & 1) === 0) return [.3, 220, 200, 160];
+  if (C.b < .55) return [-.16];
+  if (bruit16(x, y, 59, 8) > .72 && (x + y) % 3 === 0) return [-.18];
+  return C.ox + C.oy < 0 ? [.07] : null;
+});
+TEX.peau = motif(59, (x, y, h) => {                   // (§244) une peau nue : marbrée, grenue, des pores
+  if (tuileH(x, y, 60) > .95) return [-.2];
+  if (tuileH(x - 1, y - 1, 60) > .95) return [.12];
+  return doux16((bruit16(x, y, 61, 4) - .5) * .2);
+});
 // (§192) la croûte du démon : des plaques de peau cuite, décalées d'un rang à l'autre, que séparent des fentes très
 // sombres ; le haut de chaque plaque accroche la lumière, le bas s'ombre
 TEX.croute = motif(61, (x, y, h) => { const r = y >> 3, xo = (x + (r & 1) * 5 + ((hachCell(r + 61, 7) * 4) | 0)) % 9, yo = y & 7;
   return (yo === 7 || xo === 0) ? [-.4] : (yo === 0 && xo > 1 && xo < 8) ? [.2] : (xo === 1 || yo === 6) ? [-.18] : (h > .94 ? [.14] : h < .07 ? [-.2] : null); });
-TEX.corde = motif(60, (x, y, h) => (x + y * 2) % 4 === 0 ? [-.24] : (x + y * 2) % 4 === 2 ? [.08] : null);                                     // des torons
+TEX.corde = motif(60, (x, y, h) => {                  // (§244) la corde : des torons qui tournent, leur reflet
+  const k = (x * 2 + y) & 7;
+  return k === 0 ? [-.3] : k === 1 ? [-.12] : k === 3 ? [.16] : k === 4 ? [.08] : null;
+});
 // La matière d'une bête : son corps d'abord, sa famille ensuite ; à défaut c'est un Rampant, un insecte.
 // « * » : pas de matière d'ensemble, chaque pièce prend celle de sa couleur (les plantes rares, un seuil).
 const MAT_CORPS = { mage: 'tissu', rodeur: 'lisse', demon: 'croute', millegueule: 'chitine', silencieux: 'os', tisseuse: 'metal' };
@@ -23032,6 +23362,9 @@ uniform vec2 uIso;
 uniform vec2 uSoleil;
 uniform vec4 uSol;      // la direction de l'astre (xyz), son éclat (w)
 uniform vec4 uVue;      // en isométrie : la direction de l'œil (xyz) ; w = 1
+uniform vec4 uRonds[32];  // (§244) les ronds dans l'eau : centre, rayon, force
+uniform float uRz[32];
+uniform int uNR;
 out vec4 o;
 ${NUIT_GLSL}
 ${GRIS_GLSL}
@@ -23094,7 +23427,17 @@ void main() {
     if (vG == 2) ec = max(ec, smoothstep(0.76, 0.84, nEnf(vec2(dot(p, vFl) * 2.2 - tm * 2.4, dot(p, vec2(-vFl.y, vFl.x)) * 5.0) + 11.0)) * min(vf, 1.0) * 0.7);
     ec = step(0.5, ec * (0.7 + 0.6 * nEnf(q * 6.0 + tm * 0.5)));
     c = mix(c, vec3(0.93, 0.97, 1.0), ec * 0.85);
-    a = max(max(a, fr * 0.8), max(ec * 0.9, sp));
+    float ro = 0.0;                                   // (§244) les ronds : un cercle fin, au grain du décor, sur l'eau seulement
+    vec2 qc = q + 1.0 / 32.0;
+    for (int i = 0; i < 32; i++) {
+      if (i >= uNR) break;
+      vec4 Rr = uRonds[i];
+      if (abs(uRz[i] - vW.z) > 0.3) continue;
+      float e2 = abs(distance(qc, Rr.xy) - Rr.z);
+      ro = max(ro, Rr.w * (1.0 - smoothstep(0.035, 0.1, e2)));
+    }
+    c = mix(c, vec3(0.92, 0.97, 1.0), ro * 0.85);
+    a = max(max(a, fr * 0.8), max(max(ec * 0.9, ro * 0.75), sp));
     c *= mix(uSoleil.y, 1.0, jour);
     c += vec3(1.0, 0.97, 0.88) * sp * 1.1;
   }
@@ -23159,7 +23502,7 @@ void main() {
     gl_Position = vec4(aP.xy + aO * aS * uPx, 0.9999, 1.0);
     return;
   }
-  bool sol = g == 5 || g == 8 || g == 10;             // posé à plat : l'ombre, la cible d'un obus, (§243) un rond dans l'eau
+  bool sol = g == 5 || g == 8;                        // posé à plat : l'ombre, la cible d'un obus
   vec4 p = uM * vec4(sol ? aP + vec3(aO * aS, 0.0) : aP, 1.0);
   if (!sol) p.xy += g == 3 ? aO * aS * uPx * p.w : aO * aS * uEch;
   vO = aO; vC = aC; vW = aP; vG = g;
@@ -23202,12 +23545,6 @@ void main() {
     float q = length(vO);
     if (q > 1.0) discard;
     a *= max(smoothstep(0.80, 0.90, q) * smoothstep(1.0, 0.93, q), 0.26 * (1.0 - q * q));
-  }
-  if (vG == 10) {                                     // (§243) un rond dans l'eau : un cercle fin, au grain du décor
-    vec2 pv = (floor(vO * 7.0) + 0.5) / 7.0;
-    float q = length(pv);
-    if (q > 1.0) discard;
-    a *= smoothstep(0.62, 0.80, q) * smoothstep(1.0, 0.86, q);
   }
   if (vG == 6) {                                      // l'anneau du lien, autour de l'éclat
     float q = length(vO);
@@ -23706,6 +24043,7 @@ void main() { o = uC; }`;
 
   // ---------- mise en place ----------
   let P_DECOR, P_CIEL, P_PANO, P_TRAIT, P_EAU, atlas, triCiel;
+  const RONDS_GL = new Float32Array(32 * 4), RONDS_Z = new Float32Array(32);
   function initialiser() {
     P_DECOR = programme(DECOR_VS, DECOR_FS);
     P_EAU = programme(EAU_VS, EAU_FS);               // (§243)
@@ -24079,6 +24417,16 @@ void main() { o = uC; }`;
         if (vz < 0) { vx = -vx; vy = -vy; vz = -vz; }
         gl.uniform4f(w.uVue, vx / nn, vy / nn, vz / nn, 1); }
       else gl.uniform4f(w.uVue, 0, 0, 1, 0);
+      // (§244) les ronds dans l'eau : le fragment d'eau les dessine lui-même, ils ne débordent donc jamais sur la berge
+      let nr = 0;
+      for (let k = RONDS.length - 1; k >= 0; k--) {
+        const R = RONDS[k], ag = t - R.t0;
+        if (ag > R.vie || ag < 0) { RONDS.splice(k, 1); continue; }
+        if (nr >= 32 || (R.x - ex) ** 2 + (R.y - ey) ** 2 > 1600) continue;
+        RONDS_GL[nr * 4] = R.x; RONDS_GL[nr * 4 + 1] = R.y; RONDS_GL[nr * 4 + 2] = R.r0 + R.v * Math.sqrt(ag) * .9; RONDS_GL[nr * 4 + 3] = R.a * (1 - ag / R.vie) ** 1.5;
+        RONDS_Z[nr++] = R.z;
+      }
+      gl.uniform4fv(w['uRonds[0]'] || null, RONDS_GL); gl.uniform1fv(w['uRz[0]'] || null, RONDS_Z); gl.uniform1i(w.uNR || null, nr);
       if (mer && !mer.vide && !djIci()) { gl.bindVertexArray(mer.va); gl.drawElements(gl.TRIANGLES, mer.n, gl.UNSIGNED_INT, 0); }
       for (const c of vusE) if (c.e && !c.e.vide) { gl.bindVertexArray(c.e.va); gl.drawElements(gl.TRIANGLES, c.e.n, gl.UNSIGNED_INT, 0); ntri += c.e.n / 3; }
       gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.CULL_FACE);
@@ -24093,13 +24441,6 @@ void main() { o = uC; }`;
     for (const br of berries) if ((br.x - ex) ** 2 + (br.y - ey) ** 2 < r2 && baieMure(br)) {
       const z = br.z + br.e.h * .7, c = br.e.baie;
       panneau(br.x, br.y, z, .2 * 2.6, .2 * 2.6, c[0] / 255, c[1] / 255, c[2] / 255, 1, 1);
-    }
-    for (let k = RONDS.length - 1; k >= 0; k--) {   // (§243) les ronds dans l'eau
-      const R = RONDS[k], ag = t - R.t0;
-      if (ag > R.vie || ag < 0) { RONDS.splice(k, 1); continue; }
-      if ((R.x - ex) ** 2 + (R.y - ey) ** 2 > r2) continue;
-      const r = R.r0 + R.v * Math.sqrt(ag) * .9, al = R.a * (1 - ag / R.vie) ** 1.5;
-      panneau(R.x, R.y, R.z + .012, r, r, .9, .96, 1, al, 10);
     }
     for (const pa of parts) {
       const c = rvb(pa.col);

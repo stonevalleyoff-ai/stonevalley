@@ -7749,3 +7749,24 @@ La monture nage aussi, son cavalier au sec.
 - **Les vibrations** (§242) restent basses : chevauchements 0, 0, 0 sur trois îles.
 - **Les vues** : en isométrie et en première personne, de jour, au soir, de nuit ; une cascade ; le canvas de secours.
 - **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-213`.
+
+## §244 · Les ronds dans l'eau ne passent plus sur la terre ; toutes les textures refaites
+
+**Les ronds dans l'eau** (§243) se dessinaient en panneaux posés à la hauteur de l'eau. Or la berge d'un lac est exactement à cette hauteur : un rond qui s'élargissait près du bord continuait sur l'herbe. Ils se dessinent maintenant **dans le fragment d'eau lui-même** (`EAU_FS`, `uRonds`, 32 au plus autour du joueur) : un rond s'arrête net à la rive.
+
+**Les textures.** Toutes n'étaient qu'un semis de points plus clairs et plus sombres, sans forme ni couleur. Elles sont refaites, toujours en 16×16, net, posées sur la couleur de la matière, mais chacune dit maintenant ce qu'elle est.
+- **L'outillage** : `motif` accepte une touche de couleur (`[a, r, g, b]`) en plus du noir et du blanc. Le hasard (`tuileH`), le bruit lisse (`bruit16`), les cellules (`cellules16` : pierres, galets, bouquets, écailles ; couchées si l'on veut) et les ondes (`vague16`) sont pris sur un tore de seize : **tout se raccorde d'un cube à l'autre**, sans couture.
+- **Les sols** :
+  - la prairie a des brins (la pointe claire, l'ombre au pied), des boutons d'or et des pâquerettes ;
+  - le feuillage, des bouquets ronds éclairés d'un côté ;
+  - la terre, des cailloux avec leur ombre ;
+  - la pierre, de grandes dalles fendues ;
+  - le sable, des rides et un coquillage ;
+  - la neige, l'ombre bleue des congères et des cristaux qui scintillent.
+- **Trois biomes ont maintenant leur sol à eux** : le sous-bois (de la mousse et des feuilles mortes, brunes ou dorées), la lande (l'herbe sèche, des grains de bruyère mauve, des points d'ajonc) et le haut des falaises (une roche rêche, des fentes, du lichen).
+- **Les flancs** : la terre en lits, avec des cailloux pris dedans ; la roche en blocs couchés, irréguliers, le haut éclairé et le bas dans l'ombre ; le sable en couches ; un flanc de neige à lui, bleu dans l'ombre du bas.
+- **Les sols rares** : la tourbe et ses flaques qui prennent le ciel ; le mycélium et ses spores qui luisent ; le cristal à facettes ; le basalte fendu ; les braises, une croûte sombre et des veines vives ; les tôles rivetées et leur rouille ; l'huile et ses irisations ; le nuage en bouffées ; les pétales de la cerisaie ; et au volcan le soufre en cristaux, l'obsidienne et ses reflets violets, le sable noir pailleté, la cendre et ses braises oubliées, le travertin en gradins.
+- **Le bâti** : des planches (leurs joints, le fil, un nœud, un clou), des briques en quinconce, l'ardoise, le chaume, un torchis où la paille est prise.
+- **Les matières des bêtes et des objets** : le pelage en mèches, des plumes en rangs, des écailles rondes en quinconce, la chitine vernie, le métal brossé et riveté, l'écorce en sillons avec du lichen, la toile tissée, l'étoffe et son liseré, le cuir et sa couture, la peau, la corde.
+
+**Vérifié.** La planche de toutes les textures, chacune répétée trois fois sur trois (aucune couture). En jeu, en isométrie : la prairie, le sous-bois, la lande, la falaise, la neige, la plage, un lac, une rivière ; des bêtes de près. Le canvas de secours. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-214`.
