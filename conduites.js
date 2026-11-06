@@ -91,6 +91,7 @@ function cdLancer(b, c) {                                      // comme les spor
 }
 // l'éclat du jet (appelé par eclaterSpore) : sur le joueur, l'irritation ; tiré par une compagne, il étourdit les bêtes
 function orvaneImpact(f) {
+  if (f.el && typeof pouvoirImpact === 'function') return pouvoirImpact(f);   // (§238) un projectile de pouvoir : son élément
   const x = f.x, y = f.y, z = Math.max(f.z, sol(x, y));
   for (let k = 0; k < 14; k++) parts.push({ x, y, z: z + .12, vx: (cdHasard() - .5) * 1.6, vy: (cdHasard() - .5) * 1.6, vz: cdHasard() * .9,
     g: -.2, life: .6 + cdHasard() * .5, age: 0, col: k % 2 ? '#d6e86a' : '#a8c040', luit: 1, tl: .07 });

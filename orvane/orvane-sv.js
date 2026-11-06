@@ -240,7 +240,7 @@ function appliquerDef(sp, def, base) {
   const k = def.gabarit ? 1 : clamp(Math.cbrt((def.masse || 1) / (def.masseRef || 1)), .6, 1.7);
   // (une lignée sans ancêtre du jeu : sa taille suit le logarithme de sa masse, de 0,5 pour un insecte de 10 g à 1,6 pour une bête
   // de 100 kg — à la racine cubique, presque tout le monde d'Orvane, qui pèse de 20 g à 5 kg, aurait la taille d'un caillou)
-  sp.sz = def.gabarit ? r2(clamp(.5 + (Math.log10(Math.max(.001, def.masse || 1)) + 2) * .275, .5, 2)) : r2(base.sz * k);
+  sp.sz = def.gabarit ? r2(clamp(.5 + (Math.log10(Math.max(.001, def.masse || 1)) + 2) * .275, .5, 2) * 1.15) : r2(base.sz * k * 1.15);   // (§238) un peu plus grandes, toutes
   sp.orvane.sz0 = sp.sz;                                              // (§226) la taille d'après la masse ; la puissance la retouche (chaines)
   sp.spd = r2(base.spd * clamp((def.vit || 1) / (def.vitRef || 1), .7, 1.4));
   const rang = def.gabarit ? S.rangs?.[def.id] || 0 : 0;               // (§218) une lignée rare du monde : un trophée, plus robuste
@@ -393,7 +393,7 @@ function scorePuissance(d, sp) {
 function puissances(L) {
   const R = L.filter(sp => !sp.orvane.machine).map(sp => [sp, scorePuissance(S.lignees[sp.id], sp)]).sort((a, b) => a[1] - b[1]), n = R.length;
   R.forEach(([sp], i) => { const p = n > 1 ? i / (n - 1) : .5, cute = clamp((.35 - p) / .35, 0, 1), epique = clamp((p - .65) / .35, 0, 1);
-    sp.orvane.puissance = r2(p); sp.sz = r2(Math.min(2.6, (sp.orvane.sz0 || sp.sz) * (1 - .08 * cute + .6 * epique))); sp.orvane._m = null; });   // (§237) une épique : une stature de légende
+    sp.orvane.puissance = r2(p); sp.sz = r2(Math.min(2.9, (sp.orvane.sz0 || sp.sz) * (1 - .08 * cute + .6 * epique))); sp.orvane._m = null; });   // (§237) une épique : une stature de légende
 }
 const attrait = sp => { const p = sp.orvane?.puissance ?? .5, c = clamp(prof() / 16, 0, 1) * .9; return .12 + Math.exp(-((p - c) ** 2) / .125); };
 function chaines() {
@@ -538,7 +538,7 @@ function fantaisie(sp) {
   sp.shell = teinte(E.robe, rot); sp.dark = teinte(E.sombre, rot); sp.ventre = teinte(E.ventre, rot * .5);
   sp.leg = sp.dark.map(v => v * .8 | 0); sp.oeil = E.oeil.slice();
   sp.orvane.lueurEl = E.lueur.slice(); sp.orvane.corneEl = E.corne.slice(); sp.orvane.partEl = E.part;
-  if (el === 'braise' && d.chasseur && (sp.orvane.puissance ?? 0) > .7) sp.brule = 1; else if (sp.brule && !sp.volcan) delete sp.brule;   // sa morsure brûle
+  if (sp.brule && !sp.volcan) delete sp.brule;                     // (§238) la morsure de braise : pouvoirs.js
   const genre = String(d.nom || sp.n || '').split(/[\s,]/)[0] || sp.id;
   sp.orvane.nomOrvane = d.nom; sp.n = genre + ', ' + roleDe(sp, d) + ' ' + E.n;
   sp.orvane._m = null;

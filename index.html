@@ -878,27 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=207"></script>
-<script src="rouages.js?v=207"></script>
-<script src="forge.js?v=207"></script>
-<script src="nomades.js?v=207"></script>
-<script src="etats.js?v=207"></script>
-<script src="brume.js?v=207"></script>
-<script src="roi.js?v=207"></script>
-<script src="trone.js?v=207"></script>
-<script src="achromie.js?v=207"></script>
-<script src="vyrel.js?v=207"></script>
-<script src="village.js?v=207"></script>
-<script src="volcan.js?v=207"></script>
-<script src="dons.js?v=207"></script>
-<script src="coop.js?v=207"></script>
-<script src="faune.js?v=207"></script>
-<script src="flore.js?v=207"></script>
-<script src="lignees.js?v=207"></script>
-<script src="conduites.js?v=207"></script>
+<script src="donjon.js?v=208"></script>
+<script src="rouages.js?v=208"></script>
+<script src="forge.js?v=208"></script>
+<script src="nomades.js?v=208"></script>
+<script src="etats.js?v=208"></script>
+<script src="brume.js?v=208"></script>
+<script src="roi.js?v=208"></script>
+<script src="trone.js?v=208"></script>
+<script src="achromie.js?v=208"></script>
+<script src="vyrel.js?v=208"></script>
+<script src="village.js?v=208"></script>
+<script src="volcan.js?v=208"></script>
+<script src="dons.js?v=208"></script>
+<script src="coop.js?v=208"></script>
+<script src="faune.js?v=208"></script>
+<script src="flore.js?v=208"></script>
+<script src="lignees.js?v=208"></script>
+<script src="conduites.js?v=208"></script>
+<script src="pouvoirs.js?v=208"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=207"></script><script src="orvane/tampon.js?v=207"></script><script src="orvane/correspondance.js?v=207"></script><script src="orvane/secours.js?v=207"></script><script src="orvane/orvane-sv.js?v=207"></script>
+<script src="orvane/corps.js?v=208"></script><script src="orvane/tampon.js?v=208"></script><script src="orvane/correspondance.js?v=208"></script><script src="orvane/secours.js?v=208"></script><script src="orvane/orvane-sv.js?v=208"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -9018,6 +9019,7 @@ function majBiome(dt) {
   if (P.spores > t && Math.random() < dt * 5) burst(P.x, P.y, P.z + 1, 1, '#d6b8f0');
   majToiles(dt); majBrasiers(dt);
   if (typeof majEtats === 'function') majEtats(dt);   // l'état de l'île, l'infection, les visions (etats.js)
+  if (typeof pouvoirsMaj === 'function') pouvoirsMaj(dt);   // (§238) la foudre qui tombe, le givre, les braises (pouvoirs.js)
   if (typeof majVillage === 'function') majVillage(dt);   // le feu, les cheminées, la parole (village.js)
   if (typeof majVolcan === 'function') majVolcan(dt);     // (§195) le panache, les vapeurs, les geysers (volcan.js)
   if (typeof majCoop === 'function') majCoop(dt);         // les amis, le groupe (coop.js)
@@ -10146,6 +10148,7 @@ function update(dt) {
   }
   if (biomeIci === 9) SPD *= M ? .88 : BOUE;
   if (P.spores > t) SPD *= .6;
+  if (P.gel > t) SPD *= .55;                          // (§238) gelé par une créature de givre
   if (P.toile > t) SPD *= .3;
   if (typeof pacteVitesse === 'function') SPD *= pacteVitesse();   // (§164) les pactes de Fer et de Hâte                         // pris dans la toile de la Tisseuse
   if (!M && floreFreine(P.x, P.y, P.z)) SPD *= .72;   // les herbes hautes, les buissons, les roseaux (la monture les enjambe)
@@ -12683,6 +12686,7 @@ function porterCoup(b, c, deg) {
     if (donA('racines') || DN.titan > t) { P.vx *= .15; P.vy *= .15; P.vz = Math.min(P.vz, 1.2); }   // (§204) les racines : on ne recule plus ; (§208) le titan non plus
     burst(P.x, P.y, P.z + .6, 10, '#ff8a7a');
     if (b.sp.brule && !effet('braise')) { P.brulure = t + 3; say('la morsure brûle', 1.4); }   // le basilic
+    if (typeof pouvoirCoup === 'function') pouvoirCoup(b, P, dx / d, dy / d);   // (§238) la morsure de l'élément
     if (typeof vyrelMorsure === 'function') vyrelMorsure(b, P);   // (§184) une morsure malade contamine
     if (P.monture && b !== P.monture) { const m = P.monture; P.monture = null; P.rodeo = false; Rodeo = null; P.selle = 0; m.fuite = 3; m.menace = b; say('désarçonné', 1.4); }
     if (P.pv <= 0) terrasse();
@@ -12691,6 +12695,7 @@ function porterCoup(b, c, deg) {
   const dgC = deg / robuste(c) * (c.sp && c.sp.boss ? .5 : 1) * (b && b.tame && effet('meute') ? 1 + .35 * effet('meute') : 1) * (1 + .1 * puissBete(b, 'defense')) * (1 - .06 * puissBete(c, 'defense')) * (b && b.comp && b.comp.vyrel ? .7 : 1) * donsMeuteK(b, c);   // (§184) une compagne malade frappe moins fort ; (§207) le chef de meute
   if (c.comp && typeof vyrelMorsure === 'function') vyrelMorsure(b, c);
   c.pv -= dgC; c.hit = .25; c.alarm = 1;   // la meute galvanisée   // sur la Tisseuse, crocs et griffes glissent
+  if (typeof pouvoirCoup === 'function') pouvoirCoup(b, c, dx / d, dy / d);   // (§238) la morsure de l'élément
   // une bête armée (§234 : riposte) rend parfois le coup qu'elle reçoit d'un chasseur
   if (b.sp.chasse && c.sp.riposte > .3 && Math.random() < c.sp.riposte * .5) { b.pv -= .12; b.hit = .2; }
   // repoussée et un instant étourdie : la bête laisse une vraie fenêtre pour fuir — et lâche sa paroi
@@ -13955,7 +13960,7 @@ function majBete(b, dt) {
   const presse = !!men && (dM < 9 || men.cible === b || (!!men.as && men.as.c === b));
   if (b.brame > t && !b.tame) { b.as = null; b.riposteA = null; }   // sous le brame, plus d'assaut : il fuit
   let etat = 'errer', tx = b.x, ty = b.y, vit = sp.spd, sprint = 1;
-  const cond = typeof conduitesBete === 'function' && !b.as && !furie ? conduitesBete(b, dt, men, dM, J, dJ) : null;   // (§211) une conduite d'Orvane : cracher, se figer, se replier, détaler à l'alerte
+  const cond = (typeof pouvoirBete === 'function' && !b.as && !furie ? pouvoirBete(b, dt, J, dJ) : null) || (typeof conduitesBete === 'function' && !b.as && !furie ? conduitesBete(b, dt, men, dM, J, dJ) : null);   // (§238) le pouvoir de l'élément d'abord   // (§211) une conduite d'Orvane : cracher, se figer, se replier, détaler à l'alerte
   if (cond) { etat = cond.etat; vit = cond.vit ?? 0; tx = cond.tx ?? b.x; ty = cond.ty ?? b.y; if (cond.dirT != null) b.dirT = cond.dirT; if (cond.sprint) sprint = cond.sprint; if (cond.men) { men = cond.men; dM = (b.x - men.x) ** 2 + (b.y - men.y) ** 2; } }
   else if (b.enfoui > 0 && !b.as) { b.enfoui -= dt; if (men && dM < 12) b.enfoui = Math.max(b.enfoui, .4); etat = 'enfoui'; }
   else if (b.as) etat = 'assaut';
@@ -21949,6 +21954,7 @@ function statutsJoueur() {
     add('spore', 'mal', 'Spores de Korlaz', 'à 100 %, c\'est l\'infection · éloignez-vous de la roche rongée', null, Math.round(Math.min(1, P.korlazExpo / KORLAZ_SEUIL) * 100) + ' %');
   if (typeof vyrelStatuts === 'function') vyrelStatuts(add);   // (§184) le Vyrel
   if (typeof orvaneStatuts === 'function') orvaneStatuts(add);   // (§211) irrité
+  if (typeof pouvoirStatuts === 'function') pouvoirStatuts(add);   // (§238) gelé
   if (P.poison > t) add('st_poison', 'mal', 'Empoisonné', 'la vie baisse peu à peu · le poison ne tue pas', P.poison);
   if (P.brulure > t) add('st_brulure', 'mal', 'Brûlure', 'la vie brûle', P.brulure);
   else if (biomeIci === 14 && P.ground && !P.monture && !effet('braise')) add('st_brulure', 'mal', 'Braises', 'les plaques vives brûlent qui s\'y attarde');
@@ -22303,7 +22309,8 @@ function majCible() {
     else { nom = nomEspeceDe(o);
       info = `${DITS_ETAT[o.etat] || o.etat} · faim ${Math.round(o.faim * 100)} % · confiance ${Math.round(o.conf * 100)} %`
 ; }
-    if (typeof orvaneCibleDit === 'function' && o.sp) info += orvaneCibleDit(o);   // (§211) ce qu'on sait de ses conduites, ou son présage
+    if (typeof orvaneCibleDit === 'function' && o.sp) info += orvaneCibleDit(o);
+    if (typeof pouvoirDit === 'function' && o.sp) info += pouvoirDit(o);   // (§238) son pouvoir, sa morsure   // (§211) ce qu'on sait de ses conduites, ou son présage
     const E = o.sp && !o.tame && !o.loin && liensLibres() > 0 ? etatLien(o) : null;   // (§145) la chance du lien, et ce qui est rempli
     const vr = CIB.verrou && CIB.o === o, loinL = E && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 >= LIEN_PORTEE * LIEN_PORTEE;
     html = `<b class="${o.sp && !o.sp.pnj && !o.pnjSuit && !o.sp.villageois ? clRar(rareBete(o)) : ''}">${ESC(nom)}</b><div class="br"><i style="width:${Math.round(Math.max(0, o.pv) * 100)}%"></i></div><small>${ESC(info)}</small>`

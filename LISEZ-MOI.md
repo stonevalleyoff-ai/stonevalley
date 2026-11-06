@@ -7567,3 +7567,34 @@ L'élément donne sa palette, vive (huit palettes, une teinte tournée d'une lig
 - **Au studio et en jeu**, de jour et de nuit : les couleurs, les runes, les cristaux, les orbites, les ailes d'éther.
 - **Dans le navigateur** : six îles, aucune erreur ; les compagnes d'avant deviennent des lignées, la monture se monte.
 - `sw.js` : `stone-valley-207`, et `?v=207` aux scripts.
+
+## §238 · Les pouvoirs des éléments ; des créatures un peu plus grandes
+
+**La taille.** Toutes les lignées d'Orvane grandissent de 15 % (`orvane-sv.js`, `appliquerDef`) ; les épiques montent jusqu'à 2,9 (de 0,53 à 2,83 dans le monde d'aujourd'hui, 1,11 au milieu).
+
+**La morsure de l'élément** (`pouvoirs.js`, `pouvoirCoup`, appelé par `porterCoup`). Chaque coup d'une créature porte son élément, d'autant plus longtemps qu'elle est puissante :
+- la **braise** brûle ; le **givre** gèle (on avance moitié moins vite, un nouvel état au tableau de bord) ; le **cristal** tranche (des dégâts en plus) ; la **sylve** empoisonne ;
+- l'**abysse** repousse loin ; l'**orage** électrise (un instant cloué) ; l'**ombre** draine (elle reprend de la vie) ; l'**aurore** soigne les siens.
+
+Sur une bête (une compagne qui mord, ou une bête mordue par une autre) : la braise et le venin brûlent quelques secondes, le givre et l'orage étourdissent, le cristal blesse, l'abysse repousse.
+
+**Le pouvoir**, dès le rang 0,5 (`pouvoirBete`, appelé par `majBete` avant les conduites). La créature le lance quand elle se bat contre vous : elle vous traque, elle est en colère, acculée, ou elle chasse et vous êtes près. Il s'**annonce** toujours : elle s'arrête, l'élément tourbillonne autour d'elle (près d'une seconde, de quoi s'écarter), et la frapper pendant ce temps l'**interrompt**.
+- **braise**, souffle de braise : une boule de feu qui éclate et brûle ;
+- **givre**, souffle de givre : un cône de gel devant elle ;
+- **cristal**, volée d'éclats : trois éclats en éventail ;
+- **sylve**, ronces : elles clouent au sol et empoisonnent ;
+- **abysse**, trombe : elle projette au loin ;
+- **orage**, foudre : un cercle au sol là où vous êtes, puis l'éclair, qui foudroie (cloué près d'une seconde) ;
+- **ombre**, pas de l'ombre : elle disparaît dans la fumée, reparaît dans votre dos, et mord ;
+- **aurore**, lumière d'aurore : tout son troupeau soigné, et qui est trop près, ébloui.
+
+Il revient toutes les dix à seize secondes, plus vite chez les plus puissantes ; une créature en l'air n'en lance pas. La première fois qu'on voit celui d'une lignée, une ligne le dit ; la fiche de la cible le nomme, avec la morsure.
+
+**Une compagne garde le sien** : elle le lance sur la bête qu'elle combat, ou sur ce qui vous attaque (la foudre, les ronces, la boule de feu tombent sur les bêtes ; la lumière d'aurore vous soigne aussi).
+
+**Le branchement.** `pouvoirs.js` (nouveau, chargé après `conduites.js`) ; `index.html` : `porterCoup`, `majBete`, l'allure du joueur (le gel), le tableau de bord, la fiche de la cible, la boucle de l'île ; `conduites.js` : `orvaneImpact` passe la main aux projectiles de pouvoir ; `sw.js` : `stone-valley-208`, `pouvoirs.js` au cache, `?v=208` aux scripts.
+
+**Vérifié.**
+- **Chaque élément**, en jeu, une créature puissante en colère contre le joueur : l'annonce, puis la brûlure, le gel, les éclats, les ronces (cloué, empoisonné), la trombe, la foudre (cloué), le pas de l'ombre (elle reparaît et mord), la lumière (ébloui, le troupeau soigné de 0,3 à 0,84).
+- **Une compagne** de braise, d'orage, de givre et d'aurore contre une bête : l'annonce, puis la brûlure, l'étourdissement, les dégâts.
+- **Dans le navigateur** : six îles, aucune erreur ; les compagnes d'avant, la monture.
