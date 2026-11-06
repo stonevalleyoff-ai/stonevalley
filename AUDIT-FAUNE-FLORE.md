@@ -471,8 +471,16 @@ Sept lots. Après chacun, le jeu tourne, chaque `<script>` compile, et une secti
 **Où on en est.**
 - **Lot 0 fait** (§224).
 - **Lot 1 fait** (§225). La migration des compagnes a glissé au lot 5 : une compagne faite main garde ses talents (monture, pêche, soins) tant que les lignées ne savent pas les reprendre par leurs traits.
-- **Lot 2 commencé** (§226) : la puissance, le tirage des îles par la puissance, l'allure du mignon à l'épique, les largeurs à l'échelle. Restent le shader (liseré, vraies lueurs la nuit), les matières, les nouvelles formes et les portraits.
-- **Lot 3 commencé** (§227) : les états qui se fondent, le ressort des mignonnes, le poids des épiques, le recul, les signes « ! » et « z ». Restent les gestes de repos, les parades et les attaques signature.
+- **Lot 2 bien avancé** (§226, §229, §230) :
+  - fait : la puissance, le tirage des îles par la puissance, l'allure du mignon à l'épique, les largeurs à l'échelle, les vraies lueurs la nuit, la matière du corps ;
+  - reste : un liseré de lumière dans le shader, les nouvelles formes (segmenté, rayonné, tentacules), les portraits.
+- **Lot 3 commencé** (§227) :
+  - fait : les états qui se fondent, le ressort des mignonnes, le poids des épiques, le recul, les signes « ! » et « z » ;
+  - reste : les gestes de repos, les parades et les attaques signature.
+- **Lot 4 commencé** (§228, §231) :
+  - fait : les rythmes (crépusculaires, jour et nuit), le joueur qui n'est plus une proie pour les petites bêtes, les mangeurs de fruits aux buissons ;
+  - reste : les groupes (meutes, chefs, sentinelles), les nids, les réactions entre bêtes, l'équilibre des chasseurs au loin.
+- **Lots 5 et 6** : pas commencés.
 
 L'ordre 0 → 1 → 2 → 3 → 4 → 5 → 6 garde le jeu jouable à chaque étape. Les anciennes créatures disparaissent des îles dès le lot 1, et leur code part au lot 6, une fois que plus rien n'en dépend.
 
