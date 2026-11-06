@@ -454,13 +454,48 @@ function talentsFiche(sp) {
 // (§233) LA MIGRATION DES COMPAGNES. Une compagne d'une espèce faite main, retirée de la nature (index.html, FAITE_MAIN), devient la
 // lignée d'Orvane la plus proche : même régime, taille voisine, qui vole si elle volait, qu'on peut monter si c'était une monture. Elle
 // garde son nom, son niveau et ses potions. Le choix est fait une fois : la sauvegarde suivante porte la lignée.
+// La table des espèces d'avant, pour les seules sauvegardes d'avant : leur nom (pour le dire au joueur), leur taille, leur régime,
+// si elles volaient ou se montaient, et la viande qui remplace la leur au garde-manger (orvaneViande). Elles n'existent plus ailleurs.
+const ANCIENNES = {
+  brouteur: { n: 'Brouteur', sz: 0.85, g: 'herbivore', v: 'v_tendre' },
+  bosseu: { n: 'Bossu', sz: 1.35, g: 'herbivore', v: 'v_tendre' },
+  glaneur: { n: 'Glaneur', sz: 0.6, g: 'omnivore', v: 'v_menu' },
+  traqueur: { n: 'Traqueur', sz: 1, g: 'carnivore', v: 'v_chasseur' },
+  spectre: { n: 'Spectre', sz: 1.25, g: 'carnivore', v: 'v_fauve' },
+  coursier: { n: 'Coursier', sz: 1.15, g: 'herbivore', monture: 1, v: 'v_gibier' },
+  coursier_o: { n: 'Coursier orange', sz: 1.18, g: 'herbivore', monture: 1, v: 'v_gibier' },
+  coursier_r: { n: 'Coursier rouge', sz: 1.22, g: 'herbivore', monture: 1, v: 'v_grosgibier' },
+  coursier_a: { n: 'Coursier d\'aurore', sz: 1.25, g: 'herbivore', monture: 1, v: 'v_grosgibier' },
+  crapaud: { n: 'Crapaud-buffle', sz: 1.5, g: 'omnivore', v: 'v_ecaille' },
+  varan: { n: 'Varan d\'ocre', sz: 1.35, g: 'omnivore', v: 'v_ecaille' },
+  vesseron: { n: 'Vesseron', sz: 1.2, g: 'herbivore', v: 'v_tendre' },
+  cerf: { n: 'Cerf de verre', sz: 1.55, g: 'herbivore', v: 'v_grosgibier' },
+  salamandre: { n: 'Salamandre de braise', sz: 1.25, g: 'omnivore', v: 'v_fauve' },
+  sika: { n: 'Cerf des cerisiers', sz: 1.4, g: 'herbivore' },
+  lentigrade: { n: 'Lentigrade', sz: 1.9, g: 'herbivore', v: 'v_gibier' },
+  cotonnier: { n: 'Cotonnier', sz: 1.5, g: 'herbivore', v: 'v_tendre' },
+  carillonneur: { n: 'Carillonneur', sz: 1.35, g: 'herbivore', v: 'v_gibier' },
+  oglodon: { n: 'Oglodon', sz: 1.35, g: 'herbivore', v: 'v_grosgibier' },
+  lentisakura: { n: 'Lentigrade-cerisier', sz: 2.2, g: 'herbivore' },
+  felin: { n: 'Félin de brume', sz: 1.05, g: 'carnivore', v: 'v_fauve' },
+  bramard: { n: 'Bramard', sz: 1.4, g: 'herbivore', v: 'v_gibier' },
+  sterne: { n: 'Sterne des nues', sz: 1.3, g: 'omnivore', vole: 1, v: 'v_volaille' },
+  dragon: { n: 'Dragon à plumes', sz: 1, g: 'carnivore', vole: 1, v: 'v_fauve' },
+  renard: { n: 'Renard des pétales', sz: 0.85, g: 'herbivore' },
+  trottin_menu: { n: 'Trottin furet', sz: 0.8, g: 'herbivore' },
+  trottin_echasse: { n: 'Trottin haute-tige', sz: 1.2, g: 'herbivore' },
+  trottin_pataud: { n: 'Trottin racine', sz: 1.2, g: 'herbivore' },
+  trottin_bondeur: { n: 'Trottin bondelaine', sz: 1, g: 'herbivore' },
+  trottin_huppe: { n: 'Trottin augure', sz: 0.9, g: 'herbivore' }
+};
 const MIGREES = {};
 function orvaneMigrer(esp) {
-  try { if (typeof FAITE_MAIN === 'undefined' || !FAITE_MAIN.has(esp) || typeof SPEC === 'undefined') return esp; } catch (e) { return esp; }
+  const v = Object.prototype.hasOwnProperty.call(ANCIENNES, esp) ? ANCIENNES[esp] : null;
+  if (!v || typeof SPEC === 'undefined') return esp;
   if (MIGREES[esp]) return MIGREES[esp];
-  const v = typeof specById !== 'undefined' ? specById[esp] : null, g = Corr.GROUPE?.[Corr.FAUNE?.[esp]] || 'herbivore';
+  const g = v.g || 'herbivore';
   // sa masse, lue à l'échelle des lignées (appliquerDef : la taille suit le logarithme de la masse) : la compagne garde à peu près sa taille
-  const m0 = Math.pow(10, clamp(((v?.sz || 1) - .5) / .275 - 2, -2, 2)), vole = !!(v && (v.volant || v.dragon)), monte = !!(v && v.monture), chasse = g === 'carnivore';
+  const m0 = Math.pow(10, clamp(((v.sz || 1) - .5) / .275 - 2, -2, 2)), vole = !!v.vole, monte = !!v.monture, chasse = g === 'carnivore';
   const deja = {}; for (const k in MIGREES) deja[MIGREES[k]] = (deja[MIGREES[k]] || 0) + 1;
   let best = null, bs = -1e9;
   for (const sp of SPEC) {
@@ -1041,7 +1076,7 @@ const hachage = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = (Mat
 racine.orvaneEspeces = orvaneEspeces; racine.orvaneAppliquer = orvaneAppliquer; racine.orvaneVariante = orvaneVariante; racine.orvaneEvenement = orvaneEvenement;
 racine.orvaneTirage = orvaneTirage; racine.orvaneArrivee = orvaneArrivee; racine.orvaneTrophee = orvaneTrophee; racine.orvanePhoto = orvanePhoto;
 racine.orvaneRelire = orvaneRelire; racine.orvaneCarnetLignees = orvaneCarnetLignees; racine.orvaneVol = orvaneVol; racine.orvaneNage = orvaneNage; racine.orvanePlaceEau = orvanePlaceEau;
-racine.orvaneLot = orvaneLot; racine.orvaneMigrer = orvaneMigrer; racine.orvaneEnvoyer = orvaneEnvoyer; racine.orvaneNaissance = orvaneNaissance;
+racine.orvaneLot = orvaneLot; racine.orvaneMigrer = orvaneMigrer; racine.orvaneViande = id => { const m = /^v_(.+)$/.exec(id || ''); return m && ANCIENNES[m[1]]?.v || id; }; racine.orvaneAncienne = id => ANCIENNES[id] || null; racine.orvaneEnvoyer = orvaneEnvoyer; racine.orvaneNaissance = orvaneNaissance;
 racine.OrvaneSV = { S, purger, parcelleIle, effectifIci, repeuplerIle, rangsRarete, ligneesDuJeu, garantirChasseur, conduitesPour, loiQ, tirerQuant, quantMots, apprisDe, apprisFuite, heriter, zoneHybride, hybrider, charger, avancement, effectifSur, biomesIle, releverRencontres, inscrireLignees, definir, enregistrer, especeDeSecours, ancetreJeu, nomJeu, CAUSES_JOUEUR, SEUIL_CORPS };
 lire();
 if (typeof window !== 'undefined' && typeof fetch === 'function') { charger(); setInterval(releverRencontres, PERIODE_RENCONTRE); }
