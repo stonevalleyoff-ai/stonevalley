@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=220"></script>
-<script src="rouages.js?v=220"></script>
-<script src="forge.js?v=220"></script>
-<script src="nomades.js?v=220"></script>
-<script src="etats.js?v=220"></script>
-<script src="brume.js?v=220"></script>
-<script src="roi.js?v=220"></script>
-<script src="trone.js?v=220"></script>
-<script src="achromie.js?v=220"></script>
-<script src="vyrel.js?v=220"></script>
-<script src="village.js?v=220"></script>
-<script src="volcan.js?v=220"></script>
-<script src="dons.js?v=220"></script>
-<script src="coop.js?v=220"></script>
-<script src="faune.js?v=220"></script>
-<script src="flore.js?v=220"></script>
-<script src="lignees.js?v=220"></script>
-<script src="conduites.js?v=220"></script>
-<script src="pouvoirs.js?v=220"></script>
+<script src="donjon.js?v=221"></script>
+<script src="rouages.js?v=221"></script>
+<script src="forge.js?v=221"></script>
+<script src="nomades.js?v=221"></script>
+<script src="etats.js?v=221"></script>
+<script src="brume.js?v=221"></script>
+<script src="roi.js?v=221"></script>
+<script src="trone.js?v=221"></script>
+<script src="achromie.js?v=221"></script>
+<script src="vyrel.js?v=221"></script>
+<script src="village.js?v=221"></script>
+<script src="volcan.js?v=221"></script>
+<script src="dons.js?v=221"></script>
+<script src="coop.js?v=221"></script>
+<script src="faune.js?v=221"></script>
+<script src="flore.js?v=221"></script>
+<script src="lignees.js?v=221"></script>
+<script src="conduites.js?v=221"></script>
+<script src="pouvoirs.js?v=221"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=220"></script><script src="orvane/tampon.js?v=220"></script><script src="orvane/correspondance.js?v=220"></script><script src="orvane/secours.js?v=220"></script><script src="orvane/orvane-sv.js?v=220"></script>
+<script src="orvane/corps.js?v=221"></script><script src="orvane/tampon.js?v=221"></script><script src="orvane/correspondance.js?v=221"></script><script src="orvane/secours.js?v=221"></script><script src="orvane/orvane-sv.js?v=221"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -21376,7 +21376,7 @@ function volerVers(b, tx, ty, tz, vd, mode, dt) {
     rot = Math.max(-om, Math.min(om, dd * 2.4));
     b.dir += rot * dt;
   }
-  b.v = v0 + (vd - v0) * Math.min(1, dt * (mode === 'pique' ? 3 : 1.6));
+  b.v = v0 + (vd - v0) * Math.min(1, dt * (mode === 'pique' ? 3 : 2.2));
   // le plancher : le relief devant, et les îles de nuage qu'on survole (en dessous, on passe)
   const la = 2.2 + b.v * .45, ax = b.x + Math.cos(b.dir) * la, ay = b.y + Math.sin(b.dir) * la;
   let plancher = Math.max(hRendu(ax, ay), hRendu(b.x, b.y)) + (mode === 'pique' || mode === 'pose' ? .25 : 1.6 + (K.marge || 0));
@@ -21388,14 +21388,14 @@ function volerVers(b, tx, ty, tz, vd, mode, dt) {
   let vzD = mode === 'pique' ? -10 : Math.max(-3.4, Math.min(3, (zc - b.z) * 1.5));
   // (§240) le plané : sans battre, l'aile ne tient pas l'altitude — on glisse en perdant un peu de hauteur, et l'on gagne de la vitesse
   if (mode === 'plane' && b.thermique && !(b.rafale > 0)) vzD = Math.max(-.2, Math.min(vzD, .9));   // dans un courant chaud, elle monte sans battre
-  else if (mode === 'plane' && !(b.rafale > 0) && b.z > plancher + .4) { vzD = Math.min(vzD, -.32 - .1 * Math.max(0, b.v - 3)); b.v += dt * .25; }
+  else if (mode === 'plane' && !(b.rafale > 0) && b.z > plancher + .4 && b.z > zc - .6) { vzD = Math.min(vzD, -.32 - .1 * Math.max(0, b.v - 3)); b.v += dt * .25; }   // (§251) le plané : à hauteur, en descendant ; plus bas que voulu, elle bat
   if (b.z < plancher - .2) vzD = Math.max(vzD, 3.6);
   b.vz = (b.vz || 0) + (vzD - (b.vz || 0)) * Math.min(1, dt * (mode === 'pique' ? 2.5 : 3));
   // les ailes : en surplace et en montée, elles battent fort ; en plané, par reprises
   if (b.rafale > 0) b.rafale -= dt;
   else if (mode === 'plane' && (Math.random() < dt * (b.thermique ? .04 : .16) || (b.z < tz - 1.4 && !b.thermique))) b.rafale = .9 + Math.random() * .8;
   let bat = mode === 'sur' ? 1 : mode === 'pique' ? 0 : mode === 'plane' ? (b.rafale > 0 ? .7 : 0) : mode === 'pose' ? .55 : .75;
-  if (b.vz > 1 && mode !== 'pique') bat = Math.max(bat, .95);
+  if (b.vz > .25 && mode !== 'pique') bat = Math.max(bat, .95);   // (§251) qui monte bat des ailes : on ne monte pas en planant
   // (§240) le battement se fond dans le plané, et revient de même ; une grande aile bat plus lentement
   b.bat = (Number.isFinite(b.bat) ? b.bat : bat) + (bat - (Number.isFinite(b.bat) ? b.bat : bat)) * Math.min(1, dt * 4);
   const lent = Math.max(.45, Math.min(1.2, 1.25 - .3 * ((b.sp && b.sp.sz) || 1)));

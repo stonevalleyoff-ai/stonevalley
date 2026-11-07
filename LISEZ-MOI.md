@@ -7884,3 +7884,15 @@ Un nageur vaut sa famille dans les recettes (`reqVa`) et dans les plats remarqua
 - **La sauvegarde** relue, même sans la lignée ; le carnet, manger, donner à une bête.
 - **Les vues** : un banc de petits poissons sous l'eau, un poisson brandi.
 - **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture ; le canvas de secours. `sw.js` : `stone-valley-220`.
+
+## §251 · Les poissons ne pétillent plus ; des oiseaux plus vifs, qui battent pour monter ; plus de sautillement
+
+**Les poissons pétillaient.** Un nageur pêché (§250) est une lignée d'Orvane, avec sa fantaisie d'élément. Il en portait les effets de terre : l'aura (des particules qui montent), la poussière des pas d'une épique (`lgFoulee`), la crinière de flammes ou d'étincelles (`lgFantaisie`, qui clignote). Sous l'eau, tout cela sortait de la surface en étincelles. Un nageur (`f.nageur`) n'a plus ni aura, ni poussière, ni crinière.
+
+**Les oiseaux volaient trop lentement, et planaient en montant.**
+- **Plus vite** (`orvaneVol`) : en balade, 5,6 cases par seconde (3,2 avant, moins vite qu'un marcheur) ; en plané, 7 (4) ; pour gagner une proie, 7,5 (5) ; au piqué, 10 (7) ; en fuite, 8,5 (5,2). Un grand oiseau va un peu plus vite encore (+15 % par point de taille, jusqu'à +30 %). Il accélère plus franchement.
+- **Pour monter, il bat des ailes** : plus de montée en spirale « dans un courant chaud » sans un battement (`b.thermique`). Dès qu'il monte un peu (plus de 0,25 case par seconde), il bat (`volerVers`). Le plané ne se fait plus qu'à hauteur, en descendant doucement.
+
+**Les petites créatures sautillaient** (§226, `osOrvane`). Une mignonne rebondissait à chaque pas, s'écrasait au sol et s'étirait en l'air ; une petite (ou une sauteuse) courait par bonds, les pieds joints. Tout cela est retiré. Elle marche, trotte et galope comme les autres, et son corps rebondit à peine (60 % de moins chez les plus petites). Les vrais sauts (sur une marche, par-dessus un trou) restent.
+
+**Vérifié.** Un phénix des braises en balade : 6,4 cases par seconde en moyenne au lieu de 3,2 ; à chaque échantillon de montée, il bat des ailes. Une pêche de bout en bout. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-221`.

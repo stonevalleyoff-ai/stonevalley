@@ -152,7 +152,7 @@ function lgFoulee(f, M) {
   f._lgB = .65 * W.p + .5 * W.t + (M.bip ? .38 : .36) * W.g;           // la part de l'appui
   const avant = f._lgPh || 0; f._lgPh = (avant + d / f._lgD) % 1;
   // (§226) une épique lourde pose le pied : un nuage de poussière à chaque pas
-  if ((M.epique || 0) > (M.el ? .25 : .5) && !f.dead && !f.enVol && d > .01 && Math.floor(avant * 2) !== Math.floor(f._lgPh * 2) && typeof burst === 'function')
+  if ((M.epique || 0) > (M.el ? .25 : .5) && !f.dead && !f.enVol && !f.nageur && d > .01 && Math.floor(avant * 2) !== Math.floor(f._lgPh * 2) && typeof burst === 'function')
     try { burst(f.x, f.y, (f.z || 0) + .05, 2 + Math.round(M.epique * 2), M.el ? M.partEl : '#9a8a70'); } catch (e) { }   // (§237) braises, givre, étincelles…
   return f.dead ? 0 : Math.min(1.6, f._lgV || 0);
 }
@@ -202,9 +202,9 @@ function osOrvane(f) {
   if (M.poisson) return lgStyle(f, M, lgPoisson(f, M, B, add, { v, ph, allure, dk, couche, souffle, R, bouche, g }));   // (§226) un poisson aussi, à l'échelle
   // la hauteur du dos : debout sur ses pattes, couché quand il dort ou qu'il meurt ; un galop tangue, une traque s'aplatit
   const bz0 = M.serpent ? Th * .42 : M.Hl + Th * .5;
-  const saut = cu * allure * Math.abs(Math.sin(ph * 2)) * (.045 + .035 * cu) * (1 - couche);   // (§226) la mignonne sautille
+  const saut = 0;                                                    // (§251) la mignonne ne sautille plus (§226 : elle bondissait à chaque pas)
   const Wg = f._lgW || { p: 1, t: 0, g: 0 }, mv = lgCl(v / .2, 0, 1) * (1 - couche);   // (§241) le rebond suit l'allure : deux petits creux au pas, deux rebonds au trot, un grand au galop
-  const rebond = mv * M.Hl * (.025 * Wg.p * Math.cos(ph * 2) + .06 * Wg.t * Math.abs(Math.sin(ph * 2)) + .13 * Wg.g * Math.sin(ph));
+  const rebond = mv * M.Hl * (.025 * Wg.p * Math.cos(ph * 2) + .06 * Wg.t * Math.abs(Math.sin(ph * 2)) + .13 * Wg.g * Math.sin(ph)) * (1 - .6 * (M.petit || 0));   // (§251) une petite rebondit à peine
   const air = lisse('_lgAir', !vol && !f.dead && !f.mur && !f.tang && !f.enfoui && typeof sol === 'function' && (f.z || 0) - sol(f.x, f.y) > .12 ? 1 : 0, 9);   // en l'air (un saut, une chute)
   if (air < .3 && (f._lgAirP || 0) >= .3) f._lgRecep = t + .2; f._lgAirP = air;                    // la réception : le corps s'écrase un instant
   const recep = f._lgRecep > t ? (f._lgRecep - t) / .2 : 0;
@@ -295,7 +295,7 @@ function osOrvane(f) {
     for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); const y = p[1], z = p[2] - zc; p[1] = y * c - z * s; p[2] = zc + y * s + z * c; } }
   lgSignes(f, M, add, T, { couche, dort, al }, B);
   // (§226) la mignonne s'écrase en touchant le sol et s'étire en l'air ; toute bête recule d'un coup quand on la frappe (l'épique à peine)
-  const sq = cu * allure * Math.cos(ph * 4) * .12 * (1 - couche), coup = f.hit > 0 && !f.dead ? Math.min(1, f.hit * 4) * (1 - .7 * ep) : 0;
+  const sq = 0, coup = f.hit > 0 && !f.dead ? Math.min(1, f.hit * 4) * (1 - .7 * ep) : 0;
   if (sq || coup) { const vu = new Set(); for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); p[2] *= 1 - sq; p[0] = p[0] * (1 + sq * .5) - coup * .07; } }   // (un point partagé par deux os ne bouge qu'une fois)
   return lgStyle(f, M, B);
 }
@@ -464,7 +464,7 @@ function lgStyle(f, M, B) {
 const lgEase = q => q * q * (3 - 2 * q);
 function lgOffsets(M, i, s, paires, W, bond) {
   const g = s > 0 ? 0 : 1;                                           // s > 0 : la gauche
-  if (M.bip) { const p = g * .5; return { p, t: p, g: M.sauteur ? g * .06 : p }; }
+  if (M.bip) { const p = g * .5; return { p, t: p, g: p }; }
   if (M.hexa || paires > 2) {
     const tri = ((i % 2) * .5 + g * .5) % 1, vague = ((paires - 1 - i) / paires * .5 + g * .5) % 1;
     return { p: vague, t: tri, g: tri };
@@ -478,7 +478,7 @@ function lgPattes(f, M, add, A) {
   const W = f._lgW || { p: 1, t: 0, g: 0 }, beta = f._lgB || .65, k = (typeof echB === 'function' ? echB(f) : 1) || 1, D = (f._lgD || .5) / k;
   const paires = M.pattes / 2, plie = Math.max(couche, vol ? 1 : 0), mv = lgCl((v || 0) / .2, 0, 1) * (1 - plie) * (1 - (air || 0));
   const ecart = M.hexa ? .12 + M.Hl * .3 : .012 + M.lourd * .02, ep = M.hexa ? .032 : M.ep;
-  const bond = !!(M.sauteur || M.petit > .5) && !M.lourd;
+  const bond = false;                                                // (§251) plus de bond à pieds joints : elle court comme les autres
   const S = D * beta, lift = (M.Hl + .02) * (.2 * W.p + .3 * W.t + .4 * W.g) * (M.hexa ? .7 : 1);
   const hzR = M.bip ? M.Hl + Th * .3 : M.Hl + Th * .25;               // la hauteur de la hanche, debout : elle fixe la longueur des os
   const vz = f.vz || 0, monte = vz > 0;
@@ -635,7 +635,7 @@ function lgPoisson(f, M, B, add, A) {
   for (const s of [-1, 1]) { const o = [tt[0] - L * .06, s * Wd * .36, bz + haut * .12]; add(o, [o[0] + ye * .4, o[1] + s * .006, o[2]], ye * .7, ye, M.oeil, M.tr.has('yeux-nocturnes'));
     add([o[0] + ye * .15, o[1] + s * ye * .35, o[2] + ye * .25], [o[0] + ye * .25, o[1] + s * ye * .35, o[2] + ye * .25], .01, .01, LG.BLANC, 1); }
   if (M.organes.length) lgOrganes(add, M, { tete: tt, hs: haut * .6, nez: [tt[0] + .03, tt[1], bz], avant: tt, bout: q, bz, xa: L * .5, xr: -L * .5, Lt: L, Th, Wd, couche, allure });
-  if (M.el) lgFantaisie(f, M, add, B, { T: { tete: tt, hs: haut * .6, nez: [tt[0] + .03, tt[1], bz] }, avant: tt, bout: q, bz, xa: L * .5, xr: -L * .5, couche, allure, dk, g, vol: false, al: f.alarm || 0 });   // (§237)
+  if (M.el && !f.nageur) lgFantaisie(f, M, add, B, { T: { tete: tt, hs: haut * .6, nez: [tt[0] + .03, tt[1], bz] }, avant: tt, bout: q, bz, xa: L * .5, xr: -L * .5, couche, allure, dk, g, vol: false, al: f.alarm || 0 });   // (§237) ; (§251) un poisson pêché : ni crinière de flammes ni étincelles sous l'eau
   return B;
 }
 
@@ -806,7 +806,7 @@ function lgFantaisie(f, M, add, B, A) {
   // l'aura : des particules qui montent (ou tombent, pour le givre), d'autant plus nombreuses qu'elle est puissante
   try {
     const dtA = Math.min(.1, Math.max(0, t - (f._lgAuT ?? t))); f._lgAuT = t;
-    if (typeof parts !== 'undefined' && typeof P !== 'undefined' && !f.dead && parts.length < 1400 && (f.x - P.x) ** 2 + (f.y - P.y) ** 2 < 324) {
+    if (typeof parts !== 'undefined' && typeof P !== 'undefined' && !f.dead && !f.nageur && parts.length < 1400 && (f.x - P.x) ** 2 + (f.y - P.y) ** 2 < 324) {
       f._lgAu = (f._lgAu || 0) + dtA * M.aura;
       const k = (typeof echB === 'function' ? echB(f) : 1) || 1;
       while (f._lgAu >= 1) { f._lgAu -= 1; const a = Math.random() * 6.2832, r = Math.random() * Lt * .6 * k, x = f.x + Math.cos(a) * r, y = f.y + Math.sin(a) * r, z = (f.z || 0) + (bz + Th * (.2 + Math.random())) * k;

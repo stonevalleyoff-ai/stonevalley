@@ -1,7 +1,7 @@
 // Stone Valley — le service worker : la page et ses images sont gardées, pour jouer hors ligne.
 // La page passe par le réseau d'abord (une nouvelle version arrive donc au premier chargement),
 // le reste par le cache d'abord. Tout ce qui va vers Supabase passe tout droit.
-const CACHE = 'stone-valley-220';   // (§236) la même version que les scripts de index.html (src="….js?v=220")
+const CACHE = 'stone-valley-221';   // (§236) la même version que les scripts de index.html (src="….js?v=221")
 const FICHIERS = ['./', './index.html', './donjon.js', './rouages.js', './forge.js', './nomades.js', './etats.js', './brume.js', './roi.js', './trone.js', './achromie.js', './vyrel.js', './village.js', './volcan.js', './dons.js', './coop.js', './faune.js', './flore.js', './lignees.js', './conduites.js', './pouvoirs.js', './orvane/corps.js', './orvane/tampon.js', './orvane/correspondance.js', './orvane/secours.js', './orvane/orvane-sv.js', './manifest.webmanifest',
   './icone-192.png', './icone-512.png', './icone-maskable-512.png'];
 
