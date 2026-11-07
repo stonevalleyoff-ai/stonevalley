@@ -7809,3 +7809,19 @@ Tout se tire de la bête elle-même (le même tirage d'une image à l'autre) : r
 **Mesuré.** Les bêtes à moins de trente cases portent deux fois plus de pièces (1 016 au lieu de 524 pour dix bêtes) : 0,6 ms de plus par image pour les calculer, dans le navigateur de test.
 
 **Vérifié.** De près, une bête par robe : un mammouth de laine, une chimère à toison, un lutin à poils, un naga à écailles, un phénix à plumes, un faon à peau grenue. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-216`.
+
+## §247 · Les ailes d'éther ne sont plus des plaques blanches
+
+Les ailes d'éther (§237, §240), que la fantaisie donne aux créatures épiques, sortaient en deux grandes feuilles blanches et plates. On aurait dit un défaut d'affichage (Varen, chimère des spectres, par exemple). Trois causes :
+- **Tout luisait** : le bras, la membrane, la peau entre les doigts. Une pièce qui luit ne prend aucune ombre, et la membrane, d'un mélange de la lueur de l'élément et de la robe, était presque blanche.
+- **Elles restaient à moitié ouvertes** : l'appel (`lgFantaisie`) passait `dresse: 1`, et chez une épique cela tenait l'aile ouverte en permanence. Une alarme de fond de 0,35 s'y ajoutait.
+- **Elles étaient grandes** : 1,1 à 1,6 fois la longueur du tronc.
+
+Maintenant (`lgAiles`, style `ether`) :
+- la membrane est **teintée** de l'élément, plus sombre, et **ombrée** comme le reste du corps ;
+- chaque pan est fait de **trois voiles**, avec du jour entre eux, de plus en plus clairs vers le bord, et la peau entre les doigts est un voile étroit : l'aile est ajourée, aérienne ;
+- seuls **le bord de l'aile et les doigts luisent** ; le bras ne luit plus ;
+- au repos, elles sont **repliées** le long du flanc ; l'alarme les ouvre (`dresse: 0`, une alarme de fond de 0,08) ;
+- elles sont un peu plus courtes (1 à 1,35 fois le tronc).
+
+**Vérifié.** Varen avant, au repos et alarmé. Dans le navigateur : six îles, aucune erreur. `sw.js` : `stone-valley-217`.

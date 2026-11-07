@@ -645,7 +645,7 @@ const lgU = (el, sw, s) => [-Math.sin(sw) * Math.cos(el), s * Math.cos(sw) * Mat
 function lgAiles(f, M, add, B, A) {
   const { xa, xr, bz, avant, vol, couche, al, g, geste, dresse, style } = A, { Lt, Th, Wd } = M;
   const ep = M.epique || 0, I = M.fant || 0, ins = style === 'insecte', ether = style === 'ether', plumes = style === 'plumes';
-  const L = Lt * (ins ? .9 : ether ? 1.1 + .5 * ep : 1.15 + 1.3 * lgCl(M.ailes, 0, 1)) * (1 + .25 * ep);   // la longueur d'une aile
+  const L = Lt * (ins ? .9 : ether ? 1 + .35 * ep : 1.15 + 1.3 * lgCl(M.ailes, 0, 1)) * (1 + .25 * ep);   // la longueur d'une aile
   const sx = M.bip ? avant[0] - .04 : xa - Lt * .3, sz = (M.bip ? (avant[2] + bz) / 2 : bz) + Th * (ins ? .5 : .35);
   // l'état du vol
   const bat = vol ? lgCl(Number.isFinite(f.bat) ? f.bat : .7, 0, 1) : 0, ph = Number.isFinite(f.ph) ? f.ph : t * 10;
@@ -667,7 +667,8 @@ function lgAiles(f, M, add, B, A) {
   const p0 = s => [sx, s * Wd * .45, sz];
   const C = { robe: M.robe, bord: plumes ? lgMix(M.robe, [250, 246, 236], .2) : lgMix(M.robe, M.sombre, .2), fin: M.sombre };
   const luitB = M.el && (ether || I > .55), glow = M.el ? M.lueur : null;
-  const voile = ether ? lgMix(M.lueur, M.robe, .4) : ins ? lgMix(M.robe, [232, 244, 255], .7) : style === 'membranes' ? lgMix(M.robe, M.sombre, .35) : lgMix(M.robe, M.ventre, .25);
+  // (§247) l'éther : une membrane teintée de l'élément et ombrée (elle luisait toute, et sortait en plaque blanche)
+  const voile = ether ? lgMix(lgMix(M.lueur, M.robe, .45), M.sombre, .3) : ins ? lgMix(M.robe, [232, 244, 255], .7) : style === 'membranes' ? lgMix(M.robe, M.sombre, .35) : lgMix(M.robe, M.ventre, .25);
   const L1 = L * .3, L2 = L * .36, L3 = L * .34;
   for (const s of [-1, 1]) {
     if (ins) {                                                       // un insecte : deux paires d'ailes fines, qui vrombissent
@@ -695,10 +696,14 @@ function lgAiles(f, M, add, B, A) {
       let c = cro(n, u); if (c[0] > 0) c = c.map(x => -x); return { n, c }; };
     const corde = (1 - .7 * fold) * (style === 'membranes' || ether ? 1.1 : 1);
     const pan = (a, b, c0, coul, lu) => { const { n, c } = plan(a, b), o = c0 * .5;
+      if (ether) {                                                   // (§247) trois voiles, du jour entre eux, de plus en plus clairs ; le bord seul luit
+        for (let k = 0; k < 3; k++) { const ok = c0 * (k + .5) / 3; B.push({ a: lgAdd(a, c.map(x => x * ok)), b: lgAdd(b, c.map(x => x * ok * .85)), w: c0 / 3 * .68, h: .01, c: lgMix(coul, M.lueur, k * .18), ref: n }); }
+        const oe = c0 * .99; B.push({ a: lgAdd(a, c.map(x => x * oe)), b: lgAdd(b, c.map(x => x * oe * .85)), w: .014, h: .008, c: M.lueur, ref: n, luit: 1, lueur: 1 });
+        return; }
       B.push({ a: lgAdd(a, c.map(x => x * o)), b: lgAdd(b, c.map(x => x * o * .85)), w: c0, h: .012, c: coul, ref: n, ...(lu ? { luit: 1, lueur: 1 } : {}) }); };
     const ep2 = .018 + .012 * ep + Th * .05;
     // les os, au bord d'attaque
-    add(S, E, ep2 * 1.3, ep2 * 1.3, C.robe, ether ? 1 : 0, ether ? 1 : 0); add(E, W, ep2, ep2, C.robe, ether ? 1 : 0, ether ? 1 : 0);
+    add(S, E, ep2 * 1.3, ep2 * 1.3, C.robe); add(E, W, ep2, ep2, C.robe);   // (§247) le bras de l'aile d'éther ne luit plus : les doigts, le bord, si
     if (!plumes) add(W, T, ep2 * .7, ep2 * .7, lgMix(C.fin, glow || C.fin, M.el ? .6 : 0), luitB ? 1 : 0, luitB ? 1 : 0);
     const { n: nW, c: cW } = plan(W, T);
     if (plumes) {
@@ -722,7 +727,7 @@ function lgAiles(f, M, add, B, A) {
         const ang = (.15 + .55 * k) * (1 - .8 * fold), u0 = nrm(W, T), dir = u0.map((x, q) => x * Math.cos(ang) + cW[q] * Math.sin(ang));
         const D = lgAdd(W, dir.map(x => x * L * (.52 - .07 * k) * (1 - .35 * fold)));
         add(W, D, ep2 * .55, ep2 * .55, lgMix(C.fin, glow || C.fin, M.el ? .55 : 0), luitB ? 1 : 0, luitB ? 1 : 0);
-        if (prev) B.push({ a: lgMix(W, prev, .5), b: lgMix(prev, D, .5), w: Math.hypot(prev[0] - D[0], prev[1] - D[1], prev[2] - D[2]) * .9 + .02, h: .01, c: voile, ref: nW, ...(ether ? { luit: 1, lueur: 1 } : {}) });   // la peau entre deux doigts
+        if (prev) B.push({ a: lgMix(W, prev, .5), b: lgMix(prev, D, .5), w: Math.hypot(prev[0] - D[0], prev[1] - D[1], prev[2] - D[2]) * (ether ? .55 : .9) + .02, h: .01, c: ether ? lgMix(voile, M.lueur, .3) : voile, ref: nW });   // la peau entre deux doigts (l'éther : un voile étroit)
         else pan(W, D, L * .2 * corde, voile, ether);
         prev = D; }
       add(W, lgAdd(W, [.03, s * .01, .02]), .014, .014, M.griffe || LG.CORNE);   // la griffe du pouce
@@ -793,7 +798,7 @@ function lgFantaisie(f, M, add, B, A) {
       const c = M.el === 'ombre' ? lgMix(M.sombre, M.lueur, .6) : M.lueur;
       B.push({ a: p, b: lgAdd(p, [0, 0, e]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }, { a: p, b: lgAdd(p, [0, 0, -e * .6]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }); } }
   // des ailes d'éther, repliées sur le dos ; elles s'ouvrent à l'alarme (§240 : avec un squelette, comme les vraies)
-  if (M.ether && !vol && !(M.ailes > .3)) lgAiles(f, M, add, B, { xa, xr, bz, avant, vol: false, couche, al: Math.max(al || 0, .35 + .1 * Math.sin(t * 1.3 + g)), g, geste: null, dresse: 1, style: 'ether' });
+  if (M.ether && !vol && !(M.ailes > .3)) lgAiles(f, M, add, B, { xa, xr, bz, avant, vol: false, couche, al: Math.max(al || 0, .08 + .06 * Math.sin(t * 1.3 + g)), g, geste: null, dresse: 0, style: 'ether' });   // (§247) repliées au repos ; l'alarme les ouvre
   // l'aura : des particules qui montent (ou tombent, pour le givre), d'autant plus nombreuses qu'elle est puissante
   try {
     const dtA = Math.min(.1, Math.max(0, t - (f._lgAuT ?? t))); f._lgAuT = t;
