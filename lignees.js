@@ -103,8 +103,8 @@ function lgMesures(sp) {
   M.corne = LG.CORNE; M.corneLuit = 0;
   // (§237) LA FANTAISIE : l'élément de la lignée (orvane-sv.js, fantaisie) transforme chaque trait. Tout le monde en a un peu — des yeux
   // qui luisent, des runes, un bout de queue élémentaire, une crinière, une gemme au front pour les mignonnes —, et plus on est puissant,
-  // plus il y en a : des cornes de cristal, de glace ou d'obsidienne qui poussent même à qui n'en avait pas, des éclats qui tournent
-  // autour du corps, une gemme frontale, des ailes d'éther pour les plus grands, une aura qui ne s'éteint pas.
+  // plus il y en a : des cornes de cristal, de glace ou d'obsidienne qui poussent même à qui n'en avait pas
+  // (§249 : plus d'éclats qui tournent autour du corps), une gemme frontale, des ailes d'éther pour les plus grands, une aura qui ne s'éteint pas.
   if (O.el) {
     const el = M.el = O.el, I = M.fant = lgCl(.3 + .7 * pu, 0, 1);
     M.lueurEl = O.lueurEl || M.accent; M.partEl = O.partEl || '#ffffff';
@@ -116,7 +116,6 @@ function lgMesures(sp) {
     else if (quad && pu > .5) M.cornes = .3 + .55 * lgCl((pu - .5) / .5, 0, 1);   // une couronne de cornes, à qui n'en avait pas
     M.criniere = quad || M.bip || serpent ? I : 0;
     M.queueEl = I; M.gemme = pu < .35 ? 'bourgeon' : pu > .62 ? 'oeil' : null;
-    M.orbites = pu >= .6 ? 1 + Math.round(3 * (pu - .6) / .4) : 0;
     M.ether = pu >= .88 && quad;                                       // des ailes d'éther, repliées sur le dos
     M.aura = .25 + 2.6 * pu;                                           // des particules par seconde
     if (!M.epines && pu > .6 && M.carapace <= .3 && !M.org('epines') && !M.org('plaques') && !M.oiseau) M.epines = true;
@@ -750,7 +749,7 @@ function lgAiles(f, M, add, B, A) {
 
 // (§237) LA FANTAISIE DU CORPS. Ce que l'élément ajoute à la bête : une crinière (des flammes, des éclats de givre ou de cristal, des
 // feuilles, des nageoires, des étincelles, de la fumée d'ombre, des plumes d'aurore), le bout de la queue de même, une gemme au front
-// (un bourgeon de lumière chez une mignonne, un troisième œil chez une puissante), des éclats qui tournent autour d'elle, des ailes
+// (un bourgeon de lumière chez une mignonne, un troisième œil chez une puissante), des ailes
 // d'éther repliées sur le dos des plus grandes, et une aura de particules. Tout cela luit, de jour comme de nuit.
 const LG_AURORE = [[255, 124, 150], [255, 204, 96], [150, 255, 170], [112, 204, 255], [204, 146, 255]];
 function lgTouffe(B, M, p, dir, l, w, g, i) {
@@ -802,11 +801,6 @@ function lgFantaisie(f, M, add, B, A) {
     if (M.gemme === 'bourgeon') B.push({ a: p, b: lgAdd(p, [0, 0, .026]), w: .036, h: .036, c: M.lueur, boule: 4, luit: 1, lueur: 1 });
     else { const r = .04 + .03 * ep; B.push({ a: lgAdd(p, [0, 0, -r * .2]), b: lgAdd(p, [0, 0, r]), w: r, h: r * .8, c: M.lueur, pans: 6, fin: 0, luit: 1, lueur: 1 },
       { a: lgAdd(p, [0, 0, -r * .2]), b: lgAdd(p, [0, 0, -r * .7]), w: r, h: r * .8, c: M.lueur, pans: 6, fin: 0, luit: 1, lueur: 1 }); } }
-  // des éclats en orbite, au-dessus du dos
-  if (M.orbites) { const cx = (xa + xr) / 2, cz = bz + Th * 1.2 + .12, r = Lt * .55 + .14;
-    for (let i = 0; i < M.orbites; i++) { const an = t * 1.1 + i * 6.2832 / M.orbites + g, p = [cx + Math.cos(an) * r, Math.sin(an) * r * .8, cz + Math.sin(t * 2.3 + i) * .05], e = .065 + .05 * ep;
-      const c = M.el === 'ombre' ? lgMix(M.sombre, M.lueur, .6) : M.lueur;
-      B.push({ a: p, b: lgAdd(p, [0, 0, e]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }, { a: p, b: lgAdd(p, [0, 0, -e * .6]), w: .045, h: .045, c, pans: 4, fin: 0, luit: 1, lueur: 1 }); } }
   // des ailes d'éther, repliées sur le dos ; elles s'ouvrent à l'alarme (§240 : avec un squelette, comme les vraies)
   if (M.ether && !vol && !(M.ailes > .3)) lgAiles(f, M, add, B, { xa, xr, bz, avant, vol: false, couche, al: Math.max(al || 0, .08 + .06 * Math.sin(t * 1.3 + g)), g, geste: null, dresse: 0, style: 'ether' });   // (§247) repliées au repos ; l'alarme les ouvre
   // l'aura : des particules qui montent (ou tombent, pour le givre), d'autant plus nombreuses qu'elle est puissante

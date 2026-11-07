@@ -7835,3 +7835,9 @@ Une créature chargée (une robe en volume, des épines, des éclats, une crini�
 - **Une robe plus calme** (`lgRobe`). Les mèches, bouclettes et écailles ont des tons plus proches du corps, qui se lit d'un bloc. Une épique, qui porte déjà sa fantaisie, en a deux fois moins. Le grain de la texture se fait plus discret sur les bêtes. Les ailes d'éther sont un ton plus sombres.
 
 **Vérifié.** Avant et après, de près : Varen (le corps bleu ardoise, les éclats blancs qui ressortent), un mammouth de laine, un lutin à poils, un naga, un phénix. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture ; le canvas de secours (sans contour). `sw.js` : `stone-valley-218`.
+
+## §249 · Plus d'éclats qui volent autour des créatures
+
+Les créatures puissantes (puissance de 0,6 et plus) avaient d'un à quatre éclats de cristal qui tournaient au-dessus du dos (`M.orbites`, §237). Ils sont retirés : ni la mesure dans `lgMesures`, ni le dessin dans `lgFantaisie`. Les épines du dos, la gemme du front, la crinière et l'aura restent.
+
+**Vérifié.** Varen avant et après. Dans le navigateur : six îles, aucune erreur. `sw.js` : `stone-valley-219`.

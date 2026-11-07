@@ -474,7 +474,7 @@ function talentsFiche(sp) {
 // large), l'orage (steppes, hauteurs), l'ombre (la nuit, les grottes, les profondeurs) ou l'aurore (prairies, toundras). L'élément
 // donne sa palette, vive et lumineuse, à la place des bruns d'Orvane, et son nom : le genre d'Orvane, puis ce qu'elle est en légende
 // (« Orvi, vouivre des braises »). Le corps, lui, se transforme au dessin (lignees.js, lgFantaisie) : cornes de cristal, crinière de
-// flammes, queue élémentaire, runes, éclats en orbite, ailes d'éther — de plus en plus à mesure que la lignée est puissante.
+// flammes, queue élémentaire, runes, ailes d'éther — de plus en plus à mesure que la lignée est puissante.
 const ELEMENTS = {
   braise:  { n: 'des braises',  robe: [222, 92, 44],   sombre: [74, 30, 32],  ventre: [255, 196, 120], oeil: [255, 226, 96],  lueur: [255, 150, 40],  corne: [46, 34, 40],   part: '#ffb24a' },
   givre:   { n: 'du givre',     robe: [170, 214, 242], sombre: [58, 96, 152], ventre: [238, 248, 255], oeil: [120, 240, 255], lueur: [150, 236, 255], corne: [214, 244, 255], part: '#e4f8ff' },
