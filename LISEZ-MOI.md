@@ -7841,3 +7841,46 @@ Une créature chargée (une robe en volume, des épines, des éclats, une crini�
 Les créatures puissantes (puissance de 0,6 et plus) avaient d'un à quatre éclats de cristal qui tournaient au-dessus du dos (`M.orbites`, §237). Ils sont retirés : ni la mesure dans `lgMesures`, ni le dessin dans `lgFantaisie`. Les épines du dos, la gemme du front, la crinière et l'aura restent.
 
 **Vérifié.** Varen avant et après. Dans le navigateur : six îles, aucune erreur. `sw.js` : `stone-valley-219`.
+
+## §250 · Les poissons sont la vraie faune aquatique d'Orvane, en vrais corps
+
+La pêche tirait huit poissons faits main (le gardon, la truite, la carpe, l'anguille, la sardine, la raie, la lune-de-fond, la koï) et les montrait en ombres. À côté, les lignées d'Orvane qui ne vivent que dans l'eau étaient posées comme des bêtes, à part, sans lien avec la pêche. Les deux ne font plus qu'un.
+
+**Les nageurs** (`nageurs`, `ficheNageur`). Chaque lignée d'Orvane qui ne vit que dans l'eau (32 dans le monde : 25 de mer, 7 d'eau douce) a sa fiche de pêche, tirée de ce qu'Orvane dit d'elle :
+- son eau : la mer pour le récif, les abysses, le large, la côte, la mer froide, la mangrove ; le lac et la rivière pour le lac, le marais, la tourbière, la rivière ;
+- son heure, d'après son activité ;
+- sa taille en centimètres, d'après sa taille d'Orvane ;
+- sa rareté ;
+- sa **famille de cuisine** (`genreCuisine`).
+Au-delà de trente kilos, elle **ne mord pas** : on la voit passer. Chaque île a les siennes (`nageursIle`) : au plus six espèces de mer, quatre de lac, quatre de rivière, tirées de sa graine parmi celles que sa profondeur permet.
+
+**De vrais corps** (`corpsNageur`, `corpsNageurMaj`). Chaque poisson est la lignée elle-même : son corps d'Orvane, ses couleurs, ses nageoires, sa bouche qui s'ouvre quand il mord. La pêche le mène (les états de toujours : il nage, vise le bouchon, mordille, mord, fuit), le corps le suit :
+- il nage sous la surface, à sa profondeur, monte vers le bouchon, plonge en fuyant ;
+- né près de vous, il remonte du fond ;
+- les petits vont **en bancs** : trois à cinq qui suivent leur chef ;
+- celui qui a fui se remet à nager, au lieu de s'évanouir sous vos yeux ;
+- si vous nagez sur lui, il file ;
+- pris, on le **brandit** au-dessus de la tête, dans ses vraies couleurs.
+Les poissons se dessinent **après l'eau**, teints de sa couleur d'autant plus qu'ils sont profonds. Avant, la nappe, presque opaque au large, les cachait même juste sous la surface. Le canvas de secours garde les ombres. Les poissons des autres joueurs ont aussi leur corps : le réseau dit leur lignée.
+
+**La mécanique de la pêche ne change pas** : lancer, attendre, les touches, la morsure, ferrer à temps. Deux corrections au passage :
+- une rivière d'une case de large n'avait jamais de poisson (il fallait trois voisines d'eau ; deux suffisent pour une rivière) ;
+- un poisson ne mord plus que le bouchon qui l'a attiré.
+
+**La prise** : elle s'inscrit au carnet de pêche et au **carnet des lignées** (`decouvrir`), et compte comme prélevée dans Orvane (`orvaneEvenement`). Le carnet de pêche liste les 31 nageurs du monde, dit lesquels sont trop grands pour une canne, et garde à la fin les prises d'avant.
+
+**La cuisine.** Les huit poissons d'avant deviennent des **familles** :
+- petit poisson d'eau douce (le gardon), poisson des eaux vives (la truite), gros poisson de lac (la carpe), poisson-serpent des nuits (l'anguille) ;
+- petit poisson de mer (la sardine), poisson des nuits marines (la raie), poisson des orages (la lune-de-fond), poisson des cerisaies (la koï).
+Un nageur vaut sa famille dans les recettes (`reqVa`) et dans les plats remarquables. Les recettes, quêtes et conseils des villageois marchent donc tels quels ; leurs textes nomment les familles.
+
+**La sauvegarde.** Le sac et le carnet gardent les nageurs par leur identifiant, avec leur famille et leur nom (`poissonsConnus`) : une prise se relit même si Orvane n'a pas encore donné sa lignée. Les poissons d'avant d'une sauvegarde restent, comme leur famille.
+
+**Le bestiaire de terre** ne tire plus les nageurs, et ils ne se posent plus en bêtes (`poser`, `orvaneTirage`).
+
+**Vérifié.**
+- **De bout en bout**, dans le navigateur : un lancer près d'un poisson, les touches, la morsure, ferrer. Pris : un Lomubel de 19 cm, puis un Ouorren, un Corfirne. Au sac et aux deux carnets.
+- **La cuisine** : le Lomubel fait le Tartare des marées à la place de la sardine.
+- **La sauvegarde** relue, même sans la lignée ; le carnet, manger, donner à une bête.
+- **Les vues** : un banc de petits poissons sous l'eau, un poisson brandi.
+- **Dans le navigateur** : six îles, aucune erreur ; les compagnes, la monture ; le canvas de secours. `sw.js` : `stone-valley-220`.

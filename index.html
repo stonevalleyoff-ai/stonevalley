@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=219"></script>
-<script src="rouages.js?v=219"></script>
-<script src="forge.js?v=219"></script>
-<script src="nomades.js?v=219"></script>
-<script src="etats.js?v=219"></script>
-<script src="brume.js?v=219"></script>
-<script src="roi.js?v=219"></script>
-<script src="trone.js?v=219"></script>
-<script src="achromie.js?v=219"></script>
-<script src="vyrel.js?v=219"></script>
-<script src="village.js?v=219"></script>
-<script src="volcan.js?v=219"></script>
-<script src="dons.js?v=219"></script>
-<script src="coop.js?v=219"></script>
-<script src="faune.js?v=219"></script>
-<script src="flore.js?v=219"></script>
-<script src="lignees.js?v=219"></script>
-<script src="conduites.js?v=219"></script>
-<script src="pouvoirs.js?v=219"></script>
+<script src="donjon.js?v=220"></script>
+<script src="rouages.js?v=220"></script>
+<script src="forge.js?v=220"></script>
+<script src="nomades.js?v=220"></script>
+<script src="etats.js?v=220"></script>
+<script src="brume.js?v=220"></script>
+<script src="roi.js?v=220"></script>
+<script src="trone.js?v=220"></script>
+<script src="achromie.js?v=220"></script>
+<script src="vyrel.js?v=220"></script>
+<script src="village.js?v=220"></script>
+<script src="volcan.js?v=220"></script>
+<script src="dons.js?v=220"></script>
+<script src="coop.js?v=220"></script>
+<script src="faune.js?v=220"></script>
+<script src="flore.js?v=220"></script>
+<script src="lignees.js?v=220"></script>
+<script src="conduites.js?v=220"></script>
+<script src="pouvoirs.js?v=220"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=219"></script><script src="orvane/tampon.js?v=219"></script><script src="orvane/correspondance.js?v=219"></script><script src="orvane/secours.js?v=219"></script><script src="orvane/orvane-sv.js?v=219"></script>
+<script src="orvane/corps.js?v=220"></script><script src="orvane/tampon.js?v=220"></script><script src="orvane/correspondance.js?v=220"></script><script src="orvane/secours.js?v=220"></script><script src="orvane/orvane-sv.js?v=220"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -9146,7 +9146,7 @@ function poser(sp) {
   const vr = b => { b.variante = tirerVariante(sp); if (typeof orvaneNaissance === 'function') orvaneNaissance(b); return b; };   // (§211) son phénotype, ses conduites   // une robe, une forme rares, parfois
   if (q) return vr(naitre(sp, q[0], q[1]));
   if (sp.horreur) { const v = poserHorreur(sp); return v ? vr(v) : null; }
-  if (sp.orvane && sp.orvane.nage && typeof orvanePlaceEau === 'function') { const q = orvanePlaceEau(sp); if (!q) return null; const b = naitre(sp, q[0], q[1]); b.z = q[2]; return vr(b); }   // (§221) une lignée d'eau : dans l'eau qui borde ses sols   // un dragon : sur son aire, au plus haut   // une sterne : sur une dalle, près de sa colonie
+  if (sp.orvane && sp.orvane.nage) return null;       // (§250) une lignée d'eau ne se pose plus en bête : elle nage avec les poissons (LES NAGEURS)   // (§221) une lignée d'eau : dans l'eau qui borde ses sols   // un dragon : sur son aire, au plus haut   // une sterne : sur une dalle, près de sa colonie
   if (sp.meute) {                                      // une meute naît ensemble : trois ou quatre autour d'un chef
     const chef = beasts.find(o => o.sp === sp && !o.tame && !o.dead && beasts.filter(m => m.sp === sp && (m.x - o.x) ** 2 + (m.y - o.y) ** 2 < 49).length < (sp.meute > 1 ? sp.meute : 4));
     if (chef) for (let k = 0; k < 30; k++) {
@@ -13620,7 +13620,7 @@ function bestiaireGraine(graine, niv) {
   const e = new Set();
   // (§118) une bête dont la viande est plus rare que l'île ne le permet n'y vit pas (une viande de gros gibier : dès 4)
   const okR = id => rareteOk(rareEspece(specById[id]), niv);
-  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && !retiree(sp) && nivEspece(sp) <= niv && okR(sp.id));   // ni automates d'élite, ni faune faite main (§225)
+  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && !retiree(sp) && nivEspece(sp) <= niv && okR(sp.id) && !(sp.orvane && sp.orvane.nage));   // (§250) les nageurs vivent à la pêche   // ni automates d'élite, ni faune faite main (§225)
   if (niv < NIV_RAMPANTS) n = n <= 3 ? 2 : 3;          // aux premières îles : deux ou trois Doux, pas plus
   { const h0 = tirerParmi(tirables.filter(sp => sp.diet === 'h' || sp.diet === 'o')); if (h0) e.add(h0.id); }   // (§225) une liste vide ne casse plus
   while (e.size < n && e.size < tirables.length) { const x = tirerParmi(tirables.filter(sp => !e.has(sp.id))); if (!x) break; e.add(x.id); }
@@ -15954,27 +15954,92 @@ function peuplerDoux() {
 //  trop tard, il s'échappe. Un bouchon qui tombe sur une ombre la fait fuir.
 //  Sept poissons : de rivière, de lac, de l'océan, chacun à son heure et par son temps. On les
 //  mange, on les donne aux compagnes, et le carnet de pêche garde la première prise et le record.
+//  (§250) Les poissons sont maintenant la faune aquatique d'Orvane (LES NAGEURS, plus bas) : de vraies créatures, qui
+//  nagent sous la surface avec leur corps. Les huit poissons d'avant restent, mais comme des familles de cuisine : chaque
+//  lignée pêchée se cuisine comme l'une d'elles (genreCuisine), et les recettes qui demandaient « un gardon » prennent tout
+//  petit poisson d'eau douce. Une sauvegarde qui en garde encore les retrouve telles quelles.
 // ============================================================
 const POISSONS = [
-  { id:'gardon',   n:'Gardon de schiste',  le:'un', ou:['riviere', 'lac'], quand:'toujours', taille:'petite',  cm:[12, 22],  p:1,   soin:.12,
+  { id:'gardon',   n:'Petit poisson d\'eau douce', court:'poisson d\'eau douce',  le:'un', ou:['riviere', 'lac'], quand:'toujours', taille:'petite',  cm:[12, 22],  p:1,   soin:.12,
     c:[178, 186, 192], d:[96, 106, 120], f:[196, 120, 104], dit:'rivières et lacs · à toute heure', mot:'petit, mais têtu comme la roche' },
-  { id:'truite',   n:'Truite d\'ardoise',  le:'une', ou:['riviere'], quand:'aube', taille:'moyenne', cm:[25, 45], p:.7, soin:.2,
+  { id:'truite',   n:'Poisson des eaux vives', court:'poisson des eaux vives',  le:'une', ou:['riviere'], quand:'aube', taille:'moyenne', cm:[25, 45], p:.7, soin:.2,
     c:[104, 122, 146], d:[62, 76, 96], f:[238, 170, 84], dit:'rivières · à l\'aube et au crépuscule', mot:'elle a gardé un peu d\'aube sur ses taches' },
-  { id:'carpe',    n:'Carpe des brumes',   le:'une', ou:['lac'], quand:'toujours', taille:'grande', cm:[40, 75], p:.8, soin:.3,
+  { id:'carpe',    n:'Gros poisson de lac', court:'gros poisson',   le:'une', ou:['lac'], quand:'toujours', taille:'grande', cm:[40, 75], p:.8, soin:.3,
     c:[198, 186, 152], d:[142, 126, 94], f:[184, 152, 112], dit:'lacs · à toute heure, plus encore sous la pluie', mot:'elle a l\'air de rêver encore' },
-  { id:'anguille', n:'Anguille-lanterne',  le:'une', ou:['lac', 'riviere'], quand:'nuit', taille:'longue', cm:[50, 90], p:.55, soin:.25,
+  { id:'anguille', n:'Poisson-serpent des nuits', court:'poisson-serpent',  le:'une', ou:['lac', 'riviere'], quand:'nuit', taille:'longue', cm:[50, 90], p:.55, soin:.25,
     c:[76, 86, 64], d:[44, 52, 40], f:[176, 255, 200], dit:'lacs et rivières · la nuit', mot:'elle éclaire le chemin des noyés', luit:1 },
-  { id:'sardine',  n:'Sardine de nacre',   le:'une', ou:['ocean'], quand:'jour', taille:'petite', cm:[10, 18], p:1, soin:.12,
+  { id:'sardine',  n:'Petit poisson de mer', court:'poisson de mer',   le:'une', ou:['ocean'], quand:'jour', taille:'petite', cm:[10, 18], p:1, soin:.12,
     c:[212, 222, 234], d:[118, 140, 172], f:[242, 238, 252], dit:'océan · le jour', mot:'elle brille comme un souvenir' },
-  { id:'raie',     n:'Raie-horloge',       le:'une', ou:['ocean'], quand:'nuit', taille:'plate', cm:[60, 120], p:.45, soin:.35,
+  { id:'raie',     n:'Poisson des nuits marines', court:'poisson des nuits',       le:'une', ou:['ocean'], quand:'nuit', taille:'plate', cm:[60, 120], p:.45, soin:.35,
     c:[122, 112, 98], d:[72, 64, 56], f:[214, 178, 100], dit:'océan · la nuit', mot:'on dirait qu\'elle compte les secondes' },
-  { id:'lune',     n:'Lune-de-fond',       le:'une', ou:['ocean'], quand:'orage', taille:'enorme', cm:[90, 160], p:.3, soin:.45, rare:1,
+  { id:'lune',     n:'Poisson des orages', court:'poisson des orages',       le:'une', ou:['ocean'], quand:'orage', taille:'enorme', cm:[90, 160], p:.3, soin:.45, rare:1,
     c:[152, 162, 192], d:[88, 96, 132], f:[232, 238, 255], dit:'océan · seulement par orage', mot:'on la dit plus vieille que les Horlogers', luit:1 },
   // la cerisaie (§112) : dans les eaux qui la bordent, le jour
-  { id:'koi',      n:'Carpe koï',          le:'une', ou:['lac', 'riviere'], quand:'jour', taille:'grande', cm:[40, 90], p:1.4, soin:.3, bio:23, taches:[236, 88, 48],
+  { id:'koi',      n:'Poisson des cerisaies', court:'poisson des cerisaies',          le:'une', ou:['lac', 'riviere'], quand:'jour', taille:'grande', cm:[40, 90], p:1.4, soin:.3, bio:23, taches:[236, 88, 48],
     c:[250, 246, 240], d:[214, 206, 200], f:[255, 160, 120], dit:'eaux des cerisaies · le jour', mot:'elle se souvient, dit-on, de chaque pétale tombé' },
 ];
 const poissonDe = id => POISSONS.find(f => f.id === id);
+// (§250) LES NAGEURS : la faune aquatique d'Orvane (les lignées qui ne vivent que dans l'eau, sp.orvane.nage). Chacune a sa
+// fiche de pêche, tirée de ce qu'Orvane dit d'elle : son eau (la mer, ou un lac, une rivière, un marais), son heure (son
+// activité), sa taille (en centimètres, de sa taille d'Orvane), sa rareté, sa famille de cuisine. Au-delà de trente kilos,
+// elle ne mord pas : on la voit passer. Chaque île a les siennes : six espèces de mer, quatre de lac, quatre de rivière au
+// plus, tirées de sa graine parmi celles que sa profondeur permet.
+const MILIEUX_DOUX = ['lac', 'marais', 'riviere', 'tourbiere', 'etang', 'source', 'fleuve'];
+let NAGEURS = [], nageursN = -1, NAGEURS_ILE = null;
+function nageurs() {
+  if (nageursN === SPEC.length) return NAGEURS;
+  nageursN = SPEC.length;
+  NAGEURS = SPEC.filter(sp => sp.orvane && sp.orvane.nage && !sp.orvane.machine).map(ficheNageur).filter(Boolean);
+  for (const f of NAGEURS) inscrireNageur(f);
+  return NAGEURS;
+}
+const nageurDe = id => nageurs().find(f => f.id === id) || null;
+function ficheNageur(sp) {
+  const d = (typeof OrvaneSV !== 'undefined' && OrvaneSV.S && OrvaneSV.S.lignees && OrvaneSV.S.lignees[sp.id]) || {};
+  const mil = String(d.milieu || '').split('~')[0], douce = MILIEUX_DOUX.includes(mil);
+  const ou = !mil ? ['ocean', 'lac'] : douce ? (mil === 'riviere' || mil === 'fleuve' ? ['riviere', 'lac'] : ['lac', 'riviere']) : ['ocean'];
+  const m = d.masse || sp.orvane.masse || 1, cm0 = Math.max(4, Math.round((d.taille || .45 * Math.cbrt(m)) * 100));
+  const quand = { diurne: 'jour', nocturne: 'nuit', crepusculaire: 'aube' }[d.activite] || 'toujours';
+  let M = null; try { M = typeof lgMesures === 'function' ? lgMesures(sp) : null; } catch (e) { }
+  const taille = M && M.serpent && !M.poisson ? 'longue' : cm0 < 18 ? 'petite' : cm0 < 40 ? 'moyenne' : cm0 < 95 ? 'grande' : 'enorme';
+  const c = sp.shell || [150, 160, 172], court = String(sp.n || sp.id).split(',')[0];
+  const f = { id: sp.id, sp, n: sp.n, court, le: '', ou, quand, taille, cm: [Math.max(3, Math.round(cm0 * .7)), Math.round(cm0 * 1.3)], cm0, p: 1, m,
+    soin: Math.round((.1 + .09 * Math.log10(1 + m * 10)) * 100) / 100, r: Math.max(1, Math.min(6, rareEspece(sp) | 0)), prenable: m <= 30,
+    c, d: sp.dark || c.map(v => v * .6 | 0), f: (M && (M.lueur || M.accent)) || [230, 232, 240], luit: !!(M && M.el && M.lueur),
+    dit: (douce ? (ou[0] === 'riviere' ? 'rivières et lacs' : 'lacs et rivières') : 'la mer') + ' · ' + ({ jour: 'le jour', nuit: 'la nuit', aube: 'à l\'aube et au crépuscule' }[quand] || 'à toute heure'),
+    mot: d.nom ? 'dans Orvane : ' + d.nom : '' };
+  f.kind = genreCuisine(f);
+  return f;
+}
+// la famille de cuisine d'un nageur : celle des huit poissons d'avant qui lui ressemble
+function genreCuisine(f) {
+  if (f.ou[0] === 'ocean') return f.taille === 'enorme' || f.r >= 5 ? 'lune' : f.quand === 'nuit' || f.taille === 'grande' || f.taille === 'longue' ? 'raie' : 'sardine';
+  if (f.taille === 'longue' || f.quand === 'nuit') return 'anguille';
+  if (f.taille === 'grande' || f.taille === 'enorme') return 'carpe';
+  if (f.ou[0] === 'riviere' || f.quand === 'aube') return 'truite';
+  return f.r >= 2 && f.quand === 'jour' ? 'koi' : 'gardon';
+}
+function inscrireNageur(f) {                         // un ingrédient, une vignette
+  const K = INGR[f.kind] || {};
+  INGR[f.id] = { id: f.id, n: f.n, court: f.court, fam: 'poisson', r: f.r, tag: K.tag || null, soin: f.soin, c: f.c, src: 'poisson', kind: f.kind };
+  DESSINS['poisson_' + f.id] = dd => dessinPoisson(dd, f);
+}
+// les prises d'une sauvegarde, même d'une lignée qu'Orvane n'a pas (encore) donnée : elles se lisent comme leur famille
+function poissonsConnus() {
+  for (const id of new Set([...Object.keys(P.poissons), ...Object.keys(P.carnetPeche)])) {
+    if (INGR[id]) continue; const c = P.carnetPeche[id] || {}, k = INGR[c.kind] ? c.kind : 'gardon', nom = c.nom || id;
+    INGR[id] = { ...INGR[k], id, n: nom, court: nom.split(',')[0], kind: k }; DESSINS['poisson_' + id] = DESSINS['poisson_' + k];
+  }
+}
+function nageursIle() {
+  const L0 = nageurs(), niv = profondeur(), cle = SEED + ':' + nageursN + ':' + niv;
+  if (NAGEURS_ILE && NAGEURS_ILE.cle === cle) return NAGEURS_ILE;
+  const L = L0.filter(f => rareteOk(f.r, niv));
+  let g = (SEED ^ 0x5ea5) >>> 0; const tir = () => { g = (g * 1664525 + 1013904223) >>> 0; return g / 4294967296; };
+  const par = {};
+  for (const hab of ['ocean', 'lac', 'riviere']) par[hab] = L.filter(f => f.ou.includes(hab)).map(f => [tir() * (f.r <= centreRarete(niv) ? 1 : .55), f]).sort((a, b) => b[0] - a[0]).map(x => x[1]).slice(0, hab === 'ocean' ? 6 : 4);
+  return (NAGEURS_ILE = { cle, par });
+}
 const OMBRE = { petite: [.3, .12], moyenne: [.46, .17], grande: [.66, .26], longue: [.95, .08], plate: [.62, .58], enorme: [1.15, .46] };
 let Ombres = [], ombreT = 0, ombreN = 0;
 for (const f of POISSONS) DESSINS['poisson_' + f.id] = d => dessinPoisson(d, f);
@@ -16022,6 +16087,14 @@ function quandOk(f) {
 // Une eau qui borde la cerisaie (§112) : la koï n'est que là.
 function presBiome(x, y, b, r = 3) { x |= 0; y |= 0; for (let dy = -r; dy <= r; dy++) for (let dx = -r; dx <= r; dx++) if (bAt(x + dx, y + dy) === b) return true; return false; }
 function tirerPoisson(hab, x, y) {
+  // (§250) d'abord la faune aquatique d'Orvane de cette île ; les poissons d'avant si Orvane n'en a pas donné
+  const I = nageurs().length ? (nageursIle().par[hab] || []) : [];
+  if (I.length) {
+    let L = I.filter(quandOk); if (!L.length) L = I;
+    const niv = profondeur(); let tot = 0; const w = L.map(f => { const v = f.p * (f.r <= centreRarete(niv) ? 1 : poidsRarete(f.r, niv)) * (f.prenable ? 1 : .35); tot += v; return v; });
+    let r = Math.random() * tot; for (let i = 0; i < L.length; i++) if ((r -= w[i]) <= 0) return L[i];
+    return L[L.length - 1];
+  }
   // (§118) un poisson plus rare que l'île ne le permet n'y nage pas (anguille et raie dès 4, lune-de-fond dès 8) ; une
   // rareté tout juste permise mord moins souvent, puis de plus en plus en s'enfonçant
   const niv = profondeur(), rf = f => (POISSON_R[f.id] || [1])[0];
@@ -16039,27 +16112,85 @@ function majOmbres(dt) {
   for (let i = Ombres.length - 1; i >= 0; i--) {
     const o = Ombres[i]; o.age += dt; o.t += dt;
     const d2 = (o.x - P.x) ** 2 + (o.y - P.y) ** 2;
-    if (d2 > 34 * 34 || (o.etat === 'fuit' && o.t > 2.2) || (o.age > 240 && o.etat === 'nage' && d2 > 100)) { Ombres.splice(i, 1); continue; }
+    // (§250) un nageur qui a fui se remet à nager (il ne s'évanouit plus sous vos yeux) ; il s'en va loin de vous, ou vieux et hors de vue
+    if (d2 > 34 * 34 || (o.age > 240 && o.etat === 'nage' && d2 > 26 * 26) || (!o.b && o.etat === 'fuit' && o.t > 2.2)) { Ombres.splice(i, 1); continue; }
+    if (o.etat === 'fuit' && o.t > 2.2) { o.etat = 'nage'; o.t = 0; o.tx = null; }
     nagerOmbre(o, dt);
+    corpsNageurMaj(o, dt);
   }
   if ((ombreT -= dt) > 0) return;
   ombreT = .7;
-  if (Ombres.length >= 7) return;
+  if (Ombres.length >= 10) return;
   for (let k = 0; k < 14; k++) {
-    const a = Math.random() * 6.2832, r = 5 + Math.random() * 20, x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+    const a = Math.random() * 6.2832, r = 3.5 + Math.random() * 22, x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;   // (§250) né près de vous, il remonte du fond
     const hab = habitatEau(x, y); if (!hab) continue;
     let n = 0; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (habitatEau(x + dx, y + dy) === hab) n++;
-    if (n < 3) continue;                                             // pas dans une flaque
+    if (n < (hab === 'riviere' ? 2 : 3)) continue;                   // pas dans une flaque (§250 : une rivière d'une case de large, si)
     const sp = tirerPoisson(hab, x, y); if (!sp) continue;
-    const u = Math.random(), cm = Math.round(sp.cm[0] + (sp.cm[1] - sp.cm[0]) * u * u);   // les grands sont plus rares
-    Ombres.push({ sp, hab, cm, x: (x | 0) + .5, y: (y | 0) + .5, dir: Math.random() * 6.2832, tx: null, ty: null, t: 0, age: 0, etat: 'nage', n: ++ombreN });
+    const banc = sp.sp && sp.taille === 'petite' ? 2 + (Math.random() * 3 | 0) : 0;   // (§250) les petits vont en bancs
+    let chef = null;
+    for (let j = 0; j <= banc && Ombres.length < 14; j++) {
+      const ox = j ? (Math.random() - .5) * 1.4 : 0, oy = j ? (Math.random() - .5) * 1.4 : 0, x2 = (x | 0) + .5 + ox, y2 = (y | 0) + .5 + oy;
+      if (j && habitatEau(x2, y2) !== hab) continue;
+      const u = Math.random(), cm = Math.round(sp.cm[0] + (sp.cm[1] - sp.cm[0]) * u * u);   // les grands sont plus rares
+      const o = { sp, hab, cm, x: x2, y: y2, dir: chef ? chef.dir : Math.random() * 6.2832, tx: null, ty: null, t: 0, age: 0, etat: 'nage', n: ++ombreN,
+        chef, ofx: (Math.random() - .5) * 1.1, ofy: (Math.random() - .5) * 1.1, prof: .08 + Math.random() * .3, zk: 0 };
+      o.b = corpsNageur(o); Ombres.push(o); if (!j) chef = o;
+    }
     return;
   }
+}
+// (§250) LE CORPS D'UN NAGEUR : la lignée elle-même (son corps d'Orvane, ses écailles, ses couleurs), une bête qui ne vit pas dans
+// l'écosystème — la pêche la mène, le corps la suit. Il nage sous la surface, à sa profondeur ; il monte vers le bouchon, plonge en
+// fuyant ; né au loin, il remonte du fond.
+function corpsNageur(o) {
+  const f = o.sp; if (!f || !f.sp || typeof naitre !== 'function') return null;
+  const b = naitre(f.sp, o.x, o.y, (f.sp.mat || 1) * 3); b.variante = null;
+  try { if (typeof orvaneNaissance === 'function') orvaneNaissance(b); } catch (e) { }
+  b.ech = Math.max(.45, Math.min(1.8, o.cm / (f.cm0 || o.cm || 1))); b.etat = 'errer'; b.dir = b.dirT = o.dir; b.nageur = o; b.alarm = 0;
+  b.z = (surfEau(o.x, o.y) || hRendu(o.x, o.y)) - 1.4;
+  return b;
+}
+function corpsNageurMaj(o, dt) {
+  const b = o.b; if (!b) return;
+  b.x = o.x; b.y = o.y; b.dir = b.dirT = o.dir; b.t += dt; b.age += dt; b.alarm = 0; b.dead = 0;
+  b.etat = o.etat === 'mord' || o.etat === 'mordille' ? 'mord' : 'errer';
+  const se = surfEau(o.x, o.y) || hRendu(o.x, o.y), fond = hAt(o.x | 0, o.y | 0) + .03, haut = .24 * echB(b);
+  o.zk = Math.min(1, (o.zk || 0) + dt * .35);
+  const pr = o.etat === 'mordille' || o.etat === 'mord' || o.etat === 'vise' ? .03 : o.etat === 'fuit' ? .55 : (o.prof ?? .2);
+  const zc = Math.max(fond, se - pr - haut - (1 - o.zk) * .9);
+  b.z += (zc - b.z) * Math.min(1, dt * 2.5);
+}
+// ce que la carte graphique dessine des nageurs : les siens, ceux d'en face, et celui qu'on brandit
+function corpsPecheGL() {
+  const L = [];
+  if (typeof djIci === 'function' && djIci()) return L;
+  for (const o of Ombres) if (o.b) L.push(o.b);
+  for (const j of Autres.values()) for (const o of j.ombres || []) if (o.b) L.push(o.b);
+  const Q = P.peche;
+  if (Q && Q.etat === 'prise' && Q.prise && Q.prise.b && Q.t < 1.8) {   // brandi au-dessus de la tête, de profil
+    const b = Q.prise.b, h = Math.min(1, Q.t * 4), p0 = proj(P.x, P.y, P.z), p1 = proj(P.x + 1, P.y, P.z), p2 = proj(P.x, P.y + 1, P.z);
+    let ux = p2[1] - p0[1], uy = -(p1[1] - p0[1]); const nu = Math.hypot(ux, uy) || 1; ux /= nu; uy /= nu;
+    if ((p1[0] - p0[0]) * ux + (p2[0] - p0[0]) * uy < 0) { ux = -ux; uy = -uy; }
+    b.x = P.x; b.y = P.y; b.z = P.z + .95 + h * .3; b.dir = b.dirT = Math.atan2(uy, ux); b.etat = 'mord'; b.t += .016;
+    if (b.sp.sz * (b.ech || 1) > .9) b.ech = .9 / b.sp.sz;
+    L.push(b);
+  }
+  return L;
 }
 function nagerOmbre(o, dt) {
   const Q = P.peche;
   let tx = o.tx, ty = o.ty, vit = .35 + OMBRE[o.sp.taille][0] * .25;
+  if (o.etat === 'nage' && P.nage && (o.x - P.x) ** 2 + (o.y - P.y) ** 2 < 7) { o.etat = 'fuit'; o.t = 0; o.dir = Math.atan2(o.y - P.y, o.x - P.x); }   // (§250) vous nagez sur lui : il file
+  if (o.etat === 'nage' && o.chef && o.chef !== o && Ombres.includes(o.chef) && o.chef.etat === 'nage') {   // (§250) le banc suit son chef
+    tx = o.chef.x + o.ofx; ty = o.chef.y + o.ofy; vit *= Math.min(1.8, .7 + Math.hypot(tx - o.x, ty - o.y) * .6);
+    const dx = tx - o.x, dy = ty - o.y, d = Math.hypot(dx, dy);
+    if (d > .05) { let da = Math.atan2(dy, dx) - o.dir; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832; o.dir += Math.max(-dt * 3, Math.min(dt * 3, da));
+      const s2 = Math.min(d, vit * dt), nx = o.x + dx / d * s2, ny = o.y + dy / d * s2; if (habitatEau(nx, ny) === o.hab) { o.x = nx; o.y = ny; } }
+    return;
+  }
   if (o.etat === 'fuit') { tx = o.x + Math.cos(o.dir) * 3; ty = o.y + Math.sin(o.dir) * 3; vit = 3; }
+  else if ((o.etat === 'vise' || o.etat === 'mordille' || o.etat === 'mord') && !(Q && Q.poisson === o)) { o.etat = 'nage'; o.tx = null; }   // (§250) ce n'est plus son bouchon
   else if (o.etat === 'vise' || o.etat === 'mordille' || o.etat === 'mord') {
     const L = OMBRE[o.sp.taille][0], a = Math.atan2(o.y - Q.by, o.x - Q.bx);
     tx = Q.bx + Math.cos(a) * (L * .5 + .12); ty = Q.by + Math.sin(a) * (L * .5 + .12); vit = o.etat === 'vise' ? .55 : .2;
@@ -16141,15 +16272,20 @@ function ferrer() {
   const Q = P.peche, o = Q.poisson;
   if (!o) return ramener();
   Ombres = Ombres.filter(x => x !== o);
-  const f = o.sp, cm = o.cm;
+  const f = o.sp, cm = o.cm, rare = f.rare || (f.r || 1) >= 3;
   P.poissons[f.id] = (P.poissons[f.id] || 0) + 1;
   const c = P.carnetPeche[f.id] || (P.carnetPeche[f.id] = { n: 0, rec: 0 });
   const neuf = !c.n, record = c.n > 0 && cm > c.rec;
-  c.n++; c.rec = Math.max(c.rec, cm);
-  P.peche = { etat: 'prise', t: 0, dip: 0, prise: { f, cm } };
-  SON.jouer('prise', { rare: f.rare ? 1 : 0 });
-  burst(P.x, P.y, P.z + 1.4, 16, f.rare ? '#ffe28a' : '#d8f4ff');
-  say(`vous avez pêché ${f.le} ${f.n.toLowerCase()} ! ${cm} cm · ${f.mot}` + (neuf ? ' · noté au carnet' : record ? ' · record !' : ''), 4);
+  c.n++; c.rec = Math.max(c.rec, cm); if (f.sp) { c.kind = f.kind; c.nom = f.n; }   // (§250) la famille et le nom : une sauvegarde les relit
+  if (o.b) o.b.brandi = true;                         // (§250) hors de l'eau : ses vraies couleurs
+  P.peche = { etat: 'prise', t: 0, dip: 0, prise: { f, cm, b: o.b || null } };
+  SON.jouer('prise', { rare: rare ? 1 : 0 });
+  burst(P.x, P.y, P.z + 1.4, 16, rare ? '#ffe28a' : '#d8f4ff');
+  if (f.sp) {                                        // (§250) une lignée d'Orvane : au carnet des lignées, et prélevée dans Orvane
+    try { if (typeof decouvrir === 'function') decouvrir(f.sp); } catch (e) { }
+    try { if (typeof orvaneEvenement === 'function' && o.b) orvaneEvenement('prelevement', o.b, 'peche'); } catch (e) { }
+    say(`vous avez pêché ${f.n} ! ${cm} cm` + (f.mot ? ' · ' + f.mot : '') + (neuf ? ' · noté au carnet de pêche' : record ? ' · record !' : ''), 4.5);
+  } else say(`vous avez pêché ${f.le} ${f.n.toLowerCase()} ! ${cm} cm · ${f.mot}` + (neuf ? ' · noté au carnet' : record ? ' · record !' : ''), 4);
   if (sacOuvert) majSac();
 }
 function majPeche(dt) {
@@ -16169,7 +16305,7 @@ function majPeche(dt) {
   if (Math.hypot(P.x - Q.px, P.y - Q.py) > .8) { ramener(); return; }       // on bouge : la ligne revient
   if (Q.etat === 'flotte' && !Q.poisson) {
     for (const o of Ombres) {
-      if (o.etat !== 'nage') continue;
+      if (o.etat !== 'nage' || o.sp.prenable === false) continue;   // (§250) trop grand pour une canne : il passe
       const d = Math.hypot(o.x - Q.bx, o.y - Q.by), vue = 2.6 + OMBRE[o.sp.taille][0];
       if (d < vue && Math.random() < dt * .7) { o.etat = 'vise'; Q.poisson = o; break; }
     }
@@ -16213,6 +16349,7 @@ function pecheDecor(ex, ey, r) {
   if (djIci()) return L;
   for (const o of Ombres.concat(ombresLoin())) {
     if ((o.x - ex) ** 2 + (o.y - ey) ** 2 > r * r) continue;
+    if (EAU_CLAIRE && o.b) continue;                   // (§250) la carte graphique dessine son vrai corps
     const [lg, lr] = OMBRE[o.sp.taille], k = .8 + .4 * (o.cm - o.sp.cm[0]) / (o.sp.cm[1] - o.sp.cm[0]);
     const ux = Math.cos(o.dir), uy = Math.sin(o.dir), z = hRendu(o.x, o.y) + (EAU_CLAIRE ? -Math.min(.32, profEau(o.x, o.y) * .45) : .03), C = [24, 42, 64];   // (§243) sous la surface, quand on la voit au travers
     const Lg = lg * k, W = lr * k, ond = Math.sin(t * (o.etat === 'fuit' ? 18 : 6) + o.age * 3) * .06 * Lg;
@@ -16235,7 +16372,7 @@ function pecheDecor(ex, ey, r) {
     L.push({ a: [p[0], p[1], bz - .03], b: [p[0], p[1], bz + .02], w: .08, h: .08, c: [240, 240, 236] });
     L.push({ a: [p[0], p[1], bz + .02], b: [p[0], p[1], bz + .07], w: .07, h: .07, c: [222, 54, 44] });
   }
-  if (Q && Q.etat === 'prise' && Q.t < 1.8) {                          // le poisson, brandi au-dessus de la tête
+  if (Q && Q.etat === 'prise' && Q.t < 1.8 && !(EAU_CLAIRE && Q.prise.b)) {   // le poisson, brandi au-dessus de la tête (§250 : en boîtes, s'il n'a pas de corps)
     const f = Q.prise.f, s = Math.max(.5, Math.min(1.3, Q.prise.cm / 55)), h = Math.min(1, Q.t * 4);
     // de profil face à la caméra : la direction du monde qui se projette à l'horizontale de l'écran
     const p0 = proj(P.x, P.y, P.z), p1 = proj(P.x + 1, P.y, P.z), p2 = proj(P.x, P.y + 1, P.z);
@@ -16294,7 +16431,7 @@ function pecheReseau() {
   if (Q) d.pe = Q.bx !== undefined && Q.etat !== 'main' && Q.etat !== 'prise' ? [PECHE_ETATS.indexOf(Q.etat), r2(Q.bx), r2(Q.by), r2(Q.bz)] : [PECHE_ETATS.indexOf(Q.etat)];
   // les ombres que voit quelqu'un d'en face (à trente cases d'elles)
   const vues = djIci() ? [] : Ombres.filter(o => [...Autres.values()].some(j => (j.x - o.x) ** 2 + (j.y - o.y) ** 2 < 30 * 30)).slice(0, 8);
-  if (vues.length) d.om = vues.map(o => [r2(o.x), r2(o.y), r2(o.dir), POISSONS.indexOf(o.sp), o.cm, o.etat === 'fuit' ? 1 : 0, r2(o.tx ?? o.x), r2(o.ty ?? o.y), o.n | 0]);
+  if (vues.length) d.om = vues.map(o => [r2(o.x), r2(o.y), r2(o.dir), o.sp.sp ? o.sp.id : POISSONS.indexOf(o.sp), o.cm, o.etat === 'fuit' ? 1 : 0, r2(o.tx ?? o.x), r2(o.ty ?? o.y), o.n | 0]);   // (§250) un nageur : son identifiant
   return d;
 }
 // Celle d'en face : sa canne, son bouchon, et les ombres qu'il fait nager.
@@ -16314,7 +16451,7 @@ function pecheDistante(j, d) {
   const L = Array.isArray(d.om) ? d.om.slice(0, 8) : [];
   const vieux = new Map((j.ombres || []).map(o => [o.n, o]));
   j.ombres = L.map(q => {
-    const sp = POISSONS[q[3] | 0]; if (!sp || !Number.isFinite(q[0]) || !Number.isFinite(q[1])) return null;
+    const sp = typeof q[3] === 'string' ? nageurDe(q[3]) : POISSONS[q[3] | 0]; if (!sp || !Number.isFinite(q[0]) || !Number.isFinite(q[1])) return null;
     const v = vieux.get(q[8] | 0), o = v && v.sp === sp ? v : { sp, cm: q[4] | 0, x: q[0], y: q[1], dir: +q[2] || 0, age: 0, t: 0, n: q[8] | 0 };
     o.ex = q[0] - o.x; o.ey = q[1] - o.y; o.eT = .5;    // l'écart à rattraper, en une demi-seconde
     if (o.ex * o.ex + o.ey * o.ey > 4) { o.x = q[0]; o.y = q[1]; o.ex = o.ey = 0; }
@@ -16332,12 +16469,14 @@ function majPecheLoin(dt) {
       const dx = o.tx - o.x, dy = o.ty - o.y, d = Math.hypot(dx, dy), vit = o.etat === 'fuit' ? 3 : .35 + OMBRE[o.sp.taille][0] * .25;
       if (d > .05) { const s = Math.min(d, vit * dt); o.x += dx / d * s; o.y += dy / d * s; o.dirC = Math.atan2(dy, dx); }
       let da = o.dirC - o.dir; while (da > Math.PI) da -= 6.2832; while (da < -Math.PI) da += 6.2832; o.dir += Math.max(-dt * 3, Math.min(dt * 3, da));
+      if (!o.b && o.sp && o.sp.sp) { o.prof = .2; o.zk = 1; o.b = corpsNageur(o); }   // (§250)
+      corpsNageurMaj(o, dt);
     }
   }
 }
 // ---------- manger, donner ----------
 function mangerPoisson(id) {
-  const f = poissonDe(id);
+  const f = INGR[id];                                // (§250) un poisson d'avant, ou un nageur d'Orvane
   if (!f || !(P.poissons[id] > 0)) return;
   if (P.pv >= 1) { say('vous n\'avez pas faim', 1.4); return; }
   P.poissons[id]--; P.pv = Math.min(1, P.pv + f.soin * soinK());
@@ -16346,18 +16485,19 @@ function mangerPoisson(id) {
 }
 // Le poisson qu'on donne à une bête : le plus commun qu'on ait.
 function poissonADonner() {
-  const L = POISSONS.filter(f => P.poissons[f.id] > 0).sort((a, b) => b.p - a.p);
-  return L.length ? L[0].id : null;
+  const L = Object.keys(P.poissons).filter(id => P.poissons[id] > 0 && INGR[id]).sort((a, b) => (INGR[a].r || 1) - (INGR[b].r || 1));
+  return L.length ? L[0] : null;
 }
 function blocPeche() {
-  const n = POISSONS.filter(f => P.carnetPeche[f.id]).length;
-  let h = `<h3>Carnet de pêche <span class="compte">${n} sur ${POISSONS.length}</span></h3>`;
+  const NG = nageurs(), L = NG.length ? NG : POISSONS;   // (§250) la faune aquatique d'Orvane ; les poissons d'avant, faute de mieux
+  const n = L.filter(f => P.carnetPeche[f.id]).length;
+  let h = `<h3>Carnet de pêche <span class="compte">${n} sur ${L.length}</span></h3>`;
   if (!P.objets.canne) h += `<p class="note" style="margin:2px 2px 8px">Une canne à pêche se fabrique à la main : du bois, de la fibre.</p>`;
-  for (const f of POISSONS) {
-    const c = P.carnetPeche[f.id];
-    h += `<div class="obj" style="gap:10px">${c ? caseObjet('poisson_' + f.id, { inerte: true, label: f.n }) : '<span class="case vide"></span>'}<div style="flex:1;min-width:0"><div class="n">${c ? nomRare(f.n, rareIngr(f.id)) : '? ? ?'}</div>`
-      + `<div class="d">${ESC(f.dit)}${c ? ' · pêché ' + c.n + ' fois · record ' + c.rec + ' cm' : ''}</div></div></div>`;
-  }
+  const ligne = f => { const c = P.carnetPeche[f.id];
+    return `<div class="obj" style="gap:10px">${c ? caseObjet('poisson_' + f.id, { inerte: true, label: f.n }) : '<span class="case vide"></span>'}<div style="flex:1;min-width:0"><div class="n">${c ? nomRare(f.n, rareIngr(f.id)) : '? ? ?'}</div>`
+      + `<div class="d">${ESC(f.dit)}${f.prenable === false ? ' · trop grand pour une canne' : ''}${c ? ' · pêché ' + c.n + ' fois · record ' + c.rec + ' cm' : ''}</div></div></div>`; };
+  for (const f of L) h += ligne(f);
+  if (NG.length) for (const f of POISSONS) if (P.carnetPeche[f.id]) h += ligne(f);   // les prises d'avant
   return h;
 }
 // ============================================================
@@ -16593,7 +16733,7 @@ const POISSON_R = { gardon: [1, null], truite: [2, 'vif'], carpe: [2, null], ang
 // Tous les ingrédients, par identifiant : les poissons gardent le leur ; viandes et produits de la
 // flore en prennent un préfixé (v_gibier, p_chene) ; et la baie, le nectar.
 const INGR = {};
-for (const f of POISSONS) INGR[f.id] = { id: f.id, n: f.n, court: f.n.split(' ')[0].toLowerCase(), fam: 'poisson', r: POISSON_R[f.id][0], tag: POISSON_R[f.id][1], soin: f.soin, c: f.c, src: 'poisson' };
+for (const f of POISSONS) INGR[f.id] = { id: f.id, n: f.n, court: f.court || f.n.split(' ')[0].toLowerCase(), fam: 'poisson', r: POISSON_R[f.id][0], tag: POISSON_R[f.id][1], soin: f.soin, c: f.c, src: 'poisson' };
 for (const [sp, n, court, r, tag, c] of VIANDES) INGR['v_' + sp] = { id: 'v_' + sp, sp, n, court, fam: 'viande', r, tag, soin: SOIN_FAM.viande * (1 + (r - 1) * .15), c, src: 'denree' };
 // (§235) les viandes des espèces d'avant : une sauvegarde peut en garder une dans un plat, la marmite ou un carnet. Elle se lit
 // comme celle qui la remplace (orvane-sv.js, orvaneViande), sans paraître dans aucune liste.
@@ -16637,7 +16777,7 @@ const etoiles = q => '★'.repeat(q) + '☆'.repeat(5 - q);
 const REMARQUABLES = [
   { id: 'lune', n: 'Soupe de lune', indice: 'le poisson des orages, une racine, une feuille', ok: (ids, F) => ids.includes('lune') && F.has('racine') && F.has('feuille') },
   { id: 'ambre', n: 'Tarte d\'ambre', indice: 'le nectar des butineuses, une graine, un fruit', ok: (ids, F) => ids.includes('nectar') && F.has('graine') && F.has('fruit') },
-  { id: 'horlogers', n: 'Festin des Horlogers', indice: 'la raie qui compte les secondes, une viande, un champignon', ok: (ids, F) => ids.includes('raie') && F.has('viande') && F.has('champignon') },
+  { id: 'horlogers', n: 'Festin des Horlogers', indice: 'un poisson des nuits marines, une viande, un champignon', ok: (ids, F) => ids.includes('raie') && F.has('viande') && F.has('champignon') },
   { id: 'lanterne', n: 'Gelée-lanterne', indice: 'deux lueurs : l\'une nage, l\'autre pousse', ok: ids => ids.includes('anguille') && ids.includes('p_clavaire') },
   { id: 'braise', n: 'Bouillon de braise', indice: 'le feu de la caldeira, et une racine', ok: (ids, F) => ids.includes('p_fleurbraise') && F.has('racine') },
   { id: 'premiers', n: 'Pain des premiers jours', indice: 'deux poignées de l\'herbe haute, et une baie', ok: ids => ids.filter(x => x === 'p_herbe').length >= 2 && ids.includes('baie') },
@@ -16774,8 +16914,8 @@ R_('eclipse', 'Galette d\'éclipse', 6, 'four', 'pain', 'invisible', 'champignon
 
 // --- les dix qui se transmettent : v: un métier du village, n: un rôle de nomade ---
 const RECETTES_DITES = {
-  passeur: ['v:cuisiniere', 'Chez nous, on fait le bouillon du passeur : un gardon, une racine de roseau, et de l\'eau qui frémit. Ma mère disait qu\'il se complète, quand on a le nez.'],
-  chaudree: ['v:pecheur', 'La chaudrée du ruisseau : un gardon, une sardine, une racine de massette. Rien de rare, et ça tient au corps toute la journée.'],
+  passeur: ['v:cuisiniere', 'Chez nous, on fait le bouillon du passeur : un petit poisson d\'eau douce, une racine de roseau, et de l\'eau qui frémit. Ma mère disait qu\'il se complète, quand on a le nez.'],
+  chaudree: ['v:pecheur', 'La chaudrée du ruisseau : un petit poisson d\'eau douce, un petit poisson de mer, une racine de massette. Rien de rare, et ça tient au corps toute la journée.'],
   civetcerf: ['v:chasseur', 'Le civet de gros gibier. Un quartier de grosse bête, des baies de deuil, une racine creuse. Laisse mijoter, et n\'y touche pas trop.'],
   haies: ['v:cueilleuse', 'La douceur des haies : une baie, des groseilles, des mûres et un coquelicot. Les enfants la sentent avant qu\'elle soit prête.'],
   compotebaies: ['v:enfant', 'Moi je sais faire la compote ! Deux baies et des mûres de ronce. C\'est tout. C\'est un secret, hein.'],
@@ -16788,7 +16928,7 @@ const RECETTES_DITES = {
 for (const [id, [tr, dit]] of Object.entries(RECETTES_DITES)) Object.assign(RECETTE[id], { tr, dit });
 
 // --- le mariage : chaque ingrédient de la marmite tient une place de la recette, et il n'en reste aucun ---
-const reqVa = (tok, id) => { const i = INGR[id]; if (!i) return false; if (INGR[tok]) return tok === id;
+const reqVa = (tok, id) => { const i = INGR[id]; if (!i) return false; if (INGR[tok]) return tok === id || i.kind === tok;   // (§250) un nageur vaut sa famille
   const m = /^(\*|[a-z]+)(\d?)$/.exec(tok); return !!m && (m[1] === '*' || i.fam === m[1]) && i.r >= (+m[2] || 1); };
 function apparie(req, ids) {
   if (req.length !== ids.length) return false;
@@ -16832,7 +16972,7 @@ function preparer(ids) {
   if (!L.length) return null;
   const F = new Set(L.map(i => i.fam)), has = f => F.has(f), seul = (...fs) => [...F].every(f => fs.includes(f));
   const pire = fs => L.filter(i => fs.includes(i.fam)).sort((a, b) => b.r - a.r)[0];   // le plus précieux d'une famille
-  const Rn = recetteDuPot(ids), R = Rn ? null : REMARQUABLES.find(r => r.ok(ids, F));   // (§153) les cent recettes d'abord : des mariages exacts
+  const Rn = recetteDuPot(ids), idsK = ids.map(id => (INGR[id] && INGR[id].kind) || id), R = Rn ? null : REMARQUABLES.find(r => r.ok(idsK, F));   // (§250)   // (§153) les cent recettes d'abord : des mariages exacts
   let cle, n;
   if (Rn) { cle = 'r:' + Rn.id; n = Rn.n; }
   else if (R) { cle = 'r:' + R.id; n = R.n; }
@@ -23996,7 +24136,7 @@ void main() { o = uC; }`;
   // (§248) LE CONTOUR DES BÊTES. Une robe, des épines, des éclats, des ailes du même ton se fondaient en une tache. Chaque pièce du
   // corps (ni la robe, ni ce qui luit, ni les voiles minces) se double d'une coque un peu plus grosse, d'un ton très sombre de sa
   // couleur, dont on ne dessine que l'envers : elle dépasse au bord de la silhouette, et d'une pièce à l'autre — un trait.
-  const TO = tampon();
+  const TO = tampon(), TF = tampon();                // (§250) TF : les nageurs, dessinés après l'eau, teintés par elle
   let DURCIR = false;
   function contourOs(o, A, B, U, e) {
     const dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2], L = Math.hypot(dx, dy, dz) || 1, kx = dx / L * e, ky = dy / L * e, kz = dz / L * e;
@@ -24358,22 +24498,25 @@ void main() { o = uC; }`;
     }
     const r2 = Math.min(portee2, 40 * 40);
     if (iso || tierce) heros(TD);
-    for (const b of beasts) {
+    for (const b of beasts.concat(corpsPecheGL())) {   // (§250) et les nageurs, de vrais corps sous l'eau
       if ((b.x - ex) ** 2 + (b.y - ey) ** 2 >= r2) continue;
       const kz = b.sp ? b.sp.sz : 1, e = b.sp.boss ? 6 : b.sp.corps === 'millegueule' ? 9 : b.sp.plante ? 4 : b.sp.horreur ? 2 : 1.3 * kz + .3;
       if (!iso && !boiteVue(b.x - e, b.x + e, b.y - e, b.y + e, b.z - .4, b.z + (b.sp.boss ? 7 : 1.8 * kz + .4), .05)) continue;
       const { U, put } = posBete(b);
-      if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol
+      if ((iso || tierce) && !b.nageur) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9), b.enVol ? 1 : 0);   // pendue à une paroi, elle n'a pas d'ombre au sol
       const flash = b.hit > 0 && (t * 16 | 0) % 2;
       const hb = L_FIXE + 256 * horizAt(b.x, b.y);
       if (b.tame && b.etat !== 'épaule') {                                   // le lien se voit : un anneau rouge qui bat
         const an = anneauLien(b);
         panneau(an.x, an.y, an.z, an.r, an.r, 232 / 255, 62 / 255, 78 / 255, an.a, 6);
       }
-      const trait = b.sp.orvane && !b.dead && (b.x - ex) ** 2 + (b.y - ey) ** 2 < 900, eT = iso ? 1.5 / (TW * 1.41) : .012;   // (§248) le contour
+      const sousEau = !!b.nageur && !b.brandi;          // (§250) un nageur : après l'eau, teint d'autant plus qu'il est profond
+      const trait = !sousEau && b.sp.orvane && !b.dead && (b.x - ex) ** 2 + (b.y - ey) ** 2 < 900, eT = iso ? 1.5 / (TW * 1.41) : .012;   // (§248) le contour
+      const kE = sousEau ? Math.min(.7, Math.max(.22, .22 + ((surfEau(b.x, b.y) || hRendu(b.x, b.y)) - b.z) * .5)) : 0, eauT = sousEau && b.nageur.hab === 'ocean' ? [36, 104, 136] : [38, 98, 94];
+      const T0 = sousEau ? TF : TD, teinte = c => kE ? [c[0] + (eauT[0] - c[0]) * kE, c[1] + (eauT[1] - c[1]) * kE, c[2] + (eauT[2] - c[2]) * kE] : c;
       DURCIR = !!b.sp.orvane;
       for (const o of osSur(b)) { const A = put(o.a), B2 = put(o.b);
-        boite(TD, A, B2, o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+        boite(T0, A, B2, o.w, o.h, flash ? [255, 220, 210] : teinte(o.c), o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
         if (trait && !o.luit && !o.robe && !o.ref && o.c && Math.min(o.w, o.h) >= .02) contourOs(o, A, B2, U, eT); }
       DURCIR = false;
     }
@@ -24498,6 +24641,15 @@ void main() { o = uC; }`;
       gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.CULL_FACE);
       stats.triangles = ntri | 0;
     }
+    if (TF.ni) {                                      // (§250) les nageurs, par-dessus l'eau qui les couvre (ils sont teints de sa couleur)
+      gl.useProgram(P_DECOR.p); gl.disable(gl.BLEND); gl.depthMask(true); gl.enable(gl.CULL_FACE); gl.cullFace(gl.BACK);
+      gl.bindVertexArray(dyn.va);
+      gl.bindBuffer(gl.ARRAY_BUFFER, dyn.vb); gl.bufferData(gl.ARRAY_BUFFER, TF.f.subarray(0, TF.nv * PV), gl.STREAM_DRAW);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dyn.ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, TF.i.subarray(0, TF.ni), gl.STREAM_DRAW);
+      gl.drawElements(gl.TRIANGLES, TF.ni, gl.UNSIGNED_INT, 0);
+      ntri += TF.ni / 3; stats.triangles = ntri | 0;
+    }
+    TF.nv = TF.ni = 0;
 
     // transparences : baies, éclats, puis précipitations — cachées par le relief, sans l'écrire
     gl.disable(gl.CULL_FACE); gl.depthMask(false);
@@ -24843,11 +24995,12 @@ function appliquer(d, vivantes) {
   P.soins = {}; for (const o of OBJETS) if (o.emp === 'soin') { const n = nb(d.soins && d.soins[o.id], 0, 1e4, 0) | 0; if (n) P.soins[o.id] = n; }
   P.baies = nb(d.baies, 0, 1e5, 3) | 0;
   P.poissons = {}; P.carnetPeche = {};
-  for (const f of POISSONS) {
-    const n = nb(d.poissons && d.poissons[f.id], 0, 1e4, 0) | 0; if (n) P.poissons[f.id] = n;
-    const c = d.carnetPeche && d.carnetPeche[f.id];
-    if (c && typeof c === 'object' && nb(c.n, 0, 1e6, 0) >= 1) P.carnetPeche[f.id] = { n: nb(c.n, 1, 1e6, 1) | 0, rec: nb(c.rec, 0, 999, 0) | 0 };
-  }
+  { const okId = id => /^[A-Za-z0-9_\-]{1,48}$/.test(id);   // (§250) les poissons d'avant, et les nageurs d'Orvane
+    for (const id in (d.poissons && typeof d.poissons === 'object' ? d.poissons : {})) { if (!okId(id)) continue; const n = nb(d.poissons[id], 0, 1e4, 0) | 0; if (n) P.poissons[id] = n; }
+    for (const id in (d.carnetPeche && typeof d.carnetPeche === 'object' ? d.carnetPeche : {})) { const c = d.carnetPeche[id];
+      if (!okId(id) || !c || typeof c !== 'object' || !(nb(c.n, 0, 1e6, 0) >= 1)) continue;
+      P.carnetPeche[id] = { n: nb(c.n, 1, 1e6, 1) | 0, rec: nb(c.rec, 0, 9999, 0) | 0, ...(typeof c.kind === 'string' && poissonDe(c.kind) ? { kind: c.kind } : {}), ...(typeof c.nom === 'string' ? { nom: c.nom.slice(0, 80) } : {}) }; }
+    poissonsConnus(); }
   // la cuisine : les denrées connues, des plats aux champs bornés, le carnet, la marmite
   P.denrees = {}; P.cellier = {};
   P.amis = Array.isArray(d.amis) ? d.amis.filter(a => a && typeof a.u === 'string').slice(0, 50).map(a => ({ u: a.u.slice(0, 64), n: String(a.n || '?').slice(0, 18), c: String(a.c || '').slice(0, 6) })) : [];

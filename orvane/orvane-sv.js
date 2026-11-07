@@ -863,7 +863,7 @@ function orvanePoser(b, etat) {
 function orvaneTirage(e, graine, niv, okR) {
   if (S.profil?.exposition?.bestiaire !== 'orvane' || niv < NIV_CHASSEURS || typeof SPEC === 'undefined' || typeof POIDS_ESPECE === 'undefined') return;
   const estChasseur = id => { const sp = typeof specById !== 'undefined' ? specById[id] : null; return !!(sp && sp.orvane && sp.diet === 'c'); };
-  const reste = SPEC.filter(sp => sp.orvane?.gabarit && sp.diet === 'c' && sp.cap > 0 && (POIDS_ESPECE[sp.id] || 0) > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
+  const reste = SPEC.filter(sp => sp.orvane?.gabarit && !sp.orvane.nage && sp.diet === 'c' && sp.cap > 0 && (POIDS_ESPECE[sp.id] || 0) > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
   let n = [...e].filter(estChasseur).length, g = (graine ^ 0x7a11e) >>> 0;
   const tir = () => { g = (Math.imul(g, 1664525) + 1013904223) >>> 0; return g / 4294967296; };
   // (§232) au plus un tiers des espèces tirées chassent : au loin, la puissance faisait tirer surtout des chasseurs, qui n'avaient
@@ -872,7 +872,7 @@ function orvaneTirage(e, graine, niv, okR) {
     if (C.length > max) {
       const trop = C.sort((a, b) => (POIDS_ESPECE[a] || 0) - (POIDS_ESPECE[b] || 0)).slice(0, C.length - max);
       for (const id of trop) e.delete(id);
-      const H = SPEC.filter(sp => sp.orvane?.gabarit && !sp.orvane.machine && sp.diet !== 'c' && sp.cap > 0 && (POIDS_ESPECE[sp.id] || 0) > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
+      const H = SPEC.filter(sp => sp.orvane?.gabarit && !sp.orvane.machine && !sp.orvane.nage && sp.diet !== 'c' && sp.cap > 0 && (POIDS_ESPECE[sp.id] || 0) > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
       for (let i = 0; i < trop.length && H.length; i++) {
         let r = tir() * H.reduce((a, sp) => a + POIDS_ESPECE[sp.id], 0), k = 0;
         for (; k < H.length - 1; k++) if ((r -= POIDS_ESPECE[H[k].id]) <= 0) break;
@@ -890,7 +890,7 @@ function orvaneTirage(e, graine, niv, okR) {
       for (; k < M.length - 1; k++) if ((r -= POIDS_ESPECE[M[k].id]) <= 0) break;
       e.add(M[k].id); M.splice(k, 1); } }
   // un trophée : dès la quatrième exploration, une île sur cinq en porte un, jusqu'à une sur deux à la vingtième
-  const T = SPEC.filter(sp => sp.orvane?.gabarit && sp.rarete >= 3 && sp.cap > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
+  const T = SPEC.filter(sp => sp.orvane?.gabarit && !sp.orvane.nage && sp.rarete >= 3 && sp.cap > 0 && !e.has(sp.id) && (!okR || okR(sp.id)));
   if (T.length && niv >= 4 && ![...e].some(id => specById?.[id]?.rarete >= 3) && tir() < Math.min(.5, .2 + .02 * (niv - 4))) {
     const plus = T.sort((a, b) => b.rarete - a.rarete), top = plus.filter(sp => sp.rarete === plus[0].rarete);   // le plus rare que l'île permette
     e.add(top[Math.floor(tir() * top.length)].id);
