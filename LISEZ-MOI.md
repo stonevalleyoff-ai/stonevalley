@@ -7896,3 +7896,19 @@ Un nageur vaut sa famille dans les recettes (`reqVa`) et dans les plats remarqua
 **Les petites créatures sautillaient** (§226, `osOrvane`). Une mignonne rebondissait à chaque pas, s'écrasait au sol et s'étirait en l'air ; une petite (ou une sauteuse) courait par bonds, les pieds joints. Tout cela est retiré. Elle marche, trotte et galope comme les autres, et son corps rebondit à peine (60 % de moins chez les plus petites). Les vrais sauts (sur une marche, par-dessus un trou) restent.
 
 **Vérifié.** Un phénix des braises en balade : 6,4 cases par seconde en moyenne au lieu de 3,2 ; à chaque échantillon de montée, il bat des ailes. Une pêche de bout en bout. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-221`.
+
+## §252 · La nuit : plus courte, et de lune
+
+**Il faisait nuit trop souvent.** Une journée durait 4 minutes, dont 1 min 20 de noir presque total (un tiers du temps). On ne pouvait pas regarder l'île.
+
+**Une journée de 12 minutes** (`JOUR = 720`). Le soleil se lève à **5 h** et se couche à **21 h** (`LEVER`, `COUCHER`) ; le soir s'assombrit en une heure, l'aube éclaircit en une heure (`CREPUSCULE = 1`).
+
+**Les heures ne passent pas toutes à la même vitesse** (`secParHeure`, `avancerHorloge`) : le jour (5 h–21 h) prend 9 min 35 s, chaque crépuscule 30 s, le cœur de la nuit (22 h–4 h) 1 min 25 s. Mesuré sur un tour complet : 9 min 48 de jour, 23 s de pénombre, **1 min 49 de nuit** (15 %, contre 34 % avant). L'horloge garde ses vraies heures.
+
+**Une nuit de lune.** Le noir ne bouche plus la vue : il bleuit l'île et l'assombrit de moitié (`NOIR = [14, 22, 50]`, `NOIR_MAX = .55` au lieu de `.9`), sous un voile du soir plus léger (`VOILE_NUIT = .42` au lieu de `.55`). Le relief, les bêtes et l'eau se voient ; une lanterne, un feu ou l'arche font encore une flaque chaude. Pareil en 3D, en première personne et dans le canvas de secours.
+
+**Le repos ne passe pas la nuit.** L'heure est une seule fraction partagée : le gardien de l'île la donne aux autres joueurs (`faune.js`), et chacun l'avance avec la même règle. Rien ne la saute en dormant.
+
+**Ce qui suit les nouvelles heures.** Les poissons de nuit mordent du coucher au lever (`quandOk`) ; ceux de l'aube, de 4 h à 8 h et de 19 h à 22 h. L'état « à l'aube, engourdi » vaut de 4 h à 7 h. Les boutons d'essai Aube et Soir mettent 5 h 12 et 20 h 24. Les bêtes, le village et les nomades lisent toujours la lumière (`lumiere()`) : leur nuit raccourcit avec celle de l'île.
+
+**Vérifié.** La courbe heure par heure, et les durées sur un tour complet. Des captures à 13 h, 21 h, 23 h, 1 h et 4 h 30, en 3D, en première personne et dans le canvas. Six îles, les compagnes, la monture, une pêche de bout en bout : aucune erreur. `sw.js` : `stone-valley-222`.

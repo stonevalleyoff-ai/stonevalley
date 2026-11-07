@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=221"></script>
-<script src="rouages.js?v=221"></script>
-<script src="forge.js?v=221"></script>
-<script src="nomades.js?v=221"></script>
-<script src="etats.js?v=221"></script>
-<script src="brume.js?v=221"></script>
-<script src="roi.js?v=221"></script>
-<script src="trone.js?v=221"></script>
-<script src="achromie.js?v=221"></script>
-<script src="vyrel.js?v=221"></script>
-<script src="village.js?v=221"></script>
-<script src="volcan.js?v=221"></script>
-<script src="dons.js?v=221"></script>
-<script src="coop.js?v=221"></script>
-<script src="faune.js?v=221"></script>
-<script src="flore.js?v=221"></script>
-<script src="lignees.js?v=221"></script>
-<script src="conduites.js?v=221"></script>
-<script src="pouvoirs.js?v=221"></script>
+<script src="donjon.js?v=222"></script>
+<script src="rouages.js?v=222"></script>
+<script src="forge.js?v=222"></script>
+<script src="nomades.js?v=222"></script>
+<script src="etats.js?v=222"></script>
+<script src="brume.js?v=222"></script>
+<script src="roi.js?v=222"></script>
+<script src="trone.js?v=222"></script>
+<script src="achromie.js?v=222"></script>
+<script src="vyrel.js?v=222"></script>
+<script src="village.js?v=222"></script>
+<script src="volcan.js?v=222"></script>
+<script src="dons.js?v=222"></script>
+<script src="coop.js?v=222"></script>
+<script src="faune.js?v=222"></script>
+<script src="flore.js?v=222"></script>
+<script src="lignees.js?v=222"></script>
+<script src="conduites.js?v=222"></script>
+<script src="pouvoirs.js?v=222"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=221"></script><script src="orvane/tampon.js?v=221"></script><script src="orvane/correspondance.js?v=221"></script><script src="orvane/secours.js?v=221"></script><script src="orvane/orvane-sv.js?v=221"></script>
+<script src="orvane/corps.js?v=222"></script><script src="orvane/tampon.js?v=222"></script><script src="orvane/correspondance.js?v=222"></script><script src="orvane/secours.js?v=222"></script><script src="orvane/orvane-sv.js?v=222"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -8363,7 +8363,7 @@ function outilBeta(k) {
   else if (k === 'dons:oubli') { P.dons = {}; say('les dons sont oubliés', 1.6); }
   else if (k === 'vyMasque') { P.objets.masque_bec = 1; P.equip.accessoire = P.equip.accessoire === 'masque_bec' ? null : 'masque_bec'; say(P.equip.accessoire ? 'masque à bec mis' : 'masque à bec ôté', 1.4); }
   else if (k === 'formes') { formesActives = !formesActives; say(formesActives ? 'les bêtes en formes' : 'les bêtes en pavés · essai', 1.4); }
-  else if (k === 'aube' || k === 'soir') { horloge = k === 'aube' ? .26 : .76; say((k === 'aube' ? 'l\'aube' : 'le soir') + ' · essai', 1.4); }
+  else if (k === 'aube' || k === 'soir') { horloge = k === 'aube' ? 5.2 / 24 : 20.4 / 24; say((k === 'aube' ? 'l\'aube' : 'le soir') + ' · essai', 1.4); }
   if (k === 'sac') { for (const r of Object.keys(RES)) P.sac[r] = (P.sac[r] || 0) + 200; P.baies += 50; P.fleches += 64; P.baumes += 5; P.encre += 5; for (const o of OBJETS) if (o.emp === 'soin') P.soins[o.id] = (P.soins[o.id] | 0) + 3;
     for (const id in INGR) if (INGR[id].src === 'denree') P.denrees[id] = (P.denrees[id] || 0) + 3; else if (INGR[id].src === 'poisson') P.poissons[id] = (P.poissons[id] || 0) + 3;
     say('sac rempli · essai', 1.6); }
@@ -8758,10 +8758,22 @@ let beasts = [], berries = [], horloge = .3;   // berries : l'index des buissons
 const BUISSON_BIO = { 2: ESP.findIndex(e => e.id === 'groseillier'), 3: ESP.findIndex(e => e.id === 'ronce'), 28: ESP.findIndex(e => e.id === 'piment'),   // (§197) le piment, sur la cendre du volcan
   9: ESP.findIndex(e => e.id === 'airelle'), 11: ESP.findIndex(e => e.id === 'murier'), 23: ESP.findIndex(e => e.id === 'griottier') };
 const baieMure = br => Flo[br.i] === ESP.indexOf(br.e) + 1 && maturite(br.i, br.e) >= 1;
-const JOUR = 240;
-// Le soleil se lève à 6 h et se couche à 20 h : quatorze heures de jour, dix de nuit. Le noir
-// commence au coucher et s'épaissit en une heure et demie ; l'aube le défait d'ici 6 h.
-const LEVER = 6, COUCHER = 20, CREPUSCULE = 1.5;
+// (§252) Une journée dure douze minutes, et l'on a le temps de regarder l'île. Le soleil se lève
+// à 5 h et se couche à 21 h ; le soir s'assombrit en une heure, l'aube éclaircit en une heure.
+// Les heures ne passent pas toutes à la même vitesse : le jour (5 h–21 h) prend 9 min 35 s,
+// chaque crépuscule 30 s, et le cœur de la nuit (22 h–4 h) seulement 1 min 25 s. L'heure reste une
+// seule fraction partagée (le gardien la donne aux autres joueurs), et chacun l'avance de la même
+// façon : on ne la saute pas en dormant.
+const JOUR = 720;
+const LEVER = 5, COUCHER = 21, CREPUSCULE = 1;
+const DUREE_JOUR = 575, DUREE_CREP = 30, DUREE_NUIT = JOUR - DUREE_JOUR - 2 * DUREE_CREP;   // en secondes
+// Les secondes que dure une heure de jeu, à l'heure H.
+function secParHeure(H) {
+  if (H >= LEVER && H < COUCHER) return DUREE_JOUR / (COUCHER - LEVER);
+  if ((H >= COUCHER && H < COUCHER + CREPUSCULE) || (H >= LEVER - CREPUSCULE && H < LEVER)) return DUREE_CREP / CREPUSCULE;
+  return DUREE_NUIT / (24 - (COUCHER - LEVER) - 2 * CREPUSCULE);
+}
+const avancerHorloge = (h, dt) => (h + dt / (secParHeure(h * 24) * 24)) % 1;
 const lisse01 = u => { u = Math.max(0, Math.min(1, u)); return u * u * (3 - 2 * u); };
 function lumiere() {
   if (djIci()) return typeof roiNoir === 'function' && roiNoir() ? .18 : .9;   // en bas, il ne fait jamais nuit — sauf dans les Ossuaires (§165)
@@ -8901,7 +8913,10 @@ const clarte = () => Math.min(1.3, lumiere() * met('lum') + Meteo.flash * .55);
 //  qu'éclaire quelque chose — vous, vos compagnes, les autres joueurs et les leurs, le feu du
 //  campement, l'arche de l'île. Une lanterne repousse le bord du noir deux fois plus loin.
 // ============================================================
-const NOIR = [5, 7, 16], NOIR_MAX = .9, FEUX_MAX = 8;
+// (§252) Une nuit de lune : le noir ne bouche plus la vue. Il bleuit et assombrit l'île de moitié,
+// assez pour qu'une lanterne ou un feu fassent encore une flaque chaude, pas assez pour tout cacher.
+const NOIR = [14, 22, 50], NOIR_MAX = .55, FEUX_MAX = 8;
+const VOILE_NUIT = .42;                                // le voile bleu du soir (il valait .55)
 const RAYON = { joueur: 3.8, lanterne: 7.5, compagne: 1.9, feu: 6.5, arche: 3.2 };
 // La force du noir, de 0 (jour) à 1 (cœur de la nuit). C'est le soleil qui décide : l'orage
 // n'assombrit qu'un peu — midi sous l'orage reste le jour — et l'éclair déchire tout.
@@ -14367,7 +14382,7 @@ function majBete(b, dt) {
 const populationSauvage = sp => beasts.reduce((n, o) => n + (o.sp === sp && !o.dead && !o.tame ? 1 : 0), 0);
 let tour = 0, dansEcosysteme = false, retraits = 0;
 function majEcosysteme(dt) {
-  horloge = (horloge + dt / JOUR) % 1;
+  horloge = avancerHorloge(horloge, dt);
   guetterVariantes();
   majMeteo(dt);
   tour++;
@@ -14490,7 +14505,7 @@ const COND_LIEN = {
   surprise: { d: () => 'ne vous a pas vu', v: b => !(b.alarm > .3) && !(b.colere > 0) && b.etat !== 'fuir' && Math.hypot(P.vx || 0, P.vy || 0) < 3.5 ? 1 : 0 },
   repu: { d: () => 'repu', v: b => b.faim < .2 ? 1 : 0 },
   nuit: { d: () => 'de nuit', v: () => lumiere() < .4 ? 1 : 0 },
-  aube: { d: () => 'à l\'aube, engourdi', v: () => horloge > .2 && horloge < .34 ? 1 : 0 },
+  aube: { d: () => 'à l\'aube, engourdi', v: () => horloge > 4 / 24 && horloge < 7 / 24 ? 1 : 0 },
   dort: { d: () => 'endormi', v: b => b.etat === 'dormir' || b.etat === 'sommeil' ? 1 : 0 },
   veille: { d: () => 'en veille', v: b => eveille(b) ? 0 : 1 },
   eclat: { d: b => (b.sp.eclats || 1) > 1 ? b.sp.eclats + ' éclats glissés (G)' : 'un éclat glissé (G)', v: b => (b.eclatG || 0) >= (b.sp.eclats || 1) ? 1 : 0 },
@@ -16077,10 +16092,10 @@ function habitatEau(x, y) {
   return Hgt[i] <= SEA && Bio[i] === 0 ? 'ocean' : null;
 }
 function quandOk(f) {
-  const h = horloge, nuit = h < .25 || h > .84;
+  const h = horloge, nuit = h < LEVER / 24 || h > COUCHER / 24;   // (§252) du coucher au lever
   if (f.quand === 'jour') return !nuit;
   if (f.quand === 'nuit') return nuit;
-  if (f.quand === 'aube') return (h > .2 && h < .34) || (h > .75 && h < .88);
+  if (f.quand === 'aube') return (h > 4 / 24 && h < 8 / 24) || (h > 19 / 24 && h < 22 / 24);   // l'aube et le soir, autour du lever et du coucher
   if (f.quand === 'orage') return Meteo.vers === 'orage';
   return true;
 }
@@ -22057,7 +22072,7 @@ function draw() {
   dessinerGouttes(VIEW_ISO);
 
   const l = clarte();                                  // le voile du soir s'épaissit aussi sous l'orage
-  if (l < .99) { const n = 1 - l; g.fillStyle = `rgba(${20 + n * 8},${26 - n * 10},${56 + n * 12},${n * .55})`; g.fillRect(0, 0, Wd, Hd); }
+  if (l < .99) { const n = 1 - l; g.fillStyle = `rgba(${20 + n * 8},${26 - n * 10},${56 + n * 12},${n * VOILE_NUIT})`; g.fillRect(0, 0, Wd, Hd); }
   voileNuit(g, false);
   drawHud();
 }
@@ -24334,7 +24349,7 @@ void main() { o = uC; }`;
 
     const l = clarte(), ciel = couleurCiel().map(v => v / 255);
     const nuit = l < .99 ? 1 - l : 0;
-    const voile = [(20 + nuit * 8) / 255, (26 - nuit * 10) / 255, (56 + nuit * 12) / 255, nuit * .55];
+    const voile = [(20 + nuit * 8) / 255, (26 - nuit * 10) / 255, (56 + nuit * 12) / 255, nuit * VOILE_NUIT];
     const noir = [NOIR[0] / 255, NOIR[1] / 255, NOIR[2] / 255, noirceur() * NOIR_MAX];
     const EN = typeof enferGL === 'function' ? enferGL() : ENF_VIDE, kEn = EN[7];   // (§162) l'île démoniaque : un voile rouge sombre sur tout
     { const VV = typeof volcanVoile === 'function' ? volcanVoile() : null; if (VV) { for (let i = 0; i < 3; i++) voile[i] += (VV[i] - voile[i]) * .6; voile[3] = Math.max(voile[3], VV[3]); } }   // (§195) la cendre, le rougeoiement
