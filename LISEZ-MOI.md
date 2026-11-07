@@ -7825,3 +7825,13 @@ Maintenant (`lgAiles`, style `ether`) :
 - elles sont un peu plus courtes (1 à 1,35 fois le tronc).
 
 **Vérifié.** Varen avant, au repos et alarmé. Dans le navigateur : six îles, aucune erreur. `sw.js` : `stone-valley-217`.
+
+## §248 · Les créatures se lisent : un contour, un modelé franc, une robe calme
+
+Une créature chargée (une robe en volume, des épines, des éclats, une crinière, des ailes d'éther), toute d'un même ton, se fondait en une tache : Varen, chimère des spectres, était cyan pâle de la tête aux éclats. Quatre remèdes :
+- **Un contour** (`contourOs`, `TO`). Chaque pièce du corps d'une lignée d'Orvane, à moins de trente cases, se double d'une coque un peu plus grosse, d'un ton très sombre de sa couleur. On n'en dessine que l'envers (les faces avant sont écartées) : elle dépasse au bord de la silhouette et d'une pièce à l'autre, comme un trait d'encre. L'épaisseur fait un pixel et demi à l'écran, quel que soit le zoom en isométrie. La robe (§246), ce qui luit et les voiles minces (les ailes, les plaques) n'en ont pas.
+- **Un modelé plus franc** (`DURCIR`). Sur une bête, l'éclairement des faces est étiré : le dessus plus clair, les flancs plus sombres, le ventre plus encore. Le volume se lit d'en haut.
+- **Le corps se détache de ce qui pousse ou luit sur lui** (`lgMesures`). Une robe claire sous des cornes, des éclats, des marques aussi clairs (moins de 95 de clarté d'écart) s'assombrit vers son ton sombre, jusqu'aux trois quarts.
+- **Une robe plus calme** (`lgRobe`). Les mèches, bouclettes et écailles ont des tons plus proches du corps, qui se lit d'un bloc. Une épique, qui porte déjà sa fantaisie, en a deux fois moins. Le grain de la texture se fait plus discret sur les bêtes. Les ailes d'éther sont un ton plus sombres.
+
+**Vérifié.** Avant et après, de près : Varen (le corps bleu ardoise, les éclats blancs qui ressortent), un mammouth de laine, un lutin à poils, un naga, un phénix. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture ; le canvas de secours (sans contour). `sw.js` : `stone-valley-218`.

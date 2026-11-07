@@ -122,6 +122,12 @@ function lgMesures(sp) {
     if (!M.epines && pu > .6 && M.carapace <= .3 && !M.org('epines') && !M.org('plaques') && !M.oiseau) M.epines = true;
   }
   if (M.hexa && M.Hl > .3) M.Hl = .3;                               // un hexapode se tient bas : ses pattes s'écartent plutôt
+  // (§248) LA LISIBILITÉ : le corps se détache de ce qui pousse ou luit sur lui. Une robe claire sous des cornes, des éclats, des
+  // marques clairs aussi (une chimère des spectres : tout en cyan pâle) s'assombrit vers son ton sombre, jusqu'à s'en séparer
+  { const lu = c => c ? .299 * c[0] + .587 * c[1] + .114 * c[2] : -999, lr = lu(M.robe), ref = [M.corne, M.lueur].filter(Boolean).map(lu);
+    const proche = ref.length ? Math.min(...ref.map(v => Math.abs(v - lr))) : 999;
+    if (proche < 95 && lr > 105) { const k = lgCl((95 - proche) / 95, 0, 1) * .75, fond = lgMix(M.sombre, [28, 32, 46], .35);
+      M.robe = lgMix(M.robe, fond, k); M.dos = lgMix(M.robe, M.sombre, .35); M.griffe = lgMix(M.sombre, LG.CORNE, .45); } }
   // (§246) sa robe, en volume : des poils, de la laine, une toison, des écailles, des plumes, de la chitine, une peau
   M.matiere = sp.matiere || (M.oiseau ? 'plume' : M.hexa ? 'chitine' : serpent ? 'ecaille' : 'pelage');
   M.froid = Number.isFinite(O.froid) ? O.froid : .5;
@@ -312,10 +318,14 @@ function osOrvane(f) {
 const LG_LAINE = [240, 232, 212], LG_ROBE_MAX = 120;
 const lgH = (a, b) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
 function lgRobe(f, M, B, A) {
+  const N0 = B.length;
+  try { lgRobe0(f, M, B, A); } finally { for (let q = N0; q < B.length; q++) B[q].robe = 1; }   // (§248) la robe n'a pas de contour : seul le corps en a
+}
+function lgRobe0(f, M, B, A) {
   const type = M.matiere; if (!type || f.enfoui > 0) return;
   if (typeof EAU_CLAIRE !== 'undefined' && !EAU_CLAIRE) return;
   let d2 = 0; try { if (typeof P !== 'undefined' && P) d2 = (f.x - P.x) ** 2 + (f.y - P.y) ** 2; } catch (e) { }
-  const pas = d2 < 144 ? 1 : d2 < 400 ? 2 : d2 < 676 ? 3 : 0; if (!pas) return;
+  const pas = (d2 < 144 ? 1 : d2 < 400 ? 2 : d2 < 676 ? 3 : 0) * ((M.epique || 0) > .5 && M.el ? 2 : 1); if (!pas) return;   // (§248) une épique porte déjà sa fantaisie : une robe plus légère
   const { g, couche, allure } = A, fr = M.froid, cou0 = 1 - couche, N0 = B.length;
   const peau = o => !o.luit && !o.ref && o.fin === undefined && !o.boule && (o.c === M.robe || o.c === M.dos || o.c === M.sombre || o.c === M.ventre) && Math.min(o.w, o.h) > .028;
   const D = Math.PI / 180;
@@ -357,7 +367,7 @@ function lgRobe(f, M, B, A) {
         let Fx = -1, Fy = 0, Fz = -.45; const fd = Fx * Nx + Fy * Ny + Fz * Nz; Fx -= Nx * fd; Fy -= Ny * fd; Fz -= Nz * fd;
         let fl = Math.hypot(Fx, Fy, Fz); if (fl < .25) { Fx = -ux; Fy = -uy; Fz = -uz; fl = 1; } Fx /= fl; Fy /= fl; Fz /= fl;
         const h = lgH(i * 7.13 + j * 1.7 + k * 3.1, g * 5.3 + (type.length)), Q = [qx, qy, qz], N = [Nx, Ny, Nz];
-        const ton = h < .22 ? lgMix(o.c, M.sombre, .35) : h > .82 ? lgMix(o.c, [255, 250, 240], .16) : o.c;
+        const ton = h < .22 ? lgMix(o.c, M.sombre, .2) : h > .85 ? lgMix(o.c, [255, 250, 240], .08) : o.c;   // (§248) des tons proches : la robe se lit d'un bloc
         const pt = (a, b, cc) => [qx + Nx * a + Fx * b, qy + Ny * a + Fy * b, qz + Nz * a + Fz * b + (cc || 0)];
         if (type === 'pelage' || (type === 'toison' && si > .2)) {
           const len = (.042 + .03 * M.lourd + .035 * fr + .015 * (M.epique || 0)) * (part === 'tete' ? .55 : part === 'pattes' ? .75 : 1) * (.7 + .6 * h) * (si < -.2 ? 1.6 : 1);
@@ -668,7 +678,7 @@ function lgAiles(f, M, add, B, A) {
   const C = { robe: M.robe, bord: plumes ? lgMix(M.robe, [250, 246, 236], .2) : lgMix(M.robe, M.sombre, .2), fin: M.sombre };
   const luitB = M.el && (ether || I > .55), glow = M.el ? M.lueur : null;
   // (§247) l'éther : une membrane teintée de l'élément et ombrée (elle luisait toute, et sortait en plaque blanche)
-  const voile = ether ? lgMix(lgMix(M.lueur, M.robe, .45), M.sombre, .3) : ins ? lgMix(M.robe, [232, 244, 255], .7) : style === 'membranes' ? lgMix(M.robe, M.sombre, .35) : lgMix(M.robe, M.ventre, .25);
+  const voile = ether ? lgMix(lgMix(M.lueur, M.robe, .45), M.sombre, .42) : ins ? lgMix(M.robe, [232, 244, 255], .7) : style === 'membranes' ? lgMix(M.robe, M.sombre, .35) : lgMix(M.robe, M.ventre, .25);
   const L1 = L * .3, L2 = L * .36, L3 = L * .34;
   for (const s of [-1, 1]) {
     if (ins) {                                                       // un insecte : deux paires d'ailes fines, qui vrombissent

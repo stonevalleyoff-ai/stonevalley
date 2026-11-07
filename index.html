@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=217"></script>
-<script src="rouages.js?v=217"></script>
-<script src="forge.js?v=217"></script>
-<script src="nomades.js?v=217"></script>
-<script src="etats.js?v=217"></script>
-<script src="brume.js?v=217"></script>
-<script src="roi.js?v=217"></script>
-<script src="trone.js?v=217"></script>
-<script src="achromie.js?v=217"></script>
-<script src="vyrel.js?v=217"></script>
-<script src="village.js?v=217"></script>
-<script src="volcan.js?v=217"></script>
-<script src="dons.js?v=217"></script>
-<script src="coop.js?v=217"></script>
-<script src="faune.js?v=217"></script>
-<script src="flore.js?v=217"></script>
-<script src="lignees.js?v=217"></script>
-<script src="conduites.js?v=217"></script>
-<script src="pouvoirs.js?v=217"></script>
+<script src="donjon.js?v=218"></script>
+<script src="rouages.js?v=218"></script>
+<script src="forge.js?v=218"></script>
+<script src="nomades.js?v=218"></script>
+<script src="etats.js?v=218"></script>
+<script src="brume.js?v=218"></script>
+<script src="roi.js?v=218"></script>
+<script src="trone.js?v=218"></script>
+<script src="achromie.js?v=218"></script>
+<script src="vyrel.js?v=218"></script>
+<script src="village.js?v=218"></script>
+<script src="volcan.js?v=218"></script>
+<script src="dons.js?v=218"></script>
+<script src="coop.js?v=218"></script>
+<script src="faune.js?v=218"></script>
+<script src="flore.js?v=218"></script>
+<script src="lignees.js?v=218"></script>
+<script src="conduites.js?v=218"></script>
+<script src="pouvoirs.js?v=218"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=217"></script><script src="orvane/tampon.js?v=217"></script><script src="orvane/correspondance.js?v=217"></script><script src="orvane/secours.js?v=217"></script><script src="orvane/orvane-sv.js?v=217"></script>
+<script src="orvane/corps.js?v=218"></script><script src="orvane/tampon.js?v=218"></script><script src="orvane/correspondance.js?v=218"></script><script src="orvane/secours.js?v=218"></script><script src="orvane/orvane-sv.js?v=218"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -23354,7 +23354,7 @@ void main() {
     vec2 gx = dFdx(vT), gy = dFdy(vT);
     float dg = sqrt(max(dot(gx, gx), dot(gy, gy))) * 16.0;
     float ag = ef * clamp(1.9 - dg, 0.0, 1.0);
-    if (vK.x > 0 && ag > 0.01) { vec4 t = grain(vK.x - 1, vT, jv); c = mix(c, t.rgb, t.a * ag); }
+    if (vK.x > 0 && ag > 0.01) { vec4 t = grain(vK.x - 1, vT, jv); c = mix(c, t.rgb, t.a * ag * (vL == 2 ? 0.6 : 1.0)); }   // (§248) sur une bête, le grain se fait discret
     vec2 hx = dFdx(tf), hy = dFdy(tf);
     float dv = sqrt(max(dot(hx, hx), dot(hy, hy))) * 16.0;
     float av = ef * clamp(2.6 - dv * 0.4, 0.0, 1.0);
@@ -23824,6 +23824,7 @@ void main() { o = uC; }`;
         const bx = CB[o1] - CB[o0], by = CB[o1 + 1] - CB[o0 + 1], bz = CB[o1 + 2] - CB[o0 + 2];
         const nx = Math.abs(ay * bz - az * by), ny = Math.abs(az * bx - ax * bz), nzs = ax * by - ay * bx, nz = Math.abs(nzs);
         sh = nz >= nx && nz >= ny ? (nzs > 0 ? 1 : .5) : nx >= ny ? .8 : .6;
+        if (DURCIR) sh = .36 + (sh - .5) * 1.44;          // (§248) une bête : le dessus plus clair, les flancs et le ventre plus sombres
       }
       const v0 = T.nv;
       let su = 1, sv = 1, ou = 0, ov = 0;
@@ -23858,7 +23859,7 @@ void main() { o = uC; }`;
       let nx = -(ey * gz - ez * gy), ny = -(ez * gx - ex * gz), nz = -(ex * gy - ey * gx);   // la normale sortante
       const nl = Math.hypot(nx, ny, nz); if (nl < 1e-12) continue;
       nx /= nl; ny /= nl; nz /= nl;
-      const sh = uni || ombreForme(nx, ny, nz);
+      const sh = uni || (DURCIR ? .36 + (ombreForme(nx, ny, nz) - .5) * 1.44 : ombreForme(nx, ny, nz));   // (§248)
       const el = Math.hypot(ex, ey, ez) || 1, e1x = ex / el, e1y = ey / el, e1z = ez / el;   // le repère de la face, pour le grain
       const e2x = ny * e1z - nz * e1y, e2y = nz * e1x - nx * e1z, e2z = nx * e1y - ny * e1x;
       let u0 = 1e9, u1 = -1e9, w0 = 1e9, w1 = -1e9;
@@ -23992,6 +23993,16 @@ void main() { o = uC; }`;
     for (const [l, n, o] of d) { gl.enableVertexAttribArray(l); gl.vertexAttribPointer(l, n, gl.FLOAT, false, PV * 4, o); }
   }
   const TT = tampon(), TE = tampon();
+  // (§248) LE CONTOUR DES BÊTES. Une robe, des épines, des éclats, des ailes du même ton se fondaient en une tache. Chaque pièce du
+  // corps (ni la robe, ni ce qui luit, ni les voiles minces) se double d'une coque un peu plus grosse, d'un ton très sombre de sa
+  // couleur, dont on ne dessine que l'envers : elle dépasse au bord de la silhouette, et d'une pièce à l'autre — un trait.
+  const TO = tampon();
+  let DURCIR = false;
+  function contourOs(o, A, B, U, e) {
+    const dx = B[0] - A[0], dy = B[1] - A[1], dz = B[2] - A[2], L = Math.hypot(dx, dy, dz) || 1, kx = dx / L * e, ky = dy / L * e, kz = dz / L * e;
+    const c = o.c, n = [c[0] * .2 + 6, c[1] * .2 + 5, c[2] * .24 + 10];
+    boite(TO, [A[0] - kx, A[1] - ky, A[2] - kz], [B[0] + kx, B[1] + ky, B[2] + kz], o.w + 2 * e, o.h + 2 * e, n, 1, 0, L_FIXE, 0, 0, 0, U, 0, o);
+  }
   function construire(c, quoi) {
     TT.nv = TT.ni = 0;
     if (quoi === 't') {
@@ -24359,7 +24370,12 @@ void main() { o = uC; }`;
         const an = anneauLien(b);
         panneau(an.x, an.y, an.z, an.r, an.r, 232 / 255, 62 / 255, 78 / 255, an.a, 6);
       }
-      for (const o of osSur(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+      const trait = b.sp.orvane && !b.dead && (b.x - ex) ** 2 + (b.y - ey) ** 2 < 900, eT = iso ? 1.5 / (TW * 1.41) : .012;   // (§248) le contour
+      DURCIR = !!b.sp.orvane;
+      for (const o of osSur(b)) { const A = put(o.a), B2 = put(o.b);
+        boite(TD, A, B2, o.w, o.h, flash ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+        if (trait && !o.luit && !o.robe && !o.ref && o.c && Math.min(o.w, o.h) >= .02) contourOs(o, A, B2, U, eT); }
+      DURCIR = false;
     }
     for (const b of betesLoin) {
       const kz = b.sp.sz, { U, put } = posBete(b);
@@ -24431,6 +24447,16 @@ void main() { o = uC; }`;
       gl.drawElements(gl.TRIANGLES, TD.ni, gl.UNSIGNED_INT, 0);
       ntri += TD.ni / 3;
     }
+    if (TO.ni) {                                      // (§248) le contour des bêtes : l'envers des coques
+      gl.cullFace(gl.FRONT);
+      gl.bindVertexArray(dyn.va);
+      gl.bindBuffer(gl.ARRAY_BUFFER, dyn.vb); gl.bufferData(gl.ARRAY_BUFFER, TO.f.subarray(0, TO.nv * PV), gl.STREAM_DRAW);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, dyn.ib); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, TO.i.subarray(0, TO.ni), gl.STREAM_DRAW);
+      gl.drawElements(gl.TRIANGLES, TO.ni, gl.UNSIGNED_INT, 0);
+      ntri += TO.ni / 3;
+      gl.cullFace(gl.BACK);
+    }
+    TO.nv = TO.ni = 0;
     stats.troncons = ntr; stats.triangles = ntri | 0;
 
     // (§243) l'eau, translucide : après tout ce qui est opaque (le fond, les pattes qui y trempent), cachée par le relief,
