@@ -122,6 +122,9 @@ function lgMesures(sp) {
     if (!M.epines && pu > .6 && M.carapace <= .3 && !M.org('epines') && !M.org('plaques') && !M.oiseau) M.epines = true;
   }
   if (M.hexa && M.Hl > .3) M.Hl = .3;                               // un hexapode se tient bas : ses pattes s'écartent plutôt
+  // (§246) sa robe, en volume : des poils, de la laine, une toison, des écailles, des plumes, de la chitine, une peau
+  M.matiere = sp.matiere || (M.oiseau ? 'plume' : M.hexa ? 'chitine' : serpent ? 'ecaille' : 'pelage');
+  M.froid = Number.isFinite(O.froid) ? O.froid : .5;
   return (O._m = M);
 }
 // (§241) LA FOULÉE. Elle avance d'après le chemin parcouru, pas d'après le temps : un pied posé ne glisse pas. L'allure dépend de la
@@ -207,6 +210,7 @@ function osOrvane(f) {
   const zx = x => bz + x * tangage;                                  // la ligne du dos penche avec le tangage
   let avant, bout, tz = bz;                                           // où s'attache le cou ; le bout de la queue
   // --- le tronc ---
+  const iT0 = B.length;                                               // (§246) où commence chaque partie : la robe s'y pose
   if (M.serpent) {
     const n = 10, L = .55 + Lt * 1.1, ond = .045 + .04 * allure, pts = [];
     for (let i = 0; i <= n; i++) { const x = L * (.5 - i / n), y = Math.sin(ph * 2 + i * .75 + t * (v > .05 ? 0 : 1.1)) * ond * (i / n + .25) * vivant;
@@ -236,6 +240,7 @@ function osOrvane(f) {
     if (M.chasseur || M.lourd > .3) add([xa - Lt * .3, 0, zx(xa) + Th * .5], [xa - .02, 0, zx(xa) + Th * .46], Wd * .6, Th * .22, M.dos);   // le garrot, la bosse des épaules
     avant = [xa, 0, zx(xa) + Th * .1]; tz = zx(xa) + Th * .2;
   }
+  const iT1 = B.length;
   // --- le dos : carapace, motif, glandes ---
   if (!M.serpent) {
     const x0 = M.bip ? -Lt * .3 : xr + .02, x1 = M.bip ? Lt * .2 : xa - .04, zt = (M.bip ? bz + .02 : zx(0)) + Th * .5;
@@ -259,16 +264,23 @@ function osOrvane(f) {
           : { a: [x, 0, zt - .01], b: [x - hh * .55, 0, zt + hh], w: .022 * (1 + M.lourd * .4), h: .026, c: lgMix(M.sombre, M.lueur || M.sombre, .2), fin: 0, pans: 6 }); } }   // une épine : un cône couché vers l'arrière
   }
   // --- les pattes ---
+  const iP0 = B.length;
   if (M.pattes && !M.serpent) lgPattes(f, M, add, { bz, zx, xa, xr, ph, allure, galop, couche, vol, dk, traque, avant, v, air, recep });
+  const iP1 = B.length;
   // --- les ailes (§240) : un squelette, une surface, des rémiges ou des membranes ; repliées en Z au repos, battantes ou planées en vol ---
   if (M.ailes > .3 && !M.poisson) lgAiles(f, M, add, B, { xa, xr, bz, avant, vol, couche, al, g, geste, dresse, style: M.hexa ? 'insecte' : M.oiseau || (M.org('ailes') || {}).forme !== 'membranes' ? 'plumes' : 'membranes' });
   // --- le cou et la tête ---
+  const iH0 = B.length;
   const T = lgTete(f, M, add, { avant, tz, couche, ram, al, allure, broute, traque, ph, R, bouche, g, bz });
+  const iH1 = B.length;
   // --- la queue ---
+  const iQ0 = B.length;
   if (M.queue > .08 && !M.serpent) bout = lgQueue(f, M, add, { bz, zx, xr, Lt, Th, couche, allure, al, galop, traque, g });
+  const iQ1 = B.length;
   if (!bout) bout = M.bip ? [-Lt * .4, 0, bz + .01] : [xr + .01, 0, bz + Th * .15];
   if (M.organes.length) lgOrganes(add, M, { tete: T.tete, hs: T.hs, nez: T.nez, avant, bout, bz, xa, xr, Lt, Th, Wd, couche, allure });
   if (M.el) lgFantaisie(f, M, add, B, { T, avant, bout, bz, xa, xr, couche, allure, dk, g, vol, al });
+  lgRobe(f, M, B, { tronc: [iT0, iT1], pattes: [iP0, iP1], tete: [iH0, iH1], queue: [iQ0, iQ1], g, couche, allure });   // (§246)
   if (vol && f.tang) { const tg = lgCl(f.tang, -1.1, .7) * .8, c = Math.cos(tg), s = Math.sin(tg), zc = bz, vu = new Set();   // (§240) en vol, le corps suit la pente : le nez plonge au piqué, se lève au freinage
     for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); const x = p[0], z = p[2] - zc; p[0] = x * c - z * s; p[2] = zc + x * s + z * c; } }
   if (vol && f.roll) { const c = Math.cos(f.roll), s = Math.sin(f.roll), T = p => [p[0], p[1] * c - p[2] * s, p[1] * s + p[2] * c];   // (§220) en vol, elle vire sur l'aile
@@ -281,6 +293,101 @@ function osOrvane(f) {
   const sq = cu * allure * Math.cos(ph * 4) * .12 * (1 - couche), coup = f.hit > 0 && !f.dead ? Math.min(1, f.hit * 4) * (1 - .7 * ep) : 0;
   if (sq || coup) { const vu = new Set(); for (const o of B) for (const p of [o.a, o.b]) if (!vu.has(p)) { vu.add(p); p[2] *= 1 - sq; p[0] = p[0] * (1 + sq * .5) - coup * .07; } }   // (un point partagé par deux os ne bouge qu'une fois)
   return lgStyle(f, M, B);
+}
+// (§246) LA ROBE, EN VOLUME. La matière d'une bête (orvane-sv.js, matiereDe) n'était qu'une texture peinte sur ses boîtes : un
+// pelage restait une planche lisse. Elle se pose maintenant sur le corps, pièce par pièce (le tronc, le cou et la tête, les pattes,
+// la queue : les os de sa couleur, assez épais), en éléments qui ont leur volume :
+//  - des POILS : de courtes mèches effilées, couchées vers l'arrière et vers le bas, plus longues chez une bête lourde ou du froid,
+//    qui frémissent et se couchent davantage à la course ; une frange sous le ventre au froid ;
+//  - de la LAINE : des bouclettes rondes qui gonflent le dos, les flancs, le cou et le haut des pattes (la tête et le bas des
+//    pattes restent ras) ;
+//  - une TOISON : des poils ras sur le dos et de longues mèches qui pendent sous les flancs, le cou et le ventre, et flottent à
+//    la course ;
+//  - des ÉCAILLES : de petites plaques en rangs décalés, couchées vers l'arrière, le bord relevé, qui se chevauchent ;
+//  - des PLUMES : des rémiges plates et effilées, en rangs qui se recouvrent, sombres sur le dos, claires sous le ventre ;
+//  - de la CHITINE : des soies raides sur les pattes, une arête sur chaque segment ;
+//  - une PEAU : des verrues chez une amphibie, des plis chez une peau épaisse.
+// Tout se tire de la bête elle-même (un même tirage d'une image à l'autre) : rien ne clignote. Au loin, de moins en moins ;
+// au-delà de vingt-six cases, la texture seule. Le canvas de secours, plus lent, garde la texture.
+const LG_LAINE = [240, 232, 212], LG_ROBE_MAX = 120;
+const lgH = (a, b) => { const v = Math.sin(a * 12.9898 + b * 78.233) * 43758.5453; return v - Math.floor(v); };
+function lgRobe(f, M, B, A) {
+  const type = M.matiere; if (!type || f.enfoui > 0) return;
+  if (typeof EAU_CLAIRE !== 'undefined' && !EAU_CLAIRE) return;
+  let d2 = 0; try { if (typeof P !== 'undefined' && P) d2 = (f.x - P.x) ** 2 + (f.y - P.y) ** 2; } catch (e) { }
+  const pas = d2 < 144 ? 1 : d2 < 400 ? 2 : d2 < 676 ? 3 : 0; if (!pas) return;
+  const { g, couche, allure } = A, fr = M.froid, cou0 = 1 - couche, N0 = B.length;
+  const peau = o => !o.luit && !o.ref && o.fin === undefined && !o.boule && (o.c === M.robe || o.c === M.dos || o.c === M.sombre || o.c === M.ventre) && Math.min(o.w, o.h) > .028;
+  const D = Math.PI / 180;
+  // les angles autour de l'os (90 : le dessus, 0 et 180 : les flancs, 270 : le ventre), et le pas le long de l'os, selon la robe et la partie
+  const PLAN = {
+    pelage: { tronc: [[0, 25, 50, 75, 90, 105, 130, 155, 180].concat(fr > .5 ? [-25, 205] : []), .05], tete: [[40, 90, 140], .05], pattes: [[0, 90, 180, 270], .06], queue: [[0, 60, 120, 180, 240, 300], .045] },
+    laine: { tronc: [[-25, 5, 35, 65, 90, 115, 145, 175, 205], 0], tete: [[20, 90, 160], 0], pattes: [[0, 90, 180, 270], 0], queue: [[90], 0] },
+    toison: { tronc: [[50, 90, 130, -35, -8, 188, 215], .06], tete: [[60, 120, 250, 290], .06], pattes: [[0, 180], .08], queue: [[0, 90, 180, 270], .05] },
+    ecaille: { tronc: [[15, 45, 75, 105, 135, 165], 0], tete: [[30, 90, 150], 0], pattes: [[0, 120, 240], 0], queue: [[30, 90, 150, 270], 0] },
+    plume: { tronc: [[5, 35, 65, 90, 115, 145, 175, 230, 270, 310], 0], tete: [[30, 90, 150, 270], 0], pattes: [[0, 180], 0], queue: [[60, 120], 0] },
+    chitine: { tronc: [[30, 60, 90, 120, 150], 0], tete: [], pattes: [[60, 240], .05], queue: [] },
+    peau: { tronc: [[30, 70, 110, 150], .08], tete: [[90], .08], pattes: [], queue: [] },
+  }[type];
+  if (!PLAN) return;
+  let n = 0;
+  for (const part of ['tronc', 'tete', 'pattes', 'queue']) {
+    const R = A[part], pl = PLAN[part]; if (!R || !pl || !pl[0] || !pl[0].length) continue;
+    for (let i = R[0]; i < R[1] && i < N0; i++) {
+      const o = B[i]; if (!peau(o)) continue;
+      if (type === 'laine' && part === 'pattes' && Math.min(o.w, o.h) < .05) continue;   // la laine s'arrête aux genoux
+      const ax = o.b[0] - o.a[0], ay = o.b[1] - o.a[1], az = o.b[2] - o.a[2], L = Math.hypot(ax, ay, az); if (L < .03) continue;
+      const ux = ax / L, uy = ay / L, uz = az / L;
+      let sx, sy, sz; if (Math.abs(uz) < .92) { sx = uy; sy = -ux; sz = 0; } else { sx = 0; sy = uz; sz = -uy; }   // le côté : celui que prend la boîte (boite, GL)
+      const sl = Math.hypot(sx, sy, sz) || 1; sx /= sl; sy /= sl; sz /= sl;
+      let tx = -(uy * sz - uz * sy), ty = -(uz * sx - ux * sz), tz = -(ux * sy - uy * sx);   // le dessus de l'os
+      if (tz < 0 && Math.abs(uz) < .92) { tx = -tx; ty = -ty; tz = -tz; }
+      const hw = o.w / 2, hh = o.h / 2, ep = Math.min(o.w, o.h);
+      const elt = type === 'laine' ? ep * .62 : type === 'ecaille' ? ep * .34 + .022 : type === 'plume' ? ep * .44 + .03 : 0;
+      const pasL = pl[1] || Math.max(.03, elt * .9), nL = Math.max(1, Math.min(6, Math.round(L / pasL)));
+      for (let j = 0; j < nL; j++) for (let k = 0; k < pl[0].length; k++) {
+        if ((j * 3 + k) % pas) continue;
+        if (n++ > LG_ROBE_MAX) return;
+        const dec = (type === 'ecaille' || type === 'plume' || type === 'laine') && (j & 1) ? 14 : 0;
+        const th = (pl[0][k] + dec) * D, c = Math.cos(th), si = Math.sin(th);
+        const ec = Math.sign(c) * Math.abs(c) ** .55, es = Math.sign(si) * Math.abs(si) ** .55, l = (j + .5) / nL, el = .78 + .22 * Math.sqrt(Math.max(0, 1 - (2 * l - 1) ** 2));
+        const qx = o.a[0] + ax * l + (sx * ec * hw + tx * es * hh) * el, qy = o.a[1] + ay * l + (sy * ec * hw + ty * es * hh) * el, qz = o.a[2] + az * l + (sz * ec * hw + tz * es * hh) * el;
+        let Nx = sx * c / hw + tx * si / hh, Ny = sy * c / hw + ty * si / hh, Nz = sz * c / hw + tz * si / hh; const nl = Math.hypot(Nx, Ny, Nz) || 1; Nx /= nl; Ny /= nl; Nz /= nl;
+        // le sens du poil : vers l'arrière et vers le bas, couché sur la peau
+        let Fx = -1, Fy = 0, Fz = -.45; const fd = Fx * Nx + Fy * Ny + Fz * Nz; Fx -= Nx * fd; Fy -= Ny * fd; Fz -= Nz * fd;
+        let fl = Math.hypot(Fx, Fy, Fz); if (fl < .25) { Fx = -ux; Fy = -uy; Fz = -uz; fl = 1; } Fx /= fl; Fy /= fl; Fz /= fl;
+        const h = lgH(i * 7.13 + j * 1.7 + k * 3.1, g * 5.3 + (type.length)), Q = [qx, qy, qz], N = [Nx, Ny, Nz];
+        const ton = h < .22 ? lgMix(o.c, M.sombre, .35) : h > .82 ? lgMix(o.c, [255, 250, 240], .16) : o.c;
+        const pt = (a, b, cc) => [qx + Nx * a + Fx * b, qy + Ny * a + Fy * b, qz + Nz * a + Fz * b + (cc || 0)];
+        if (type === 'pelage' || (type === 'toison' && si > .2)) {
+          const len = (.042 + .03 * M.lourd + .035 * fr + .015 * (M.epique || 0)) * (part === 'tete' ? .55 : part === 'pattes' ? .75 : 1) * (.7 + .6 * h) * (si < -.2 ? 1.6 : 1);
+          const fr2 = Math.sin(t * 2.6 + i * 1.7 + j * 2.3 + k + g) * .12 * cou0 + allure * .3;
+          B.push({ a: pt(-.008, 0), b: pt(len * (.55 - .2 * allure), len * (.85 + fr2)), w: .024 + .01 * M.lourd, h: .018, c: ton, fin: .12 });
+        } else if (type === 'toison') {                                 // une longue mèche qui pend, et flotte à la course
+          const len = (ep * .8 + .05) * (.75 + .5 * h) * (part === 'tete' ? .8 : 1), fl2 = Math.sin(t * 2.1 + i + j * 1.3 + k * 2 + g) * .02 * cou0;
+          const m = [qx + Nx * len * .18 - allure * len * .25, qy + Ny * len * .18 + fl2, qz - len * .55];
+          const b = [m[0] + Fx * len * .1 - allure * len * .35, m[1] + fl2 * 1.5, m[2] - len * .4 * (1 - .4 * allure)];
+          B.push({ a: pt(-.008, 0), b: m, w: .03 + .01 * M.lourd, h: .022, c: ton, fin: .7 }, { a: m, b, w: .024 + .008 * M.lourd, h: .018, c: ton, fin: .15 });
+        } else if (type === 'laine') {                                  // une bouclette ronde
+          const r = elt * (.85 + .3 * h), cz = pt(r * .28, 0);
+          B.push({ a: [cz[0] - ux * r * .5, cz[1] - uy * r * .5, cz[2] - uz * r * .5], b: [cz[0] + ux * r * .5, cz[1] + uy * r * .5, cz[2] + uz * r * .5], w: r * 1.5, h: r * 1.35,
+            c: lgMix(lgMix(o.c, LG_LAINE, .55), h > .6 ? [255, 255, 255] : M.sombre, h > .6 ? (h - .6) * .4 : (.3 - Math.min(.3, h)) * .5), boule: 3, ref: N });
+        } else if (type === 'ecaille') {                                // une plaque couchée vers l'arrière, le bord relevé
+          const len = elt * (.85 + .3 * h);
+          B.push({ a: pt(.002, -len * .15), b: pt(len * .32, len * .85), w: len * .95, h: .01, c: (j + k) & 1 ? lgMix(ton, [255, 255, 255], .1 + .2 * Math.max(0, 1 - (ton[0] + ton[1] + ton[2]) / 240)) : lgMix(ton, M.sombre, .42), ref: N });   // une bête sombre : un reflet plus franc
+        } else if (type === 'plume') {                                  // une rémige plate et effilée
+          const len = elt * (.85 + .3 * h), cc = si > .55 ? M.dos : si < -.3 ? M.ventre : o.c;
+          B.push({ a: pt(0, -len * .1), b: pt(len * .2, len), w: len * .58, h: .009, c: h > .75 ? lgMix(cc, [255, 255, 255], .22) : (j & 1) ? lgMix(cc, M.sombre, .2) : cc, ref: N, fin: .4 });
+        } else if (type === 'chitine') {
+          if (part === 'pattes') B.push({ a: pt(-.004, 0), b: pt(.05 + .025 * h, .014), w: .009, h: .009, c: M.sombre, fin: 0 });   // une soie raide
+          else if (j === nL - 1 && si > .3) B.push({ a: [qx - ux * .006, qy - uy * .006, qz - uz * .006], b: [qx + ux * .006, qy + uy * .006, qz + uz * .006], w: .03, h: .016, c: lgMix(o.c, M.sombre, .45), ref: N });   // l'arête du segment
+        } else if (type === 'peau') {
+          if (M.nageur) { if (h > .45) { const r = .016 + .016 * h, cz = pt(r * .2, 0); B.push({ a: [cz[0], cz[1], cz[2] - r * .4], b: [cz[0], cz[1], cz[2] + r * .4], w: r * 1.6, h: r * 1.6, c: lgMix(o.c, h > .75 ? [255, 236, 150] : M.sombre, .35), boule: 3 }); } }   // une verrue
+          else if (h > .5) B.push({ a: [qx - ux * .004, qy - uy * .004, qz - uz * .004], b: [qx + ux * .004, qy + uy * .004, qz + uz * .004], w: .05, h: .01, c: lgMix(o.c, M.sombre, .3), ref: N });   // un pli
+        }
+      }
+    }
+  }
 }
 // (§226) LES SIGNES, au-dessus de la tête, comme dans un livre d'images : « ! » quand la bête s'alarme (une seconde), des « z » qui
 // montent quand elle dort. Ils gardent la même taille quelle que soit la bête, et luisent.

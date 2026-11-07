@@ -7784,3 +7784,28 @@ Chaque cube portait la même image de seize texels : sur un champ, les mêmes fl
 - **Le canvas de secours** tire lui aussi une variante par case (`varTex`) : le sol, les flancs, les dalles, chaque pied de flore.
 
 **Vérifié.** Au même endroit (île 123456), avant et après : les fleurs et les galets ne reviennent plus en grille, les falaises non plus. La planche des textures ; le canvas de secours. Dans le navigateur : six îles, aucune erreur ; la monture. `sw.js` : `stone-valley-215`.
+
+## §246 · Les créatures ont de vrais poils, de la laine, des écailles, des plumes
+
+La matière d'une bête (§230) n'était qu'une texture peinte sur ses boîtes : un pelage restait une planche lisse, des écailles un dessin. Elle a maintenant **du volume** (`lignees.js`, `lgRobe`).
+
+**Qui porte quoi** (`orvane-sv.js`, `matiereDe`). Les plumes, la chitine, les écailles et la peau viennent du corps, comme avant. Le pelage se décline maintenant, d'après le froid du milieu d'origine (la température de la niche d'Orvane, `froid`), la masse, le régime et la vie en troupeau :
+- une **toison** longue chez une grosse bête du froid, ou un géant (un mammouth, un yak) ;
+- de la **laine** chez un brouteur qui vit en troupeau ou au froid ;
+- des **poils ras** sinon.
+La laine et la toison ont leur texture (`TEX.laine` : des bouclettes ; `TEX.toison` : des mèches).
+
+**La robe en volume.** Elle se pose pièce par pièce, sur les os de la couleur de la bête et assez épais : le tronc, le cou et la tête, les pattes, la queue. Tout tourne autour de l'os, aux angles et au pas que demande la robe.
+- **Les poils** : de courtes mèches effilées, couchées vers l'arrière et vers le bas. Elles sont plus longues chez une bête lourde ou du froid, frémissent, et se couchent davantage à la course. Au froid, une frange sous le ventre.
+- **La laine** : des bouclettes rondes qui gonflent le dos, les flancs, le cou et le haut des pattes. La tête et le bas des pattes restent ras.
+- **La toison** : du poil ras sur le dos, et de longues mèches en deux segments qui pendent sous les flancs et le cou, et flottent à la course.
+- **Les écailles** : de petites plaques en rangs décalés, couchées vers l'arrière, le bord relevé. Elles se chevauchent, claires et sombres en quinconce ; une bête sombre a un reflet plus franc.
+- **Les plumes** : des rémiges plates et effilées en rangs qui se recouvrent, sombres sur le dos, claires sous le ventre.
+- **La chitine** : des soies raides sur les pattes, une arête sur chaque segment.
+- **La peau** : des verrues chez une amphibie, des plis chez une peau épaisse.
+
+Tout se tire de la bête elle-même (le même tirage d'une image à l'autre) : rien ne clignote. Au loin, il y en a de moins en moins (la moitié au-delà de douze cases, un tiers au-delà de vingt) ; au-delà de vingt-six cases, la texture seule. Une bête porte au plus 120 éléments. Le canvas de secours garde la texture.
+
+**Mesuré.** Les bêtes à moins de trente cases portent deux fois plus de pièces (1 016 au lieu de 524 pour dix bêtes) : 0,6 ms de plus par image pour les calculer, dans le navigateur de test.
+
+**Vérifié.** De près, une bête par robe : un mammouth de laine, une chimère à toison, un lutin à poils, un naga à écailles, un phénix à plumes, un faon à peau grenue. Dans le navigateur : six îles, aucune erreur ; les compagnes, la monture. `sw.js` : `stone-valley-216`.

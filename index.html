@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=215"></script>
-<script src="rouages.js?v=215"></script>
-<script src="forge.js?v=215"></script>
-<script src="nomades.js?v=215"></script>
-<script src="etats.js?v=215"></script>
-<script src="brume.js?v=215"></script>
-<script src="roi.js?v=215"></script>
-<script src="trone.js?v=215"></script>
-<script src="achromie.js?v=215"></script>
-<script src="vyrel.js?v=215"></script>
-<script src="village.js?v=215"></script>
-<script src="volcan.js?v=215"></script>
-<script src="dons.js?v=215"></script>
-<script src="coop.js?v=215"></script>
-<script src="faune.js?v=215"></script>
-<script src="flore.js?v=215"></script>
-<script src="lignees.js?v=215"></script>
-<script src="conduites.js?v=215"></script>
-<script src="pouvoirs.js?v=215"></script>
+<script src="donjon.js?v=216"></script>
+<script src="rouages.js?v=216"></script>
+<script src="forge.js?v=216"></script>
+<script src="nomades.js?v=216"></script>
+<script src="etats.js?v=216"></script>
+<script src="brume.js?v=216"></script>
+<script src="roi.js?v=216"></script>
+<script src="trone.js?v=216"></script>
+<script src="achromie.js?v=216"></script>
+<script src="vyrel.js?v=216"></script>
+<script src="village.js?v=216"></script>
+<script src="volcan.js?v=216"></script>
+<script src="dons.js?v=216"></script>
+<script src="coop.js?v=216"></script>
+<script src="faune.js?v=216"></script>
+<script src="flore.js?v=216"></script>
+<script src="lignees.js?v=216"></script>
+<script src="conduites.js?v=216"></script>
+<script src="pouvoirs.js?v=216"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=215"></script><script src="orvane/tampon.js?v=215"></script><script src="orvane/correspondance.js?v=215"></script><script src="orvane/secours.js?v=215"></script><script src="orvane/orvane-sv.js?v=215"></script>
+<script src="orvane/corps.js?v=216"></script><script src="orvane/tampon.js?v=216"></script><script src="orvane/correspondance.js?v=216"></script><script src="orvane/secours.js?v=216"></script><script src="orvane/orvane-sv.js?v=216"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -21779,6 +21779,16 @@ TEX.peau = motif(59, (x, y, h) => {                   // (§244) une peau nue : 
 // sombres ; le haut de chaque plaque accroche la lumière, le bas s'ombre
 TEX.croute = motif(61, (x, y, h) => { const r = y >> 3, xo = (x + (r & 1) * 5 + ((hc(r + 61, 7) * 4) | 0)) % 9, yo = y & 7;
   return (yo === 7 || xo === 0) ? [-.4] : (yo === 0 && xo > 1 && xo < 8) ? [.2] : (xo === 1 || yo === 6) ? [-.18] : (h > .94 ? [.14] : h < .07 ? [-.2] : null); });
+TEX.laine = motif(85, (x, y, h) => {                  // (§246) la laine : des bouclettes serrées, claires au sommet, le creux sombre
+  const C = cellules16(x, y, 85, 16);
+  if (C.b < .7) return [-.3];
+  const l = -(C.ox + C.oy) / 1.8;
+  return l > .3 ? [.24, 255, 252, 240] : l < -.45 ? [-.14] : null;
+});
+TEX.toison = motif(86, (x, y, h) => {                 // (§246) la toison : de longues mèches, claires et sombres, en long
+  const k = t16(x + vague16(y, 1, 1)) & 3;
+  return k === 0 ? [-.3] : k === 2 ? [.15] : tuileH(x, 0, 87) > .8 && (y & 3) === 1 ? [.2] : null;
+});
 TEX.corde = motif(60, (x, y, h) => {                  // (§244) la corde : des torons qui tournent, leur reflet
   const k = (x * 2 + y) & 7;
   return k === 0 ? [-.3] : k === 1 ? [-.12] : k === 3 ? [.16] : k === 4 ? [.08] : null;

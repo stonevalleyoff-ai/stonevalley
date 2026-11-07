@@ -213,6 +213,7 @@ function definir(t) {
     nocturne: t.plan.activite === 'nocturne', locomotion: t.plan.locomotion || [], regime: regime(t), vu: Date.now(),
     activite: t.plan.activite, social: t.plan.sociabilite, taille: t.plan.taille_m, diete: { ...(t.plan.diete || {}) }, chasseur, forme: corps?.forme || null,   // (§225)
     temperament: t.plan.temperament,                                                                                   // (§226)
+    froid: 1 - (Number.isFinite(t.plan.niche?.temperature) ? t.plan.niche.temperature : .5),                          // (§246) d'un pays froid : la laine, la toison
     milieu: [...(t.populations || [])].sort((a, b) => (b.effectif || 0) - (a.effectif || 0))[0]?.biome || null,          // (§237) son milieu d'origine
     ...(t.plan.regime === 'synthetique' ? { machine: { role: t.plan.role, modules: { ...(t.plan.modules || {}) } } } : {}) };   // (§223) une machine d'Orvane
 }
@@ -238,6 +239,7 @@ function appliquerDef(sp, def, base) {
     if (Corr.SOCLES?.[def.base]) sp.orvane.viande = classeViande(def);
     sp.orvane.chasseur = !!def.chasseur;
   }
+  sp.orvane.froid = def.froid;                                          // (§246)
   sp.orvane.amphibie = (def.locomotion || []).includes('nage') && !nageurPur(def.locomotion);   // (§243) elle nage aussi : l'eau ne lui fait pas peur
   sp.orvane.nage = nageurPur(def.locomotion);                         // (§221) une lignée qui ne vit que dans l'eau : on ne la lie pas,
   if (sp.orvane.nage) { sp.lien = 0; sp.grimpe = 0; }                 //   elle ne grimpe pas
@@ -342,6 +344,12 @@ function matiereDe(def) {
   if (f === 'serpent') return 'ecaille';
   if (loco.includes('reptation') && !loco.includes('course') && !loco.includes('saut')) return 'ecaille';
   if (tr.has('peau-epaisse') || (loco.includes('nage') && loco.includes('marche'))) return 'peau';
+  // (§246) le pelage se décline : une toison longue chez une grosse bête du froid (ou un géant), de la laine chez un brouteur qui vit
+  // en troupeau ou au froid, des poils ras sinon
+  const froid = Number.isFinite(def.froid) ? def.froid : .5, m = def.masse || 1, brouteur = !def.chasseur && def.regime === 'herbivore';
+  if (!def.chasseur && m >= 80 && (froid > .56 || tr.has('gigantisme'))) return 'toison';
+  if (brouteur && m >= 2 && m < 400 && (froid > .6 || ((def.social || 0) >= .55 && froid > .44))) return 'laine';
+  if (froid > .72 && m >= 5) return 'toison';
   return 'pelage';
 }
 // (§225) LA VOIX D'UNE LIGNÉE, d'après son corps et sa taille (SON.VOIX). Un poisson se tait. (§235) Un oiseau crie, un petit
