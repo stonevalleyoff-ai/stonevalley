@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=224"></script>
-<script src="rouages.js?v=224"></script>
-<script src="forge.js?v=224"></script>
-<script src="nomades.js?v=224"></script>
-<script src="etats.js?v=224"></script>
-<script src="brume.js?v=224"></script>
-<script src="roi.js?v=224"></script>
-<script src="trone.js?v=224"></script>
-<script src="achromie.js?v=224"></script>
-<script src="vyrel.js?v=224"></script>
-<script src="village.js?v=224"></script>
-<script src="volcan.js?v=224"></script>
-<script src="dons.js?v=224"></script>
-<script src="coop.js?v=224"></script>
-<script src="faune.js?v=224"></script>
-<script src="flore.js?v=224"></script>
-<script src="lignees.js?v=224"></script>
-<script src="conduites.js?v=224"></script>
-<script src="pouvoirs.js?v=224"></script>
+<script src="donjon.js?v=225"></script>
+<script src="rouages.js?v=225"></script>
+<script src="forge.js?v=225"></script>
+<script src="nomades.js?v=225"></script>
+<script src="etats.js?v=225"></script>
+<script src="brume.js?v=225"></script>
+<script src="roi.js?v=225"></script>
+<script src="trone.js?v=225"></script>
+<script src="achromie.js?v=225"></script>
+<script src="vyrel.js?v=225"></script>
+<script src="village.js?v=225"></script>
+<script src="volcan.js?v=225"></script>
+<script src="dons.js?v=225"></script>
+<script src="coop.js?v=225"></script>
+<script src="faune.js?v=225"></script>
+<script src="flore.js?v=225"></script>
+<script src="lignees.js?v=225"></script>
+<script src="conduites.js?v=225"></script>
+<script src="pouvoirs.js?v=225"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=224"></script><script src="orvane/tampon.js?v=224"></script><script src="orvane/correspondance.js?v=224"></script><script src="orvane/secours.js?v=224"></script><script src="orvane/orvane-sv.js?v=224"></script>
+<script src="orvane/corps.js?v=225"></script><script src="orvane/tampon.js?v=225"></script><script src="orvane/correspondance.js?v=225"></script><script src="orvane/secours.js?v=225"></script><script src="orvane/orvane-sv.js?v=225"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -2711,6 +2711,7 @@ P.ceinture = 0; P.barre = 0;                       // le niveau de la ceinture (
 P.guide = { e: 0, masque: false, parti: false, vu: false };   // le guide de départ
 P.biomes = [];                                   // les biomes rares déjà foulés
 P.variantes = [];                                // le carnet : [espèce:variante, fois croisée]
+P.bestiaires = {};                               // (§255) les lignées de chaque île, gardées : « graine:exploration » → [ids]
 P.poissons = {}; P.carnetPeche = {};             // les poissons du sac, et le carnet de pêche : { id: { n, rec } }
 P.peche = null;                                  // la canne en main (voir LA PÊCHE)
 P.denrees = {}; P.cellier = {}; P.bossVaincus = []; P.plats = []; P.recettes = {};   // la cuisine : viandes et produits de la flore, les plats, le carnet
@@ -13619,7 +13620,50 @@ function tirerBestiaire() {
   if (Array.isArray(globalThis.__BESTIAIRE)) return new Set(globalThis.__BESTIAIRE);   // les bancs choisissent
   if (typeof ileMeca !== 'undefined' && ileMeca) return new Set(SPEC.filter(sp => sp.fam === 'automate' && !sp.donjon).map(sp => sp.id));   // l'île des automates
   if (typeof ileVolcan !== 'undefined' && ileVolcan) return new Set(SPEC.filter(sp => sp.volcan).map(sp => sp.id));   // (§198) l'île volcanique : sa seule faune
-  return bestiaireGraine(SEED, typeof profondeur === 'function' ? profondeur() : Infinity);
+  return bestiaireGarde(bestiaireGraine(SEED, typeof profondeur === 'function' ? profondeur() : Infinity));
+}
+// (§255) L'ÎLE GARDE SES LIGNÉES. Le tirage dépend de l'état du monde d'Orvane au chargement (le monde de secours, l'abrégé
+// gardé ou le monde reçu, qui arrive parfois après), et ce monde change chaque jour : rechargée, l'île changeait de faune.
+// Les lignées tirées la première fois sont donc gardées dans la sauvegarde, et reprises tant qu'elles vivent sur l'île dans
+// le monde du jour ; seule une lignée disparue cède sa place à une autre du tirage du jour. Le reste (automates, horreurs,
+// bêtes rares) ne dépend que de la graine.
+const BESTIAIRES_MAX = 60;
+// la sauvegarde ne s'applique qu'après le premier peuplement de l'île : on lit d'abord sa copie locale (comme expSauvee)
+let bestiairesLus = false;
+const lireBestiaires = B => { if (B && typeof B === 'object') for (const [k, v] of Object.entries(B).slice(-BESTIAIRES_MAX))
+  if (!(k in P.bestiaires) && /^\d+:\d+$/.test(k) && Array.isArray(v)) P.bestiaires[k] = v.filter(x => typeof x === 'string').slice(0, 12); };
+// (orvane-sv.js) le monde est arrivé : une lignée gardée qui a maintenant sa fiche manque-t-elle à l'île ?
+function bestiaireIncomplet() {
+  const g = P.bestiaires && P.bestiaires[SEED + ':' + (typeof profondeur === 'function' ? profondeur() : 0)];
+  return Array.isArray(g) && g.some(id => specById[id] && !especesIle.has(id));
+}
+function bestiaireGarde(tire) {
+  if (!P.bestiaires || typeof P.bestiaires !== 'object') P.bestiaires = {};
+  if (!bestiairesLus) { bestiairesLus = true; try { const c = JSON.parse(lireCopie() || 'null'); lireBestiaires(c && c.donnees && c.donnees.bestiaires); } catch (e) { } }
+  const cle = SEED + ':' + (typeof profondeur === 'function' ? profondeur() : 0), garde = P.bestiaires[cle];
+  const lig = id => { const sp = specById[id]; return !!(sp && sp.orvane && !sp.orvane.machine); };
+  const vit = id => { const sp = specById[id]; return !!sp && (id in POIDS_ESPECE || sp.cap > 0 || (typeof orvaneVitIci === 'function' && orvaneVitIci(id)))
+    && !(typeof retiree === 'function' && retiree(sp)); };
+  let e = tire;
+  if (Array.isArray(garde) && garde.length) {
+    e = new Set([...tire].filter(id => !lig(id)));
+    for (const id of garde) if (lig(id) && vit(id)) {
+      e.add(id); const sp = specById[id];
+      if (!(sp.cap > 0)) { sp.cap = 2; if (!(id in POIDS_ESPECE)) POIDS_ESPECE[id] = .02; }   // en déclin dans le monde : elle reste, moins nombreuse
+    }
+    // une lignée dont la fiche n'est pas encore là (le monde arrive après le premier peuplement) n'est pas disparue : on l'attend
+    const attendues = garde.filter(id => !specById[id]).length;
+    let n = [...e].filter(lig).length;
+    for (const id of tire) if (n + attendues < garde.length && lig(id) && !e.has(id)) { e.add(id); n++; }   // une lignée disparue : une autre du jour
+    if (attendues) return e;                             // la liste gardée ne se réécrit pas tant qu'il en manque des fiches
+  }
+  const L = [...e].filter(lig);
+  if (L.length && (!garde || L.join() !== garde.join())) {
+    delete P.bestiaires[cle]; P.bestiaires[cle] = L;
+    const ks = Object.keys(P.bestiaires); if (ks.length > BESTIAIRES_MAX) delete P.bestiaires[ks[0]];
+    if (typeof Sauve !== 'undefined') Sauve.sale = true;
+  }
+  return e;
 }
 // Combien d'automates qui tirent une graine porte : c'est ce que le portail regarde au-delà du huitième saut.
 function tireursGraine(g, niv) { let n = 0; for (const id of bestiaireGraine(g, niv)) if (SPEC.some(sp => sp.id === id && sp.tir)) n++; return n; }
@@ -13640,7 +13684,8 @@ function bestiaireGraine(graine, niv) {
   const e = new Set();
   // (§118) une bête dont la viande est plus rare que l'île ne le permet n'y vit pas (une viande de gros gibier : dès 4)
   const okR = id => rareteOk(rareEspece(specById[id]), niv);
-  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && !retiree(sp) && nivEspece(sp) <= niv && okR(sp.id) && !(sp.orvane && sp.orvane.nage));   // (§250) les nageurs vivent à la pêche   // ni automates d'élite, ni faune faite main (§225)
+  const tirables = SPEC.filter(sp => sp.id in POIDS_ESPECE && !retiree(sp) && nivEspece(sp) <= niv && okR(sp.id) && !(sp.orvane && sp.orvane.nage))
+    .sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);   // (§255) dans le même ordre pour tous, quel que soit l'ordre où les lignées sont arrivées   // (§250) les nageurs vivent à la pêche   // ni automates d'élite, ni faune faite main (§225)
   if (niv < NIV_RAMPANTS) n = n <= 3 ? 2 : 3;          // aux premières îles : deux ou trois Doux, pas plus
   { const h0 = tirerParmi(tirables.filter(sp => sp.diet === 'h' || sp.diet === 'o')); if (h0) e.add(h0.id); }   // (§225) une liste vide ne casse plus
   while (e.size < n && e.size < tirables.length) { const x = tirerParmi(tirables.filter(sp => !e.has(sp.id))); if (!x) break; e.add(x.id); }
@@ -24914,7 +24959,7 @@ function photo() {
     sac: Object.assign({}, P.sac),
     objets: Object.keys(P.objets).filter(k => P.objets[k]),
     equip: Object.assign({}, P.equip), raccourcis: P.raccourcis.slice(), ceinture: nivCeinture(), barre: P.barre | 0, guide: Object.assign({}, P.guide), biomes: P.biomes.slice(),
-    variantes: P.variantes.slice(0, 200), nm: nmPhoto(), cond: typeof conduitesPhoto === 'function' ? conduitesPhoto() : undefined,   // (§211)
+    variantes: P.variantes.slice(0, 200), bestiaires: P.bestiaires, nm: nmPhoto(), cond: typeof conduitesPhoto === 'function' ? conduitesPhoto() : undefined,   // (§211)
     orv: typeof orvanePhoto === 'function' ? orvanePhoto() : undefined,   // (§218) les lignées d'Orvane découvertes
     poissons: Object.assign({}, P.poissons), carnetPeche: JSON.parse(JSON.stringify(P.carnetPeche)),
     denrees: Object.assign({}, P.denrees), cellier: Object.assign({}, P.cellier), korlaz: P.korlaz ? { duree: Math.round(P.korlaz.duree) } : null,
@@ -25008,6 +25053,7 @@ function appliquer(d, vivantes) {
   P.guide = { e: Math.max(0, Math.min(GUIDE.length, gd.e | 0)), masque: !!gd.masque, parti: !!gd.parti, vu: !!gd.vu || !!d.guide };
   // l'atlas : des biomes rares connus, une fois chacun
   P.biomes = [...new Set((Array.isArray(d.biomes) ? d.biomes : []).filter(b => RARES.some(r => r.b === b) || b === 15))];
+  { const ici = P.bestiaires || {}; P.bestiaires = {}; lireBestiaires(d.bestiaires); Object.assign(P.bestiaires, ici); }   // (§255) l'île déjà peuplée garde ce qu'elle a
   P.variantes = (Array.isArray(d.variantes) ? d.variantes : []).filter(e => Array.isArray(e) && typeof e[0] === 'string'
     && specById[e[0].split(':')[0]] && varianteSure(e[0].split(':')[1])).slice(0, 200).map(e => [e[0], nb(e[1], 1, 1e6, 1) | 0]);
   nmAppliquer(d.nm);                                   // ce que les nomades savent de vous

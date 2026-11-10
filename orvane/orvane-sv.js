@@ -115,7 +115,9 @@ async function charger() {
   // (§225) même monde, même cycle : l'île se recompte quand même, car les fiches refaites ont repris le compte de leur socle
   if (S.applique && S.courant) {
     const autre = !S.applique.startsWith(identite(S.courant) + '|');
-    try { orvaneAppliquer(); if (autre && typeof tirerBestiaire === 'function' && typeof especesIle !== 'undefined') { especesIle = tirerBestiaire(); repartirIle(especesIle); repeuplerIle(); }
+    // (§255) ou, même monde, une lignée que l'île garde et dont la fiche vient d'arriver : elle revient sur l'île
+    const manque = !autre && typeof bestiaireIncomplet === 'function' && bestiaireIncomplet();
+    try { orvaneAppliquer(); if ((autre || manque) && typeof tirerBestiaire === 'function' && typeof especesIle !== 'undefined') { especesIle = tirerBestiaire(); repartirIle(especesIle); repeuplerIle(); }
       else if (typeof especesIle !== 'undefined') repartirIle(especesIle); } catch (e) { }
   }
 }
@@ -124,10 +126,19 @@ async function charger() {
 // bestiaire d'Orvane, ses bêtes sauvages de la faune du jeu que le monde n'a pas s'en vont, et les lignées du monde viennent à
 // leur place, comme à l'arrivée sur une île neuve. Sans cela, les naissances perpétuaient l'ancienne faune tout le temps de
 // l'île. Les compagnes, les automates, les boss ne bougent pas ; la faune partagée repart de là (faune.js).
+// (§255) Une lignée vit-elle encore sur les sols de l'île, dans le monde du jour, même peu nombreuse ? L'île qui l'avait la garde
+// (index.html, bestiaireGarde) : elle n'en part que si elle s'y éteint.
+function orvaneVitIci(id) {
+  try { const sp = typeof specById !== 'undefined' ? specById[id] : null, I = S.courant || S.abrege?.courant;
+    if (!sp?.orvane || sp.orvane.machine || sp.orvane.nage || !I) return false;
+    const t = taxon(I, sp.orvane.taxon); return !!t && !t.eteint && presenceSur(I, t.id, biomesIle()) > 0; } catch (e) { return false; }
+}
 function repeuplerIle() {
   if (S.profil?.exposition?.bestiaire !== 'orvane' || typeof beasts === 'undefined' || typeof poser !== 'function' || typeof capEsp !== 'function'
     || typeof especesIle === 'undefined' || typeof SPEC === 'undefined') return 0;
-  const part = b => b && b.sp && !b.tame && !b.dead && !b.sp.orvane && Corr.FAUNE?.[b.sp.id] && !especesIle.has(b.sp.id);
+  // (§255) et les lignées du premier tirage que le monde reçu n'a pas gardées : sinon l'île mêlait les deux faunes
+  const part = b => b && b.sp && !b.tame && !b.dead && !b.pnjSuit && !b.gardeCamp && !especesIle.has(b.sp.id)
+    && ((!b.sp.orvane && Corr.FAUNE?.[b.sp.id]) || (b.sp.orvane && !b.sp.orvane.machine && !b.sp.orvane.nage));
   for (let k = beasts.length - 1; k >= 0; k--) if (part(beasts[k])) beasts.splice(k, 1);
   let n = 0;
   for (const sp of SPEC) if (sp.orvane && especesIle.has(sp.id)) { const deja = beasts.filter(b => b.sp === sp && !b.dead).length;
@@ -1213,7 +1224,7 @@ const hachage = s => { let h = 5381; for (let i = 0; i < s.length; i++) h = (Mat
 
 // --- mise en place ---
 racine.orvaneEspeces = orvaneEspeces; racine.orvaneAppliquer = orvaneAppliquer; racine.orvaneVariante = orvaneVariante; racine.orvaneEvenement = orvaneEvenement;
-racine.orvaneTirage = orvaneTirage; racine.orvaneArrivee = orvaneArrivee; racine.orvaneTrophee = orvaneTrophee; racine.orvanePhoto = orvanePhoto;
+racine.orvaneTirage = orvaneTirage; racine.orvaneVitIci = orvaneVitIci; racine.orvaneArrivee = orvaneArrivee; racine.orvaneTrophee = orvaneTrophee; racine.orvanePhoto = orvanePhoto;
 racine.orvaneRelire = orvaneRelire; racine.orvaneCarnetLignees = orvaneCarnetLignees; racine.orvaneVol = orvaneVol; racine.orvaneNage = orvaneNage; racine.orvanePlaceEau = orvanePlaceEau;
 racine.orvaneLot = orvaneLot; racine.orvaneMigrer = orvaneMigrer; racine.orvaneViande = id => { const m = /^v_(.+)$/.exec(id || ''); return m && ANCIENNES[m[1]]?.v || id; }; racine.orvaneAncienne = id => ANCIENNES[id] || null; racine.orvaneEnvoyer = orvaneEnvoyer; racine.orvaneNaissance = orvaneNaissance;
 racine.OrvaneSV = { S, purger, parcelleIle, effectifIci, repeuplerIle, rangsRarete, ligneesDuJeu, garantirChasseur, conduitesPour, loiQ, tirerQuant, quantMots, apprisDe, apprisFuite, heriter, zoneHybride, hybrider, charger, avancement, effectifSur, biomesIle, releverRencontres, inscrireLignees, definir, enregistrer, especeDeSecours, ancetreJeu, nomJeu, CAUSES_JOUEUR, SEUIL_CORPS };

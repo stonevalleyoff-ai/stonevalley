@@ -7990,3 +7990,30 @@ Une bête **peut porter plusieurs bonus** (`plus : [[condition, bonus], …]`). 
 - chasseur : 5 → 34 → 42 → 51 → 59 % (repu dès la première).
 
 Un chasseur affamé à quatre cases vous veut à 0 % de confiance, plus à 60 %. Six îles, les compagnes, la monture : aucune erreur. `sw.js` : `stone-valley-224`.
+
+## §255 · L'île garde ses créatures
+
+**Oui, elles changeaient.** La sauvegarde ne garde pas les bêtes sauvages : l'île est repeuplée à chaque chargement, depuis sa graine. Le placement suit bien la graine (`avecHasardDe(graineFaune())`). Mais le choix des espèces (`bestiaireGraine`) dépend de l'état du monde d'Orvane au moment du chargement, et cet état variait :
+- **au démarrage**, l'île se peuple avec ce que le jeu a déjà : le monde de secours, l'abrégé gardé, et les fiches de lignées en mémoire. Elles ne sont pas toutes là, et pas dans le même ordre d'une fois à l'autre ;
+- **le monde reçu arrive après**, et l'île était parfois tirée une seconde fois. Les bêtes du premier tirage restaient : la faune était mêlée ;
+- **le monde change chaque jour** (un cycle par jour) : une lignée en déclin passait sous le seuil de l'île et cédait sa place.
+
+Mesuré : la même île, le même monde, rechargée, montrait des lucioles et des scarabées, puis des lucioles et des scolopendres.
+
+**La règle, maintenant.**
+- **Les lignées d'une île sont gardées dans la sauvegarde** (`P.bestiaires`, « graine:exploration » → la liste, soixante îles au plus). Rechargée, l'île reprend les mêmes (`bestiaireGarde`).
+- **Une lignée gardée reste tant qu'elle vit sur les sols de l'île** dans le monde du jour, même peu nombreuse (`orvaneVitIci`). Elle ne part que si elle s'y éteint, et une autre lignée du tirage du jour prend sa place.
+- **Une lignée dont la fiche n'est pas encore arrivée est attendue**, pas remplacée. Quand le monde arrive, elle revient sur l'île (`bestiaireIncomplet`, puis le repeuplement).
+- **La liste gardée se lit avant le premier peuplement**, dans la copie locale de la sauvegarde (comme le niveau d'exploration). La sauvegarde en ligne ne remplace pas ce qu'a l'île déjà peuplée.
+- **Plus de faune mêlée** : quand l'île est retirée, les bêtes sauvages des lignées qui n'y sont plus s'en vont (`repeuplerIle`). Les compagnes, les bêtes des nomades et les gardiennes restent.
+- **Le tirage d'une île neuve ne dépend plus de l'ordre où les lignées sont arrivées** : elles sont rangées par identifiant.
+
+**Ce qui change encore**, et c'est voulu : le nombre de bêtes suit le monde (moins nombreuses quand une lignée décline), et une lignée éteinte sur l'île laisse sa place. Le 4 novembre, le monde d'Orvane a été remplacé par une autre genèse : les mêmes noms y désignent d'autres créatures. Ça ne se reproduit pas tant que le monde n'est pas refait.
+
+**Après cette mise à jour**, chaque île est tirée une dernière fois, puis garde ses lignées.
+
+**Vérifié dans le navigateur**, la même île et la même mémoire :
+- trois chargements avec le monde du 5 novembre (cycle 44) : Lomuel et Soméne chaque fois ;
+- puis trois avec celui d'aujourd'hui (cycle 49, 303 lignées) : Lomuel et Soméne chaque fois. Avant, Soméne cédait sa place au deuxième chargement.
+
+Six îles, en ligne et hors ligne, les compagnes, la monture : aucune erreur nouvelle. `sw.js` : `stone-valley-225`.
