@@ -7954,3 +7954,39 @@ Plus de pavés. Les feuilles et les pétales sont des **lames plates** tenues da
 **Le rendu.** Une pièce marquée `nu` n'a pas de grain (les pétales, les lames) : elle garde sa couleur et sa lumière.
 
 **Vérifié.** Les quatorze formes, une à une, sur les palettes de la prairie, du cristal, de l'ossuaire, de la forêt la nuit et du volcan ; en 3D et dans le canvas de secours. Au vent faible puis fort, le sommet de chaque plante bouge plus. Frôlée, une étoile s'écarte, revient en dépassant un peu, puis se pose. La cueillette et une minute de vie sans erreur. Au plus 139 pièces par plante (le saule). Six îles, les compagnes, la monture : aucune erreur. `sw.js` : `stone-valley-223`.
+
+## §254 · L'apprivoisement : la confiance compte, chez toutes les bêtes
+
+**Le pourcentage du lien restait figé.** Mesuré dans le jeu, offrande après offrande :
+- **les Doux** (le socle paisible) : le lien multipliait la confiance par « aucune arme en main ». Une arme équipée, et il restait à **10 %**, même à 100 % de confiance ;
+- **les omnivores** : seule comptait la surprise. La confiance ne faisait rien, et le lien restait à **15 %** ;
+- **les chasseurs** : seul comptait le ventre plein (60 % repus, 5 % sinon), sans la confiance ;
+- **les herbivores** marchaient (de 20 à 95 %).
+
+**La règle, maintenant** (`orvane/correspondance.js`, les tables `lien` des socles). Chez toutes les bêtes, **chaque offrande (G) gagne de la confiance, et la chance du lien monte avec elle**. Chaque famille a en plus sa façon, qui donne un bonus :
+
+| Famille | Sans confiance | À 100 % | Le bonus |
+|---|---|---|---|
+| Doux | 15 % | 85 % | +10 % si vous n'avez frappé personne depuis 20 s |
+| herbivore | 20 % | 90 % | +5 % repue |
+| omnivore | 10 % | 75 % | +20 % si elle ne vous a pas vu (approchée sans l'effrayer) |
+| chasseur | 5 % | 55 % | +20 % repu, +20 % affaibli sous 40 % |
+
+La chance plafonne à 95 %. Une monture domptée au rodéo reste à 90 %. Les automates (l'éclat, la nuit) et les horreurs gardent leur façon.
+
+Une bête **peut porter plusieurs bonus** (`plus : [[condition, bonus], …]`). La nouvelle condition `calme` regarde l'heure de votre dernier coup porté (`P.violenceT`, posée dans `blesseParJoueur`).
+
+**La confiance change aussi la conduite.**
+- Nourrie, une proie **s'habitue à vous** (son aise monte avec la confiance) : elle vous laisse approcher.
+- Nourri, un chasseur **renonce à vous traquer**, vingt secondes au moins. **À 50 % de confiance, il ne chasse plus qui le nourrit** (`envieDuJoueur`). Une bête infectée par le Korlaz non plus (`pouvoirs.js`).
+- Les chasseurs gagnent leur confiance un peu plus vite : 17 % par baie, 34 % par poisson (12 et 24 avant).
+
+**Ce qu'on voit.** Après chaque offrande : « confiance 34 % · lien 49 % », même sans lien libre (avec « sans lien libre »). Sur la fiche de la cible, la confiance n'a plus de croix tant qu'elle monte, et chaque bonus dit ce qu'il vaut : « repu (+20 %) ✓ ». L'aide du lien libre explique les quatre façons.
+
+**Vérifié dans le jeu**, une lignée de chaque famille, une arme en main, quatre offrandes :
+- Doux : 25 → 49 → 73 → 95 % ;
+- herbivore : 20 → 49 → 73 → 95 % ;
+- omnivore : 30 → 48 → 65 → 83 → 95 % (vue sans être effrayée) ;
+- chasseur : 5 → 34 → 42 → 51 → 59 % (repu dès la première).
+
+Un chasseur affamé à quatre cases vous veut à 0 % de confiance, plus à 60 %. Six îles, les compagnes, la monture : aucune erreur. `sw.js` : `stone-valley-224`.

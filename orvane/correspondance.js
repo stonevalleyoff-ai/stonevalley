@@ -124,19 +124,19 @@ const SOCLES = {
   paisible: { id: 'socle-paisible', fam: 'doux', diet: 'h', sz: 1, spd: 2.6, vue: 14, peur: 1, herd: 1, cap: 30, mat: 55, curiosite: .6,
     shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2],
     lien: 1, travail: { fibre: 1 }, metier: 'broute, et vous rapporte des brassées de fibre', grimpe: 0,
-    tables: { apt: [1, 1, 5, 2, 1, 1, 0, 1], lien: { c: ['desarme', 'conf'], b0: .1, b1: .85, rate: 'fuit' } } },
+    tables: { apt: [1, 1, 5, 2, 1, 1, 0, 1], lien: { c: ['conf'], b0: .15, b1: .85, plus: [['calme', .1]], rate: 'fuit' } } },   // (§254) la confiance d'abord, chez toutes
   herbivore: { id: 'socle-herbivore', diet: 'h', sz: 1, spd: 2.3, vue: 12, peur: 1, herd: 1, cap: 58, mat: 60,
     shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2],
     lien: 1, travail: { fibre: 1 }, metier: 'coupe les herbes, les fleurs et les roseaux', grimpe: 0,
-    tables: { apt: [1, 1, 4, 3, 1, 1, 0, 2], lien: { c: ['conf'], b0: .2, b1: .95, rate: 'fuit' } } },
+    tables: { apt: [1, 1, 4, 3, 1, 1, 0, 2], lien: { c: ['conf'], b0: .2, b1: .9, plus: [['repu', .05]], rate: 'fuit' } } },
   omnivore: { id: 'socle-omnivore', diet: 'o', sz: 1, spd: 2.9, vue: 13, peur: .75, herd: 0, cap: 40, mat: 55,
     shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2],
     lien: .8, travail: { baies: 1, fibre: .6 }, metier: 'cueille les baies, et un peu de fibre', grimpe: 0,
-    tables: { apt: [1, 1, 3, 5, 2, 1, 0, 1], lien: { c: ['surprise'], b0: .15, b1: .7, rate: 'fuit' } } },
+    tables: { apt: [1, 1, 3, 5, 2, 1, 0, 1], lien: { c: ['conf'], b0: .1, b1: .75, plus: [['surprise', .2]], rate: 'fuit' } } },
   carnivore: { id: 'socle-carnivore', diet: 'c', sz: 1, spd: 3.1, vue: 24, peur: .2, herd: 0, cap: 20, mat: 100,
     shell: [180, 160, 130], dark: [120, 104, 84], leg: [96, 84, 68], oeil: [36, 30, 26], bio: [2], chasse: [],
-    lien: .35, travail: { os: 1 }, metier: 'chasse quand elle a faim, et rapporte les os', grimpe: 0,
-    tables: { apt: [1, 1, 1, 2, 1, 1, 4, 4], lien: { c: ['repu'], b0: .05, b1: .6, plus: ['faible40', .2], rate: 'attaque' },
+    lien: .5, travail: { os: 1 }, metier: 'chasse quand elle a faim, et rapporte les os', grimpe: 0,   // (§254) .35 : douze offrandes pour sa confiance
+    tables: { apt: [1, 1, 1, 2, 1, 1, 4, 4], lien: { c: ['conf'], b0: .05, b1: .55, plus: [['repu', .2], ['faible40', .2]], rate: 'attaque' },
       combat: { deg: .13, ramasse: .45, bond: .24, portee: 1.9, recul: .7, pause: 1.5 } } },
 };
 const GABARITS = { herbivore: 'herbivore', omnivore: 'omnivore', carnivore: 'carnivore', filtreur: 'omnivore', detritivore: 'omnivore' };

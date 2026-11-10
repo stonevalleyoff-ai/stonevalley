@@ -148,7 +148,7 @@ function pouvoirBete(b, dt, J, dJ) {
   const el = pvEl(b); if (!el || b.dead || b.enfoui > 0 || b.as) return null;
   if (b.enVol) { b.pvA = null; return null; }                // en l'air, elle ne lance rien
   pvInit();
-  if (el === 'korlaz' && !b.tame && J === P && dJ < 6 && P.pv > 0) b.colere = Math.max(b.colere || 0, 8);   // (§239) une bête infectée charge qui l'approche
+  if (el === 'korlaz' && !b.tame && J === P && dJ < 6 && P.pv > 0 && !((b.conf || 0) >= .5)) b.colere = Math.max(b.colere || 0, 8);   // (§239) une bête infectée charge qui l'approche — (§254) sauf qui la nourrit
   const pu = pvPu(b); if (pu < .5) return null;
   const P0 = POUVOIRS[el], A = b.pvA;
   if (A) {                                                   // l'annonce : l'élément tourbillonne, puis le pouvoir part

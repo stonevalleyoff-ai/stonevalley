@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=223"></script>
-<script src="rouages.js?v=223"></script>
-<script src="forge.js?v=223"></script>
-<script src="nomades.js?v=223"></script>
-<script src="etats.js?v=223"></script>
-<script src="brume.js?v=223"></script>
-<script src="roi.js?v=223"></script>
-<script src="trone.js?v=223"></script>
-<script src="achromie.js?v=223"></script>
-<script src="vyrel.js?v=223"></script>
-<script src="village.js?v=223"></script>
-<script src="volcan.js?v=223"></script>
-<script src="dons.js?v=223"></script>
-<script src="coop.js?v=223"></script>
-<script src="faune.js?v=223"></script>
-<script src="flore.js?v=223"></script>
-<script src="lignees.js?v=223"></script>
-<script src="conduites.js?v=223"></script>
-<script src="pouvoirs.js?v=223"></script>
+<script src="donjon.js?v=224"></script>
+<script src="rouages.js?v=224"></script>
+<script src="forge.js?v=224"></script>
+<script src="nomades.js?v=224"></script>
+<script src="etats.js?v=224"></script>
+<script src="brume.js?v=224"></script>
+<script src="roi.js?v=224"></script>
+<script src="trone.js?v=224"></script>
+<script src="achromie.js?v=224"></script>
+<script src="vyrel.js?v=224"></script>
+<script src="village.js?v=224"></script>
+<script src="volcan.js?v=224"></script>
+<script src="dons.js?v=224"></script>
+<script src="coop.js?v=224"></script>
+<script src="faune.js?v=224"></script>
+<script src="flore.js?v=224"></script>
+<script src="lignees.js?v=224"></script>
+<script src="conduites.js?v=224"></script>
+<script src="pouvoirs.js?v=224"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=223"></script><script src="orvane/tampon.js?v=223"></script><script src="orvane/correspondance.js?v=223"></script><script src="orvane/secours.js?v=223"></script><script src="orvane/orvane-sv.js?v=223"></script>
+<script src="orvane/corps.js?v=224"></script><script src="orvane/tampon.js?v=224"></script><script src="orvane/correspondance.js?v=224"></script><script src="orvane/secours.js?v=224"></script><script src="orvane/orvane-sv.js?v=224"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -8002,7 +8002,7 @@ function ficheLienLibre() {
   return `<div class="fiche haute" id="sac-fiche">${caseObjet('lien', { taille: 'grande', inerte: true })}`
     + `<div class="fiche-texte"><h4>Lien libre</h4><p>Une place pour une bête.</p></div></div>`
     + `<p class="note" style="margin:12px 0 0">Désignez la bête (touchez-la, cliquez-la, ou U), puis LIER sous sa fiche (ou Y) : il l'enserre, elle se débat, puis cède — ou le lien se brise et il est perdu. `
-    + `Chaque créature a sa façon : la confiance (les offrandes, G), la faiblesse, la nuit, le sommeil, la surprise… La fiche de la cible dit la chance et ce qui est rempli.</p>`
+    + `Chaque offrande (G) gagne sa confiance, et la chance monte. Chaque famille a en plus sa façon : les Doux, si vous n\'avez frappé personne depuis 20 s ; les omnivores, approchés sans les effrayer ; les chasseurs, repus ou affaiblis. Les automates et les horreurs ont la leur. La fiche de la cible dit la chance et ce qui est rempli.</p>`
     + `<p class="note">${appel ? 'Le grimoire Appel (X) calme la bête : dix secondes, et le lien prend mieux.' : 'Le grimoire Appel, à l\'établi, calme une bête : le lien prend mieux.'}</p>`;
 }
 function ficheCompagne(c) {
@@ -10358,6 +10358,9 @@ function update(dt) {
         // une bête blessée. Au bout, il faut un lien libre pour qu'elle s'y attache.
         if (typeof donsNourri === 'function') donsNourri(c);   // (§208) l'épreuve d'Hadrik
         c.conf = Math.min(1, c.conf + .34 * c.sp.lien * (1 + .8 * (1 - Math.max(0, c.pv))) * (nmSait('baie-chantee') ? 1.5 : 1) * (pois ? 2 : 1) * (1 + .5 * effet('apprivoiseur')));
+        // (§254) nourrie, elle s'habitue à vous ; un chasseur renonce à vous traquer, vingt secondes au moins
+        c.aise = Math.max(c.aise || 0, c.conf * .8); c.colere = 0;
+        if (c.traque) { c.traque = false; c.renonceJ = c.t; c.repli = 0; if (c.as && c.as.c === P) c.as = null; }
         say((c.conf >= 1 ? 'confiance totale' : 'confiance ' + Math.round(c.conf * 100) + ' %') + lienApres(c), 1.8);   // (§145) le lien se lance
       }
     }
@@ -12788,6 +12791,7 @@ function terrasse() {
 }
 // Le joueur vient de blesser une bête : elle s'en souvient, et une meute répond pour elle.
 function blesseParJoueur(b) {
+  P.violenceT = t; b.frappeeT = t;                       // (§254) les Doux s'en souviennent : le lien prend moins
   if (typeof conduitesBlesse === 'function') conduitesBlesse(b);   // (§211) le dard, la peau irritante, le repli
   if (typeof pacteCoup === 'function') pacteCoup(b);          // (§164) les pactes de Braise et de Sang
   if (typeof volcanCoupArme === 'function') volcanCoupArme(b);  // (§200) la lame d'obsidienne fait saigner
@@ -12953,6 +12957,7 @@ function envieDuJoueur(b, actif, dJ, dzJ) {
   if (effetDe(JC, 'invisible') || effetDe(JC, 'repousse')) return false;   // invisible, ou repoussant
   if (!sp.chasse || b.tame || b.pv < .3 || dzJ > 3) return false;
   if (b.colere > 0) return dJ < sp.vue * 1.3;
+  if (JC === P && (b.conf || 0) >= .5) return false;        // (§254) à moitié apprivoisé, il ne chasse plus qui le nourrit
   if (!actif) return false;
   const ft = JC === P && donA('feutre') ? 1 - .4 * Math.min(1, donK('feutre')) : 1;   // (§204) le pas feutré
   if (b.traque) return dJ < sp.vue * 1.3 * ft && b.traqueT < 30;
@@ -14511,6 +14516,7 @@ const COND_LIEN = {
   eclat: { d: b => (b.sp.eclats || 1) > 1 ? b.sp.eclats + ' éclats glissés (G)' : 'un éclat glissé (G)', v: b => (b.eclatG || 0) >= (b.sp.eclats || 1) ? 1 : 0 },
   dompte: { d: () => 'dompté au rodéo', v: b => b.dompteT > t ? 1 : 0 },
   desarme: { d: () => 'aucune arme en main', v: () => porte('arme') ? 0 : 1 },
+  calme: { d: () => 'vous n\'avez frappé personne depuis 20 s', v: () => t - (P.violenceT ?? -99) > 20 ? 1 : 0 },   // (§254)
   immobile: { d: () => 'vous, immobile', v: () => Math.hypot(P.vx || 0, P.vy || 0) < .3 ? 1 : 0 },
   sorti: { d: () => 'sorti de terre', v: b => b.cache ? 0 : 1 },
 };
@@ -14527,11 +14533,13 @@ const FACONS = {   // (§235) les lignées d'Orvane y ajoutent la leur, d'après
 function etatLien(b) {
   if (!b || !b.sp || b.tame || b.dead || !(b.pv > 0) || b.gardeCamp || b.loin || b.sp.boss || b.sp.pnj || b.pnjSuit) return null;
   const F = FACONS[b.sp.id]; if (!F) return null;
-  const L = [], val = k => COND_LIEN[k].v(b), dit = k => COND_LIEN[k].d(b), ok = k => COND_LIEN[k].prog ? val(k) >= .8 : val(k) >= 1;
+  // (§254) une condition qui se remplit (la confiance) n'a pas de croix : elle avance ; plus : un ou plusieurs bonus [condition, bonus]
+  const L = [], val = k => COND_LIEN[k].v(b), dit = k => COND_LIEN[k].d(b), ok = k => COND_LIEN[k].prog ? (val(k) >= .8 ? true : null) : val(k) >= 1;
+  const plus = !F.plus ? [] : Array.isArray(F.plus[0]) ? F.plus : [F.plus];
   for (const k of F.req || []) L.push([dit(k), ok(k)]);
   for (const k of F.c) L.push([dit(k), ok(k)]);
   if (F.conf && !F.c.includes('conf')) L.push([dit('conf') + ' (en plus)', ok('conf')]);
-  if (F.plus) L.push([dit(F.plus[0]) + ' (en plus)', ok(F.plus[0])]);
+  for (const [k, n] of plus) L.push([dit(k) + ' (+' + Math.round(n * 100) + ' %)', ok(k)]);
   if (F.ou) L.push(['ou ' + dit(F.ou[0]), ok(F.ou[0])]);
   let ch;
   if ((F.req || []).some(k => !val(k))) ch = F.r0 || 0;
@@ -14539,13 +14547,13 @@ function etatLien(b) {
     let x = 1; for (const k of F.c) x *= val(k);
     ch = (F.b0 || 0) + (F.b1 - (F.b0 || 0)) * x;
     if (F.conf) ch += F.conf * COND_LIEN.conf.v(b);
-    if (F.plus && val(F.plus[0])) ch += F.plus[1];
+    for (const [k, n] of plus) if (val(k) >= 1) ch += n;
   }
   if (F.ou && val(F.ou[0])) ch = Math.max(ch, F.ou[1]);
   if (b.appelT > t) { ch += .15; L.push(['l\'Appel la calme', true]); }
   return { F, L, ch: Math.max(0, Math.min(F.max || .95, ch)) };
 }
-const lienDit = E => 'lien ' + Math.round(E.ch * 100) + ' %' + (E.L.length ? ' · ' + E.L.map(([d, o]) => d + (o ? ' ✓' : ' ✗')).join(' · ') : '');
+const lienDit = E => 'lien ' + Math.round(E.ch * 100) + ' %' + (E.L.length ? ' · ' + E.L.map(([d, o]) => d + (o ? ' ✓' : o === null ? '' : ' ✗')).join(' · ') : '');
 // La bête qu'on lierait : seulement celle qu'on a désignée (§151). Un lien ne part plus jamais sur une bête
 // que le jeu a choisie : il en partait sans le vouloir, quand ACTION devenait « LIER ».
 function viseLien() {
@@ -14617,7 +14625,7 @@ function rateLien(b, F) {
   else if (r === 'fuit') { b.alarm = 1; b.conf = Math.max(0, (b.conf || 0) - .15); }
 }
 // Le dire d'une offrande, quand la façon de la bête compte la confiance : où en est le lien.
-const lienApres = b => { const E = liensLibres() > 0 && etatLien(b); return E ? ' · lien ' + Math.round(E.ch * 100) + ' %' : ''; };
+const lienApres = b => { const E = etatLien(b); return E ? ' · lien ' + Math.round(E.ch * 100) + ' %' + (liensLibres() > 0 ? '' : ' (sans lien libre)') : ''; };   // (§254) même sans lien libre : on voit où l'on en est
 // (§145) Un automate en veille : G glisse l'éclat dans sa poitrine (l'élite en demande plusieurs) ; reste à lui
 // lancer un lien avant qu'il ne s'éveille. Éveillé, il ne se laisse pas approcher.
 function rallumer(b) {
