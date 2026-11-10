@@ -1404,13 +1404,14 @@ function osPlanteVolcan(f) {
   const [tige0, feuille0, petale, coeur, pointe0] = pl.pal;
   const tige = soufre ? mix(tige0, [64, 50, 26], .5) : tige0, feuille = soufre ? mix(feuille0, [130, 104, 40], .45) : feuille0, pointe = cendre ? mix(pointe0, [22, 14, 32], .55) : pointe0;
   const vent = 1 + Math.min(1.5, (typeof Meteo !== 'undefined' && Meteo.vent) || 0), nuit = lumiere() < .36;
-  const sway = (k, a) => Math.sin(t * (.8 + g * .4) + k * .7 + g * 9) * a * vent;
+  const Wv = typeof flVent === 'function' ? flVent(f) : null;   // (§253) les rafales qui traversent l'île les touchent aussi, en pierre : à peine
+  const sway = (k, a) => Math.sin(t * (.8 + g * .4) + k * .7 + g * 9) * a * (Wv ? .6 + Wv.f * 1.1 : vent);
   const fane = c => fan ? mix(c, [104, 96, 90], .6) : c;
   // la pierre a le grain de son biome (le basalte, le soufre, le travertin) ; l'obsidienne, le sien
   const T0 = typeof TEX === 'object' ? (cendre ? TEX.orgue : soufre ? TEX.soufre : TEX.travertin) : null, TO = typeof TEX === 'object' && cendre ? TEX.obsidienne : T0;
   const os = (a, b, w, h, c, F) => { const o = { a, b, w, h, c: fane(c), tex: c === pointe ? TO : T0 }; if (F) Object.assign(o, F); B.push(o); return o; };
   const vif = (a, b, w, h, c, F) => { const o = { a, b, w, h, c: fan ? mix(c, [84, 74, 70], .75) : c }; if (!fan) { o.luit = true; if (cendre) o.lave = 1; } if (F) Object.assign(o, F); B.push(o); return o; };
-  const PR = { pans: 6, rond: .8 }, BO = { boule: 4, rond: .6 }, SOCLE = { pans: 8, rond: .8, fin: .7 };
+  const PR = { pans: 6, rond: .8 }, BO = { boule: 4, rond: .85 }, SOCLE = { pans: 8, rond: .8, fin: .7 };
   const add3 = (p, d, k) => [p[0] + d[0] * k, p[1] + d[1] * k, p[2] + d[2] * k];
   // la pointe d'un biome : une goutte de lave, une aiguille de soufre, une perle d'eau chaude
   const bout = (p, d, s) => cendre ? vif(p, add3(p, d, s * 1.4), s * 1.3, s * 1.3, petale, BO)
@@ -1425,7 +1426,7 @@ function osPlanteVolcan(f) {
       for (let k = 0; k < 7; k++) {
         const a = k / 7 * 6.2832 + g * 2, c0 = Math.cos(ouv), d = [Math.cos(a) * c0, Math.sin(a) * c0, Math.sin(ouv)];
         const b0 = [Math.cos(a) * .1, Math.sin(a) * .1, .14], e = add3(b0, d, .46 + (k % 2) * .08);
-        os(b0, e, .2, .06, k % 2 ? feuille : mix(feuille, tige, .4), { pans: 6, rond: .7, fin: .2 });
+        os(b0, e, .2, .06, k % 2 ? feuille : mix(feuille, tige, .4), { pans: 6, rond: .85, fin: .2 });
         if (k % 2 === 0) bout(e, d, .035);
       }
       const s = sway(0, .05);
@@ -1441,7 +1442,7 @@ function osPlanteVolcan(f) {
       for (let k = 2; k <= 6; k++) {
         const p = pts[k], h = .1 + (k % 2) * .05, bas = [p[0] + sway(k + 9, .04), p[1] + sway(k + 4, .04), p[2] - h];
         os(p, bas, .012, .012, tige);
-        os([bas[0], bas[1], bas[2] + .02], [bas[0], bas[1], bas[2] - .17], .15, .15, k % 2 ? feuille : mix(feuille, cendre ? tige : pointe, .3), { boule: soufre ? 3 : 4, rond: .55 });
+        os([bas[0], bas[1], bas[2] + .02], [bas[0], bas[1], bas[2] - .17], .15, .15, k % 2 ? feuille : mix(feuille, cendre ? tige : pointe, .3), { boule: soufre ? 3 : 4, rond: .8 });
         vif([bas[0], bas[1], bas[2] - .13], [bas[0], bas[1], bas[2] - .2], .08, .08, k % 2 ? coeur : petale, BO);
       }
       break;
@@ -1476,7 +1477,7 @@ function osPlanteVolcan(f) {
         if (!fan) for (let j = 0; j < 2; j++) {           // la fumée, l'acide qui goutte, la vapeur
           const ph = (t * .35 + j * .5 + k * .2 + g) % 1;
           if (soufre) vif([q[0], q[1], q[2] - .05 - ph * .45], [q[0], q[1], q[2] - .09 - ph * .45], .035, .035, pointe, BO);
-          else os([q[0] + ph * .1, q[1], q[2] + .08 + ph * .55], [q[0] + ph * .12, q[1], q[2] + .14 + ph * .6], .05 + ph * .08, .05 + ph * .08, fumee, { boule: 4, rond: .6, tex: null });
+          else os([q[0] + ph * .1, q[1], q[2] + .08 + ph * .55], [q[0] + ph * .12, q[1], q[2] + .14 + ph * .6], .05 + ph * .08, .05 + ph * .08, fumee, { boule: 4, rond: .85, tex: null });
         }
       }
       break;
@@ -1489,9 +1490,9 @@ function osPlanteVolcan(f) {
         os([Math.cos(a) * .05, Math.sin(a) * .05, .08], [c[0], c[1], c[2] - R * .9], .035, .035, tige, PR);
         vif([c[0], c[1], c[2] - R * .8], [c[0], c[1], c[2] + R * .8], R * 1.6, R * 1.6, k % 2 ? coeur : petale, BO);
         for (let j = 0; j < 4; j++) { const b = j / 4 * 6.2832 + k + g, ox = Math.cos(b), oy = Math.sin(b);
-          os([c[0] + ox * R * .8, c[1] + oy * R * .8, c[2] - R * .8], [c[0] + ox * R * .95, c[1] + oy * R * .95, c[2] + R * .3], R * .55, R * .55, j % 2 ? feuille : tige, { pans: 6, rond: .7, fin: .6 }); }
+          os([c[0] + ox * R * .8, c[1] + oy * R * .8, c[2] - R * .8], [c[0] + ox * R * .95, c[1] + oy * R * .95, c[2] + R * .3], R * .55, R * .55, j % 2 ? feuille : tige, { pans: 6, rond: .85, fin: .6 }); }
         const lev = fan ? 0 : .04 + .03 * Math.sin(t * 2 + k);
-        os([c[0], c[1], c[2] + R * .7 + lev], [c[0] + .02, c[1], c[2] + R * 1.05 + lev], R * 1.3, R * 1.2, feuille, { boule: 3, rond: .5 });
+        os([c[0], c[1], c[2] + R * .7 + lev], [c[0] + .02, c[1], c[2] + R * 1.05 + lev], R * 1.3, R * 1.2, feuille, { boule: 3, rond: .8 });
         if (bio === 31 && !fan) { const jet = .1 + .14 * (.5 + .5 * Math.sin(t * 3 + k * 2)); vif([c[0], c[1], c[2] + R * 1.05 + lev], [c[0], c[1], c[2] + R * 1.05 + lev + jet], .03, .03, coeur); }
       }
       break;
@@ -1523,9 +1524,9 @@ function osPlanteVolcan(f) {
       const c = p, ouv = fan ? .42 : .55 + respire * .15 + (nuit ? .2 : 0);
       for (let k = 0; k < 9; k++) { const a = k / 9 * 6.2832 + g * 2, d = [Math.cos(a) * Math.sin(ouv), Math.sin(a) * Math.sin(ouv), Math.cos(ouv)];
         const b0 = [c[0] + Math.cos(a) * .2, c[1] + Math.sin(a) * .2, c[2] - .05], e = add3(b0, d, 1.0 + (k % 2) * .15);
-        os(b0, e, .5, .14, k % 2 ? feuille : mix(feuille, tige, .3), { pans: 6, rond: .7, fin: [.8, .6] });
+        os(b0, e, .5, .14, k % 2 ? feuille : mix(feuille, tige, .3), { pans: 6, rond: .85, fin: [.8, .6] });
         bout(e, d, .07); }
-      vif([c[0], c[1], c[2] + .05], [c[0], c[1], c[2] + .2 + respire * .08], .55, .55, petale, { boule: 4, rond: .5 });
+      vif([c[0], c[1], c[2] + .05], [c[0], c[1], c[2] + .2 + respire * .08], .55, .55, petale, { boule: 4, rond: .8 });
       if (!fan) for (let k = 0; k < 6; k++) { const ph = (t * .25 + k / 6 + g) % 1, a = k * 2.4 + g * 3, r = .25 + ph * .5, s = .07 * (1 - ph * .6);
         vif([c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r, c[2] + .4 + ph * 1.4], [c[0] + Math.cos(a) * r, c[1] + Math.sin(a) * r, c[2] + .4 + s + ph * 1.4], s, s, coeur, BO); }
       break;
@@ -1543,8 +1544,8 @@ function osPlanteVolcan(f) {
             os(q, n, .025, .025, m2 < 4 ? fil : coeur, { tex: null }); q = n; }
           bout(q, [0, 0, -1], .04); } }
       for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g * 2, r = .6 + (k % 2) * .3, z = top[2] + .55 + (k % 3) * .18, x = top[0] + Math.cos(a) * r, y = top[1] + Math.sin(a) * r;
-        os([x, y, z], [x, y, z + .5], .75, .75, k % 2 ? feuille : mix(feuille, tige, .3), { boule: 4, rond: .6 }); }
-      os([top[0], top[1], top[2] + .6], [top[0], top[1], top[2] + 1.3], 1.0, 1.0, feuille, { boule: 4, rond: .6 });
+        os([x, y, z], [x, y, z + .5], .75, .75, k % 2 ? feuille : mix(feuille, tige, .3), { boule: 4, rond: .85 }); }
+      os([top[0], top[1], top[2] + .6], [top[0], top[1], top[2] + 1.3], 1.0, 1.0, feuille, { boule: 4, rond: .85 });
       break;
     }
     case 'meduse': {                                     // une cloche de pierre ponce que porte la vapeur d'un évent ; ses bras en chapelets
@@ -1552,8 +1553,8 @@ function osPlanteVolcan(f) {
       os([0, 0, 0], [0, 0, .55], 1.1, 1.1, tige, { pans: 8, rond: .8, fin: .35 });
       vif([0, 0, .5], [0, 0, .6], .38, .38, coeur, { pans: 8 });
       const col = mix(feuille, fumee, .55), h4 = (z0 - .7) / 4;
-      if (!fan) for (let j = 0; j < 4; j++) { const z1 = .6 + j * h4; os([sway(j, .05), sway(j + 2, .05), z1], [sway(j + 1, .05), sway(j + 3, .05), z1 + h4], .1 + j * .03, .1 + j * .03, col, { boule: 4, rond: .6, tex: null }); }
-      os([0, 0, z0 - .05], [0, 0, z0 + .75], W, W, feuille, { boule: 4, rond: .5 });
+      if (!fan) for (let j = 0; j < 4; j++) { const z1 = .6 + j * h4; os([sway(j, .05), sway(j + 2, .05), z1], [sway(j + 1, .05), sway(j + 3, .05), z1 + h4], .1 + j * .03, .1 + j * .03, col, { boule: 4, rond: .85, tex: null }); }
+      os([0, 0, z0 - .05], [0, 0, z0 + .75], W, W, feuille, { boule: 4, rond: .8 });
       for (let k = 0; k < 8; k++) { const a = k / 8 * 6.2832 + g; vif([Math.cos(a) * .86, Math.sin(a) * .86, z0 + .12], [Math.cos(a) * .42, Math.sin(a) * .42, z0 + .66], .06, .06, petale); }
       vif([0, 0, z0 + .66], [0, 0, z0 + .84], .4, .4, coeur, BO);
       for (let k = 0; k < 8; k++) { const a = k / 8 * 6.2832 + .2; let q = [Math.cos(a) * .8, Math.sin(a) * .8, z0];
@@ -1569,14 +1570,14 @@ function osPlanteVolcan(f) {
       for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g, ca = Math.cos(a), sa = Math.sin(a), L = 1.1 + (k % 2) * .3;
         const m = [top[0] + ca * L * .5, top[1] + sa * L * .5, top[2] + .45], e = [top[0] + ca * L, top[1] + sa * L, top[2] + .35 + (k % 2) * .2];
         os(top, m, .16, .16, tige, PR); os(m, e, .12, .12, mix(tige, feuille, .3), PR);
-        os([e[0], e[1], e[2] - .05], [e[0], e[1], e[2] + .14], .42, .42, feuille, { boule: 4, rond: .5 });
-        vif([e[0], e[1], e[2] + .1], [e[0], e[1], e[2] + .16], .32, .32, petale, { boule: 3, rond: .5 });
+        os([e[0], e[1], e[2] - .05], [e[0], e[1], e[2] + .14], .42, .42, feuille, { boule: 4, rond: .8 });
+        vif([e[0], e[1], e[2] + .1], [e[0], e[1], e[2] + .16], .32, .32, petale, { boule: 3, rond: .8 });
         if (fan) continue;
         const lx = e[0] + ca * .2, ly = e[1] + sa * .2; let q = [lx, ly, e[2] + .08];
         for (let j = 1; j <= 4; j++) { const w = .07 - j * .008 + Math.sin(t * 4 + k + j) * .01, n = [lx + ca * .04 * j, ly + sa * .04 * j, e[2] + .08 - (e[2] + .03) * j / 4]; vif(q, n, w, w, j % 2 ? petale : coeur); q = n; }
-        vif([q[0], q[1], .02], [q[0], q[1], .06], .4, .4, petale, { boule: 3, rond: .4 }); }
+        vif([q[0], q[1], .02], [q[0], q[1], .06], .4, .4, petale, { boule: 3, rond: .8 }); }
       for (let k = 0; k < 4; k++) { const a = k / 4 * 6.2832 + g * 2, x = top[0] + Math.cos(a) * .45, y = top[1] + Math.sin(a) * .45;
-        os([x, y, top[2] + .6], [x, y, top[2] + 1.1], .7, .7, k % 2 ? feuille : tige, { boule: 4, rond: .6 }); }
+        os([x, y, top[2] + .6], [x, y, top[2] + 1.1], .7, .7, k % 2 ? feuille : tige, { boule: 4, rond: .85 }); }
       vif([top[0], top[1], top[2] + .9], [top[0], top[1], top[2] + 1.2], .3, .3, coeur, BO);
       break;
     }
@@ -1605,7 +1606,7 @@ function osPlanteVolcan(f) {
       break;
     }
     case 'fouetteuse': {                                 // le fouet de scories : des chapelets de nodules, des jointures qui couvent, une masse hérissée au bout
-      os([0, 0, 0], [0, 0, .45], .8, .8, tige, { boule: 4, rond: .6 });
+      os([0, 0, 0], [0, 0, .45], .8, .8, tige, { boule: 4, rond: .85 });
       vif([0, 0, .38], [0, 0, .52], .36, .36, coeur, { pans: 8 });
       const cb = f.cible ?? 0, rel = cb - f.dir, fr = f.etat === 'frappe' ? Math.max(0, 1 - f.frappeT / .35) : 0, ar = f.etat === 'arme' ? Math.min(1, f.armeT / .6) : 0;
       for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g, frappe = k === 0 ? fr : 0, arme = k === 0 ? ar : 0; let q = [0, 0, .45];
@@ -1631,7 +1632,7 @@ function osPlanteVolcan(f) {
       for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g; vif([Math.cos(a) * .26, Math.sin(a) * .26, H - .05], [Math.cos(a) * .7, Math.sin(a) * .7, .4], .045, .045, petale); }
       for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g * 3 + .5, b0 = [Math.cos(a) * .9, Math.sin(a) * .9, .03];
         if (soufre) os(b0, [b0[0] + Math.cos(a) * .12, b0[1] + Math.sin(a) * .12, .35 + (k % 2) * .15], .1, .1, petale, { pans: 6, fin: .08 });
-        else { os(b0, [b0[0], b0[1], b0[2] + .1], .26, .26, feuille, { boule: 3, rond: .5 }); vif([b0[0], b0[1], b0[2] + .08], [b0[0], b0[1], b0[2] + .12], .18, .18, petale, { boule: 3, rond: .4 }); } }
+        else { os(b0, [b0[0], b0[1], b0[2] + .1], .26, .26, feuille, { boule: 3, rond: .8 }); vif([b0[0], b0[1], b0[2] + .08], [b0[0], b0[1], b0[2] + .12], .18, .18, petale, { boule: 3, rond: .8 }); } }
       if (gonfle > .2 && !fan) vif([0, 0, H + .05], [0, 0, H + .1 + gonfle * .4], .1 + gonfle * .1, .1 + gonfle * .1, petale, BO);
       break;
     }

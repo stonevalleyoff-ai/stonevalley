@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=222"></script>
-<script src="rouages.js?v=222"></script>
-<script src="forge.js?v=222"></script>
-<script src="nomades.js?v=222"></script>
-<script src="etats.js?v=222"></script>
-<script src="brume.js?v=222"></script>
-<script src="roi.js?v=222"></script>
-<script src="trone.js?v=222"></script>
-<script src="achromie.js?v=222"></script>
-<script src="vyrel.js?v=222"></script>
-<script src="village.js?v=222"></script>
-<script src="volcan.js?v=222"></script>
-<script src="dons.js?v=222"></script>
-<script src="coop.js?v=222"></script>
-<script src="faune.js?v=222"></script>
-<script src="flore.js?v=222"></script>
-<script src="lignees.js?v=222"></script>
-<script src="conduites.js?v=222"></script>
-<script src="pouvoirs.js?v=222"></script>
+<script src="donjon.js?v=223"></script>
+<script src="rouages.js?v=223"></script>
+<script src="forge.js?v=223"></script>
+<script src="nomades.js?v=223"></script>
+<script src="etats.js?v=223"></script>
+<script src="brume.js?v=223"></script>
+<script src="roi.js?v=223"></script>
+<script src="trone.js?v=223"></script>
+<script src="achromie.js?v=223"></script>
+<script src="vyrel.js?v=223"></script>
+<script src="village.js?v=223"></script>
+<script src="volcan.js?v=223"></script>
+<script src="dons.js?v=223"></script>
+<script src="coop.js?v=223"></script>
+<script src="faune.js?v=223"></script>
+<script src="flore.js?v=223"></script>
+<script src="lignees.js?v=223"></script>
+<script src="conduites.js?v=223"></script>
+<script src="pouvoirs.js?v=223"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=222"></script><script src="orvane/tampon.js?v=222"></script><script src="orvane/correspondance.js?v=222"></script><script src="orvane/secours.js?v=222"></script><script src="orvane/orvane-sv.js?v=222"></script>
+<script src="orvane/corps.js?v=223"></script><script src="orvane/tampon.js?v=223"></script><script src="orvane/correspondance.js?v=223"></script><script src="orvane/secours.js?v=223"></script><script src="orvane/orvane-sv.js?v=223"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -24531,7 +24531,7 @@ void main() { o = uC; }`;
       const T0 = sousEau ? TF : TD, teinte = c => kE ? [c[0] + (eauT[0] - c[0]) * kE, c[1] + (eauT[1] - c[1]) * kE, c[2] + (eauT[2] - c[2]) * kE] : c;
       DURCIR = !!b.sp.orvane;
       for (const o of osSur(b)) { const A = put(o.a), B2 = put(o.b);
-        boite(T0, A, B2, o.w, o.h, flash ? [255, 220, 210] : teinte(o.c), o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+        boite(T0, A, B2, o.w, o.h, flash ? [255, 220, 210] : teinte(o.c), o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit || o.nu ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
         if (trait && !o.luit && !o.robe && !o.ref && o.c && Math.min(o.w, o.h) >= .02) contourOs(o, A, B2, U, eT); }
       DURCIR = false;
     }
@@ -24540,7 +24540,7 @@ void main() { o = uC; }`;
       if (!iso && !boiteVue(b.x - 2, b.x + 2, b.y - 2, b.y + 2, b.z - .4, b.z + 2.2, .05)) continue;
       if (iso || tierce) ombre(b.x, b.y, b.z, b.sp.boss ? 3.4 : kz, U[2] * U[2] * (1 - (b.camo || 0) * .9));
       const hb = L_FIXE + 256 * horizAt(b.x, b.y), fl = b.hit > 0 && (t * 16 | 0) % 2;
-      for (const o of osSur(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
+      for (const o of osSur(b)) boite(TD, put(o.a), put(o.b), o.w, o.h, fl ? [255, 220, 210] : o.c, o.luit ? 1 : 0, o.tex ? tuile(o.tex) : o.luit || o.nu ? 0 : kEspece(b.sp, o.c), (o.luit ? L_FIXE : hb) + (o.lave ? 131072 : 0) + (o.lueur ? 262144 : 0), 0, 0, 0, o.ref ? refBete(put, o.ref) : U, o.tex ? 0 : 2.5, o);
     }
     for (const j of Autres.values()) {
       if (!iso && !boiteVue(j.x - 1, j.x + 1, j.y - 1, j.y + 1, j.z - .4, j.z + 2, .05)) continue;

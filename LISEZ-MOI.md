@@ -7912,3 +7912,45 @@ Un nageur vaut sa famille dans les recettes (`reqVa`) et dans les plats remarqua
 **Ce qui suit les nouvelles heures.** Les poissons de nuit mordent du coucher au lever (`quandOk`) ; ceux de l'aube, de 4 h à 8 h et de 19 h à 22 h. L'état « à l'aube, engourdi » vaut de 4 h à 7 h. Les boutons d'essai Aube et Soir mettent 5 h 12 et 20 h 24. Les bêtes, le village et les nomades lisent toujours la lumière (`lumiere()`) : leur nuit raccourcit avec celle de l'île.
 
 **Vérifié.** La courbe heure par heure, et les durées sur un tour complet. Des captures à 13 h, 21 h, 23 h, 1 h et 4 h 30, en 3D, en première personne et dans le canvas. Six îles, les compagnes, la monture, une pêche de bout en bout : aucune erreur. `sw.js` : `stone-valley-222`.
+
+## §253 · La flore rare refaite : la composition et le mouvement
+
+**Avant**, les plantes rares (douze par biome, `flore.js`) étaient des empilements de pavés : des fleurs en cubes, des géantes creuses, un balancement identique pour toutes.
+
+**La composition.** Chaque plante a trois étages :
+- **le pied** : une rosette de feuilles au ras du sol, le plus sombre ;
+- **le port** : la tige, un prisme à six pans qui s'amincit et ploie ;
+- **la tête** : la fleur, le fruit ou la lanterne, le plus clair, et ce qui luit.
+
+Plus de pavés. Les feuilles et les pétales sont des **lames plates** tenues dans leur plan (`ref`), étroites au pied, larges au milieu, effilées au bout. Les fruits, les boutons, les cloches et les feuillages sont des **boules** (des touffes qui moutonnent : une grosse boule et des petites accrochées). Les feuilles se rangent à l'**angle d'or**, jamais deux l'une sur l'autre. Chaque plante tire ses proportions de sa graine : taille, penchant, longueur des feuilles.
+
+**Les formes**, une à une :
+- **l'étoile** : une marguerite à deux rangs de pétales, des sépales, un cœur qui luit ;
+- **les clochettes** : une hampe qui monte puis s'incline, six cloches évasées avec leur battant ;
+- **l'éventail** : huit frondes en gerbe, avec leurs folioles ;
+- **la crosse** : quatre crosses de fougère enroulées en spirale ;
+- **l'orbe** : cinq lanternes au bout de tiges fines, dans un calice ;
+- **l'arbuste** : un tronc qui fourche, des touffes rondes, seize fleurs semées dessus ;
+- **la cristalline** : une druse de prismes pointus sur un socle de roche ;
+- **la colosse** : une fleur de quatre mètres, de grandes feuilles nervurées, deux rangs de pétales, un disque et onze étamines ;
+- **le saule** : des racines, un tronc qui se tord, cinq bras sous un dôme de feuillage, vingt chevelures ;
+- **la méduse** : une cloche, son rebord festonné, dix filaments, quatre rubans ;
+- **l'arbre-lumière** : une couronne de touffes, douze fruits qui pendent ;
+- **la gueule** : une tige en S, deux mâchoires avec leurs dents et leur palais, une collerette ;
+- **la fouetteuse** : un bulbe, cinq fouets d'épines ;
+- **la cracheuse** : un bulbe veiné sur une rosette d'épines, des lèvres autour de la bouche.
+
+**Le mouvement.**
+- **Le vent** (`flVent`) : celui de la météo, dans sa direction. Des **rafales traversent l'île** à trois cases par seconde : deux plantes voisines plient l'une après l'autre. Sans vent, une brise.
+- **Une tige plie plus vers son bout**, et après sa base : l'onde monte. Ce qui pend (cloches, chevelures, filaments, fruits) suit avec retard. Les feuilles et les pétales frémissent plus vite et moins fort. Les frondes de l'éventail ondulent jusqu'au bout.
+- **La plante vit** : la colosse respire, la méduse se contracte vite et se détend lentement, les étamines frémissent, un éclat passe d'un cristal à l'autre, les fruits de l'arbre-lumière s'allument tour à tour.
+- **Le jour et la nuit, sans à-coup** : la marguerite se referme en bouton la nuit, les crosses se roulent, les cloches et la méduse rosissent de leur lueur. Le jour, la fleur se tourne vers le soleil, qui va de l'est à l'ouest.
+- **Frôlée** (`flPousser`) par le joueur, un autre joueur ou une bête, la plante s'écarte, puis revient en oscillant, comme un ressort amorti.
+- **Cueillie**, elle perd sa tête : un bouton, qui grossit à mesure qu'elle repousse. Chez soi, elle reste en bouton (§124).
+- **Les vives** gardent leur conduite : la gueule ondule, se cabre, s'ouvre en grand et mord ; le fouet qui vise se dresse et se love en arrière, tremble, puis cingle ; la cracheuse gonfle en visant, ses veines s'éclairent, elle crache et se rétracte.
+
+**Les plantes du volcan** (§200) gardent leurs formes de pierre. Les rafales les touchent aussi, à peine, et leurs boules sont arrondies (elles faisaient des cubes).
+
+**Le rendu.** Une pièce marquée `nu` n'a pas de grain (les pétales, les lames) : elle garde sa couleur et sa lumière.
+
+**Vérifié.** Les quatorze formes, une à une, sur les palettes de la prairie, du cristal, de l'ossuaire, de la forêt la nuit et du volcan ; en 3D et dans le canvas de secours. Au vent faible puis fort, le sommet de chaque plante bouge plus. Frôlée, une étoile s'écarte, revient en dépassant un peu, puis se pose. La cueillette et une minute de vie sans erreur. Au plus 139 pièces par plante (le saule). Six îles, les compagnes, la monture : aucune erreur. `sw.js` : `stone-valley-223`.

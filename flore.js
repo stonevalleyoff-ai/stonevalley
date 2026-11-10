@@ -134,6 +134,7 @@ function plCueillie(b) {
 function majPlante(b, dt, marionnette) {
   b.t += dt; if (b.hit > 0) b.hit -= dt; b.vx = b.vy = 0;
   const pl = b.pl; if (!pl) return;
+  if (pl.port !== 'vive') flPousser(b, dt);            // (§253) frôlée, elle s'écarte
   if (b.dead) {
     // le butin : à qui l'a abattue. Chez le gardien, pas si le dernier coup venait d'en face ; chez un
     // suiveur, seulement si c'est lui qui vient de la frapper
@@ -200,155 +201,417 @@ function cueillirPlante(b) {
   say(`${pl.rang} · ${pl.n} · +${n} ${INGR[pl.ingr].n.toLowerCase()}` + (gr ? ' · +1 ' + nomGraine(pl.id) : ''), 3);
   burst(b.x, b.y, b.z + (pl.port === 'geante' ? 2 : .8), pl.port === 'geante' ? 30 : 14, 'rgb(' + pl.pal[3].join(',') + ')'); SON.jouer('ramasse'); majSac();
 }
-// ---------- en volumes ----------
+// ---------- en volumes (§253) ----------
+// Une plante rare se compose en trois étages. Le PIED : une rosette au ras du sol, le plus sombre. Le PORT : la tige, un
+// prisme effilé qui ploie. La TÊTE : la fleur, le fruit, la lanterne, le plus clair, et ce qui luit. Plus de pavés : les
+// feuilles et les pétales sont des lames plates tenues dans leur plan (ref), larges au milieu et effilées au bout ; les
+// tiges, des prismes à six pans qui s'amincissent ; les fruits, les boutons, les cloches, des boules. Les feuilles se
+// rangent à l'angle d'or, jamais deux l'une sur l'autre, et chaque plante a ses proportions, tirées de sa graine.
+// Le mouvement :
+//  - le vent de la météo, dans sa direction ; des rafales traversent l'île à trois cases par seconde (deux plantes voisines
+//    plient l'une après l'autre) ; sans vent, une brise ;
+//  - une tige plie plus vers son bout, et après sa base (l'onde monte) ; ce qui pend (cloches, chevelures, filaments) suit
+//    avec retard ; feuilles et pétales frémissent, plus vite et moins fort ;
+//  - la plante respire ; elle s'ouvre au jour et se ferme à la nuit sans à-coup ; sa fleur suit le soleil ;
+//  - frôlée par le joueur ou une bête, elle s'écarte et revient en oscillant (flPousser, un ressort) ;
+//  - cueillie, elle perd sa tête : un bouton, qui grossit à mesure qu'elle repousse.
+const FL_GA = 2.39996323;                                   // l'angle d'or
+const flH = (g, k) => { const s = Math.sin(g * 127.1 + k * 311.7) * 43758.5453; return s - Math.floor(s); };   // un tirage fixe, propre à la plante
+const flL = u => { u = u < 0 ? 0 : u > 1 ? 1 : u; return u * u * (3 - 2 * u); };
+const flMix = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+const flN = v => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+const flX = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const flA = (p, d, k) => [p[0] + d[0] * k, p[1] + d[1] * k, p[2] + d[2] * k];
+const flD = (a, b) => flN([b[0] - a[0], b[1] - a[1], b[2] - a[2]]);
+// Le vent sur une plante, dans son repère : sa direction, sa force (la brise comprise), la rafale qui passe (de 0 à 1).
+function flVent(f) {
+  const M = typeof Meteo !== 'undefined' ? Meteo : null, V = M ? Math.min(2, M.vent || 0) : 0, D = M ? M.dir || 0 : 0;
+  const u = (f.x * Math.cos(D) + f.y * Math.sin(D)) * .32 - t * 1.05;       // l'onde des rafales avance dans le sens du vent
+  const raf = Math.max(0, Math.sin(u) * .62 + Math.sin(u * .41 + 1.3) * .38), a = D - (f.dir || 0);
+  return { x: Math.cos(a), y: Math.sin(a), f: .15 + Math.min(1.4, V * .7) * (.45 + .55 * raf), raf };
+}
+// Frôlée : le joueur, les autres joueurs, une bête la poussent ; elle s'écarte, puis revient en oscillant (un ressort amorti).
+function flPousser(b, dt) {
+  const R = b.pl.port === 'geante' ? 1.7 : 1;
+  let tx = 0, ty = 0;
+  const pousse = o => { if (!o || !Number.isFinite(o.x)) return; const dx = b.x - o.x, dy = b.y - o.y; if (Math.abs(dx) > R || Math.abs(dy) > R) return;
+    const d = Math.hypot(dx, dy); if (d < R && d > .02 && Math.abs((Number.isFinite(o.z) ? o.z : b.z) - b.z) < 2.5) { const k = Math.pow(1 - d / R, 1.4) * 1.3; tx += dx / d * k; ty += dy / d * k; } };
+  if (!b.cueillie || b.pl.port !== 'simple') {
+    pousse(P); if (typeof Autres !== 'undefined') for (const j of Autres.values()) pousse(j);
+    for (const o of beasts) if (!o.dead && !o.sp.plante && !o.enVol) pousse(o);
+  }
+  const ca = Math.cos(b.dir || 0), sa = Math.sin(b.dir || 0), lx = tx * ca + ty * sa, ly = -tx * sa + ty * ca;
+  const S = b.flP || (b.flP = [0, 0, 0, 0]);
+  dt = Math.min(dt, .1);
+  for (let n = Math.ceil(dt / .02), h = n ? dt / n : 0; n > 0; n--) {
+    S[2] += ((lx - S[0]) * 38 - S[2] * 5) * h; S[3] += ((ly - S[1]) * 38 - S[3] * 5) * h; S[0] += S[2] * h; S[1] += S[3] * h;
+  }
+}
 function osPlante(f) {
-  const B = [], add = (a, b, w, h, c, luit) => B.push({ a, b, w, h, c, luit });
-  const pl = f.pl; if (!pl) return B;
+  const B = [], pl = f.pl; if (!pl) return B;
   if (typeof osPlanteVolcan === 'function' && VF_BIOS.has(pl.bio)) return osPlanteVolcan(f);   // (§200) celles du volcan ont leurs propres formes (volcan.js)
-  const [tige, feuille, petale, coeur, pointe] = pl.pal, g = f.graine || 0, fan = f.cueillie;
-  const vent = 1 + Math.min(1.5, (typeof Meteo !== 'undefined' && Meteo.vent) || 0), nuit = lumiere() < .36;
-  const sway = (k, a) => Math.sin(t * (.8 + g * .4) + k * .7 + g * 9) * a * vent;
-  const mix = (a, b, k) => a.map((v, j) => Math.round(v + (b[j] - v) * k));
-  const fane = c => fan ? mix(c, [120, 110, 90], .6) : c;
-  const lu = !fan;                                       // ce qui luit, tant qu'elle n'est pas cueillie
-  const tigeCourbe = (n, L, bx, by, w0, w1, col) => {    // une tige qui ploie : rend ses points
-    const pts = [[0, 0, 0]];
-    for (let k = 1; k <= n; k++) { const q = k / n, p = pts[k - 1]; pts.push([p[0] + (bx * q + sway(k, .04 * q)) * L / n, p[1] + (by * q + sway(k + 3, .04 * q)) * L / n, p[2] + L / n * (1 - .3 * q * q * (Math.abs(bx) + Math.abs(by)))]); }
-    for (let k = 0; k < n; k++) add(pts[k], pts[k + 1], w0 + (w1 - w0) * k / n, w0 + (w1 - w0) * k / n, col);
+  const [tige, feuille, petale, coeur, pointe] = pl.pal, g = f.graine || 0, ph = g * 23.7;
+  const TX = typeof TEX === 'object' ? TEX : {};
+  const fonce = flMix(feuille, tige, .38), clair = flMix(feuille, [255, 255, 226], .14), bois = flMix(tige, [64, 46, 34], .22);
+  const W = flVent(f), PU = f.flP || [0, 0];
+  const jour = flL(((typeof lumiere === 'function' ? lumiere() : 1) - .34) / .38), nuit = 1 - jour;
+  // cueillie : la tête repousse (un bouton d'abord) ; chez soi, elle ne repousse pas (§124)
+  const fan = !!f.cueillie, duree = pl.port === 'simple' ? 600 : 1800;
+  const pousse = !fan ? 1 : Number.isFinite(f.repousseT) ? Math.max(0, Math.min(1, 1 - (f.repousseT - t) / duree)) : 0;
+  const tete = fan ? flL((pousse - .3) / .7) : 1, terne = fan ? .45 * (1 - pousse) : 0;
+  const C = c => terne ? flMix(c, [124, 114, 96], terne) : c;
+  const os = (a, b, w, h, c, F) => { const o = { a, b, w, h, c: C(c) }; if (F) Object.assign(o, F); B.push(o); return o; };
+  const vif = (a, b, w, h, c, F) => os(a, b, w, h, c, Object.assign({ luit: !fan }, F));
+  // le pli d'un point, à la fraction q d'une pièce souple s : le vent (le long, un peu de travers), la poussée ; d, le retard de l'onde
+  const osc = (u, w) => Math.sin(u * w + ph) * .65 + Math.sin(u * w * 2.17 + ph * 1.3) * .35;
+  const plie = (q, s, d = .4, w = 1.7) => { const u = t - q * d, k = s * q * q, al = W.f * (.62 + .38 * osc(u, w)) * k, tr = W.f * .28 * Math.sin(u * w * 1.6 + ph * 2) * k;
+    return [W.x * al - W.y * tr + PU[0] * k, W.y * al + W.x * tr + PU[1] * k, -.18 * Math.abs(al)]; };
+  // une tige : n segments depuis p, partant vers d0 et tournant vers d0 + c au bout ; s, sa souplesse ; de la largeur w0
+  // à w1, de la couleur c0 à c1. Rend ses points.
+  const tigeDe = (p, n, L, d0, c, s, w0, w1, c0, c1, F) => {
+    const pts = [p];
+    for (let k = 1; k <= n; k++) {
+      const q = k / n, b = plie(q, s), d = flN([d0[0] + c[0] * q + b[0], d0[1] + c[1] * q + b[1], d0[2] + c[2] * q + b[2]]);
+      const np = flA(p, d, L / n), wa = w0 + (w1 - w0) * (k - 1) / n, wb = w0 + (w1 - w0) * k / n;
+      os(flA(p, d, -wa * .3), np, wa, wa, flMix(c0, c1, (k - .5) / n), Object.assign({ pans: 6, fin: wb / wa }, F));   // un rien en arrière : les coudes restent soudés
+      pts.push(np); p = np;
+    }
     return pts;
   };
-  const feuilles = (n, L, z0, col) => { for (let k = 0; k < n; k++) { const a = k / n * 6.2832 + g * 3, sw = sway(k, .05); add([0, 0, z0], [Math.cos(a) * L, Math.sin(a) * L, z0 + .08 + sw], L * .45, .03, col); add([Math.cos(a) * L, Math.sin(a) * L, z0 + .08 + sw], [Math.cos(a) * L * 1.35, Math.sin(a) * L * 1.35, z0 + .02 + sw], L * .25, .025, mix(col, pointe, .2)); } };
-  const fleur = (c, n, L, ouv, col, colPointe, coeurW) => {   // une corolle : n pétales autour d'un cœur qui luit
-    for (let k = 0; k < n; k++) { const a = k / n * 6.2832 + g * 2, ce = Math.cos(ouv), se = Math.sin(ouv), d = [Math.cos(a) * ce, Math.sin(a) * ce, se];
-      const m = [c[0] + d[0] * L * .6, c[1] + d[1] * L * .6, c[2] + d[2] * L * .6], e = [c[0] + d[0] * L, c[1] + d[1] * L, c[2] + d[2] * L - L * .08];
-      add(c, m, L * .42, .03, fane(col)); add(m, e, L * .3, .025, fane(colPointe)); }
-    add([c[0], c[1], c[2] - .01], [c[0], c[1], c[2] + coeurW * .6], coeurW, coeurW, fane(coeur), lu);
+  // une lame plate (feuille, pétale, fronde), de p vers d, longue L, large w, dans le plan de normale nr : étroite au pied,
+  // large au milieu, effilée au bout (bout : de 0,05, pointue, à 0,6, ronde). tombe : ce que son bout pend ; fr : ce
+  // qu'elle frémit ; s : sa souplesse au vent. Rend [son milieu, son bout].
+  const lame = (p, d, L, w, nr, c0, c1, o) => {
+    o = o || {}; const k = o.k || 0, fr = (o.fr ?? .5) * (.35 + W.f) * Math.sin(t * (5 + flH(g, k) * 2.5) + k * 2.1 + ph) * .14;
+    const b = plie(1, o.s ?? .2, .25), m = flA(p, d, L * .48);
+    const d2 = flN([d[0] + nr[0] * fr + b[0], d[1] + nr[1] * fr + b[1], d[2] - (o.tombe || 0) + nr[2] * fr + b[2]]), e = flA(m, d2, L * .52);
+    const ep = o.ep || Math.max(.012, w * .1);
+    os(p, m, w * .42, ep, c0, { fin: [2.4, 1], ref: nr, nu: 1 });
+    os(m, e, w, ep, c1, { fin: [o.bout ?? .08, .6], ref: nr, nu: 1 });
+    return [m, e];
   };
-  const jour = nuit ? 0 : 1, ouvre = .25 + (1 - jour) * .9;
+  // un repère autour d'un axe u
+  const autour = u => { const e1 = flN(flX(u, Math.abs(u[2]) < .9 ? [0, 0, 1] : [1, 0, 0])); return [e1, flX(u, e1)]; };
+  const rayon = (e1, e2, a) => { const ca = Math.cos(a), sa = Math.sin(a); return [[e1[0] * ca + e2[0] * sa, e1[1] * ca + e2[1] * sa, e1[2] * ca + e2[2] * sa], [-e1[0] * sa + e2[0] * ca, -e1[1] * sa + e2[1] * ca, -e1[2] * sa + e2[2] * ca]]; };
+  // une corolle : n pétales autour du cœur c, d'axe u, ouverts de ouv (0 : à plat ; 1,3 : refermés en bouton ; négatif : rabattus)
+  const corolle = (c, u, n, L, w, ouv, c0, c1, o) => {
+    o = o || {}; const [e1, e2] = autour(u), off = o.off ?? g * 6.28, co = Math.cos(ouv), so = Math.sin(ouv);
+    for (let k = 0; k < n; k++) {
+      const [rd, tg] = rayon(e1, e2, off + k / n * 6.2832), d = [rd[0] * co + u[0] * so, rd[1] * co + u[1] * so, rd[2] * co + u[2] * so];
+      lame(flA(c, rd, o.r0 || 0), d, L * (1 + (flH(g, k + (o.k || 0)) - .5) * .18), w, flX(d, tg), c0, c1, Object.assign({ bout: .4, fr: .3 }, o, { k: k + (o.k || 0) }));
+    }
+  };
+  // la rosette du pied : n feuilles à l'angle d'or, levées de el, qui retombent
+  const rosette = (n, L, w, el, c0, c1, o) => {
+    o = o || {};
+    for (let k = 0; k < n; k++) {
+      const a = k * FL_GA + g * 6.28, e = el + (flH(g, k + 7) - .5) * .2, ce = Math.cos(e), se = Math.sin(e);
+      const d = [Math.cos(a) * ce, Math.sin(a) * ce, se];
+      lame([Math.cos(a) * .02, Math.sin(a) * .02, o.z || .01], d, L * (.78 + .44 * flH(g, k)), w, [-se * Math.cos(a), -se * Math.sin(a), ce], c0, c1, Object.assign({ tombe: .3, s: .15 }, o, { k }));
+    }
+  };
+  // le soleil, dans le repère de la plante : la fleur s'y tourne le jour
+  const soleil = (() => {
+    if (typeof horloge === 'undefined' || typeof LEVER === 'undefined') return null;
+    const q = (horloge * 24 - LEVER) / (COUCHER - LEVER); if (q <= 0 || q >= 1) return null;
+    const az = Math.PI * (1 - q) - .5 - (f.dir || 0); return [Math.cos(az), Math.sin(az)];
+  })();
+  const versSoleil = (u, k) => soleil ? flN([u[0] + soleil[0] * k * jour, u[1] + soleil[1] * k * jour, u[2]]) : u;
+  // une touffe de feuillage : une boule ronde et des plus petites qui s'y accrochent, pour une silhouette qui moutonne
+  const touffe = (c, s, col, k, n = 2) => {
+    const fl = Math.sin(t * 2.1 + k * 1.7 + ph) * .03 * s * (.4 + W.f);
+    os([c[0] + fl, c[1], c[2] - s * .42], [c[0] + fl, c[1] - fl, c[2] + s * .42], s * 1.1, s * 1.05, col, { boule: 5, rond: .85 });
+    for (let j = 0; j < n; j++) { const a = k * 2.1 + j * 2.6 + g * 5, r = s * .52, cc = [c[0] + Math.cos(a) * r + fl, c[1] + Math.sin(a) * r, c[2] + s * (j % 2 ? .24 : -.1)];
+      os([cc[0], cc[1], cc[2] - s * .3], [cc[0], cc[1], cc[2] + s * .3], s * .72, s * .7, flMix(col, j % 2 ? clair : fonce, .12), { boule: 4, rond: .85 }); }
+  };
+  const bouton = (p, u, s, c) => os(flA(p, u, -s * .2), flA(p, u, s), s * .8, s * .8, c, { boule: 3, rond: .6, nu: 1 });
   switch (pl.forme) {
-    case 'etoile': {
-      feuilles(5, .28, .02, feuille);
-      const p = tigeCourbe(4, .75, sway(0, .15), sway(5, .15), .04, .03, tige), c = p[4];
-      fleur(c, 7, .32, fan ? 1.2 : ouvre, petale, pointe, .08);
+    // ---- les simples ----
+    case 'etoile': {                                    // une marguerite : deux rangs de pétales qui s'ouvrent au jour, se referment la nuit
+      rosette(7, .3, .11, .32, fonce, feuille);
+      const p = tigeDe([0, 0, 0], 5, .68 * (.9 + .25 * flH(g, 1)), [(flH(g, 2) - .5) * .25, (flH(g, 3) - .5) * .25, 1], [(flH(g, 4) - .5) * .3, .12, 0], .55, .034, .02, flMix(tige, feuille, .2), feuille);
+      for (const j of [2, 3]) { const a = j * 2.6 + g * 5, d = flN([Math.cos(a), Math.sin(a), .55]); lame(p[j], d, .15, .055, flN([-d[0] * .5, -d[1] * .5, 1]), feuille, flMix(feuille, pointe, .15), { k: 20 + j, tombe: .25 }); }
+      const hp = p[5], u = versSoleil(flD(p[4], hp), .55);
+      corolle(hp, u, 5, .07, .04, -.6, feuille, fonce, { k: 30, bout: .1 });          // les sépales
+      if (tete > .04) {
+        const ouv = 1.3 - 1.38 * jour;
+        corolle(flA(hp, u, .012), u, 11, .23 * tete, .08 * tete, ouv, petale, flMix(petale, pointe, .6), { k: 40, tombe: .06 * jour });
+        corolle(flA(hp, u, .022), u, 7, .15 * tete, .065 * tete, ouv + .25, flMix(petale, [255, 255, 255], .18), petale, { k: 60, off: g * 6.28 + .45 });
+        vif(flA(hp, u, -.005), flA(hp, u, .055 * tete), .1 * tete, .1 * tete, coeur, { boule: 4, rond: .8 });
+      } else bouton(hp, u, .06, flMix(feuille, petale, .25));
       break;
     }
-    case 'cristalline': {
-      for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g * 3; add([Math.cos(a) * .05, Math.sin(a) * .05, 0], [Math.cos(a) * .3, Math.sin(a) * .3, .75 + (k % 2) * .25], .1, .07, fane(mix(petale, pointe, k / 5)), lu && k % 2 === 0); }
-      add([0, 0, .1], [0, 0, .45], .13, .13, fane(coeur), lu);
+    case 'cristalline': {                               // une druse : des prismes à six pans, pointus, et un éclat qui passe de l'un à l'autre
+      os([0, 0, -.03], [0, 0, .1], .5, .42, flMix(tige, [96, 96, 108], .4), { boule: 4, rond: .55 });
+      for (let k = 0; k < 8; k++) {
+        const a = k * FL_GA + g * 6.28, ce = k ? .42 + flH(g, k) * .5 : .08, L = (k ? .3 + flH(g, k + 3) * .38 : .85) * (fan ? .35 + .65 * pousse : 1);
+        const d = flN([Math.cos(a) * Math.sin(ce), Math.sin(a) * Math.sin(ce), Math.cos(ce)]), b0 = [Math.cos(a) * (k ? .09 : 0), Math.sin(a) * (k ? .09 : 0), .05];
+        const w = k ? .08 + flH(g, k + 5) * .05 : .15, eclat = Math.pow(Math.max(0, Math.sin(t * 1.1 - k * .9 + ph)), 8);
+        const c = flMix(flMix(k % 2 ? petale : pointe, coeur, .18 * (k % 3)), [255, 255, 255], eclat * .55), m = flA(b0, d, L * .76);
+        const F = { pans: 6, tex: TX.facette }, pose = k % 2 ? os : vif;
+        pose(b0, m, w, w, c, Object.assign({ fin: .94 }, F)); pose(m, flA(m, d, L * .3), w * .94, w * .94, flMix(c, [255, 255, 255], .2), Object.assign({ fin: 0 }, F));
+      }
       break;
     }
-    case 'clochettes': {
-      feuilles(4, .25, .02, feuille);
-      const pts = [[0, 0, 0]]; for (let k = 1; k <= 7; k++) { const q = k / 7; pts.push([q * .9 + sway(k, .03), sway(k + 2, .03), Math.sin(q * 2.6) * 1.0]); }
-      for (let k = 0; k < 7; k++) add(pts[k], pts[k + 1], .035, .035, tige);
-      for (let k = 3; k <= 7; k++) { const p = pts[k], bas = [p[0] + sway(k + 9, .04), p[1] + sway(k + 4, .04), p[2] - .14]; add(p, bas, .01, .01, tige); add(bas, [bas[0], bas[1], bas[2] - .12], .11, .11, fane(k % 2 ? petale : pointe), lu && nuit); add([bas[0], bas[1], bas[2] - .12], [bas[0], bas[1], bas[2] - .15], .14, .02, fane(petale)); }
+    case 'clochettes': {                                // une hampe en arc, et ses cloches qui pendent, se balancent avec retard, et luisent
+      rosette(5, .26, .1, .3, fonce, feuille);
+      const p = tigeDe([0, 0, 0], 8, 1.25 * (.9 + .2 * flH(g, 1)), [0, 0, 1], [1.05, (flH(g, 2) - .5) * .6, -1.45], .5, .034, .013, flMix(tige, feuille, .25), feuille);
+      for (const j of [2, 4]) { const d = flN([.2, j === 2 ? 1 : -1, .35]); lame(p[j], d, .2, .07, flN([0, -d[1] * .3, 1]), feuille, flMix(feuille, pointe, .1), { k: 10 + j, tombe: .3 }); }
+      for (let k = 3; k <= 8; k++) {
+        const q = p[k], sz = (.105 - (k - 3) * .008) * tete; if (sz < .012) { if (fan && k > 5) bouton(q, [0, 0, -1], .025, feuille); continue; }
+        const sw = plie(1, 1.1, .75 + k * .09, 1.4), dn = flN([sw[0] * .8, sw[1] * .8, -1]), at = flA(q, dn, .07);
+        os(q, at, .01, .01, tige);
+        const peau = flMix(petale, coeur, nuit * .45), [e1, e2] = autour(dn), j0 = flA(at, dn, sz * .7);
+        os(at, flA(at, dn, sz), sz * 1.25, sz * 1.25, peau, { boule: 4, rond: .6, nu: 1 });     // le dôme
+        for (let j = 0; j < 5; j++) {                                                           // la jupe, évasée
+          const [rd, tg] = rayon(e1, e2, j / 5 * 6.2832 + k), d = flN([dn[0] * .8 + rd[0] * .7, dn[1] * .8 + rd[1] * .7, dn[2] * .8 + rd[2] * .7]);
+          os(j0, flA(j0, d, sz * .65), sz * .55, sz * .08, flMix(peau, pointe, .35), { fin: [1.5, .7], ref: flX(d, tg), nu: 1 });
+        }
+        vif(flA(at, dn, sz * 1.05), flA(at, dn, sz * 1.35), sz * .45, sz * .45, coeur, { boule: 3 });   // le battant, qui luit
+      }
       break;
     }
-    case 'eventail': {
-      for (let k = 0; k < 7; k++) { const a = (k / 6 - .5) * 2.4 + g, L = .9 + (k % 3) * .2; let p = [0, 0, .02];
-        for (let j = 1; j <= 3; j++) { const q = j / 3, w = Math.sin(t * 1.4 + k + j) * .05 * vent, n = [Math.cos(a) * L * q * .7, Math.sin(a) * L * q * .7 + w, L * (q * 1.1 - q * q * .55)]; add(p, n, .14 - j * .03, .03, fane(mix(feuille, j === 3 ? pointe : petale, j / 4))); p = n; } }
+    case 'eventail': {                                  // une gerbe de frondes en éventail, des folioles, une onde qui court jusqu'au bout
+      os([0, 0, -.02], [0, 0, .1], .16, .16, flMix(tige, feuille, .2), { boule: 4, rond: .6 });
+      const ax = g * 6.2832, n = 8;
+      for (let k = 0; k < n; k++) {
+        const a = ax + (k / (n - 1) - .5) * 4.2 + (flH(g, k) - .5) * .2, ca = Math.cos(a), sa = Math.sin(a), mi = 1 - Math.abs(k / (n - 1) - .5) * 1.2;
+        const L = (.62 + .38 * mi) * (.9 + .2 * flH(g, k + 2)) * (fan ? .5 + .5 * pousse : 1), el = .95 + mi * .35, tg = [-sa, ca, 0];
+        let p = [ca * .04, sa * .04, .07];
+        for (let j = 1; j <= 5; j++) {
+          const q = j / 5, ond = Math.sin(q * 4.2 - t * 2.3 + k * 1.3 + ph) * .16 * q * (.55 + W.f), b = plie(q, .35, .5);
+          const e = el - q * 1.45, d = flN([ca * Math.cos(e) + tg[0] * ond + b[0], sa * Math.cos(e) + tg[1] * ond + b[1], Math.sin(e) + b[2]]);
+          const np = flA(p, d, L / 5), w = [.05, .085, .1, .09, .06][j - 1], nr = flN(flX(d, tg)), c = flMix(flMix(feuille, petale, q * .55), pointe, q > .8 ? .3 : 0);
+          os(p, np, w, .014, c, { fin: [j === 5 ? .08 : [.085, .1, .09, .06][j - 1] / w, .8], ref: nr, nu: 1 });
+          if (j >= 2 && j <= 4) for (const s of [-1, 1]) {                                     // les folioles, de part et d'autre
+            const fd = flN([tg[0] * s + d[0] * .7, tg[1] * s + d[1] * .7, tg[2] * s + d[2] * .7 - .2]);
+            os(np, flA(np, fd, .11 - j * .015), .045, .01, flMix(c, feuille, .3), { fin: [.15, .7], ref: nr, nu: 1 });
+          }
+          p = np;
+        }
+      }
       break;
     }
-    case 'spirale': {
-      feuilles(4, .22, .02, feuille);
-      for (let k = 0; k < 3; k++) { const a = k / 3 * 6.2832 + g * 2, h = .6 + k * .2, deroule = fan ? 0 : .6 + .4 * Math.sin(t * .3 + k); let p = [Math.cos(a) * .1, Math.sin(a) * .1, 0], q = [Math.cos(a) * .12, Math.sin(a) * .12, h];
-        add(p, q, .04, .04, tige); let ang = 0, r = .16;
-        for (let j = 0; j < 8; j++) { ang += .8 * (1.4 - deroule * .6); r *= .82; const n = [q[0] + Math.cos(a) * Math.sin(ang) * r, q[1] + Math.sin(a) * Math.sin(ang) * r, q[2] + Math.cos(ang) * r * .9]; add(q, n, .05 - j * .004, .04, fane(mix(feuille, pointe, j / 8))); q = n; }
-        add(q, [q[0], q[1], q[2] + .03], .06, .06, fane(coeur), lu); }
+    case 'spirale': {                                   // des crosses de fougère : roulées la nuit, elles se déroulent au jour
+      rosette(4, .26, .09, .25, fonce, feuille);
+      for (let k = 0; k < 4; k++) {
+        const a = k * FL_GA + g * 6.28, ca = Math.cos(a), sa = Math.sin(a), H = (.3 + k * .1 + flH(g, k) * .12) * (fan ? .6 + .4 * pousse : 1);
+        const p = tigeDe([ca * .05, sa * .05, 0], 4, H, [ca * .25, sa * .25, 1], [ca * .15, sa * .15, 0], .4, .045, .04, flMix(tige, feuille, .3), feuille);
+        const der = fan ? .08 : flL(.08 + .5 * jour + .1 * Math.sin(t * .23 + k * 1.7 + ph));
+        let q = p[4], ang = 0, r = .14 * (1 + .5 * der), w = .062;
+        for (let j = 0; j < 9; j++) {                                                           // la crosse, de plus en plus serrée
+          ang += (.62 + j * .09) * (1 - .62 * der); r *= .86;
+          const d = [ca * Math.sin(ang), sa * Math.sin(ang), Math.cos(ang)], np = flA(q, d, r);
+          os(flA(q, d, -w * .3), np, w, w, flMix(feuille, pointe, j / 9), { pans: 6, fin: .86, rond: .8 }); q = np; w *= .86;
+        }
+        vif(q, flA(q, [ca, sa, 0], .04), .045, .045, coeur, { boule: 3 });
+      }
       break;
     }
-    case 'orbe': {
-      feuilles(4, .2, .02, feuille);
-      for (let k = 0; k < 4; k++) { const a = k / 4 * 6.2832 + g * 4, h = .55 + (k * .23 + g) % .6, bob = Math.sin(t * 1.2 + k * 1.7) * .05;
-        const top = [Math.cos(a) * .18 + sway(k, .05), Math.sin(a) * .18 + sway(k + 1, .05), h + bob]; add([Math.cos(a) * .04, Math.sin(a) * .04, 0], top, .02, .02, tige);
-        add([top[0], top[1], top[2]], [top[0], top[1], top[2] + .16], .15, .15, fane(k % 2 ? coeur : petale), lu); add([top[0], top[1], top[2] + .16], [top[0], top[1], top[2] + .19], .08, .03, tige); }
+    case 'orbe': {                                      // des lanternes au bout de tiges fines : lourdes, elles plient et dansent
+      rosette(5, .3, .14, .25, fonce, feuille, { bout: .25 });
+      for (let k = 0; k < 5; k++) {
+        const a = k * FL_GA + g * 6.28, ca = Math.cos(a), sa = Math.sin(a), H = .5 + flH(g, k) * .5, bob = Math.sin(t * 1.1 + k * 1.9 + ph) * .04;
+        const p = tigeDe([ca * .03, sa * .03, 0], 5, H + bob, [ca * .22, sa * .22, 1], [ca * .25, sa * .25, -.1], .95, .017, .011, flMix(tige, feuille, .3), feuille);
+        const top = p[5], u = flD(p[4], top), R = (.07 + flH(g, k + 3) * .03) * tete;
+        if (R < .012) { bouton(top, u, .035, feuille); continue; }
+        const [e1, e2] = autour(u);
+        for (let j = 0; j < 3; j++) { const [rd, tg] = rayon(e1, e2, j / 3 * 6.2832 + k), d = flN([u[0] + rd[0] * .9, u[1] + rd[1] * .9, u[2] + rd[2] * .9]); os(top, flA(top, d, R * 1.1), R * .8, .012, feuille, { fin: [.2, .7], ref: flX(d, tg), nu: 1 }); }
+        vif(flA(top, u, R * .1), flA(top, u, R * 2.1), R * 2, R * 2, flMix(k % 2 ? coeur : petale, [255, 255, 240], .1 + nuit * .2), { boule: 4, rond: .75 });
+        os(flA(top, u, R * 2), flA(top, u, R * 2.35), R * .5, R * .5, tige, { boule: 3 });   // la coiffe
+      }
       break;
     }
-    case 'arbuste': {
-      const p = tigeCourbe(3, .6, sway(0, .05), 0, .09, .07, tige);
-      for (let k = 0; k < 9; k++) { const a = k / 9 * 6.2832 + g * 5, r = .3 + (k % 3) * .15, z = .6 + (k % 4) * .14 + sway(k, .03);
-        add(p[3], [Math.cos(a) * r * .6, Math.sin(a) * r * .6, z - .05], .04, .04, tige);
-        add([Math.cos(a) * r, Math.sin(a) * r, z], [Math.cos(a) * r, Math.sin(a) * r, z + .16], .26, .22, fane(k % 3 ? petale : pointe)); }
-      add([0, 0, .9], [0, 0, 1.0], .55, .14, fane(feuille));
+    case 'arbuste': {                                   // un arbrisseau : un tronc qui fourche, des touffes rondes, des fleurs semées dessus
+      const E = { tex: TX.ecorce }, p = tigeDe([0, 0, 0], 3, .42, [(flH(g, 1) - .5) * .2, (flH(g, 2) - .5) * .2, 1], [0, 0, 0], .15, .075, .055, bois, bois, E), top = p[3], T = [];
+      for (let k = 0; k < 3; k++) {
+        const a = k / 3 * 6.2832 + g * 4, ca = Math.cos(a), sa = Math.sin(a);
+        const b = tigeDe(top, 2, .34 + flH(g, k) * .1, [ca * .9, sa * .9, .9], [ca * .2, sa * .2, -.2], .35, .05, .03, bois, bois, E); T.push(b[2]);
+        for (const s of [-1, 1]) { const a2 = a + s * .65, tw = tigeDe(b[1], 1, .22, [Math.cos(a2), Math.sin(a2), 1], [0, 0, 0], .5, .028, .02, bois, bois); T.push(tw[1]); }
+      }
+      T.push(flA(top, [0, 0, 1], .42));
+      T.forEach((c, k) => touffe(c, .27 + flH(g, k + 10) * .09, flMix(feuille, k % 2 ? tige : clair, .12), k, 1));
+      const nb = Math.round(16 * tete);
+      for (let k = 0; k < nb; k++) {                                                            // les fleurs, à la surface des touffes
+        const c = T[k % T.length], a = k * FL_GA + g * 3, el = .25 + flH(g, k + 20) * 1.0, d = [Math.cos(a) * Math.cos(el), Math.sin(a) * Math.cos(el), Math.sin(el)], q = flA(c, d, .27);
+        os(q, flA(q, d, .035), .095, .095, k % 4 ? petale : pointe, { boule: 3, rond: .7, nu: 1 });
+        if (k % 2 === 0) vif(flA(q, d, .03), flA(q, d, .05), .03, .03, coeur, { boule: 3 });
+      }
       break;
     }
-    // ---- les géantes : elles bougent ----
-    case 'colosse': {
-      const respire = .5 + .5 * Math.sin(t * .8 + g * 6);
-      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g, z = .4 + (k % 3) * .5, sw = sway(k, .1); add([0, 0, z], [Math.cos(a) * 1.2, Math.sin(a) * 1.2, z + .3 + sw], .55, .04, feuille); add([Math.cos(a) * 1.2, Math.sin(a) * 1.2, z + .3 + sw], [Math.cos(a) * 1.7, Math.sin(a) * 1.7, z + .1 + sw], .3, .03, mix(feuille, pointe, .3)); }
-      const p = tigeCourbe(6, 3.6, sway(0, .25), sway(4, .25), .3, .2, tige), c = p[6];
-      fleur(c, 10, 1.25, fan ? 1.3 : (nuit ? .95 : .2 + respire * .25), petale, pointe, .36);
-      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + t * .2, e = [c[0] + Math.cos(a) * .3, c[1] + Math.sin(a) * .3, c[2] + .7 + Math.sin(t * 2 + k) * .05]; add([c[0], c[1], c[2] + .2], e, .025, .025, tige); add(e, [e[0], e[1], e[2] + .06], .09, .09, fane(pointe), lu); }
+    // ---- les géantes ----
+    case 'colosse': {                                   // une fleur de quatre mètres : elle respire, s'ouvre au jour, tourne vers le soleil
+      const respire = .5 + .5 * Math.sin(t * .7 + ph);
+      for (let k = 0; k < 6; k++) {
+        const a = k * FL_GA + g * 6.28, e = .5 + flH(g, k) * .2, ca = Math.cos(a), sa = Math.sin(a), d = [ca * Math.cos(e), sa * Math.cos(e), Math.sin(e)], nr = [-Math.sin(e) * ca, -Math.sin(e) * sa, Math.cos(e)];
+        const p0 = [ca * .12, sa * .12, .05], [m, q] = lame(p0, d, 1.5 + flH(g, k + 3) * .5, .55, nr, fonce, feuille, { k, tombe: .7, s: .25, ep: .04, bout: .12 });
+        os(flA(p0, nr, .025), flA(m, nr, .025), .045, .035, flMix(feuille, tige, .5), { pans: 6 }); os(flA(m, nr, .025), flA(q, nr, .015), .035, .03, flMix(feuille, tige, .4), { pans: 6, fin: .2 });   // la nervure
+      }
+      const p = tigeDe([0, 0, 0], 9, 3.5 + flH(g, 1) * .5, [(flH(g, 2) - .5) * .15, (flH(g, 3) - .5) * .15, 1], [(flH(g, 4) - .5) * .3, .1, 0], .3, .27, .13, flMix(tige, feuille, .15), feuille, { pans: 8 });
+      for (const j of [3, 5, 7]) { const a = j * FL_GA + g * 3, d = flN([Math.cos(a), Math.sin(a), .45]); lame(p[j], d, .85, .32, flN([-d[0] * .4, -d[1] * .4, 1]), feuille, clair, { k: 10 + j, tombe: .45, s: .3 }); }
+      const hp = p[9], nod = plie(1, .5, .9, 1.1), u = versSoleil(flN([hp[0] - p[8][0] + nod[0], hp[1] - p[8][1] + nod[1], hp[2] - p[8][2]]), .35);
+      corolle(hp, u, 7, .45, .2, -.5, feuille, fonce, { k: 30, ep: .03, bout: .1 });
+      if (tete > .04) {
+        const ouv = .12 + .14 * respire + nuit * .8;
+        corolle(flA(hp, u, .05), u, 10, 1.25 * tete, .55 * tete, ouv, petale, flMix(petale, pointe, .6), { k: 40, tombe: .25, bout: .45, ep: .035, fr: .2 });
+        corolle(flA(hp, u, .1), u, 7, .8 * tete, .42 * tete, ouv + .35, flMix(petale, [255, 255, 255], .15), petale, { k: 60, off: g * 6.28 + .45, bout: .5, ep: .03 });
+        os(flA(hp, u, .05), flA(hp, u, .24), .7 * tete, .7 * tete, flMix(coeur, tige, .35), { boule: 4, rond: .6, nu: 1 });   // le disque
+        const [e1, e2] = autour(u), c0 = flA(hp, u, .2);
+        for (let k = 0; k < 11; k++) {                                                          // les étamines, qui luisent et frémissent
+          const [rd] = rayon(e1, e2, k * FL_GA + g), fr = Math.sin(t * 3.1 + k * 1.3 + ph) * .08, sp = .45 + flH(g, k + 50) * .25;
+          const d = flN([u[0] * Math.cos(sp) + rd[0] * Math.sin(sp) + fr, u[1] * Math.cos(sp) + rd[1] * Math.sin(sp) - fr, u[2] * Math.cos(sp) + rd[2] * Math.sin(sp)]), e = flA(c0, d, (.42 + flH(g, k + 60) * .12) * tete);
+          os(c0, e, .028, .028, flMix(tige, pointe, .4)); vif(e, flA(e, d, .07), .085, .085, k % 2 ? pointe : coeur, { boule: 3 });
+        }
+      } else bouton(hp, u, .3, flMix(feuille, petale, .25));
       break;
     }
-    case 'saule': {
-      const p = tigeCourbe(5, 2.8, sway(0, .06), 0, .4, .26, tige), top = p[5];
-      for (let k = 0; k < 8; k++) { const a = k / 8 * 6.2832 + g, br = [top[0] + Math.cos(a) * 1.5, top[1] + Math.sin(a) * 1.5, top[2] + .4]; add(top, br, .13, .13, tige);
-        for (let j = 0; j < 3; j++) { let q = [br[0] + Math.cos(a + j) * .2, br[1] + Math.sin(a + j) * .2, br[2]];
-          for (let m = 1; m <= 5; m++) { const n = [q[0] + Math.sin(t * .9 + k + j + m * .5) * .1 * vent, q[1] + Math.cos(t * .7 + k * 2 + m * .4) * .08 * vent, q[2] - .5]; add(q, n, .05, .05, fane(mix(feuille, petale, m / 5)), lu && m === 5); q = n; } } }
-      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g, z = top[2] + .25 + (k % 2) * .2; add([top[0] + Math.cos(a) * .55, top[1] + Math.sin(a) * .55, z], [top[0] + Math.cos(a) * .55, top[1] + Math.sin(a) * .55, z + .45], .8, .55, fane(mix(feuille, petale, .12 * (k % 3)))); }
-      add([top[0], top[1], top[2] + .45], [top[0], top[1], top[2] + .95], .9, .7, fane(feuille));
+    case 'saule': {                                     // un saule : un tronc qui se tord, des bras en arc, de longues chevelures qui ondoient
+      const E = { tex: TX.ecorce, pans: 8 };
+      for (let k = 0; k < 4; k++) { const a = k / 4 * 6.2832 + g * 2, ca = Math.cos(a), sa = Math.sin(a); os([ca * .08, sa * .08, .4], [ca * .75, sa * .75, -.05], .3, .3, bois, { pans: 6, fin: .2, tex: TX.ecorce }); }   // les racines
+      const p = tigeDe([0, 0, 0], 6, 2.4, [0, 0, 1], [(flH(g, 1) - .5) * .4, (flH(g, 2) - .5) * .4, 0], .1, .44, .26, bois, flMix(bois, feuille, .12), E), top = p[6];
+      touffe(flA(top, [0, 0, 1], .45), 1.05, flMix(feuille, tige, .1), 0, 3);                // le dôme
+      for (let k = 0; k < 5; k++) {
+        const a = k / 5 * 6.2832 + g * 3 + (flH(g, k) - .5) * .5, ca = Math.cos(a), sa = Math.sin(a);
+        const br = tigeDe(top, 3, 1.1, [ca * .9, sa * .9, .6], [ca * .15, sa * .15, -.75], .22, .17, .07, bois, bois, E);
+        touffe(flA(br[2], [0, 0, 1], .3), .78, flMix(feuille, k % 2 ? clair : tige, .1), k + 1, 1);
+        for (let j = 0; j < 4; j++) {                                                           // quatre chevelures par bras, sous le feuillage
+          let q = j === 0 ? br[3] : j === 1 ? br[2] : flA(flA(br[2], [-sa, ca, 0], j === 2 ? .38 : -.38), [ca, sa, 0], -.15);
+          const len = (1.5 + flH(g, k * 4 + j) * .7) * (fan ? .45 + .55 * pousse : 1);
+          for (let m = 1; m <= 5; m++) {
+            const s = m / 5, sw = plie(s, 1.3, .9 + j * .2, 1.2), ond = Math.sin(s * 3 - t * 1.4 + k * 2 + j) * .12 * s;
+            const d = flN([sw[0] - sa * ond, sw[1] + ca * ond, -1]), np = flA(q, d, len / 5);
+            (m === 5 ? vif : os)(q, np, .075 - s * .035, .055 - s * .025, m === 5 ? flMix(petale, coeur, .5) : flMix(feuille, petale, s * .8), { pans: 6, fin: .8, nu: 1 });
+            q = np;
+          }
+        }
+      }
       break;
     }
-    case 'meduse': {
-      const z0 = 2.4 + Math.sin(t * .9 + g * 5) * .25, pulse = .5 + .5 * Math.sin(t * 1.6 + g * 3);
-      add([0, 0, 0], [sway(0, .2), sway(3, .2), z0 - .3], .025, .025, tige);                     // le fil qui la tient au sol
-      add([0, 0, z0], [0, 0, z0 + .45], 1.6 + pulse * .15, .5, fane(petale), lu && nuit); add([0, 0, z0 + .45], [0, 0, z0 + .7], 1.0, .3, fane(pointe), lu);
-      add([0, 0, z0 - .05], [0, 0, z0 + .05], 1.8 + pulse * .2, .06, fane(coeur), lu);
-      for (let k = 0; k < 10; k++) { const a = k / 10 * 6.2832; let q = [Math.cos(a) * .75, Math.sin(a) * .75, z0];
-        for (let m = 1; m <= 6; m++) { const n = [q[0] + Math.sin(t * 1.3 + k + m * .7) * .08, q[1] + Math.cos(t * 1.1 + k + m * .6) * .08, q[2] - .32]; add(q, n, .04, .04, fane(mix(petale, coeur, m / 6)), lu && m > 4); q = n; } }
+    case 'meduse': {                                    // une méduse qui flotte : la cloche se contracte et se détend, ses filaments traînent
+      const cy = (t * .5 + g) % 1, cc = cy < .28 ? flL(cy / .28) : 1 - flL((cy - .28) / .72);   // contraction vive, détente lente
+      const dr = plie(1, .55, 1.4, .9), z0 = 2.35 + Math.sin(t * .6 + ph) * .2 + cc * .12, X0 = dr[0] * .6, Y0 = dr[1] * .6;
+      { let q = [0, 0, 0]; for (let m = 1; m <= 7; m++) {                                       // le fil qui la tient au sol
+        const s = m / 7, w = Math.sin(s * 3 + t * .8 + ph) * .1 * Math.sin(s * Math.PI), np = [X0 * s * s + w, Y0 * s * s - w * .5, (z0 - .1) * s];
+        os(q, np, .035, .035, flMix(tige, petale, s * .5), { pans: 6 }); q = np; } }
+      const Wb = (1.55 - .2 * cc) * (fan ? .6 + .4 * pousse : 1), Hb = .62 + .18 * cc, peau = flMix(petale, coeur, nuit * .25);
+      os([X0, Y0, z0], [X0, Y0, z0 + Hb], Wb, Wb, peau, { boule: 5, rond: .7, nu: 1 });                   // la cloche
+      os([X0, Y0, z0 + Hb * .82], [X0, Y0, z0 + Hb * 1.08], Wb * .42, Wb * .42, pointe, { boule: 4, rond: .6, nu: 1 });
+      vif([X0, Y0, z0 - .22], [X0, Y0, z0 + .1], Wb * .38, Wb * .38, coeur, { boule: 4 });                 // le cœur, qui luit dessous
+      for (let k = 0; k < 12; k++) {                                                            // le rebord festonné, qui s'évase quand elle se contracte
+        const a = k / 12 * 6.2832 + g, ca = Math.cos(a), sa = Math.sin(a), el = .35 + .55 * cc, d = [ca * Math.cos(el), sa * Math.cos(el), -Math.sin(el)], p0 = [X0 + ca * Wb * .47, Y0 + sa * Wb * .47, z0 + .1];
+        os(p0, flA(p0, d, .3), .22, .025, flMix(peau, pointe, .4), { fin: [.6, .6], ref: flX(d, [-sa, ca, 0]), nu: 1 });
+      }
+      for (let k = 0; k < 10; k++) {                                                            // les filaments
+        const a = k / 10 * 6.2832 + .3 + g, ca = Math.cos(a), sa = Math.sin(a), len = (1.9 + flH(g, k) * .5) * (fan ? .5 + .5 * pousse : 1);
+        let q = [X0 + ca * Wb * .36, Y0 + sa * Wb * .36, z0 + .02];
+        for (let m = 1; m <= 7; m++) {
+          const s = m / 7, lag = plie(s, 1, 1.5, .9), ond = Math.sin(s * 3.3 - t * 1.7 + k) * .12 * s, ti = cc * .25 * (1 - s);
+          const d = flN([-dr[0] * .4 * s + lag[0] * .3 - ca * ti - sa * ond, -dr[1] * .4 * s + lag[1] * .3 - sa * ti + ca * ond, -1]), np = flA(q, d, len / 7);
+          (m >= 6 ? vif : os)(q, np, .045 - s * .025, .045 - s * .025, flMix(peau, coeur, s), { pans: 6, nu: 1 }); q = np;
+        }
+      }
+      for (let k = 0; k < 4; k++) {                                                             // les bras de la bouche, des rubans qui se tordent
+        const a = k / 4 * 6.2832 + g * 2; let q = [X0 + Math.cos(a) * .12, Y0 + Math.sin(a) * .12, z0 - .15];
+        for (let m = 1; m <= 4; m++) {
+          const s = m / 4, tw = m * 1.3 + t * .9 + k, np = flA(q, flN([Math.cos(a) * .25 + Math.sin(t * 1.2 + k + m) * .15, Math.sin(a) * .25, -1]), .26);
+          os(q, np, .16 - s * .08, .015, flMix(peau, pointe, s * .6), { ref: [Math.cos(tw), Math.sin(tw), 0], fin: [.8, 1], nu: 1 }); q = np;
+        }
+      }
       break;
     }
-    case 'lumiere': {
-      const p = tigeCourbe(5, 2.4, sway(0, .05), 0, .38, .25, tige), top = p[5];
-      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g; add(top, [top[0] + Math.cos(a) * 1.2, top[1] + Math.sin(a) * 1.2, top[2] + .5], .14, .14, tige); }
-      for (let k = 0; k < 8; k++) { const a = k / 8 * 6.2832 + g * 2, r = k % 2 ? 1.0 : .7, z = top[2] + .55 + (k % 3) * .22 + sway(k, .04);   // une ramure en touffes, pas une planche
-        add([top[0] + Math.cos(a) * r, top[1] + Math.sin(a) * r, z], [top[0] + Math.cos(a) * r, top[1] + Math.sin(a) * r, z + .55], .95, .7, fane(mix(feuille, k % 2 ? pointe : tige, .15))); }
-      add([top[0], top[1], top[2] + .9], [top[0], top[1], top[2] + 1.6], 1.2, .9, fane(feuille));
-      for (let k = 0; k < 12; k++) { const a = k / 12 * 6.2832 + t * .25, r = 1.1 + (k % 3) * .2, z = top[2] + .5 + (k % 4) * .25; add([top[0] + Math.cos(a) * r, top[1] + Math.sin(a) * r, z], [top[0] + Math.cos(a) * r, top[1] + Math.sin(a) * r, z - .16], .14, .14, fane(k % 2 ? coeur : pointe), lu); }
+    case 'lumiere': {                                   // un arbre-lumière : une couronne en touffes, des fruits qui pendent et s'allument tour à tour
+      const E = { tex: TX.ecorce };
+      for (let k = 0; k < 3; k++) { const a = k / 3 * 6.2832 + g * 2, ca = Math.cos(a), sa = Math.sin(a); os([ca * .08, sa * .08, .35], [ca * .65, sa * .65, -.05], .3, .28, bois, { pans: 6, fin: .2, tex: TX.ecorce }); }
+      const p = tigeDe([0, 0, 0], 6, 2.1, [0, 0, 1], [(flH(g, 1) - .5) * .35, (flH(g, 2) - .5) * .35, 0], .1, .4, .24, bois, bois, Object.assign({ pans: 8 }, E)), top = p[6], T = [];
+      for (let k = 0; k < 5; k++) {
+        const a = k / 5 * 6.2832 + g * 3 + (flH(g, k) - .5) * .4, ca = Math.cos(a), sa = Math.sin(a), src = k % 2 ? p[5] : top;
+        const br = tigeDe(src, 2, 1.0 + flH(g, k + 4) * .3, [ca * .85, sa * .85, .75], [ca * .1, sa * .1, -.3], .2, .16, .08, bois, bois, E); T.push(br[2]);
+        const tw = tigeDe(br[1], 1, .5, [Math.cos(a + .7), Math.sin(a + .7), .9], [0, 0, 0], .3, .07, .05, bois, bois, E); T.push(tw[1]);
+      }
+      T.push(flA(top, [0, 0, 1], .9));
+      T.forEach((c, k) => touffe(c, .72 + flH(g, k + 10) * .25, flMix(feuille, k % 3 === 0 ? tige : k % 3 === 1 ? clair : pointe, .12), k, k % 2 + 1));
+      const nf = Math.round(12 * tete);
+      for (let k = 0; k < nf; k++) {                                                            // les fruits
+        const c = T[k % T.length], a = k * FL_GA + g, q = [c[0] + Math.cos(a) * .42, c[1] + Math.sin(a) * .42, c[2] - .3 - flH(g, k + 30) * .15];
+        const sw = plie(1, .8, .7 + k * .05, 1.3), dn = flN([sw[0], sw[1], -1]), e = flA(q, dn, .16), luit = Math.pow(Math.max(0, Math.sin(t * 1.3 - k * .7 + ph)), 4);
+        os(q, e, .025, .025, bois); vif(e, flA(e, dn, .24), .2, .2, flMix(k % 2 ? coeur : pointe, [255, 255, 240], luit * .45), { boule: 4, rond: .7 });
+      }
       break;
     }
     // ---- les vives : elles attaquent ----
-    case 'gueule': {
+    case 'gueule': {                                    // deux mâchoires dentées au bout d'une tige en S : elle ondule, se cabre, s'ouvre, mord
       const arme = f.etat === 'arme' ? Math.min(1, f.armeT / .6) : 0, mord = f.etat === 'frappe' ? Math.max(0, 1 - f.frappeT / .25) : 0;
-      for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g; add([0, 0, .05], [Math.cos(a) * .8, Math.sin(a) * .8, .25 + sway(k, .05)], .32, .04, feuille); for (let j = 1; j <= 3; j++) add([Math.cos(a) * .25 * j, Math.sin(a) * .25 * j, .12 + j * .04], [Math.cos(a) * .25 * j, Math.sin(a) * .25 * j, .22 + j * .04], .02, .02, [230, 220, 200]); }
-      const cb = f.cible ?? 0, rel = cb - f.dir, cx = Math.cos(rel), sy = Math.sin(rel), lance = mord * 1.3 - arme * .4;
-      const pts = [[0, 0, 0], [-cx * .2 + sway(1, .05), -sy * .2, .7], [cx * (.1 + lance * .4), sy * (.1 + lance * .4), 1.3 + arme * .2], [cx * (.4 + lance), sy * (.4 + lance), 1.75 + arme * .3 - mord * .3]];
-      for (let k = 0; k < 3; k++) add(pts[k], pts[k + 1], .18 - k * .03, .18 - k * .03, tige);
-      const H = pts[3], ouv = (f.dead ? 0 : .25 + arme * .9) * (1 - mord), fw = [cx, sy, 0];
-      for (const s of [1, -1]) {                       // les deux mâchoires, et leurs dents
-        const d = [fw[0] * Math.cos(ouv * s) , fw[1] * Math.cos(ouv * s), Math.sin(ouv * s)], e = [H[0] + d[0] * .75, H[1] + d[1] * .75, H[2] + d[2] * .75];
-        add(H, e, .6, .1, fane(s > 0 ? petale : mix(petale, tige, .3)));
-        for (let k = 0; k < 6; k++) { const q = (k + .5) / 6, b0 = [H[0] + d[0] * .75 * q - sy * (q - .5) * .5, H[1] + d[1] * .75 * q + cx * (q - .5) * .5, H[2] + d[2] * .75 * q]; add(b0, [b0[0], b0[1], b0[2] - s * .1], .025, .04, [240, 236, 220]); }
+      for (let k = 0; k < 6; k++) {
+        const a = k * FL_GA + g * 6.28, ca = Math.cos(a), sa = Math.sin(a), d = [ca * .93, sa * .93, .35], nr = flN([-ca * .35, -sa * .35, .93]);
+        const [m] = lame([ca * .05, sa * .05, .05], d, .75, .26, nr, fonce, feuille, { k, tombe: .25, bout: .05, ep: .03 });
+        os(m, flA(m, [0, 0, 1], .1), .035, .035, [230, 220, 200], { pans: 6, fin: 0 });     // une épine
       }
-      if (ouv > .3) add(H, [H[0] + fw[0] * .4, H[1] + fw[1] * .4, H[2] + .02], .15, .08, [200, 40, 60], true);   // la langue
-      add([H[0] - fw[0] * .05, H[1] - fw[1] * .05, H[2]], [H[0], H[1], H[2]], .3, .3, fane(coeur), arme > .3);
+      const rel = (f.cible ?? 0) - f.dir, cx = Math.cos(rel), sy = Math.sin(rel), lance = mord * 1.3 - arme * .4, ond = Math.sin(t * .9 + ph) * .14 * (1 - arme), souffle = Math.sin(t * 1.3 + ph) * .05;
+      const P0 = [0, 0, 0], P1 = [-cx * .25 - sy * ond, -sy * .25 + cx * ond, .75], P2 = [cx * (.1 + lance * .4) + sy * ond, sy * (.1 + lance * .4) - cx * ond, 1.3 + arme * .2 + souffle], P3 = [cx * (.4 + lance), sy * (.4 + lance), 1.75 + arme * .3 - mord * .3 + souffle];
+      const bz = s => { const u = 1 - s; return [0, 1, 2].map(i => u * u * u * P0[i] + 3 * u * u * s * P1[i] + 3 * u * s * s * P2[i] + s * s * s * P3[i]); };
+      let q = P0;
+      for (let k = 1; k <= 6; k++) { const np = bz(k / 6), w0 = .2 - (k - 1) * .013, w1 = .2 - k * .013; os(q, np, w0, w0, flMix(tige, feuille, k / 12), { pans: 8, fin: w1 / w0 }); q = np; }
+      const H = P3, fw = flN([cx, sy, .45 - arme * .5 + mord * .2]), cote = flN(flX(fw, [0, 0, 1])), hv = flX(cote, fw);
+      const ouv = (f.dead ? 0 : .42 + .12 * Math.sin(t * 1.3 + ph) + arme * .65) * (1 - mord);
+      for (const s of [1, -1]) {                                                                // les deux mâchoires, et leurs dents
+        const d = flN([fw[0] * Math.cos(ouv) + hv[0] * Math.sin(ouv) * s, fw[1] * Math.cos(ouv) + hv[1] * Math.sin(ouv) * s, fw[2] * Math.cos(ouv) + hv[2] * Math.sin(ouv) * s]);
+        const dh = flN(flX(cote, d)), dedans = [-dh[0] * s, -dh[1] * s, -dh[2] * s];
+        os(H, flA(H, d, .75), .62, .24, s > 0 ? petale : flMix(petale, tige, .35), { boule: 5, rond: .7, nu: 1, ref: dh });
+        os(flA(flA(H, d, .06), dedans, .1), flA(flA(H, d, .62), dedans, .1), .44, .03, flMix(coeur, [120, 20, 40], .55), { ref: dh, fin: [.55, 1], nu: 1 });   // le palais
+        for (let k = 0; k < 3; k++) os(flA(flA(H, d, .2 + k * .17), dh, .12 * s), flA(flA(H, d, .25 + k * .17), dh, .14 * s), .07, .07, pointe, { boule: 3 });   // les taches
+        for (let k = 0; k < 4; k++) for (const c2 of [-1, 1]) {
+          const qd = (k + .5) / 4, b0 = flA(flA(flA(H, d, .12 + qd * .55), cote, c2 * .21 * (1 - qd * .45)), dh, -.03 * s);
+          os(b0, flA(b0, dedans, .12), .045, .045, [240, 236, 220], { pans: 6, fin: 0 });
+        }
+      }
+      if (ouv > .3) vif(flA(H, fw, .05), flA(H, fw, .45), .22, .1, [190, 40, 60], { boule: 3 });   // la langue
+      vif(flA(H, fw, -.1), flA(H, fw, .03), .26, .26, coeur, { boule: 3, luit: arme > .3 && !fan });
+      for (let k = 0; k < 3; k++) { const a = k / 3 * 6.2832 + g, d = flN([Math.cos(a) - fw[0] * .6, Math.sin(a) - fw[1] * .6, -.5]); lame(bz(.86), d, .32, .14, flN([0, 0, 1]), feuille, fonce, { k: 70 + k, bout: .1 }); }   // la collerette
       break;
     }
-    case 'fouetteuse': {
-      add([0, 0, 0], [0, 0, .5], .7, .55, fane(tige)); add([0, 0, .45], [0, 0, .6], .5, .3, fane(petale));
-      const cb = f.cible ?? 0, rel = cb - f.dir, fr = f.etat === 'frappe' ? Math.max(0, 1 - f.frappeT / .35) : 0, ar = f.etat === 'arme' ? Math.min(1, f.armeT / .6) : 0;
-      for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g, frappe = k === 0 ? fr : 0, arme = k === 0 ? ar : 0; let q = [0, 0, .5];
-        for (let m = 1; m <= 8; m++) { const q2 = m / 8, A = frappe > 0 ? rel : a + Math.sin(t * 1.8 + k * 2 + m * .4) * .3, L = frappe > 0 ? .55 : .3;
-          const z = frappe > 0 ? .5 + Math.sin(q2 * Math.PI) * 1.2 - q2 * .5 : .5 + Math.sin(q2 * 2.4) * (1.6 + arme * .8) + Math.sin(t * 2 + k + m) * .08;
-          const n = [q[0] + Math.cos(A) * L, q[1] + Math.sin(A) * L, z]; add(q, n, .07 - m * .005, .07 - m * .005, fane(mix(tige, petale, q2)));
-          if (m % 2 === 0) add(n, [n[0] + Math.cos(A + 1.5) * .12, n[1] + Math.sin(A + 1.5) * .12, n[2] + .05], .02, .02, [230, 220, 200]);
-          q = n; }
-        add(q, [q[0], q[1], q[2] + .05], .1, .1, fane(pointe), lu); }
+    case 'fouetteuse': {                                // des fouets d'épines : ils ondulent, l'un se dresse et se love en arrière, puis cingle
+      os([0, 0, -.05], [0, 0, .55], .75, .75, flMix(tige, feuille, .2), { boule: 4, rond: .6 });
+      for (let k = 0; k < 5; k++) { const a = k / 5 * 6.2832 + g + .6, ca = Math.cos(a), sa = Math.sin(a), d = [ca * .8, sa * .8, .3]; lame([ca * .25, sa * .25, .42], d, .42, .16, flN([-ca * .3, -sa * .3, .95]), feuille, fonce, { k, tombe: .35, bout: .1 }); }
+      corolle([0, 0, .55], [0, 0, 1], 6, .16, .08, .5, petale, pointe, { k: 20 });
+      vif([0, 0, .55], [0, 0, .64], .14, .14, coeur, { boule: 3 });
+      const rel = (f.cible ?? 0) - f.dir, fr = f.etat === 'frappe' ? Math.max(0, 1 - f.frappeT / .35) : 0, ar = f.etat === 'arme' ? Math.min(1, f.armeT / .6) : 0;
+      for (let k = 0; k < 5; k++) {
+        const a = k / 5 * 6.2832 + g, frappe = k === 0 ? fr : 0, arme = k === 0 ? ar : 0, ph2 = 1 - frappe, tremble = arme * Math.sin(t * 25 + k) * .05;
+        let q = [Math.cos(a) * .18, Math.sin(a) * .18, .5];
+        for (let m = 1; m <= 10; m++) {
+          const s = m / 10, ond = Math.sin(s * 3.5 - t * 1.9 + k * 2.1 + ph) * .35 * (frappe > 0 ? .2 : 1);
+          const el = frappe > 0 ? (1.35 - ph2 * 1.5) - s * (1.6 - ph2 * 1.35) : arme > 0 ? 1.25 + s * 1.5 * arme + tremble : 1.2 - s * 2 + Math.sin(t * .8 + k) * .15;
+          const A = (frappe > 0 || arme > 0 ? rel : a) + ond * .6, d = [Math.cos(A) * Math.cos(el), Math.sin(A) * Math.cos(el), Math.sin(el)];
+          const np = flA(q, d, .23), w = .11 - s * .075;
+          os(flA(q, d, -w * .3), np, w, w, flMix(tige, petale, s * .8), { pans: 6, fin: .9 });
+          if (m % 2 === 0 && m < 10) { const sd = flN(flX(d, [0, 0, 1])); for (const c2 of [-1, 1]) os(np, flA(flA(np, sd, .1 * c2), d, .03), .03, .03, [235, 225, 205], { pans: 6, fin: 0 }); }
+          q = np;
+        }
+        vif(q, flA(q, [0, 0, 1], .06), .1, .1, pointe, { boule: 3 });
+      }
       break;
     }
-    case 'cracheuse': {
-      const gonfle = f.etat === 'arme' ? Math.min(1, f.armeT / .9) : 0, pulse = .5 + .5 * Math.sin(t * 2.5 + g * 4);
-      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g; add([0, 0, .05], [Math.cos(a) * .7, Math.sin(a) * .7, .3], .3, .04, feuille); add([Math.cos(a) * .35, Math.sin(a) * .35, .5], [Math.cos(a) * .55, Math.sin(a) * .55, .7], .03, .03, [230, 220, 200]); }
-      add([0, 0, 0], [0, 0, .35], .25, .25, tige);
-      const R = .55 + gonfle * .2 + pulse * .03;
-      add([0, 0, .35], [0, 0, .35 + R * 1.5], R * 1.6, R * 1.5, fane(petale));
-      for (let k = 0; k < 6; k++) { const a = k / 6 * 6.2832 + g; add([Math.cos(a) * R * .8, Math.sin(a) * R * .8, .5], [Math.cos(a) * R * .75, Math.sin(a) * R * .75, .35 + R * 1.3], .04, .04, fane(coeur), lu); }   // les veines
-      add([0, 0, .35 + R * 1.5], [0, 0, .5 + R * 1.5 + gonfle * .1], .3, .3, fane(pointe)); add([0, 0, .5 + R * 1.5 + gonfle * .1], [0, 0, .55 + R * 1.5 + gonfle * .1], .2, .2, fane(coeur), lu || gonfle > 0);
+    case 'cracheuse': {                                 // un bulbe veiné : il respire, gonfle en visant, crache et se rétracte
+      const gonfle = f.etat === 'arme' ? Math.min(1, f.armeT / .9) : 0, recul = f.etat === 'frappe' ? Math.max(0, 1 - f.frappeT / .4) : 0, pulse = .5 + .5 * Math.sin(t * 2.2 + ph);
+      rosette(6, .7, .24, .25, fonce, feuille, { bout: .05, tombe: .2, ep: .03 });
+      for (let k = 0; k < 6; k++) { const a = k * FL_GA + g * 6.28 + .3; os([Math.cos(a) * .3, Math.sin(a) * .3, .12], [Math.cos(a) * .42, Math.sin(a) * .42, .32], .04, .04, [230, 220, 200], { pans: 6, fin: 0 }); }
+      const rel = (f.cible ?? 0) - f.dir, vise = f.etat === 'arme' || f.etat === 'frappe' ? .45 : .12 * Math.sin(t * .5 + ph), ax = flN([Math.cos(rel) * vise, Math.sin(rel) * vise, 1]);
+      const p = tigeDe([0, 0, 0], 3, .38, [0, 0, 1], [ax[0], ax[1], 0], .1, .24, .2, tige, flMix(tige, petale, .3), { pans: 8 }), nb = p[3];
+      const R = (.55 + gonfle * .22 + pulse * .03) * (1 - recul * .15), Cc = flA(nb, ax, R * .75), [e1, e2] = autour(ax);
+      os(nb, flA(nb, ax, R * 1.5), R * 1.65, R * 1.65, flMix(petale, [255, 255, 255], gonfle * .1), { boule: 5, rond: .65, nu: 1 });
+      const vc = flMix(coeur, [255, 255, 255], gonfle * .4);
+      for (let k = 0; k < 6; k++) {                                                             // les veines, sur le bulbe
+        const [rd] = rayon(e1, e2, k / 6 * 6.2832 + g);
+        let q = null;
+        for (let j = 0; j <= 4; j++) { const fi = .35 + j / 4 * 2.3, np = flA(flA(Cc, ax, -Math.cos(fi) * R * .75), rd, Math.sin(fi) * R * .84); if (q) os(q, np, .05, .05, vc, { luit: !fan }); q = np; }
+      }
+      const top = flA(nb, ax, R * 1.5);
+      corolle(flA(top, ax, -.04), ax, 5, .2, .14, .95 - recul * .75, pointe, flMix(pointe, coeur, .3), { k: 30, bout: .3, ep: .03 });   // les lèvres
+      vif(flA(top, ax, -.08), flA(top, ax, .05), .22 + gonfle * .1, .22 + gonfle * .1, coeur, { boule: 3, luit: !fan || gonfle > 0 });
       break;
     }
   }
-  if (f.hit > 0) for (const o of B) o.c = mix(o.c, [255, 220, 210], .5);
+  if (f.hit > 0) for (const o of B) o.c = flMix(o.c, [255, 220, 210], .5);
   return B;
 }
 function dessinPlante(d, sp) { d.ligne(8, 15, 8, 7, [90, 140, 60]); d.rect(5, 3, 11, 7, [240, 170, 220]); d.net(8, 5, [255, 240, 140]); }
