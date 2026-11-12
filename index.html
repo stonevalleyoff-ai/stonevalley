@@ -878,28 +878,28 @@
 </div>
 <div class="ui" id="tip">ZQSD MARCHER · MAJ COURIR · W RUÉE/ESQUIVE · P HÉROS (DONS) · G NOURRIR · Y LIEN · H SIFFLER · L SORT EN MAIN · O LANTERNE (ACHROMIE) · T BARRE DE CASES · B FABRIQUER · J JOURNAL · K COMPAGNES · V 1re P. · Q/E PIVOTER · R/F INCLINER · +/− ZOOM · EN 1re P. CLIC DROIT : CAMÉRA, CLIC GAUCHE : ATTAQUER</div>
 
-<script src="donjon.js?v=225"></script>
-<script src="rouages.js?v=225"></script>
-<script src="forge.js?v=225"></script>
-<script src="nomades.js?v=225"></script>
-<script src="etats.js?v=225"></script>
-<script src="brume.js?v=225"></script>
-<script src="roi.js?v=225"></script>
-<script src="trone.js?v=225"></script>
-<script src="achromie.js?v=225"></script>
-<script src="vyrel.js?v=225"></script>
-<script src="village.js?v=225"></script>
-<script src="volcan.js?v=225"></script>
-<script src="dons.js?v=225"></script>
-<script src="coop.js?v=225"></script>
-<script src="faune.js?v=225"></script>
-<script src="flore.js?v=225"></script>
-<script src="lignees.js?v=225"></script>
-<script src="conduites.js?v=225"></script>
-<script src="pouvoirs.js?v=225"></script>
+<script src="donjon.js?v=226"></script>
+<script src="rouages.js?v=226"></script>
+<script src="forge.js?v=226"></script>
+<script src="nomades.js?v=226"></script>
+<script src="etats.js?v=226"></script>
+<script src="brume.js?v=226"></script>
+<script src="roi.js?v=226"></script>
+<script src="trone.js?v=226"></script>
+<script src="achromie.js?v=226"></script>
+<script src="vyrel.js?v=226"></script>
+<script src="village.js?v=226"></script>
+<script src="volcan.js?v=226"></script>
+<script src="dons.js?v=226"></script>
+<script src="coop.js?v=226"></script>
+<script src="faune.js?v=226"></script>
+<script src="flore.js?v=226"></script>
+<script src="lignees.js?v=226"></script>
+<script src="conduites.js?v=226"></script>
+<script src="pouvoirs.js?v=226"></script>
 <script>ORVANE_CHEMIN = 'https://stonevalleyoff-ai.github.io/orvane/mondes/orvane/';   // (§217) le monde d'Orvane, où tous les jeux se branchent
 ORVANE_DEPOT = { url: 'https://rospodujiyltmxitykwc.supabase.co', cle: 'sb_publishable_F98uYIaPrLTjhj3n7QiBOg_SOtFynn8', jeu: 'orv_eb49dbe1650c2d4a604b1201425d58a9' };   // (§217) le Supabase d'Orvane : sa clé publique, celle du jeu</script>
-<script src="orvane/corps.js?v=225"></script><script src="orvane/tampon.js?v=225"></script><script src="orvane/correspondance.js?v=225"></script><script src="orvane/secours.js?v=225"></script><script src="orvane/orvane-sv.js?v=225"></script>
+<script src="orvane/corps.js?v=226"></script><script src="orvane/tampon.js?v=226"></script><script src="orvane/correspondance.js?v=226"></script><script src="orvane/secours.js?v=226"></script><script src="orvane/orvane-sv.js?v=226"></script>
 <script>
 'use strict';
 // (§139) Les pannes : déclarées tout en haut, car le journal de jeu peut démarrer pendant le chargement (une
@@ -24896,6 +24896,7 @@ function prendreSession(r) {
 async function auth(chemin, corps, jeton, methode) {
   const r = await fetch(SUPA.url + '/auth/v1' + chemin, {
     method: methode || 'POST', cache: 'no-store',
+    referrerPolicy: 'no-referrer',   // (§256) sinon Supabase prend l'origine du site (sa racine, qui n'existe pas) pour l'adresse des courriels
     headers: Object.assign({ 'Content-Type': 'application/json', apikey: SUPA.cle },
       jeton ? { Authorization: 'Bearer ' + jeton } : {}),
     body: corps ? JSON.stringify(corps) : undefined,
@@ -25601,8 +25602,12 @@ function entrer() {
   $p('porte').classList.add('parti');
   if (!Sauve.pret) demarrerSauvegarde();
 }
+// (§256) L'adresse où renvoient les courriels (confirmation, mot de passe oublié) : la page du jeu. Supabase la lit dans
+// l'adresse de la requête (?redirect_to=), pas dans son corps ; faute de quoi il prenait l'origine envoyée par le navigateur,
+// https://stonevalleyoff-ai.github.io/, la racine du site, qui n'existe pas : le lien du courriel menait à une page 404.
+const retourCourriel = () => '?redirect_to=' + encodeURIComponent(location.origin + location.pathname);
 async function inscription(email, mdp) {
-  const r = await auth('/signup', { email, password: mdp, options: { email_redirect_to: location.origin + location.pathname } });
+  const r = await auth('/signup' + retourCourriel(), { email, password: mdp });
   // Sans confirmation exigée, Supabase rend déjà une session : on entre. Sinon, on attend le courriel.
   if (r && r.access_token) { prendreSession(r); entrer(); return true; }
   return false;
@@ -25612,7 +25617,7 @@ async function connexion(email, mdp) {
   entrer();
 }
 async function oubli(email) {
-  await auth('/recover', { email, redirect_to: location.origin + location.pathname });
+  await auth('/recover' + retourCourriel(), { email });
 }
 async function nouveauMdp(mdp) {
   const r = await auth('/user', { password: mdp }, Compte.jeton, 'PUT');

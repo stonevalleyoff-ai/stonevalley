@@ -8017,3 +8017,20 @@ Mesuré : la même île, le même monde, rechargée, montrait des lucioles et de
 - puis trois avec celui d'aujourd'hui (cycle 49, 303 lignées) : Lomuel et Soméne chaque fois. Avant, Soméne cédait sa place au deuxième chargement.
 
 Six îles, en ligne et hors ligne, les compagnes, la monture : aucune erreur nouvelle. `sw.js` : `stone-valley-225`.
+
+## §256 · Le lien du courriel « mot de passe oublié » menait à une page 404
+
+**La cause.** Pour dire où renvoyer le joueur, le jeu mettait l'adresse de la page dans le **corps** de la demande (`redirect_to` pour `/recover`, `email_redirect_to` pour `/signup`). Supabase ne la lit que dans **l'adresse** de la requête (`?redirect_to=`). Faute de quoi, il prend l'en-tête `Referer` du navigateur. Pour une requête vers un autre site, le navigateur n'y met que l'origine : `https://stonevalleyoff-ai.github.io/`. C'est la racine du site, elle n'existe pas, et le lien du courriel y menait : 404.
+
+Vérifié sans envoyer de courriel, sur le lien de vérification de Supabase avec un faux jeton :
+- sans adresse de retour : la page du jeu (l'adresse du projet est la bonne) ;
+- avec `redirect_to` = la page du jeu : la page du jeu ;
+- avec l'origine du navigateur en `Referer` : `https://stonevalleyoff-ai.github.io/`, la racine, en 404.
+
+**La correction.**
+- `retourCourriel()` met l'adresse de la page dans l'adresse de la requête : `/recover?redirect_to=…` et `/signup?redirect_to=…`. Le courriel de confirmation d'un nouveau compte avait le même défaut.
+- `auth()` n'envoie plus d'en-tête `Referer` (`referrerPolicy: 'no-referrer'`). Sans adresse de retour, Supabase prend celle du projet, la bonne.
+
+**Les courriels déjà reçus** gardent l'ancien lien : il faut en redemander un.
+
+Vérifié dans le navigateur, la requête interceptée (aucun courriel ne part) : `/recover?redirect_to=<la page du jeu>`, corps `{ email }`, aucun `Referer`, et le message « si un compte existe pour cette adresse, le lien est parti ». Pareil pour la création de compte. `sw.js` : `stone-valley-226`.
