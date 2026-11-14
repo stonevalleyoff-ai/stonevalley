@@ -1988,9 +1988,11 @@ function mkNoise(seed) {
 function fbm(n, x, y, oc) { let a = 1, f = 1, s2 = 0, nm = 0; for (let i = 0; i < oc; i++) { s2 += a * n(x * f, y * f); nm += a; a *= .5; f *= 2; } return s2 / nm; }
 // La graine de l'île vient de la copie locale s'il y en a une : on retrouve la même île.
 // Une copie par compte : deux joueurs sur le même navigateur ne se marchent pas dessus.
-const SESSION_CLE = 'stone_valley_session';
+// (§257) La session est commune au portail et aux jeux du site (même adresse, même stockage) : connecté au portail, on l'est ici,
+// et l'inverse. L'ancienne clé, propre au jeu, est encore lue une fois, pour ne déconnecter personne.
+const SESSION_CLE = 'stonevalley:session', SESSION_ANCIENNE = 'stone_valley_session';
 function sessionGardee() {
-  try { return JSON.parse(localStorage.getItem(SESSION_CLE) || 'null'); } catch (e) { return null; }
+  try { return JSON.parse(localStorage.getItem(SESSION_CLE) || localStorage.getItem(SESSION_ANCIENNE) || 'null'); } catch (e) { return null; }
 }
 function nomCopie(uid) { return 'stone_valley' + (uid ? ':' + uid : ''); }
 // Le nom de la copie suit le compte : au premier passage il est encore sans nom, entrer() le fixe.
@@ -24877,9 +24879,12 @@ const SUPA = {
 const Compte = { jeton: null, refresh: null, exp: 0, uid: null, email: '', dedans: false };
 function ecrireSession() {
   try {
+    const avant = sessionGardee();                       // (§257) le pseudo que le portail y a mis reste, si c'est le même compte
     if (Compte.jeton) localStorage.setItem(SESSION_CLE, JSON.stringify({ jeton: Compte.jeton,
-      refresh: Compte.refresh, exp: Compte.exp, uid: Compte.uid, email: Compte.email }));
+      refresh: Compte.refresh, exp: Compte.exp, uid: Compte.uid, email: Compte.email,
+      pseudo: (avant && avant.uid === Compte.uid && avant.pseudo) || '' }));
     else localStorage.removeItem(SESSION_CLE);
+    localStorage.removeItem(SESSION_ANCIENNE);
   } catch (e) { /* stockage refusé : la session ne tiendra que cet onglet */ }
 }
 function prendreSession(r) {
@@ -24916,16 +24921,27 @@ async function jetonValide() {
   if (!Compte.jeton) return null;
   if (Date.now() < Compte.exp - 60000) return Compte.jeton;
   if (!Compte.refresh) return Compte.jeton;
+  if (sessionRenouveleeAilleurs()) return Compte.jeton;   // (§257) le portail ou un autre jeu vient de la renouveler : on la prend
   if (!renouvellement) renouvellement = (async () => {
     try {
       const r = await auth('/token?grant_type=refresh_token', { refresh_token: Compte.refresh });
       prendreSession(r);
     } catch (e) {
-      if (e.code === 400 || e.code === 401) { quitterCompte(true); return null; }   // session périmée
+      // session périmée — sauf si elle vient d'être renouvelée ailleurs pendant qu'on demandait (§257)
+      if ((e.code === 400 || e.code === 401) && !sessionRenouveleeAilleurs()) { quitterCompte(true); return null; }
     } finally { renouvellement = null; }
     return Compte.jeton;
   })();
   return renouvellement;
+}
+// (§257) La session commune a-t-elle été renouvelée par le portail ou un autre jeu ? Si oui on prend la leur : un jeton de
+// renouvellement ne sert qu'une fois, s'en resservir fermerait la session de tout le monde.
+function sessionRenouveleeAilleurs() {
+  const g = sessionGardee();
+  if (!g || !g.jeton || !g.refresh || g.uid !== Compte.uid || g.refresh === Compte.refresh || !(g.exp > Date.now() + 60000)) return false;
+  Compte.jeton = g.jeton; Compte.refresh = g.refresh; Compte.exp = g.exp;
+  jetonReseau();
+  return true;
 }
 function quitterCompte(force) {
   const jeton = Compte.jeton;
